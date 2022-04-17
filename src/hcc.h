@@ -557,9 +557,9 @@ struct HccString {
 	char* data;
 	uintptr_t size;
 };
-#define hcc_string(data, size) ((HccString) { data, size });
-#define hcc_string_lit(lit) ((HccString) { lit, sizeof(lit) - 1 });
-#define hcc_string_c(string) ((HccString) { string, strlen(string) });
+#define hcc_string(data, size) ((HccString) { data, size })
+#define hcc_string_lit(lit) ((HccString) { lit, sizeof(lit) - 1 })
+#define hcc_string_c(string) ((HccString) { string, strlen(string) })
 #define hcc_string_eq(a, b) ((a).size == (b).size && memcmp((a).data, (b).data, (a).size) == 0)
 #define hcc_string_eq_c(a, c_string) ((a).size == strlen(c_string) && memcmp((a).data, c_string, (a).size) == 0)
 #define hcc_string_eq_lit(a, lit) ((a).size == sizeof(lit) - 1 && memcmp((a).data, lit, (a).size) == 0)
@@ -1255,7 +1255,7 @@ void hcc_string_buffer_append_byte(HccAstGen* astgen, char byte);
 void hcc_string_buffer_append_string(HccAstGen* astgen, char* string, U32 string_size);
 void hcc_string_buffer_append_fmt(HccAstGen* astgen, char* fmt, ...);
 
-bool hcc_code_file_find_or_insert(HccAstGen* astgen, HccStringId path_string_id, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out);
+bool hcc_code_file_find_or_insert(HccAstGen* astgen, HccString path_string, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out);
 HccCodeFile* hcc_code_file_get(HccAstGen* astgen, HccCodeFileId code_file_id);
 
 void hcc_pp_if_span_push(HccAstGen* astgen, HccPPDirective directive);

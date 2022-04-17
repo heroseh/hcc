@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 
@@ -111,6 +112,48 @@ ERROR_2:
 bool hcc_file_exist(char* path) {
 #ifdef __linux__
 	return access(path, F_OK) == 0;
+#else
+#error "unimplemented for this platform"
+#endif
+}
+
+bool hcc_change_working_directory(char* path) {
+#ifdef __linux__
+	return chdir(path) == 0;
+#else
+#error "unimplemented for this platform"
+#endif
+}
+
+void hcc_change_working_directory_to_same_as_this_file(HccAstGen* astgen, char* path) {
+	char* end = strrchr(path, '/');
+	char path_buf[1024];
+	if (end == NULL) {
+		path_buf[0] = '/';
+		path_buf[1] = '\0';
+	} else {
+		U32 size = end - path + 1;
+		HCC_ASSERT_ARRAY_BOUNDS(size, sizeof(path_buf));
+		memcpy(path_buf, path, size);
+		path_buf[size] = '\0';
+	}
+
+	if (!hcc_change_working_directory(path_buf)) {
+		char error_buf[512];
+		hcc_get_last_system_error_string(error_buf, sizeof(error_buf));
+		hcc_astgen_token_error_1(astgen, "internal error: failed to change the working directory to '%s': %s", path_buf, error_buf);
+	}
+}
+
+HccString hcc_path_canonicalize(HccAstGen* astgen, char* path) {
+#ifdef __linux__
+	char* new_path = malloc(PATH_MAX);
+	if (realpath(path, new_path) == NULL) {
+		char error_buf[512];
+		hcc_get_last_system_error_string(error_buf, sizeof(error_buf));
+		hcc_astgen_token_error_1(astgen, "failed to locate file at '%s': %s", path, error_buf);
+	}
+	return hcc_string_c(new_path);
 #else
 #error "unimplemented for this platform"
 #endif
@@ -1621,6 +1664,8 @@ void hcc_code_span_push_file(HccAstGen* astgen, HccCodeFileId code_file_id) {
 	span->line_code_start_indices[0] = 0;
 	span->line_code_start_indices[1] = 0;
 	span->lines_count += 2;
+
+	hcc_change_working_directory_to_same_as_this_file(astgen, code_file->path_string.data);
 }
 
 void hcc_code_span_push_macro_arg(HccAstGen* astgen, HccCodeSpan* macro_span, U32 macro_arg_idx, U8* code, U32 code_size) {
@@ -1754,6 +1799,14 @@ bool hcc_code_span_pop(HccAstGen* astgen) {
 		HccCodeSpan* popped_span = &astgen->code_spans[astgen->code_span_stack[astgen->code_span_stack_count]];
 		if (popped_span->macro) {
 			astgen->macro_args_count -= popped_span->macro->params_count;
+		} else if (popped_span->code_file) {
+			for (U32 idx = astgen->code_span_stack_count; idx-- > 0; idx += 1) {
+				HccCodeSpan* span = &astgen->code_spans[astgen->code_span_stack[idx]];
+				if (span->code_file) {
+					hcc_change_working_directory_to_same_as_this_file(astgen, span->code_file->path_string.data);
+					break;
+				}
+			}
 		}
 		astgen->span = &astgen->code_spans[astgen->code_span_stack[astgen->code_span_stack_count - 1]];
 #if HCC_DEBUG_CODE_SPAN_PUSH_POP
@@ -2425,15 +2478,15 @@ ERROR:
 			hcc_string_buffer_append_string(astgen, path_string.data, path_string.size);
 
 			if (hcc_file_exist(astgen->string_buffer)) {
-				path_string_id = hcc_string_table_deduplicate(&astgen->string_table, astgen->string_buffer, astgen->string_buffer_size);
 				path_string = hcc_string_table_get(&astgen->string_table, path_string_id);
 				break;
 			}
 		}
 	}
+
 	HccCodeFileId code_file_id;
 	HccCodeFile* code_file;
-	bool found_file = hcc_code_file_find_or_insert(astgen, path_string_id, &code_file_id, &code_file);
+	bool found_file = hcc_code_file_find_or_insert(astgen, path_string, &code_file_id, &code_file);
 	if (!found_file) {
 		U64 code_size;
 		U8* code = hcc_file_read_all_the_codes(path_string.data, &code_size);
@@ -9506,7 +9559,10 @@ void hcc_spirv_generate(HccCompiler* c) {
 //
 // ===========================================
 
-bool hcc_code_file_find_or_insert(HccAstGen* astgen, HccStringId path_string_id, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out) {
+bool hcc_code_file_find_or_insert(HccAstGen* astgen, HccString path_string, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out) {
+	path_string = hcc_path_canonicalize(astgen, path_string.data);
+	HccStringId path_string_id = hcc_string_table_deduplicate(&astgen->string_table, path_string.data, path_string.size);
+
 	U32* code_file_idx;
 	if (hcc_hash_table_find_or_insert(&astgen->path_to_code_file_id_map, path_string_id.idx_plus_one, &code_file_idx)) {
 		*code_file_id_out = ((HccCodeFileId) { .idx_plus_one = *code_file_idx + 1 });
@@ -9662,11 +9718,10 @@ void hcc_compiler_init(HccCompiler* compiler, HccCompilerSetup* setup) {
 
 void hcc_compiler_compile(HccCompiler* compiler, char* file_path) {
 	U32 file_path_size = strlen(file_path) + 1;
-	HccStringId path_string_id = hcc_string_table_deduplicate(&compiler->astgen.string_table, file_path, file_path_size);
 
 	HccCodeFileId code_file_id;
 	HccCodeFile* code_file;
-	bool found_file = hcc_code_file_find_or_insert(&compiler->astgen, path_string_id, &code_file_id, &code_file);
+	bool found_file = hcc_code_file_find_or_insert(&compiler->astgen, hcc_string_c(file_path), &code_file_id, &code_file);
 	HCC_DEBUG_ASSERT(!found_file, "internal error: root file should be able to be inserted into the hash table no problem");
 
 	U64 code_size;
