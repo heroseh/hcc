@@ -403,6 +403,7 @@ enum {
 	HCC_TOKEN_IDENT,
 	HCC_TOKEN_STRING,
 	HCC_TOKEN_INCLUDE_PATH_SYSTEM,
+	HCC_TOKEN_BACK_SLASH,
 
 	//
 	// symbols
@@ -1205,6 +1206,10 @@ struct HccAstGen {
 	char* string_buffer;
 	U32 string_buffer_size;
 	U32 string_buffer_cap;
+
+	char* stringify_buffer;
+	U32 stringify_buffer_size;
+	U32 stringify_buffer_cap;
 
 	HccToken* tokens;
 	U32*      token_location_indices;

@@ -40,6 +40,15 @@ typedef vec4_t Vec4;
 
 #define TEST3(A, ...) A; __VA_ARGS__
 
+#define HASH_HASH # ## #
+#define MKSTR(a) # a
+#define IN_BETWEEN(a) MKSTR(a)
+#define JOIN(c, d) IN_BETWEEN(c HASH_HASH d)
+
+#define NUM 123
+
+IN_BETWEEN(NUM);
+
 #ifdef COND
 #ifdef COND2
 #define COND_TEST 1.f
