@@ -1349,7 +1349,7 @@ void hcc_astgen_error_file_line(HccAstGen* astgen, char* file_path, U32 line, U3
 	printf(error_fmt, file_path, line, column);
 }
 
-void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 display_line_num_size, U32 line) {
+U32 hcc_line_size(HccCodeSpan* span, U32 line) {
 	U32 code_start_idx = span->line_code_start_indices[line];
 	U32 code_end_idx;
 	if (line >= span->lines_count) {
@@ -1367,19 +1367,29 @@ void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 displa
 		}
 	}
 
-	if (code_end_idx <= code_start_idx) {
+	if (code_start_idx < code_end_idx) {
+		return code_end_idx - code_start_idx;
+	} else {
+		return 0;
+	}
+}
+
+void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 display_line_num_size, U32 line) {
+	U32 line_size = hcc_line_size(span, line);
+
+	if (line_size == 0) {
 		const char* fmt = astgen->print_color
 			? "\x1b[1;94m%*u|\x1b[0m\n"
 			: "%*u|\n";
 		printf(fmt, display_line_num_size, line);
 	} else {
-		U32 code_size = code_end_idx - code_start_idx;
+		U32 code_start_idx = span->line_code_start_indices[line];
 		char* code = (char*)&span->code[code_start_idx];
 
 		char code_without_tabs[1024];
 		U32 dst_idx = 0;
 		U32 src_idx = 0;
-		for (; dst_idx < HCC_MIN(sizeof(code_without_tabs), code_size); dst_idx += 1, src_idx += 1) {
+		for (; dst_idx < HCC_MIN(sizeof(code_without_tabs), line_size); dst_idx += 1, src_idx += 1) {
 			char byte = code[src_idx];
 			if (byte == '\t') {
 				code_without_tabs[dst_idx + 0] = ' ';
@@ -1387,7 +1397,7 @@ void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 displa
 				code_without_tabs[dst_idx + 2] = ' ';
 				code_without_tabs[dst_idx + 3] = ' ';
 				dst_idx += 3;
-				code_size += 3;
+				line_size += 3;
 			} else {
 				code_without_tabs[dst_idx] = byte;
 			}
@@ -1396,7 +1406,7 @@ void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 displa
 		const char* fmt = astgen->print_color
 			? "\x1b[1;94m%*u|\x1b[0m %.*s\n"
 			: "%*u| %.*s\n";
-		printf(fmt, display_line_num_size, line, code_size, code_without_tabs);
+		printf(fmt, display_line_num_size, line, line_size, code_without_tabs);
 	}
 }
 
@@ -1446,15 +1456,17 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 				location->code_start_idx += applied_location->code_start_idx;
 				location->code_end_idx += applied_location->code_end_idx;
 				location->line_start += applied_location->line_start;
-				location->line_end += applied_location->line_end;
+				location->line_end += applied_location->line_end - 1;
 			}
 
 			file_span = parent_span;
 		}
 	}
 
+	U32 error_lines_count = location->line_end - location->line_start;
+
 	U32 display_line_num_size = 0;
-	U32 line = location->line_end + 2;
+	U32 line = location->line_end + error_lines_count + 1;
 	while (line) {
 		if (line < 10) {
 			line = 0;
@@ -1468,7 +1480,7 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 	U32 tab_size = 4;
 	display_line_num_size = HCC_INT_ROUND_UP_ALIGN(display_line_num_size, tab_size) - 2;
 
-	line = location->line_end;
+	line = location->line_start;
 	if (line > 2) {
 		hcc_astgen_print_code_line(astgen, file_span, display_line_num_size, line - 2);
 	}
@@ -1476,31 +1488,51 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 		hcc_astgen_print_code_line(astgen, file_span, display_line_num_size, line - 1);
 	}
 
-	hcc_astgen_print_code_line(astgen, file_span, display_line_num_size, line);
-
-	for (U32 i = 0; i < display_line_num_size + 1; i += 1) {
-		putchar(' ');
-	}
-
-	for (U32 i = 0; i < location->column_start; i += 1) {
-		if (location->code_start_idx > location->column_start && file_span->code[location->code_start_idx - location->column_start + i] == '\t') {
-			printf("    ");
+	U32 column_start = location->column_start;
+	U32 column_end;
+	for (U32 idx = 0; idx < error_lines_count; idx += 1) {
+		U32 code_start_idx = file_span->line_code_start_indices[line + idx];
+		if (idx + 1 == error_lines_count) {
+			column_end = location->column_end;
 		} else {
+			column_end = hcc_line_size(file_span, line + idx) + 1;
+		}
+
+		hcc_astgen_print_code_line(astgen, file_span, display_line_num_size, line + idx);
+
+		for (U32 i = 0; i < display_line_num_size + 2; i += 1) {
 			putchar(' ');
 		}
+
+		for (U32 i = 0; i < column_start - 1; i += 1) {
+			if (file_span->code[code_start_idx + i] == '\t') {
+				printf("    ");
+			} else {
+				putchar(' ');
+			}
+		}
+
+		U32 column_end_with_tabs = column_end;
+		for (U32 i = column_start - 1; i < column_end - 1; i += 1) {
+			if (file_span->code[code_start_idx + i] == '\t') {
+				column_end_with_tabs += 3;
+			}
+		}
+
+		if (astgen->print_color) {
+			printf("\x1b[1;93m");
+		}
+		for (U32 i = 0; i < column_end_with_tabs - column_start; i += 1) {
+			putchar('^');
+		}
+		if (astgen->print_color) {
+			printf("\x1b[0m");
+		}
+		printf("\n");
+		column_start = 1;
 	}
 
-	if (astgen->print_color) {
-		printf("\x1b[1;93m");
-	}
-	for (U32 i = 0; i < location->column_end - location->column_start; i += 1) {
-		putchar('^');
-	}
-	if (astgen->print_color) {
-		printf("\x1b[0m");
-	}
-	printf("\n");
-
+	line = location->line_end - 1;
 	if (line + 1 <= file_span->lines_count) {
 		hcc_astgen_print_code_line(astgen, file_span, display_line_num_size, line + 1);
 	}
@@ -1520,7 +1552,6 @@ void hcc_astgen_add_line_start_idx(HccAstGen* astgen, HccCodeSpan* span) {
 }
 
 void hcc_astgen_found_newline(HccAstGen* astgen, HccCodeSpan* span) {
-	span->location.line_start += 1;
 	span->location.line_end += 1;
 	span->location.column_start = 1;
 	span->location.column_end = 1;
@@ -1626,7 +1657,6 @@ void hcc_astgen_error_2(HccAstGen* astgen, U32 other_token_idx, const char* fmt,
 
 void _hcc_token_location_add(HccAstGen* astgen, HccLocation* location) {
 	HCC_ASSERT_ARRAY_BOUNDS(astgen->token_locations_count, astgen->token_locations_cap);
-	HCC_ASSERT(location->column_end >= location->column_start, "");
 	astgen->token_locations[astgen->token_locations_count] = *location;
 	astgen->token_locations_count += 1;
 }
@@ -1641,6 +1671,7 @@ HccCodeSpan* _hcc_code_span_push(HccAstGen* astgen) {
 	HCC_ASSERT_ARRAY_BOUNDS(span_idx, astgen->code_spans_cap);
 	HccCodeSpan* span = &astgen->code_spans[span_idx];
 	HCC_ZERO_ELMT(span);
+	span->location.line_end = 1;
 
 	astgen->code_spans_count += 1;
 	astgen->span = span;
@@ -1672,7 +1703,7 @@ void hcc_code_span_push_file(HccAstGen* astgen, HccCodeFileId code_file_id) {
 	span->lines_cap = astgen->lines_cap;
 
 	span->location.line_start = 1;
-	span->location.line_end = 1;
+	span->location.line_end = 2;
 	span->location.column_start = 1;
 	span->location.column_end = 1;
 
@@ -1759,7 +1790,7 @@ void hcc_code_span_push_predefined_macro(HccAstGen* astgen, HccPredefinedMacro p
 		};
 		case HCC_PREDEFINED_MACRO___LINE__:
 			code = hcc_string(&astgen->string_buffer[astgen->string_buffer_size], astgen->string_buffer_size);
-			hcc_string_buffer_append_fmt(astgen, "%u", astgen->span->location.line_end);
+			hcc_string_buffer_append_fmt(astgen, "%u", astgen->span->location.line_end - 1);
 			code.size = astgen->string_buffer_size - code.size;
 			break;
 		case HCC_PREDEFINED_MACRO___COUNTER__:
@@ -3099,7 +3130,7 @@ bool hcc_astgen_parse_preprocessor_directive(HccAstGen* astgen, bool is_skipping
 
 #if HCC_DEBUG_CODE_PREPROCESSOR
 	U32 debug_indent_level = astgen->pp_if_spans_stack_count;
-	U32 debug_line = span->location.line_end;
+	U32 debug_line = span->location.line_end - 1;
 	if (directive == HCC_PP_DIRECTIVE_ENDIF) {
 		debug_indent_level -= 1;
 	}
@@ -3450,9 +3481,6 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 			}
 
 			arg_location.column_end = span->location.column_end;
-			if (arg_location.line_start != span->location.line_end) {
-				arg_location.column_start = 1;
-			}
 			arg_location.code_end_idx = span->location.code_end_idx;
 			_hcc_token_location_add(astgen, &arg_location);
 
@@ -3640,7 +3668,7 @@ void hcc_astgen_tokenize_run(HccAstGen* astgen) {
 		uint8_t byte = astgen->span->code[astgen->span->location.code_end_idx];
 
 		astgen->span->location.code_start_idx = astgen->span->location.code_end_idx;
-		astgen->span->location.line_start = astgen->span->location.line_end;
+		astgen->span->location.line_start += astgen->span->location.line_end - astgen->span->location.line_start - 1;
 		astgen->span->location.column_start = astgen->span->location.column_end;
 
 		HccToken token = HCC_TOKEN_COUNT;
@@ -3918,7 +3946,7 @@ CLOSE_BRACKETS:
 						hcc_astgen_token_error_1(astgen, "invalid token '#', preprocessor directives cannot be in macros and preprocessor stringify can only be in function-like macros");
 					}
 
-					if (astgen->tokens_count == 0 || astgen->token_locations[astgen->tokens_count - 1].line_end != astgen->span->location.line_start) {
+					if (astgen->tokens_count == 0 || astgen->token_locations[astgen->tokens_count - 1].line_end - 1 != astgen->span->location.line_start) {
 						hcc_astgen_parse_preprocessor_directive(astgen, false, false, 0);
 						if (astgen->include_code_file_id.idx_plus_one) {
 							hcc_code_span_push_file(astgen, astgen->include_code_file_id);
