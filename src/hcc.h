@@ -404,6 +404,7 @@ enum {
 	HCC_TOKEN_STRING,
 	HCC_TOKEN_INCLUDE_PATH_SYSTEM,
 	HCC_TOKEN_BACK_SLASH,
+	HCC_TOKEN_DOUBLE_HASH,
 
 	//
 	// symbols
@@ -1046,19 +1047,34 @@ struct HccCodeFile {
 	U64 code_size;
 };
 
+typedef U8 HccCodeSpanType;
+enum {
+	HCC_CODE_SPAN_TYPE_FILE,
+	HCC_CODE_SPAN_TYPE_MACRO,
+	HCC_CODE_SPAN_TYPE_MACRO_ARG,
+	HCC_CODE_SPAN_TYPE_PREDEFINED_MACRO,
+	HCC_CODE_SPAN_TYPE_PP_EXPR,
+	HCC_CODE_SPAN_TYPE_PP_CONCAT,
+};
+
 typedef struct HccCodeSpan HccCodeSpan;
 struct HccCodeSpan {
-	U8*            code;
-	U32            code_size;
-	HccMacro*      macro; // NULL when this is a file expansion
-	U32            macro_args_start_idx;
-	HccCodeFile*   code_file;
-	HccLocation    location;
-	U32*           line_code_start_indices;
-	U32            lines_count;
-	U32            lines_cap;
-	U32            macro_arg_id;
-	bool           is_preprocessor_expression;
+	HccCodeSpanType type;
+	U8*             code;
+	U32             code_size;
+	HccMacro*       macro;
+	U32             macro_args_start_idx;
+	HccCodeFile*    code_file;
+	HccLocation     location;
+	U32*            line_code_start_indices;
+	U32             lines_count;
+	U32             lines_cap;
+	U32             macro_arg_id;
+	bool            is_preprocessor_expression;
+	U32             backup_tokens_count;
+	U32             backup_token_values_count;
+	U32             backup_token_locations_count;
+	HccLocation     backup_location;
 };
 
 typedef U16 HccAstGenFlags;
@@ -1210,6 +1226,10 @@ struct HccAstGen {
 	char* stringify_buffer;
 	U32 stringify_buffer_size;
 	U32 stringify_buffer_cap;
+
+	char* concat_buffer;
+	U32 concat_buffer_size;
+	U32 concat_buffer_cap;
 
 	HccToken* tokens;
 	U32*      token_location_indices;

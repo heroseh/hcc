@@ -45,9 +45,13 @@ typedef vec4_t Vec4;
 #define IN_BETWEEN(a) MKSTR(a)
 #define JOIN(c, d) IN_BETWEEN(c HASH_HASH d)
 
-#define NUM 123
+#define IDENTIFIER test
 
-IN_BETWEEN(NUM);
+#define ENENE_(a, b) a ## b
+
+#define ENENE(a, b) ENENE_(a, b)
+
+JOIN(IDENTIFIER, another);
 
 #ifdef COND
 #ifdef COND2

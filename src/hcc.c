@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
 #include <unistd.h>
 #include <limits.h>
 #include <fcntl.h>
@@ -301,6 +302,7 @@ char* hcc_token_strings[HCC_TOKEN_COUNT] = {
 	[HCC_TOKEN_STRING] = "\"\"",
 	[HCC_TOKEN_INCLUDE_PATH_SYSTEM] = "<>",
 	[HCC_TOKEN_BACK_SLASH] = "\\",
+	[HCC_TOKEN_DOUBLE_HASH] = "##",
 	[HCC_TOKEN_CURLY_OPEN] = "{",
 	[HCC_TOKEN_CURLY_CLOSE] = "}",
 	[HCC_TOKEN_PARENTHESIS_OPEN] = "(",
@@ -1277,6 +1279,10 @@ void hcc_astgen_init(HccAstGen* astgen, HccCompilerSetup* setup) {
 	HCC_ASSERT(astgen->stringify_buffer, "out of memory");
 	astgen->stringify_buffer_cap = setup->exprs_cap;
 
+	astgen->concat_buffer = HCC_ALLOC_ARRAY(char, setup->exprs_cap);
+	HCC_ASSERT(astgen->concat_buffer, "out of memory");
+	astgen->concat_buffer_cap = setup->exprs_cap;
+
 	astgen->global_variables = HCC_ALLOC_ARRAY(HccVariable, setup->exprs_cap);
 	HCC_ASSERT(astgen->global_variables, "out of memory");
 	astgen->global_variables_cap = setup->exprs_cap;
@@ -1349,6 +1355,22 @@ void hcc_astgen_error_file_line(HccAstGen* astgen, char* file_path, U32 line, U3
 	printf(error_fmt, file_path, line, column);
 }
 
+void hcc_astgen_error_pasted_buffer(HccAstGen* astgen, U32 line, U32 column) {
+	const char* error_fmt = astgen->print_color
+		? "\x1b[1;95m<pasted buffer>\x1b[97m: %u:%u\n\x1b[0m"
+		: "<pasted buffer>: %u:%u\n";
+	printf(error_fmt, line, column);
+}
+
+HccString hcc_astgen_macro_param_name(HccAstGen* astgen, HccMacro* macro, U32 param_idx) {
+	HccStringId param_string_id = astgen->macro_params[macro->params_start_idx + param_idx];
+	if (param_string_id.idx_plus_one == 0) {
+		param_string_id = astgen->va_args_string_id;
+	}
+	HccString param_name = hcc_string_table_get(&astgen->string_table, param_string_id);
+	return param_name;
+}
+
 U32 hcc_line_size(HccCodeSpan* span, U32 line) {
 	U32 code_start_idx = span->line_code_start_indices[line];
 	U32 code_end_idx;
@@ -1412,22 +1434,49 @@ void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 displa
 
 void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 	HccCodeSpan* span = hcc_code_span_get(astgen, location->span_idx);
+	HCC_DEBUG_ASSERT(span->type != HCC_CODE_SPAN_TYPE_PREDEFINED_MACRO, "internal error: predefined macros should not error at all!");
+
 	if (location->parent_location_idx != (U32)-1) {
-		if (span->macro || span->macro_arg_id) {
+		if (
+			span->type == HCC_CODE_SPAN_TYPE_MACRO ||
+			span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG ||
+			span->type == HCC_CODE_SPAN_TYPE_PP_CONCAT
+		) {
 			HccLocation* parent_location = &astgen->token_locations[location->parent_location_idx];
 			hcc_astgen_print_code(astgen, parent_location);
 
-			if (span->macro) {
-				const char* error_fmt = astgen->print_color
-					? "\x1b[1;97\nmexpanded from macro\x1b[0m: \n"
-					: "\nexpanded from macro: ";
-				printf("%s", error_fmt);
+			switch (span->type) {
+				case HCC_CODE_SPAN_TYPE_MACRO: {
+					const char* error_fmt = astgen->print_color
+						? "\x1b[1;97\nmexpanded from macro\x1b[0m: \n"
+						: "\nexpanded from macro: ";
+					HccLocation* file_location = &span->macro->location;
+					printf(error_fmt);
 
-				HccLocation* macro_location = &span->macro->location;
-				char* file_path = "tests/test.c";
-				hcc_astgen_error_file_line(astgen, file_path, macro_location->line_start, macro_location->column_start);
-			} else {
-				return;
+					char* file_path = "tests/test.c";
+					hcc_astgen_error_file_line(astgen, file_path, file_location->line_start, file_location->column_start);
+					break;
+				};
+				case HCC_CODE_SPAN_TYPE_MACRO_ARG: {
+					const char* error_fmt = astgen->print_color
+						? "\x1b[1;97\nmexpanded from macro argument '%.*s.%.*s'\x1b[0m: \n"
+						: "\nexpanded from macro argument '%.*s.%.*s': ";
+					HccString param_name = hcc_astgen_macro_param_name(astgen, span->macro, span->macro_arg_id - 1);
+					HccString macro_name = hcc_string_table_get(&astgen->string_table, span->macro->identifier_string_id);
+					printf(error_fmt, (int)macro_name.size, macro_name.data, (int)param_name.size, param_name.data);
+
+					hcc_astgen_error_pasted_buffer(astgen, location->line_start, location->column_start);
+					break;
+				};
+				case HCC_CODE_SPAN_TYPE_PP_CONCAT: {
+					const char* error_fmt = astgen->print_color
+						? "\x1b[1;97\nmexpanded from preprocessor concatination\x1b[0m: \n"
+						: "\nexpanded from preprocessor concatination: ";
+					printf(error_fmt);
+
+					hcc_astgen_error_pasted_buffer(astgen, location->line_start, location->column_start);
+					break;
+				};
 			}
 		}
 	} else {
@@ -1436,30 +1485,44 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 	}
 
 	HccCodeSpan* file_span = span;
-	if (file_span->code_file) {
+	if (
+		file_span->type == HCC_CODE_SPAN_TYPE_FILE ||
+		file_span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG ||
+		file_span->type == HCC_CODE_SPAN_TYPE_PP_CONCAT
+	) {
 		location = &span->location;
 	} else {
-		while (file_span->macro || file_span->macro_arg_id || file_span->is_preprocessor_expression) {
+		//
+		// recurse up the parents and find the file we are in
+		while (file_span->type != HCC_CODE_SPAN_TYPE_FILE) {
 			HccLocation* parent_location = &astgen->token_locations[file_span->location.parent_location_idx];
 			HccCodeSpan* parent_span = hcc_code_span_get(astgen, parent_location->span_idx);
-			if (parent_span->code_file) {
-				HccLocation* applied_location = &span->macro->location;
-				if (file_span->is_preprocessor_expression) {
+			file_span = parent_span;
+		}
+
+		HccCodeSpan* parent_span = span;
+		while (parent_span->type != HCC_CODE_SPAN_TYPE_FILE) {
+			HccLocation* applied_location = &span->macro->location;
+			switch (parent_span->type) {
+				case HCC_CODE_SPAN_TYPE_PP_CONCAT:
+					return;
+				case HCC_CODE_SPAN_TYPE_PP_EXPR:
 					applied_location = &parent_span->location;
 					location->column_start += applied_location->column_start;
 					location->column_end += applied_location->column_start;
-				} else {
-					applied_location = &span->macro->location;
-					location->column_start += span->macro->value_string_column_start;
-					location->column_end += span->macro->value_string_column_start;
-				}
-				location->code_start_idx += applied_location->code_start_idx;
-				location->code_end_idx += applied_location->code_end_idx;
-				location->line_start += applied_location->line_start;
-				location->line_end += applied_location->line_end - 1;
+					break;
+				case HCC_CODE_SPAN_TYPE_MACRO:
+					applied_location = &parent_span->macro->location;
+					location->column_start += parent_span->macro->value_string_column_start;
+					location->column_end += parent_span->macro->value_string_column_start;
+					break;
 			}
 
-			file_span = parent_span;
+			location->code_start_idx += applied_location->code_start_idx;
+			location->code_end_idx += applied_location->code_end_idx;
+			location->line_start += applied_location->line_start;
+			location->line_end += applied_location->line_end - 1;
+			break;
 		}
 	}
 
@@ -1518,6 +1581,7 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 				column_end_with_tabs += 3;
 			}
 		}
+		column_end_with_tabs = HCC_MAX(column_end_with_tabs, column_start + 1);
 
 		if (astgen->print_color) {
 			printf("\x1b[1;93m");
@@ -1542,13 +1606,21 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 }
 
 void hcc_astgen_add_line_start_idx(HccAstGen* astgen, HccCodeSpan* span) {
-	HCC_DEBUG_ASSERT(span->code_file, "cannot add a line to a non-file code span");
+	switch (span->type) {
+		case HCC_CODE_SPAN_TYPE_FILE:
+		case HCC_CODE_SPAN_TYPE_MACRO_ARG:
+		case HCC_CODE_SPAN_TYPE_PP_CONCAT:
+			break;
+		default:
+			return;
+	}
+
+	span->lines_count += 1;
 	if (span->lines_count >= span->lines_cap) {
 		hcc_astgen_error_1(astgen, "internal error: the lines capacity of '%u' has been exceeded", astgen->lines_cap);
 	}
 
 	span->line_code_start_indices[span->lines_count] = span->location.code_end_idx;
-	span->lines_count += 1;
 }
 
 void hcc_astgen_found_newline(HccAstGen* astgen, HccCodeSpan* span) {
@@ -1560,27 +1632,38 @@ void hcc_astgen_found_newline(HccAstGen* astgen, HccCodeSpan* span) {
 }
 
 void hcc_astgen_token_count_extra_newlines(HccAstGen* astgen) {
-	U32 lines_count = 3;
 	for (U32 span_stack_idx = astgen->code_span_stack_count; span_stack_idx-- > 0; span_stack_idx += 1) {
+		U32 lines_count = 3;
 		HccCodeSpan* span = &astgen->code_spans[astgen->code_span_stack[span_stack_idx]];
-		if (span->code_file) {
-			while (span->location.code_end_idx < span->code_size) {
-				U8 byte = span->code[span->location.code_end_idx];
-				span->location.code_end_idx += 1;
-				if (byte == '\n') {
-					hcc_astgen_add_line_start_idx(astgen, span);
-					lines_count -= 1;
-					if (lines_count == 0) {
-						break;
+		switch (span->type) {
+			case HCC_CODE_SPAN_TYPE_FILE:
+			case HCC_CODE_SPAN_TYPE_MACRO_ARG:
+			case HCC_CODE_SPAN_TYPE_PP_CONCAT:
+				while (span->location.code_end_idx < span->code_size) {
+					U8 byte = span->code[span->location.code_end_idx];
+					span->location.code_end_idx += 1;
+					if (byte == '\n') {
+						hcc_astgen_add_line_start_idx(astgen, span);
+						lines_count -= 1;
+						if (lines_count == 0) {
+							break;
+						}
 					}
 				}
-			}
+				break;
 		}
 		span_stack_idx -= 1;
 	}
 }
 
 HCC_NORETURN void hcc_astgen_error(HccAstGen* astgen, U32 token_idx, U32 other_token_idx, const char* fmt, va_list va_args) {
+	U32 location_idx = astgen->token_location_indices[token_idx];
+	HccLocation* location = &astgen->token_locations[location_idx];
+
+	hcc_astgen_print_code(astgen, location);
+
+	printf("\n");
+
 	const char* error_fmt = astgen->print_color
 		? "\x1b[1;91merror\x1b[0m: "
 		: "error: ";
@@ -1591,13 +1674,7 @@ HCC_NORETURN void hcc_astgen_error(HccAstGen* astgen, U32 token_idx, U32 other_t
 	}
 
 	vprintf(fmt, va_args);
-
 	printf("\n");
-
-	U32 location_idx = astgen->token_location_indices[token_idx];
-	HccLocation* location = &astgen->token_locations[location_idx];
-
-	hcc_astgen_print_code(astgen, location);
 
 	if (other_token_idx != (U32)-1) {
 		U32 other_location_idx = astgen->token_location_indices[other_token_idx];
@@ -1661,7 +1738,7 @@ void _hcc_token_location_add(HccAstGen* astgen, HccLocation* location) {
 	astgen->token_locations_count += 1;
 }
 
-HccCodeSpan* _hcc_code_span_push(HccAstGen* astgen) {
+HccCodeSpan* _hcc_code_span_push(HccAstGen* astgen, HccCodeSpanType type) {
 	U32 span_stack_idx = astgen->code_span_stack_count;
 	HCC_ASSERT_ARRAY_BOUNDS(span_stack_idx, astgen->code_span_stack_cap);
 	astgen->code_span_stack[span_stack_idx] = astgen->code_spans_count;
@@ -1671,6 +1748,7 @@ HccCodeSpan* _hcc_code_span_push(HccAstGen* astgen) {
 	HCC_ASSERT_ARRAY_BOUNDS(span_idx, astgen->code_spans_cap);
 	HccCodeSpan* span = &astgen->code_spans[span_idx];
 	HCC_ZERO_ELMT(span);
+	span->type = type;
 	span->location.line_end = 1;
 
 	astgen->code_spans_count += 1;
@@ -1684,32 +1762,42 @@ HccCodeSpan* _hcc_code_span_push(HccAstGen* astgen) {
 	} else {
 		span->location.parent_location_idx = -1;
 	}
+	span->backup_location = span->location;
+	span->backup_tokens_count = astgen->tokens_count;
+	span->backup_token_values_count = astgen->token_values_count;
+	span->backup_token_locations_count = astgen->token_locations_count;
+
+	switch (type) {
+		case HCC_CODE_SPAN_TYPE_FILE:
+		case HCC_CODE_SPAN_TYPE_MACRO_ARG:
+		case HCC_CODE_SPAN_TYPE_PP_CONCAT:
+			//
+			// TODO make this a linear allocator that we can just claim back the unused lines
+			span->line_code_start_indices = HCC_ALLOC_ARRAY(U32, astgen->lines_cap);
+			HCC_ASSERT(span->line_code_start_indices, "out of memory");
+			span->lines_cap = astgen->lines_cap;
+
+			span->location.line_start = 1;
+			span->location.line_end = 2;
+			span->location.column_start = 1;
+			span->location.column_end = 1;
+
+			span->line_code_start_indices[0] = 0;
+			span->line_code_start_indices[1] = 0;
+			span->lines_count += 1;
+			break;
+	}
 
 	return span;
 }
 
 void hcc_code_span_push_file(HccAstGen* astgen, HccCodeFileId code_file_id) {
-	HccCodeSpan* span = _hcc_code_span_push(astgen);
+	HccCodeSpan* span = _hcc_code_span_push(astgen, HCC_CODE_SPAN_TYPE_FILE);
 	HccCodeFile* code_file = hcc_code_file_get(astgen, code_file_id);
 
 	span->code_file = code_file;
 	span->code = code_file->code;
 	span->code_size = code_file->code_size;
-
-	//
-	// TODO make this a linear allocator that we can just claim back the unused lines
-	span->line_code_start_indices = HCC_ALLOC_ARRAY(U32, astgen->lines_cap);
-	HCC_ASSERT(span->line_code_start_indices, "out of memory");
-	span->lines_cap = astgen->lines_cap;
-
-	span->location.line_start = 1;
-	span->location.line_end = 2;
-	span->location.column_start = 1;
-	span->location.column_end = 1;
-
-	span->line_code_start_indices[0] = 0;
-	span->line_code_start_indices[1] = 0;
-	span->lines_count += 2;
 
 	hcc_change_working_directory_to_same_as_this_file(astgen, code_file->path_string.data);
 }
@@ -1717,19 +1805,17 @@ void hcc_code_span_push_file(HccAstGen* astgen, HccCodeFileId code_file_id) {
 void hcc_code_span_push_macro_arg(HccAstGen* astgen, HccCodeSpan* macro_span, U32 macro_arg_idx, U8* code, U32 code_size) {
 #if HCC_DEBUG_CODE_SPAN_PUSH_POP
 	U32 param_idx = macro_arg_idx - macro_span->macro_args_start_idx;
-	HccStringId param_string_id = astgen->macro_params[macro_span->macro->params_start_idx + param_idx];
-	if (param_string_id.idx_plus_one == 0) {
-		param_string_id = astgen->va_args_string_id;
-	}
-	HccString param_name = hcc_string_table_get(&astgen->string_table, param_string_id);
-	printf("PUSH_ARG(%.*s = %.*s)\n", (int)param_name.size, param_name.data, code_size, code);
+	HccString macro_name = hcc_string_table_get(&astgen->string_table, macro_span->macro->identifier_string_id);
+	HccString param_name = hcc_astgen_macro_param_name(astgen, macro_span->macro, param_idx);
+	printf("PUSH_ARG(%.*s.%.*s = %.*s)\n", (int)macro_name.size, macro_name.data, (int)param_name.size, param_name.data, code_size, code);
 #else
 	HCC_UNUSED(macro_span);
 #endif // HCC_DEBUG_CODE_SPAN_PUSH_POP
 
-	HccCodeSpan* span = _hcc_code_span_push(astgen);
+	HccCodeSpan* span = _hcc_code_span_push(astgen, HCC_CODE_SPAN_TYPE_MACRO_ARG);
 	span->code = code;
 	span->code_size = code_size;
+	span->macro = macro_span->macro;
 	span->macro_arg_id = macro_arg_idx + 1;
 }
 
@@ -1740,13 +1826,13 @@ HccCodeSpan* hcc_code_span_find_evaluating_macro(HccAstGen* astgen, HccCodeSpan*
 	for (U32 idx = astgen->code_span_stack_count; idx-- > 0;) {
 		U32 span_idx = astgen->code_span_stack[idx];
 		HccCodeSpan* parent_span = &astgen->code_spans[span_idx];
-		if (parent_span->macro) {
+		if (parent_span->type == HCC_CODE_SPAN_TYPE_MACRO) {
 			if (found_macros == found_args && idx + 1 < astgen->code_span_stack_count) {
 				*parent_span_out = parent_span;
 				return span;
 			}
 			found_macros = HCC_MIN(found_macros + 1, found_args);
-		} else if (parent_span->macro_arg_id) {
+		} else if (parent_span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG) {
 			found_args += 1;
 		}
 		span = parent_span;
@@ -1760,7 +1846,7 @@ bool hcc_code_span_is_macro_on_stack(HccAstGen* astgen, HccMacro* macro) {
 	for (U32 idx = astgen->code_span_stack_count; idx-- > 0;) {
 		U32 span_idx = astgen->code_span_stack[idx];
 		HccCodeSpan* span = &astgen->code_spans[span_idx];
-		if (span->macro) {
+		if (span->type == HCC_CODE_SPAN_TYPE_MACRO) {
 			if (found_macros == found_args && idx + 1 < astgen->code_span_stack_count) {
 				if (span->macro->identifier_string_id.idx_plus_one == macro->identifier_string_id.idx_plus_one) {
 					return true;
@@ -1770,7 +1856,7 @@ bool hcc_code_span_is_macro_on_stack(HccAstGen* astgen, HccMacro* macro) {
 			} else {
 				found_macros = HCC_MIN(found_macros + 1, found_args);
 			}
-		} else if (span->macro_arg_id) {
+		} else if (span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG) {
 			found_args += 1;
 		}
 	}
@@ -1803,9 +1889,8 @@ void hcc_code_span_push_predefined_macro(HccAstGen* astgen, HccPredefinedMacro p
 			return;
 	}
 
-	HccCodeSpan* span = _hcc_code_span_push(astgen);
+	HccCodeSpan* span = _hcc_code_span_push(astgen, HCC_CODE_SPAN_TYPE_PREDEFINED_MACRO);
 #if HCC_DEBUG_CODE_SPAN_PUSH_POP
-	HccString name = hcc_string_table_get(&astgen->string_table, macro->identifier_string_id);
 	printf("PUSH_PREDEFINED_MACRO(%s)\n", hcc_predefined_macro_identifier_strings[predefined_macro]);
 #endif // HCC_DEBUG_CODE_SPAN_PUSH_POP
 
@@ -1814,7 +1899,7 @@ void hcc_code_span_push_predefined_macro(HccAstGen* astgen, HccPredefinedMacro p
 }
 
 void hcc_code_span_push_macro(HccAstGen* astgen, HccMacro* macro) {
-	HccCodeSpan* span = _hcc_code_span_push(astgen);
+	HccCodeSpan* span = _hcc_code_span_push(astgen, HCC_CODE_SPAN_TYPE_MACRO);
 #if HCC_DEBUG_CODE_SPAN_PUSH_POP
 	HccString name = hcc_string_table_get(&astgen->string_table, macro->identifier_string_id);
 	printf("PUSH_MACRO(%.*s)\n", (int)name.size, name.data);
@@ -1827,15 +1912,23 @@ void hcc_code_span_push_macro(HccAstGen* astgen, HccMacro* macro) {
 }
 
 void hcc_code_span_push_preprocessor_expression(HccAstGen* astgen, HccString expression) {
-	HccCodeSpan* span = _hcc_code_span_push(astgen);
+	HccCodeSpan* span = _hcc_code_span_push(astgen, HCC_CODE_SPAN_TYPE_PP_EXPR);
 #if HCC_DEBUG_CODE_SPAN_PUSH_POP
-	HccString name = hcc_string_table_get(&astgen->string_table, macro->identifier_string_id);
 	printf("PUSH_PREPROCESSOR_EXPR(%.*s)\n", (int)expression.size, expression.data);
 #endif // HCC_DEBUG_CODE_SPAN_PUSH_POP
 
 	span->code = (U8*)expression.data;
 	span->code_size = expression.size;
-	span->is_preprocessor_expression = true;
+}
+
+void hcc_code_span_push_preprocessor_concat(HccAstGen* astgen, HccString string) {
+	HccCodeSpan* span = _hcc_code_span_push(astgen, HCC_CODE_SPAN_TYPE_PP_CONCAT);
+#if HCC_DEBUG_CODE_SPAN_PUSH_POP
+	printf("PUSH_PREPROCESSOR_CONCAT(%.*s)\n", (int)string.size, string.data);
+#endif // HCC_DEBUG_CODE_SPAN_PUSH_POP
+
+	span->code = (U8*)string.data;
+	span->code_size = string.size;
 }
 
 bool hcc_code_span_pop(HccAstGen* astgen) {
@@ -1843,30 +1936,42 @@ bool hcc_code_span_pop(HccAstGen* astgen) {
 	astgen->code_span_stack_count -= 1;
 	if (astgen->code_span_stack_count) {
 		HccCodeSpan* popped_span = &astgen->code_spans[astgen->code_span_stack[astgen->code_span_stack_count]];
-		if (popped_span->macro) {
-			astgen->macro_args_count -= popped_span->macro->params_count;
-		} else if (popped_span->code_file) {
-			for (U32 idx = astgen->code_span_stack_count; idx-- > 0; idx += 1) {
-				HccCodeSpan* span = &astgen->code_spans[astgen->code_span_stack[idx]];
-				if (span->code_file) {
-					hcc_change_working_directory_to_same_as_this_file(astgen, span->code_file->path_string.data);
-					break;
+		switch (popped_span->type) {
+			case HCC_CODE_SPAN_TYPE_MACRO:
+				astgen->macro_args_count -= popped_span->macro->params_count;
+				break;
+			case HCC_CODE_SPAN_TYPE_FILE:
+				for (U32 idx = astgen->code_span_stack_count; idx-- > 0; idx += 1) {
+					HccCodeSpan* span = &astgen->code_spans[astgen->code_span_stack[idx]];
+					if (span->type == HCC_CODE_SPAN_TYPE_FILE) {
+						hcc_change_working_directory_to_same_as_this_file(astgen, span->code_file->path_string.data);
+						break;
+					}
 				}
-			}
+				break;
+			case HCC_CODE_SPAN_TYPE_PP_CONCAT:
+				astgen->concat_buffer_size -= popped_span->code_size;
+				break;
 		}
+
 		astgen->span = &astgen->code_spans[astgen->code_span_stack[astgen->code_span_stack_count - 1]];
 #if HCC_DEBUG_CODE_SPAN_PUSH_POP
-		if (popped_span->macro_arg_id) {
-			printf("POP_ARG(%.*s)\n", popped_span->code_size, popped_span->code);
-		} else if (popped_span->macro) {
-			HccString name = hcc_string_table_get(&astgen->string_table, popped_span->macro->identifier_string_id);
-			printf("POP_MACRO(%.*s)\n", (int)name.size, name.data);
-		} else if (popped_span->is_preprocessor_expression) {
-			HccString name = hcc_string_table_get(&astgen->string_table, popped_span->macro->identifier_string_id);
-			printf("POP_PREPROCESSOR_EXPR(%.*s)\n", (int)popped_span->code_size, popped_span->code);
+		switch (popped_span->type) {
+			case HCC_CODE_SPAN_TYPE_MACRO_ARG:
+				printf("POP_ARG(%.*s)\n", popped_span->code_size, popped_span->code);
+				break;
+			case HCC_CODE_SPAN_TYPE_MACRO: {
+				HccString name = hcc_string_table_get(&astgen->string_table, popped_span->macro->identifier_string_id);
+				printf("POP_MACRO(%.*s)\n", (int)name.size, name.data);
+				break;
+			};
+			case HCC_CODE_SPAN_TYPE_PP_EXPR: {
+				HccString name = hcc_string_table_get(&astgen->string_table, popped_span->macro->identifier_string_id);
+				printf("POP_PREPROCESSOR_EXPR(%.*s)\n", (int)popped_span->code_size, popped_span->code);
+			};
 		}
 #endif // HCC_DEBUG_CODE_SPAN_PUSH_POP
-		return popped_span->is_preprocessor_expression;
+		return popped_span->type == HCC_CODE_SPAN_TYPE_PP_EXPR;
 	} else {
 		hcc_astgen_add_token(astgen, HCC_TOKEN_EOF);
 		astgen->span = NULL;
@@ -1882,6 +1987,10 @@ void hcc_astgen_add_token(HccAstGen* astgen, HccToken token) {
 	astgen->token_location_indices[astgen->tokens_count] = astgen->token_locations_count;
 	astgen->tokens_count += 1;
 
+	astgen->span->backup_tokens_count = astgen->tokens_count;
+	astgen->span->backup_token_locations_count = astgen->token_locations_count;
+	astgen->span->backup_location = astgen->span->location;
+
 	_hcc_token_location_add(astgen, &span->location);
 }
 
@@ -1890,6 +1999,7 @@ void hcc_astgen_add_token_value(HccAstGen* astgen, HccTokenValue value) {
 		hcc_astgen_token_error_1(astgen, "internal error: the token values capacity of '%u' has been exceeded", astgen->tokens_cap);
 	}
 
+	astgen->span->backup_token_values_count = astgen->token_values_count;
 	astgen->token_values[astgen->token_values_count] = value;
 	astgen->token_values_count += 1;
 }
@@ -2218,6 +2328,13 @@ void hcc_stringify_buffer_append_string(HccAstGen* astgen, char* string, U32 str
 	memcpy(dst, string, string_size);
 }
 
+void hcc_concat_buffer_append_string(HccAstGen* astgen, char* string, U32 string_size) {
+	char* dst = &astgen->concat_buffer[astgen->concat_buffer_size];
+	astgen->concat_buffer_size += string_size;
+	HCC_ASSERT_ARRAY_BOUNDS(astgen->concat_buffer_size - 1, astgen->concat_buffer_cap);
+	memcpy(dst, string, string_size);
+}
+
 void hcc_parse_string(HccAstGen* astgen, char terminator_byte, bool ignore_escape_sequences_except_double_quotes) {
 	HccCodeSpan* span = astgen->span;
 	span->location.code_end_idx += 1;
@@ -2233,9 +2350,6 @@ void hcc_parse_string(HccAstGen* astgen, char terminator_byte, bool ignore_escap
 
 			if (byte == '\\') {
 				byte = span->code[span->location.code_end_idx];
-				if (ignore_escape_sequences_except_double_quotes) {
-					hcc_stringify_buffer_append_byte(astgen, '\\');
-				}
 				switch (byte) {
 					case '\r':
 						span->location.column_end += 2;
@@ -2246,12 +2360,17 @@ void hcc_parse_string(HccAstGen* astgen, char terminator_byte, bool ignore_escap
 						span->location.code_end_idx += 1;
 						break;
 					case '\"':
+						if (ignore_escape_sequences_except_double_quotes) {
+							hcc_stringify_buffer_append_byte(astgen, '\\');
+						}
 						span->location.column_end += 1;
 						span->location.code_end_idx += 1;
 						hcc_stringify_buffer_append_byte(astgen, '"');
 						break;
 					default:
-						if (!ignore_escape_sequences_except_double_quotes) {
+						if (ignore_escape_sequences_except_double_quotes) {
+							hcc_stringify_buffer_append_byte(astgen, '\\');
+						} else {
 							hcc_stringify_buffer_append_byte(astgen, '/'); // convert \ to / for windows paths
 						}
 						break;
@@ -2278,7 +2397,44 @@ void hcc_parse_string(HccAstGen* astgen, char terminator_byte, bool ignore_escap
 
 		hcc_stringify_buffer_append_byte(astgen, '\0');
 	} else {
-		HCC_ABORT("TODO add string support");
+		bool ended_with_terminator = false;
+		while (span->location.code_end_idx < span->code_size) {
+			char byte = span->code[span->location.code_end_idx];
+			span->location.column_end += 1;
+			span->location.code_end_idx += 1;
+
+			if (byte == '\\') {
+				byte = span->code[span->location.code_end_idx];
+				switch (byte) {
+					case '\\':
+					case '\r':
+					case '\n':
+					case '\"':
+					case '\'':
+						hcc_stringify_buffer_append_byte(astgen, byte);
+						span->location.column_end += 2;
+						span->location.code_end_idx += 2;
+						break;
+					default:
+						break;
+				}
+			} else if (byte == '\r' || byte == '\n') {
+				break;
+			} else if (byte == terminator_byte) {
+				ended_with_terminator = true;
+				break;
+			} else {
+				hcc_stringify_buffer_append_byte(astgen, byte);
+			}
+		}
+
+		if (!ended_with_terminator) {
+			span->location.column_end += 1;
+			span->location.code_end_idx -= 1;
+			hcc_astgen_token_error_1(astgen, "unclosed string literal. close with '%c' or strings spanning to the next line must end the line with '\\'", terminator_byte);
+		}
+
+		hcc_stringify_buffer_append_byte(astgen, '\0');
 	}
 
 	HccTokenValue token_value;
@@ -2334,16 +2490,23 @@ void hcc_astgen_token_consume_whitespace(HccAstGen* astgen) {
 	}
 }
 
-void hcc_astgen_token_consume_whitespace_and_newlines(HccAstGen* astgen) {
+bool hcc_astgen_token_consume_whitespace_and_newlines(HccAstGen* astgen) {
+	bool found_whitespace = false;
 	while (astgen->span->location.code_end_idx < astgen->span->code_size) {
 		U8 byte = astgen->span->code[astgen->span->location.code_end_idx];
 		if (byte != ' ' && byte != '\t' && byte != '\r' && byte != '\n') {
-			break;
+			U8 next_byte = astgen->span->code[astgen->span->location.code_end_idx + 1];
+			if (byte != '\\' || (next_byte != '\r' && next_byte != '\n')) {
+				break;
+			}
 		}
 
 		astgen->span->location.code_end_idx += 1;
 		astgen->span->location.column_end += 1;
+		found_whitespace = true;
 	}
+
+	return found_whitespace;
 }
 
 bool hcc_astgen_token_consume_backslash(HccAstGen* astgen) {
@@ -2375,7 +2538,7 @@ void hcc_astgen_token_consume_until_any_byte(HccAstGen* astgen, char* terminator
 		U8 byte = astgen->span->code[astgen->span->location.code_end_idx];
 		if (byte == '\\') {
 			hcc_astgen_token_consume_backslash(astgen);
-			byte = astgen->span->code[astgen->span->location.code_end_idx];
+			continue;
 		}
 
 		if (strchr(terminator_bytes, byte)) {
@@ -3302,14 +3465,14 @@ void hcc_macro_args_add(HccAstGen* astgen, HccMacroArg arg) {
 	astgen->macro_args_count += 1;
 }
 
-void hcc_astgen_preprocessor_stringify_run(HccAstGen* astgen);
+void hcc_astgen_preprocessor_stringify_to_token(HccAstGen* astgen);
 
 bool hcc_code_span_push_macro_arg_if_it_is_one(HccAstGen* astgen, HccString ident_string, HccStringId identifier_string_id, bool is_preprocessor_stringify) {
 	HccCodeSpan* span = astgen->span;
 	HccMacro* macro = span->macro;
 	HccCodeSpan* macro_span = span;
 	HccCodeSpan* evaluating_macro_span = NULL;
-	if (!macro) {
+	if (span->type != HCC_CODE_SPAN_TYPE_MACRO) {
 		evaluating_macro_span = hcc_code_span_find_evaluating_macro(astgen, &macro_span);
 		macro = macro_span->macro;
 		if (evaluating_macro_span == NULL) {
@@ -3344,7 +3507,7 @@ bool hcc_code_span_push_macro_arg_if_it_is_one(HccAstGen* astgen, HccString iden
 		callsite_location->parent_location_idx = arg.callsite_location_idx;
 
 		if (is_preprocessor_stringify) {
-			hcc_astgen_preprocessor_stringify_run(astgen);
+			hcc_astgen_preprocessor_stringify_to_token(astgen);
 		}
 
 		return true;
@@ -3405,7 +3568,7 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 		span->location.code_end_idx += 1;
 	} else {
 		HccStringId* macro_params = &astgen->macro_params[macro->params_start_idx];
-		bool span_has_args = span->macro && span->macro->params_count;
+		bool span_has_args = span->type == HCC_CODE_SPAN_TYPE_MACRO && span->macro->params_count;
 
 		HccString va_args = {0};
 		while (1) {
@@ -3538,7 +3701,7 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 }
 
 bool hcc_code_span_push_any_kind_of_macro_thing_if_it_is_one(HccAstGen* astgen, HccString ident_string, HccStringId ident_string_id) {
-	if (astgen->span->macro || astgen->span->macro_arg_id) {
+	if (astgen->span->type == HCC_CODE_SPAN_TYPE_MACRO || astgen->span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG) {
 		if (hcc_code_span_push_macro_arg_if_it_is_one(astgen, ident_string, ident_string_id, false)) {
 			return true;
 		}
@@ -3556,11 +3719,31 @@ bool hcc_code_span_push_any_kind_of_macro_thing_if_it_is_one(HccAstGen* astgen, 
 	return false;
 }
 
-bool hcc_astgen_preprocessor_stringify(HccAstGen* astgen) {
+bool hcc_astgen_preprocessor_stringify(HccAstGen* astgen, bool is_stringifying) {
 	HCC_DEBUG_ASSERT(astgen->span->code[astgen->span->location.code_end_idx] == '#', "internal error: expected to a '#' to be here for preprocessor stringify");
 	astgen->span->location.code_end_idx += 1;
 	astgen->span->location.column_end += 1;
 	hcc_astgen_token_consume_whitespace(astgen);
+
+	if (astgen->span->code[astgen->span->location.code_end_idx] == '#' && astgen->span->code[astgen->span->location.code_end_idx + 1] == '#') {
+		astgen->span->location.code_end_idx += 2;
+		astgen->span->location.column_end += 2;
+		hcc_astgen_token_consume_whitespace(astgen);
+
+		if (astgen->span->code[astgen->span->location.code_end_idx] != '#') {
+			hcc_astgen_token_error_1(astgen, "'##' must have a token to the right to concatinate with the left");
+		}
+		astgen->span->location.code_end_idx += 1;
+		astgen->span->location.column_end += 1;
+
+		if (is_stringifying) {
+			hcc_stringify_buffer_append_byte(astgen, '#');
+			hcc_stringify_buffer_append_byte(astgen, '#');
+		} else {
+			hcc_astgen_add_token(astgen, HCC_TOKEN_DOUBLE_HASH);
+		}
+		return true;
+	}
 
 	HccString ident_string = hcc_astgen_parse_ident(astgen, "expected a macro argument identifier but got: '%c'");
 	HccStringId string_id = hcc_string_table_deduplicate(&astgen->string_table, (char*)ident_string.data, ident_string.size);
@@ -3568,13 +3751,17 @@ bool hcc_astgen_preprocessor_stringify(HccAstGen* astgen) {
 	return hcc_code_span_push_macro_arg_if_it_is_one(astgen, ident_string, string_id, true);
 }
 
-void hcc_astgen_preprocessor_stringify_run(HccAstGen* astgen) {
+void hcc_astgen_preprocessor_stringify_run(HccAstGen* astgen, bool is_concat_operand) {
 	HccCodeSpan* arg_code_span = astgen->span;
+	U32 arg_code_span_idx = astgen->code_span_stack_count;
+	U32 num_levels_to_only_eval_macro_args = is_concat_operand ? 2 : 1;
 
-	U32 stringify_buffer_start_idx = astgen->stringify_buffer_size;
 	while (astgen->span) {
 		if (astgen->span->location.code_end_idx >= astgen->span->code_size) {
 			bool finished = astgen->span == arg_code_span;
+			if (is_concat_operand && finished) {
+				break;
+			}
 			hcc_code_span_pop(astgen);
 			if (finished) {
 				break;
@@ -3583,15 +3770,21 @@ void hcc_astgen_preprocessor_stringify_run(HccAstGen* astgen) {
 		}
 
 		uint8_t byte = astgen->span->code[astgen->span->location.code_end_idx];
+		if (is_concat_operand && byte == '#' && astgen->span->code[astgen->span->location.code_end_idx + 1] == '#') {
+			break;
+		}
 
 		switch (byte) {
 			case ' ':
 			case '\t':
 			case '\r':
 			case '\n':
-				hcc_astgen_token_consume_whitespace_and_newlines(astgen);
-				hcc_stringify_buffer_append_byte(astgen, ' ');
-				continue;
+			case '\\':
+				if (hcc_astgen_token_consume_whitespace_and_newlines(astgen)) {
+					hcc_stringify_buffer_append_byte(astgen, ' ');
+					continue;
+				}
+				break;
 		}
 
 		if ('0' <= byte && byte <= '9') {
@@ -3604,9 +3797,10 @@ void hcc_astgen_preprocessor_stringify_run(HccAstGen* astgen) {
 		}
 
 		if (byte == '#') {
-			if (hcc_astgen_preprocessor_stringify(astgen)) {
+			if (!hcc_astgen_preprocessor_stringify(astgen, true)) {
 				hcc_astgen_token_error_1(astgen, "invalid token '#', preprocessor directives cannot be in macros and preprocessor stringify can only be in function-like macros");
 			}
+			continue;
 		}
 
 		if (byte == '"') {
@@ -3624,7 +3818,7 @@ void hcc_astgen_preprocessor_stringify_run(HccAstGen* astgen) {
 			HccString ident_string = hcc_astgen_parse_ident(astgen, "");
 			HccStringId ident_string_id = hcc_string_table_deduplicate(&astgen->string_table, (char*)ident_string.data, ident_string.size);
 
-			if (arg_code_span == astgen->span) {
+			if (astgen->code_span_stack_count - arg_code_span_idx < num_levels_to_only_eval_macro_args) {
 				if (hcc_code_span_push_macro_arg_if_it_is_one(astgen, ident_string, ident_string_id, false)) {
 					continue;
 				}
@@ -3644,16 +3838,68 @@ void hcc_astgen_preprocessor_stringify_run(HccAstGen* astgen) {
 		astgen->span->location.code_end_idx += 1;
 		astgen->span->location.column_end += 1;
 	}
+}
+
+void hcc_astgen_preprocessor_stringify_to_token(HccAstGen* astgen) {
+	U32 stringify_buffer_start_idx = astgen->stringify_buffer_size;
+
+	hcc_astgen_preprocessor_stringify_run(astgen, false);
 
 	HccString string = hcc_string(astgen->stringify_buffer + stringify_buffer_start_idx, astgen->stringify_buffer_size - stringify_buffer_start_idx);
 	HccStringId string_id = hcc_string_table_deduplicate(&astgen->string_table, (char*)string.data, string.size);
+	HCC_ABORT("%.*s\n", (int)string.size, string.data);
 
 	HccTokenValue token_value;
 	token_value.string_id = string_id;
 	hcc_astgen_add_token(astgen, HCC_TOKEN_STRING);
 	hcc_astgen_add_token_value(astgen, token_value);
 	astgen->stringify_buffer_size = stringify_buffer_start_idx;
-	return;
+}
+
+void hcc_astgen_preprocessor_concatinate(HccAstGen* astgen) {
+	astgen->span->location = astgen->span->backup_location;
+
+	//
+	// stringify the left hand side of ##
+	U32 stringify_buffer_start_idx = astgen->stringify_buffer_size;
+	hcc_astgen_preprocessor_stringify_run(astgen, true);
+
+	//
+	// trim the whitespace from the end of the stringified left operand
+	while (stringify_buffer_start_idx < astgen->stringify_buffer_size) {
+		U8 byte = astgen->stringify_buffer[astgen->stringify_buffer_size - 1];
+		if (byte != ' ' && byte != '\t' && byte != '\n' && byte != '\n') {
+			break;
+		}
+		astgen->stringify_buffer_size -= 1;
+	}
+
+	//
+	// skip over ##
+	astgen->span->location.code_end_idx += 2;
+	astgen->span->location.column_end += 2;
+
+	hcc_astgen_token_consume_whitespace_and_newlines(astgen);
+
+	if (astgen->span->location.code_end_idx == astgen->span->code_size) {
+		astgen->span->location.column_start = astgen->span->location.column_end - 2;
+		hcc_astgen_token_error_1(astgen, "'##' must have a token to the right to concatinate with the left");
+	}
+
+	//
+	// stringify the right hand side of the ##
+	hcc_astgen_preprocessor_stringify_run(astgen, true);
+
+	U32 concat_buffer_start_idx = astgen->concat_buffer_size;
+	hcc_concat_buffer_append_string(astgen, astgen->stringify_buffer + stringify_buffer_start_idx, astgen->stringify_buffer_size - stringify_buffer_start_idx);
+
+	HccString string = hcc_string(astgen->concat_buffer + concat_buffer_start_idx, astgen->concat_buffer_size - concat_buffer_start_idx);
+	HCC_ABORT("%.*s\n", (int)string.size, string.data);
+
+	astgen->tokens_count = astgen->span->backup_tokens_count;
+	astgen->token_values_count = astgen->span->backup_token_values_count;
+	astgen->token_locations_count = astgen->span->backup_token_locations_count;
+	hcc_code_span_push_preprocessor_concat(astgen, string);
 }
 
 void hcc_astgen_tokenize_run(HccAstGen* astgen) {
@@ -3935,13 +4181,16 @@ CLOSE_BRACKETS:
 				}
 
 				if (byte == '#') {
-					if (astgen->span->macro) {
-						if (hcc_astgen_preprocessor_stringify(astgen)) {
+					if (astgen->span->type == HCC_CODE_SPAN_TYPE_MACRO) {
+						if (astgen->span->code[astgen->span->location.code_end_idx + 1] == '#') {
+							hcc_astgen_preprocessor_concatinate(astgen);
+							continue;
+						} else if (hcc_astgen_preprocessor_stringify(astgen, false)) {
 							continue;
 						}
 					}
 
-					if (astgen->span->macro || astgen->span->macro_arg_id) {
+					if (astgen->span->type == HCC_CODE_SPAN_TYPE_MACRO || astgen->span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG) {
 						astgen->span->location.column_end += 1;
 						hcc_astgen_token_error_1(astgen, "invalid token '#', preprocessor directives cannot be in macros and preprocessor stringify can only be in function-like macros");
 					}
