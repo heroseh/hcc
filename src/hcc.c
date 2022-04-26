@@ -154,7 +154,7 @@ HccString hcc_path_canonicalize(HccAstGen* astgen, char* path) {
 		hcc_get_last_system_error_string(error_buf, sizeof(error_buf));
 		hcc_astgen_token_error_1(astgen, "failed to locate file at '%s': %s", path, error_buf);
 	}
-	return hcc_string_c(new_path);
+	return hcc_string_c_path(new_path);
 #else
 #error "unimplemented for this platform"
 #endif
@@ -1348,11 +1348,19 @@ void hcc_astgen_init(HccAstGen* astgen, HccCompilerSetup* setup) {
 	}
 }
 
-void hcc_astgen_error_file_line(HccAstGen* astgen, char* file_path, U32 line, U32 column) {
+U32 hcc_astgen_error_display_line(HccCodeSpan* file_span, U32 file_line) {
+	return file_span->custom_line_dst ? file_span->custom_line_dst + (file_line - file_span->custom_line_src) : file_line;
+}
+
+void hcc_astgen_error_file_line(HccAstGen* astgen, HccLocation* location) {
+	HccCodeSpan* span = &astgen->code_spans[location->span_idx];
+	const char* file_path = span->custom_path.data ? span->custom_path.data : span->code_file->path_string.data;
+	U32 line = hcc_astgen_error_display_line(span, location->line_start);
+
 	const char* error_fmt = astgen->print_color
 		? "\x1b[1;95mfile\x1b[97m: %s:%u:%u\n\x1b[0m"
 		: "file: %s:%u:%u\n";
-	printf(error_fmt, file_path, line, column);
+	printf(error_fmt, file_path, line, location->column_start);
 }
 
 void hcc_astgen_error_pasted_buffer(HccAstGen* astgen, U32 line, U32 column) {
@@ -1398,12 +1406,13 @@ U32 hcc_line_size(HccCodeSpan* span, U32 line) {
 
 void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 display_line_num_size, U32 line) {
 	U32 line_size = hcc_line_size(span, line);
+	U32 display_line = hcc_astgen_error_display_line(span, line);
 
 	if (line_size == 0) {
 		const char* fmt = astgen->print_color
 			? "\x1b[1;94m%*u|\x1b[0m\n"
 			: "%*u|\n";
-		printf(fmt, display_line_num_size, line);
+		printf(fmt, display_line_num_size, display_line);
 	} else {
 		U32 code_start_idx = span->line_code_start_indices[line];
 		char* code = (char*)&span->code[code_start_idx];
@@ -1428,7 +1437,7 @@ void hcc_astgen_print_code_line(HccAstGen* astgen, HccCodeSpan* span, U32 displa
 		const char* fmt = astgen->print_color
 			? "\x1b[1;94m%*u|\x1b[0m %.*s\n"
 			: "%*u| %.*s\n";
-		printf(fmt, display_line_num_size, line, line_size, code_without_tabs);
+		printf(fmt, display_line_num_size, display_line, line_size, code_without_tabs);
 	}
 }
 
@@ -1438,6 +1447,7 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 
 	if (location->parent_location_idx != (U32)-1) {
 		if (
+			span->type == HCC_CODE_SPAN_TYPE_FILE ||
 			span->type == HCC_CODE_SPAN_TYPE_MACRO ||
 			span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG ||
 			span->type == HCC_CODE_SPAN_TYPE_PP_CONCAT
@@ -1446,6 +1456,10 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 			hcc_astgen_print_code(astgen, parent_location);
 
 			switch (span->type) {
+				case HCC_CODE_SPAN_TYPE_FILE: {
+					hcc_astgen_error_file_line(astgen, location);
+					break;
+				};
 				case HCC_CODE_SPAN_TYPE_MACRO: {
 					const char* error_fmt = astgen->print_color
 						? "\x1b[1;97\nmexpanded from macro\x1b[0m: \n"
@@ -1453,8 +1467,7 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 					HccLocation* file_location = &span->macro->location;
 					printf(error_fmt);
 
-					char* file_path = "tests/test.c";
-					hcc_astgen_error_file_line(astgen, file_path, file_location->line_start, file_location->column_start);
+					hcc_astgen_error_file_line(astgen, file_location);
 					break;
 				};
 				case HCC_CODE_SPAN_TYPE_MACRO_ARG: {
@@ -1480,8 +1493,7 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 			}
 		}
 	} else {
-		char* file_path = "tests/test.c";
-		hcc_astgen_error_file_line(astgen, file_path, location->line_start, location->column_start);
+		hcc_astgen_error_file_line(astgen, location);
 	}
 
 	HccCodeSpan* file_span = span;
@@ -1686,7 +1698,7 @@ HCC_NORETURN void hcc_astgen_error(HccAstGen* astgen, U32 token_idx, U32 other_t
 		printf("%s", error_fmt);
 
 		char* file_path = "tests/test.c";
-		hcc_astgen_error_file_line(astgen, file_path, other_location->line_start, other_location->column_start);
+		hcc_astgen_error_file_line(astgen, other_location);
 
 		hcc_astgen_print_code(astgen, other_location);
 	}
@@ -2791,10 +2803,73 @@ void hcc_astgen_parse_preprocessor_error(HccAstGen* astgen) {
 	hcc_astgen_token_error_1(astgen, "%.*s", (int)message.size, message.data);
 }
 
+void hcc_astgen_parse_preprocessor_line(HccAstGen* astgen) {
+	hcc_astgen_token_consume_whitespace(astgen);
+	HccCodeSpan* span = astgen->span;
+
+	span->location.column_start = span->location.column_end;
+
+	HccString path = hcc_string((char*)&astgen->span->code[astgen->span->location.code_end_idx], 0);
+	hcc_astgen_token_consume_until_any_byte(astgen, "\n");
+	path.size = (char*)&astgen->span->code[astgen->span->location.code_end_idx] - path.data;
+
+	U32 token_start_idx = astgen->tokens_count;
+	U32 token_value_start_idx = astgen->token_values_count;
+	U32 token_location_start_idx = astgen->token_locations_count;
+	hcc_code_span_push_preprocessor_expression(astgen, path);
+
+	astgen->is_preprocessor_include = true;
+	void hcc_astgen_tokenize_run(HccAstGen* astgen);
+	hcc_astgen_tokenize_run(astgen);
+	astgen->is_preprocessor_include = false;
+
+	if (token_start_idx == astgen->tokens_count) {
+ERROR:
+		hcc_astgen_token_error_1(astgen, "expected a decimal integer for a custom line number that can be optionally followed by a string literal for a custom file path. eg. #line 210 \"path/to/file.c\"");
+	}
+
+	HccToken token = astgen->tokens[token_start_idx];
+	if (token != HCC_TOKEN_LIT_S32) {
+		goto ERROR;
+	}
+	HccConstantId constant_id = astgen->token_values[token_value_start_idx].constant_id;
+	HccConstant constant = hcc_constant_table_get(&astgen->constant_table, constant_id);
+
+	S64 custom_line;
+	HCC_DEBUG_ASSERT(hcc_constant_as_sint(constant, &custom_line), "internal error: expected to be a signed int");
+	if (custom_line < 0 || custom_line > S32_MAX) {
+		hcc_astgen_token_error_1(astgen, "the decimal integer for #line must be more than 0 and no more than %d", S32_MAX);
+	}
+
+	HccString custom_path = {0};
+	if (token_start_idx + 1 < astgen->tokens_count) {
+		token = astgen->tokens[token_start_idx + 1];
+		if (token != HCC_TOKEN_STRING) {
+			goto ERROR;
+		}
+		HccStringId string_id = astgen->token_values[token_value_start_idx + 1].string_id;
+		custom_path = hcc_string_table_get(&astgen->string_table, string_id);
+	}
+
+	if (token_start_idx + 2 < astgen->tokens_count) {
+		hcc_astgen_token_error_1(astgen, "#line has got too many operands, we only expect a custom line number and optionally a custom file path");
+	}
+
+	astgen->span->custom_line_dst = custom_line;
+	astgen->span->custom_line_src = astgen->span->location.line_start;
+	if (custom_path.data) {
+		astgen->span->custom_path = custom_path;
+	}
+
+	astgen->tokens_count = token_start_idx;
+	astgen->token_values_count = token_value_start_idx;
+	astgen->token_locations_count = token_location_start_idx;
+}
+
 bool hcc_astgen_parse_preprocessor_directive(HccAstGen* astgen, bool is_skipping_code, bool is_skipping_until_endif, U32 nested_level);
 
 void hcc_astgen_parse_preprocessor_skip_false_conditional(HccAstGen* astgen, bool is_skipping_until_endif) {
-	HCC_DEBUG_ASSERT(astgen->code_span_stack_count == 1, "internal error: condition preprocessor code should not be inside of macro expansions");
+	HCC_DEBUG_ASSERT(astgen->span->type == HCC_CODE_SPAN_TYPE_FILE, "internal error: condition preprocessor code should not be inside of macro expansions");
 	HccCodeSpan* span = astgen->span;
 	bool first_non_white_space_char = false;
 	U32 nested_level = astgen->pp_if_spans_stack_count;
@@ -3361,8 +3436,7 @@ bool hcc_astgen_parse_preprocessor_directive(HccAstGen* astgen, bool is_skipping
 				hcc_astgen_parse_preprocessor_include(astgen);
 				break;
 			case HCC_PP_DIRECTIVE_LINE:
-				HCC_ABORT("TODO");
-				// hcc_astgen_parse_preprocessor_line(astgen);
+				hcc_astgen_parse_preprocessor_line(astgen);
 				break;
 			case HCC_PP_DIRECTIVE_ERROR:
 				hcc_astgen_parse_preprocessor_error(astgen);
@@ -3847,7 +3921,6 @@ void hcc_astgen_preprocessor_stringify_to_token(HccAstGen* astgen) {
 
 	HccString string = hcc_string(astgen->stringify_buffer + stringify_buffer_start_idx, astgen->stringify_buffer_size - stringify_buffer_start_idx);
 	HccStringId string_id = hcc_string_table_deduplicate(&astgen->string_table, (char*)string.data, string.size);
-	HCC_ABORT("%.*s\n", (int)string.size, string.data);
 
 	HccTokenValue token_value;
 	token_value.string_id = string_id;
@@ -3894,7 +3967,6 @@ void hcc_astgen_preprocessor_concatinate(HccAstGen* astgen) {
 	hcc_concat_buffer_append_string(astgen, astgen->stringify_buffer + stringify_buffer_start_idx, astgen->stringify_buffer_size - stringify_buffer_start_idx);
 
 	HccString string = hcc_string(astgen->concat_buffer + concat_buffer_start_idx, astgen->concat_buffer_size - concat_buffer_start_idx);
-	HCC_ABORT("%.*s\n", (int)string.size, string.data);
 
 	astgen->tokens_count = astgen->span->backup_tokens_count;
 	astgen->token_values_count = astgen->span->backup_token_values_count;

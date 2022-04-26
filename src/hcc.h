@@ -562,6 +562,7 @@ struct HccString {
 #define hcc_string(data, size) ((HccString) { data, size })
 #define hcc_string_lit(lit) ((HccString) { lit, sizeof(lit) - 1 })
 #define hcc_string_c(string) ((HccString) { string, strlen(string) })
+#define hcc_string_c_path(string) ((HccString) { string, strlen(string) + 1 })
 #define hcc_string_eq(a, b) ((a).size == (b).size && memcmp((a).data, (b).data, (a).size) == 0)
 #define hcc_string_eq_c(a, c_string) ((a).size == strlen(c_string) && memcmp((a).data, c_string, (a).size) == 0)
 #define hcc_string_eq_lit(a, lit) ((a).size == sizeof(lit) - 1 && memcmp((a).data, lit, (a).size) == 0)
@@ -1075,6 +1076,9 @@ struct HccCodeSpan {
 	U32             backup_token_values_count;
 	U32             backup_token_locations_count;
 	HccLocation     backup_location;
+	U32             custom_line_dst;
+	U32             custom_line_src;
+	HccString       custom_path;
 };
 
 typedef U16 HccAstGenFlags;

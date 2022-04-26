@@ -51,8 +51,6 @@ typedef vec4_t Vec4;
 
 #define ENENE(a, b) ENENE_(a, b)
 
-JOIN(IDENTIFIER, another);
-
 #ifdef COND
 #ifdef COND2
 #define COND_TEST 1.f
