@@ -1,5 +1,4 @@
-#ifndef TEST_H
-#define TEST_H
+#pragma once
 
 #ifndef TTEST_H
 #define TTEST_H
@@ -13,7 +12,7 @@
 //
 #endif
 
-#endif // TEST_H
+#define OOPS
 
 
 

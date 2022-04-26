@@ -1037,7 +1037,7 @@ struct HccPPIfSpan {
 typedef U32 HccCodeFileFlags;
 enum {
 	HCC_CODE_FILE_FLAGS_COMPILATION_UNIT = 0x1,
-	HCC_CODE_FILE_FLAGS_INCLUDE_GUARD = 0x2,
+	HCC_CODE_FILE_FLAGS_PRAGMA_ONCE = 0x2,
 };
 
 typedef struct HccCodeFile HccCodeFile;
@@ -1273,6 +1273,7 @@ struct HccAstGen {
 	HccCodeFileId include_code_file_id;
 
 	U32 preprocessor_nested_level;
+	HccStringId pragma_once_string_id;
 
 	U32 brackets_to_close_count;
 	HccToken brackets_to_close[_HCC_TOKENIZER_NESTED_BRACKETS_CAP];

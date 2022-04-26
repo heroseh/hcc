@@ -1315,6 +1315,7 @@ void hcc_astgen_init(HccAstGen* astgen, HccCompilerSetup* setup) {
 
 	astgen->va_args_string_id = hcc_string_table_deduplicate_lit(&astgen->string_table, "__VA_ARGS__");
 	astgen->defined_string_id = hcc_string_table_deduplicate_lit(&astgen->string_table, "defined");
+	astgen->pragma_once_string_id = hcc_string_table_deduplicate_lit(&astgen->string_table, "once");
 
 	hcc_hash_table_init(&astgen->global_declarations);
 	{
@@ -1696,9 +1697,6 @@ HCC_NORETURN void hcc_astgen_error(HccAstGen* astgen, U32 token_idx, U32 other_t
 			? "\x1b[1;97\nmoriginally defined here\x1b[0m: \n"
 			: "\noriginally defined here: ";
 		printf("%s", error_fmt);
-
-		char* file_path = "tests/test.c";
-		hcc_astgen_error_file_line(astgen, other_location);
 
 		hcc_astgen_print_code(astgen, other_location);
 	}
@@ -2781,7 +2779,7 @@ ERROR:
 		code_file->code_size = code_size;
 	}
 
-	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_INCLUDE_GUARD)) {
+	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PRAGMA_ONCE)) {
 		astgen->include_code_file_id = code_file_id;
 	}
 
@@ -2809,14 +2807,14 @@ void hcc_astgen_parse_preprocessor_line(HccAstGen* astgen) {
 
 	span->location.column_start = span->location.column_end;
 
-	HccString path = hcc_string((char*)&astgen->span->code[astgen->span->location.code_end_idx], 0);
+	HccString operands = hcc_string((char*)&astgen->span->code[astgen->span->location.code_end_idx], 0);
 	hcc_astgen_token_consume_until_any_byte(astgen, "\n");
-	path.size = (char*)&astgen->span->code[astgen->span->location.code_end_idx] - path.data;
+	operands.size = (char*)&astgen->span->code[astgen->span->location.code_end_idx] - operands.data;
 
 	U32 token_start_idx = astgen->tokens_count;
 	U32 token_value_start_idx = astgen->token_values_count;
 	U32 token_location_start_idx = astgen->token_locations_count;
-	hcc_code_span_push_preprocessor_expression(astgen, path);
+	hcc_code_span_push_preprocessor_expression(astgen, operands);
 
 	astgen->is_preprocessor_include = true;
 	void hcc_astgen_tokenize_run(HccAstGen* astgen);
@@ -2859,6 +2857,59 @@ ERROR:
 	astgen->span->custom_line_src = astgen->span->location.line_start;
 	if (custom_path.data) {
 		astgen->span->custom_path = custom_path;
+	}
+
+	astgen->tokens_count = token_start_idx;
+	astgen->token_values_count = token_value_start_idx;
+	astgen->token_locations_count = token_location_start_idx;
+}
+
+void hcc_astgen_parse_preprocessor_pragma(HccAstGen* astgen) {
+	hcc_astgen_token_consume_whitespace(astgen);
+	HccCodeSpan* span = astgen->span;
+
+	span->location.column_start = span->location.column_end;
+
+	if (hcc_ascii_is_alpha(astgen->span->code[astgen->span->location.code_end_idx])) {
+		HccString ident_string = hcc_astgen_parse_ident(astgen, "invalid token '%c' for macro identifier");
+		if (hcc_string_eq_lit(ident_string, "STDC")) {
+			HCC_ABORT("TODO: implement #pragma STDC support");
+			return;
+		}
+	}
+
+	HccString operands = hcc_string((char*)&astgen->span->code[astgen->span->location.code_end_idx], 0);
+	hcc_astgen_token_consume_until_any_byte(astgen, "\n");
+	operands.size = (char*)&astgen->span->code[astgen->span->location.code_end_idx] - operands.data;
+
+	U32 token_start_idx = astgen->tokens_count;
+	U32 token_value_start_idx = astgen->token_values_count;
+	U32 token_location_start_idx = astgen->token_locations_count;
+	hcc_code_span_push_preprocessor_expression(astgen, operands);
+
+	astgen->is_preprocessor_include = true;
+	void hcc_astgen_tokenize_run(HccAstGen* astgen);
+	hcc_astgen_tokenize_run(astgen);
+	astgen->is_preprocessor_include = false;
+
+	if (token_start_idx == astgen->tokens_count) {
+		return;
+	}
+
+	U32 expected_tokens_count = astgen->tokens_count;
+	HccToken token = astgen->tokens[token_start_idx];
+	HccStringId ident_string_id = {0};
+	if (token == HCC_TOKEN_IDENT) {
+		ident_string_id = astgen->token_values[token_value_start_idx].string_id;
+		if (ident_string_id.idx_plus_one == astgen->pragma_once_string_id.idx_plus_one) {
+			astgen->span->code_file->flags |= HCC_CODE_FILE_FLAGS_PRAGMA_ONCE;
+			expected_tokens_count = token_start_idx + 1;
+		}
+	}
+
+	if (expected_tokens_count != astgen->tokens_count) {
+		HccString ident_string = hcc_string_table_get(&astgen->string_table, ident_string_id);
+		hcc_astgen_token_error_1(astgen, "too many arguments for the '#pragma %.*s' directive", (int)ident_string.size, ident_string.data);
 	}
 
 	astgen->tokens_count = token_start_idx;
@@ -3442,8 +3493,7 @@ bool hcc_astgen_parse_preprocessor_directive(HccAstGen* astgen, bool is_skipping
 				hcc_astgen_parse_preprocessor_error(astgen);
 				break;
 			case HCC_PP_DIRECTIVE_PRAGMA:
-				HCC_ABORT("TODO");
-				// hcc_astgen_parse_preprocessor_pragma(astgen);
+				hcc_astgen_parse_preprocessor_pragma(astgen);
 				break;
 			case HCC_PP_DIRECTIVE_IF: {
 				hcc_pp_if_span_push(astgen, directive);
