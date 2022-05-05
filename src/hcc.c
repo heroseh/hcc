@@ -464,7 +464,10 @@ void hcc_opt_set_enabled(HccOpts* opts, HccOpt opt) {
 	opts->bitset[opt / 64] |= bit;
 }
 
+HccDataType hcc_typedef_resolve(HccAstGen* astgen, HccDataType data_type);
+
 HccArrayDataType* hcc_array_data_type_get(HccAstGen* astgen, HccDataType data_type) {
+	data_type = hcc_typedef_resolve(astgen, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_ARRAY(data_type), "internal error: expected array data type");
 	HCC_ASSERT_ARRAY_BOUNDS(HCC_DATA_TYPE_IDX(data_type), astgen->array_data_types_count);
 	return &astgen->array_data_types[HCC_DATA_TYPE_IDX(data_type)];
@@ -477,6 +480,7 @@ HccEnumDataType* hcc_enum_data_type_get(HccAstGen* astgen, HccDataType data_type
 }
 
 HccCompoundDataType* hcc_compound_data_type_get(HccAstGen* astgen, HccDataType data_type) {
+	data_type = hcc_typedef_resolve(astgen, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_COMPOUND_TYPE(data_type), "internal error: expected compound data type");
 	HCC_ASSERT_ARRAY_BOUNDS(HCC_DATA_TYPE_IDX(data_type), astgen->compound_data_types_count);
 	return &astgen->compound_data_types[HCC_DATA_TYPE_IDX(data_type)];
@@ -1503,7 +1507,7 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 		file_span->type == HCC_CODE_SPAN_TYPE_MACRO_ARG ||
 		file_span->type == HCC_CODE_SPAN_TYPE_PP_CONCAT
 	) {
-		location = &span->location;
+
 	} else {
 		//
 		// recurse up the parents and find the file we are in
@@ -6160,6 +6164,7 @@ HccExpr* hcc_astgen_generate_expr(HccAstGen* astgen, U32 min_precedence) {
 			return left_expr;
 		}
 		hcc_token_next(astgen);
+		HccDataType resolved_left_expr_data_type = hcc_typedef_resolve(astgen, left_expr->data_type);
 
 		if (binary_op_type == HCC_EXPR_TYPE_CALL) {
 			if (left_expr->type != HCC_EXPR_TYPE_FUNCTION) {
@@ -6168,14 +6173,14 @@ HccExpr* hcc_astgen_generate_expr(HccAstGen* astgen, U32 min_precedence) {
 
 			left_expr = hcc_astgen_generate_call_expr(astgen, left_expr);
 		} else if (binary_op_type == HCC_EXPR_TYPE_ARRAY_SUBSCRIPT) {
-			if (!HCC_DATA_TYPE_IS_ARRAY(left_expr->data_type)) {
+			if (!HCC_DATA_TYPE_IS_ARRAY(resolved_left_expr_data_type)) {
 				HccString left_data_type_name = hcc_data_type_string(astgen, left_expr->data_type);
 				hcc_astgen_error_2(astgen, callee_token_idx, "unexpected '[', this can only be used when the left expression is an array but got '%.*s'", (int)left_data_type_name.size, left_data_type_name.data);
 			}
 
 			left_expr = hcc_astgen_generate_array_subscript_expr(astgen, left_expr);
 		} else if (binary_op_type == HCC_EXPR_TYPE_FIELD_ACCESS) {
-			if (!HCC_DATA_TYPE_IS_COMPOUND_TYPE(left_expr->data_type)) {
+			if (!HCC_DATA_TYPE_IS_COMPOUND_TYPE(resolved_left_expr_data_type)) {
 				HccString left_data_type_name = hcc_data_type_string(astgen, left_expr->data_type);
 				hcc_astgen_error_2(astgen, callee_token_idx, "unexpected '.', this can only be used when the left expression is a struct or union type but got '%.*s'", (int)left_data_type_name.size, left_data_type_name.data);
 			}
@@ -6191,7 +6196,7 @@ HccExpr* hcc_astgen_generate_expr(HccAstGen* astgen, U32 min_precedence) {
 
 			U32 other_token_idx = -1;
 			if (is_assignment) {
-				hcc_data_type_ensure_compatible_assignment(astgen, other_token_idx, left_expr->data_type, &right_expr);
+				hcc_data_type_ensure_compatible_assignment(astgen, other_token_idx, resolved_left_expr_data_type, &right_expr);
 			} else {
 				hcc_data_type_ensure_compatible_arithmetic(astgen, other_token_idx, &left_expr, &right_expr, operator_token);
 			}
@@ -6326,10 +6331,12 @@ HccToken hcc_astgen_consume_specifiers(HccAstGen* astgen) {
 	while (1) {
 		HccAstGenFlags flag = 0;
 		switch (token) {
-			case HCC_TOKEN_KEYWORD_STATIC: flag = HCC_ASTGEN_FLAGS_FOUND_STATIC; break;
-			case HCC_TOKEN_KEYWORD_CONST: flag = HCC_ASTGEN_FLAGS_FOUND_CONST; break;
-			case HCC_TOKEN_KEYWORD_INLINE: flag = HCC_ASTGEN_FLAGS_FOUND_INLINE; break;
+			case HCC_TOKEN_KEYWORD_STATIC:    flag = HCC_ASTGEN_FLAGS_FOUND_STATIC;    break;
+			case HCC_TOKEN_KEYWORD_CONST:     flag = HCC_ASTGEN_FLAGS_FOUND_CONST;     break;
+			case HCC_TOKEN_KEYWORD_INLINE:    flag = HCC_ASTGEN_FLAGS_FOUND_INLINE;    break;
 			case HCC_TOKEN_KEYWORD_NO_RETURN: flag = HCC_ASTGEN_FLAGS_FOUND_NO_RETURN; break;
+			case HCC_TOKEN_KEYWORD_VERTEX:    flag = HCC_ASTGEN_FLAGS_FOUND_VERTEX;    break;
+			case HCC_TOKEN_KEYWORD_FRAGMENT:  flag = HCC_ASTGEN_FLAGS_FOUND_FRAGMENT;  break;
 			case HCC_TOKEN_KEYWORD_AUTO: break;
 			case HCC_TOKEN_KEYWORD_VOLATILE:
 			case HCC_TOKEN_KEYWORD_EXTERN:
@@ -6347,17 +6354,22 @@ HccToken hcc_astgen_consume_specifiers(HccAstGen* astgen) {
 
 void _hcc_astgen_ensure_no_unused_specifiers(HccAstGen* astgen, char* what) {
 	if (astgen->flags & (HCC_ASTGEN_FLAGS_FOUND_STATIC | HCC_ASTGEN_FLAGS_FOUND_CONST | HCC_ASTGEN_FLAGS_FOUND_INLINE)) {
-		const char* message = NULL;
+		const char* message = "the '%s' keyword was used, so we are expecting %s for a declaration but got '%s'";
+		HccToken keyword_token;
 		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_STATIC) {
-			message = "the 'static' keyword was used, so we are expecting %s for a declaration but got '%s'";
+			keyword_token = HCC_TOKEN_KEYWORD_STATIC;
 		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_CONST) {
-			message = "the 'const' keyword was used, so we are expecting %s to declare a variable but got '%s'";
+			keyword_token = HCC_TOKEN_KEYWORD_CONST;
 		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_INLINE) {
-			message = "the 'inline' keyword was used, so we are expecting %s to declare a function but got '%s'";
+			keyword_token = HCC_TOKEN_KEYWORD_INLINE;
 		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_NO_RETURN) {
-			message = "the '_Noreturn' keyword was used, so we are expecting %s to declare a function but got '%s'";
+			keyword_token = HCC_TOKEN_KEYWORD_NO_RETURN;
+		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_VERTEX) {
+			keyword_token = HCC_TOKEN_KEYWORD_VERTEX;
+		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_FRAGMENT) {
+			keyword_token = HCC_TOKEN_KEYWORD_FRAGMENT;
 		}
-		hcc_astgen_error_1(astgen, message, what, hcc_token_strings[hcc_token_peek(astgen)]);
+		hcc_astgen_error_1(astgen, message, keyword_token, what, hcc_token_strings[hcc_token_peek(astgen)]);
 	}
 }
 
@@ -6369,17 +6381,23 @@ void hcc_astgen_ensure_no_unused_specifiers_identifier(HccAstGen* astgen) {
 	_hcc_astgen_ensure_no_unused_specifiers(astgen, "an identifier");
 }
 
-U32 hcc_astgen_generate_variable_decl(HccAstGen* astgen, bool is_global, HccDataType* data_type_mut, HccExpr** init_expr_out) {
+U32 hcc_astgen_generate_variable_decl(HccAstGen* astgen, bool is_global, HccStringId identifier_string_id, HccDataType* data_type_mut, HccExpr** init_expr_out) {
 	HccToken token = hcc_token_peek(astgen);
-	HCC_DEBUG_ASSERT(token == HCC_TOKEN_IDENT, "internal error: expected an identifier for a variable declaration");
-	HccStringId identifier_string_id = hcc_token_value_next(astgen).string_id;
 
 	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_INLINE) {
-		hcc_astgen_error_1(astgen, "the 'inline' keyword cannot be used on this variable declaration as it is a function specifier");
+		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_INLINE]);
 	}
 
 	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_NO_RETURN) {
-		hcc_astgen_error_1(astgen, "the '_Noreturn' keyword cannot be used on this variable declaration as it is a function specifier");
+		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_NO_RETURN]);
+	}
+
+	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_VERTEX) {
+		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_VERTEX]);
+	}
+
+	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_FRAGMENT) {
+		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_FRAGMENT]);
 	}
 
 	U32 existing_variable_id = hcc_astgen_variable_stack_find(astgen, identifier_string_id);
@@ -6413,7 +6431,6 @@ U32 hcc_astgen_generate_variable_decl(HccAstGen* astgen, bool is_global, HccData
 	variable->is_const = !!(astgen->flags & HCC_ASTGEN_FLAGS_FOUND_CONST);
 	variable->initializer_constant_id.idx_plus_one = 0;
 
-	token = hcc_token_next(astgen);
 	if (token == HCC_TOKEN_SQUARE_OPEN) {
 		variable->data_type = hcc_astgen_generate_variable_decl_array(astgen, variable->data_type);
 		*data_type_mut = variable->data_type;
@@ -6457,13 +6474,19 @@ U32 hcc_astgen_generate_variable_decl(HccAstGen* astgen, bool is_global, HccData
 			hcc_astgen_error_1(astgen, "expected a ';' to end the declaration or a '=' to assign to the new variable");
 	}
 
-	astgen->flags &= ~(HCC_ASTGEN_FLAGS_FOUND_STATIC | HCC_ASTGEN_FLAGS_FOUND_CONST);
+	astgen->flags &= ~HCC_ASTGEN_FLAGS_FOUND_ALL_VARIABLE_SPECIFIERS;
 	return variable_idx;
 }
 
 HccExpr* hcc_astgen_generate_variable_decl_expr(HccAstGen* astgen, HccDataType data_type) {
 	HccExpr* init_expr = NULL;
-	U32 variable_idx = hcc_astgen_generate_variable_decl(astgen, false, &data_type, &init_expr);
+	HccToken token = hcc_token_peek(astgen);
+
+	HCC_DEBUG_ASSERT(token == HCC_TOKEN_IDENT, "internal error: expected an identifier for a variable declaration");
+	HccStringId identifier_string_id = hcc_token_value_next(astgen).string_id;
+	token = hcc_token_next(astgen);
+
+	U32 variable_idx = hcc_astgen_generate_variable_decl(astgen, false, identifier_string_id, &data_type, &init_expr);
 	if (init_expr) {
 		HccExpr* left_expr = hcc_astgen_alloc_expr(astgen, HCC_EXPR_TYPE_LOCAL_VARIABLE);
 		left_expr->variable.idx = variable_idx;
@@ -6525,9 +6548,12 @@ HccExpr* hcc_astgen_generate_stmt(HccAstGen* astgen) {
 			hcc_token_next(astgen);
 			HccExpr* expr = hcc_astgen_generate_expr(astgen, 0);
 
+			hcc_data_type_ensure_compatible_assignment(astgen, astgen->function->return_data_type_token_idx, astgen->function->return_data_type, &expr);
+
 			HccExpr* stmt = hcc_astgen_alloc_expr(astgen, HCC_EXPR_TYPE_STMT_RETURN);
 			stmt->unary.expr_rel_idx = stmt - expr;
 			hcc_astgen_ensure_semicolon(astgen);
+
 			return stmt;
 		};
 		case HCC_TOKEN_KEYWORD_IF: {
@@ -6785,24 +6811,15 @@ HccExpr* hcc_astgen_generate_stmt(HccAstGen* astgen) {
 		case HCC_TOKEN_KEYWORD_TYPEDEF:
 			hcc_astgen_generate_typedef(astgen);
 			return NULL;
-		case HCC_TOKEN_KEYWORD_STATIC:
-		case HCC_TOKEN_KEYWORD_CONST:
-			hcc_astgen_consume_specifiers(astgen);
-			goto EXPR;
 		case HCC_TOKEN_SEMICOLON:
 			hcc_token_next(astgen);
 			return NULL;
 		default: {
-EXPR: {}
+			hcc_astgen_consume_specifiers(astgen);
 			HccExpr* expr = hcc_astgen_generate_expr(astgen, 0);
 			if (expr->type == HCC_EXPR_TYPE_DATA_TYPE) {
 				token = hcc_token_peek(astgen);
-				switch (token) {
-					case HCC_TOKEN_KEYWORD_STATIC:
-					case HCC_TOKEN_KEYWORD_CONST:
-						token = hcc_astgen_consume_specifiers(astgen);
-						break;
-				}
+				token = hcc_astgen_consume_specifiers(astgen);
 
 				if (token == HCC_TOKEN_IDENT) {
 					expr = hcc_astgen_generate_variable_decl_expr(astgen, expr->data_type);
@@ -6820,42 +6837,46 @@ EXPR: {}
 	}
 }
 
-void hcc_astgen_generate_function(HccAstGen* astgen) {
+void hcc_astgen_generate_function(HccAstGen* astgen, HccStringId identifier_string_id, HccDataType data_type, U32 data_type_token_idx) {
 	HCC_ASSERT(astgen->functions_count < astgen->functions_cap, "functions are full");
 	HccFunction* function = &astgen->functions[astgen->functions_count];
 	U32 function_idx = astgen->functions_count;
 	astgen->functions_count += 1;
-
 	HccToken token = hcc_token_peek(astgen);
-	U32 shader_stage_read_idx = astgen->token_read_idx;
-	switch (token) {
-		case HCC_TOKEN_KEYWORD_VERTEX:   function->shader_stage = HCC_FUNCTION_SHADER_STAGE_VERTEX; break;
-		case HCC_TOKEN_KEYWORD_FRAGMENT: function->shader_stage = HCC_FUNCTION_SHADER_STAGE_FRAGMENT; break;
-		default:                         function->shader_stage = HCC_FUNCTION_SHADER_STAGE_NONE; break;
+	HCC_DEBUG_ASSERT(token == HCC_TOKEN_PARENTHESIS_OPEN, "internal error: expected '%s' at the start of generating a function", hcc_token_strings[HCC_TOKEN_PARENTHESIS_OPEN]);
+
+	{
+		if (!HCC_IS_POWER_OF_TWO_OR_ZERO(astgen->flags & HCC_ASTGEN_FLAGS_FOUND_ALL_SHADER_STAGES)) {
+			hcc_astgen_error_1(astgen, "only a single shader stage can be specified in a function declaration");
+		}
+
+		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_VERTEX) {
+			function->shader_stage = HCC_FUNCTION_SHADER_STAGE_VERTEX;
+		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_FRAGMENT) {
+			function->shader_stage = HCC_FUNCTION_SHADER_STAGE_FRAGMENT;
+		}
+
+		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_STATIC) {
+			function->flags |= HCC_FUNCTION_FLAGS_STATIC;
+		}
+
+		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_CONST) {
+			function->flags |= HCC_FUNCTION_FLAGS_CONST;
+		}
+
+		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_INLINE) {
+			function->flags |= HCC_FUNCTION_FLAGS_INLINE;
+		}
+
+		astgen->flags &= ~HCC_ASTGEN_FLAGS_FOUND_ALL_FUNCTION_SPECIFIERS;
 	}
 
-	if (function->shader_stage != HCC_FUNCTION_SHADER_STAGE_NONE) {
-		token = hcc_token_next(astgen);
-	}
-
-	if (!hcc_astgen_generate_data_type(astgen, &function->return_data_type)) {
-		hcc_astgen_error_1(astgen, "expected type here");
-	}
-	token = hcc_token_peek(astgen);
-
-	if (token != HCC_TOKEN_IDENT) {
-		hcc_astgen_error_2(astgen, shader_stage_read_idx, "expected an identifier for a function since a shader stage was used");
-	}
-	HccStringId identifier_string_id = hcc_token_value_next(astgen).string_id;
 	function->identifier_string_id = identifier_string_id;
+	function->return_data_type = data_type;
+	function->return_data_type_token_idx = data_type_token_idx;
 
 	HccDecl decl = HCC_DECL_INIT(HCC_DECL_FUNCTION, function_idx);
 	hcc_astgen_insert_global_declaration(astgen, identifier_string_id, decl);
-
-	token = hcc_token_next(astgen);
-	if (token != HCC_TOKEN_PARENTHESIS_OPEN) {
-		hcc_astgen_error_2(astgen, shader_stage_read_idx, "expected an '(' to start defining function parameters since a shader stage was used");
-	}
 
 	hcc_astgen_variable_stack_open(astgen);
 
@@ -6905,6 +6926,7 @@ void hcc_astgen_generate_function(HccAstGen* astgen) {
 
 	function->block_expr_id.idx_plus_one = 0;
 	if (token == HCC_TOKEN_CURLY_OPEN) {
+		astgen->function = function;
 		HccExpr* expr = hcc_astgen_generate_stmt(astgen);
 		function->block_expr_id.idx_plus_one = (expr - astgen->exprs) + 1;
 	}
@@ -6951,35 +6973,33 @@ void hcc_astgen_generate(HccAstGen* astgen) {
 		HccToken token = hcc_token_peek(astgen);
 
 		switch (token) {
-			case HCC_TOKEN_KEYWORD_VERTEX:
-			case HCC_TOKEN_KEYWORD_FRAGMENT:
-				hcc_astgen_generate_function(astgen);
-				break;
 			case HCC_TOKEN_EOF:
 				return;
 			case HCC_TOKEN_KEYWORD_TYPEDEF:
 				hcc_astgen_generate_typedef(astgen);
 				break;
-			case HCC_TOKEN_KEYWORD_STATIC:
-			case HCC_TOKEN_KEYWORD_CONST:
-				hcc_astgen_consume_specifiers(astgen);
-				// fallthrough
 			default: {
+				hcc_astgen_consume_specifiers(astgen);
 				HccDataType data_type;
+				U32 data_type_token_idx = astgen->token_read_idx;
 				if (hcc_astgen_generate_data_type(astgen, &data_type)) {
-					token = hcc_token_peek(astgen);
-					switch (token) {
-						case HCC_TOKEN_KEYWORD_STATIC:
-						case HCC_TOKEN_KEYWORD_CONST:
-							token = hcc_astgen_consume_specifiers(astgen);
-							break;
-					}
+					token = hcc_astgen_consume_specifiers(astgen);
+					bool ensure_semi_colon = true;
 					if (token == HCC_TOKEN_IDENT) {
-						hcc_astgen_generate_variable_decl(astgen, true, &data_type, NULL);
+						HccStringId identifier_string_id = hcc_token_value_next(astgen).string_id;
+						token = hcc_token_next(astgen);
+						if (token == HCC_TOKEN_PARENTHESIS_OPEN) {
+							hcc_astgen_generate_function(astgen, identifier_string_id, data_type, data_type_token_idx);
+							ensure_semi_colon = false;
+						} else {
+							hcc_astgen_generate_variable_decl(astgen, true, identifier_string_id, &data_type, NULL);
+						}
 					} else {
 						hcc_astgen_ensure_no_unused_specifiers_identifier(astgen);
 					}
-					hcc_astgen_ensure_semicolon(astgen);
+					if (ensure_semi_colon) {
+						hcc_astgen_ensure_semicolon(astgen);
+					}
 					break;
 				} else {
 					hcc_astgen_ensure_no_unused_specifiers_data_type(astgen);
@@ -7086,7 +7106,7 @@ CONSTANT: {
 			for (U32 i = 0; i < variables_count; i += 1) {
 				char buf[1024] = "<CURLY_INITIALIZER_RESULT>";
 				U32 variable_idx = astgen->print_variable_base_idx + i;
-				HccVariable* variable = &astgen->function_params_and_variables[astgen->print_function->params_start_idx + variable_idx];
+				HccVariable* variable = &astgen->function_params_and_variables[astgen->function->params_start_idx + variable_idx];
 				if (variable->identifier_string_id.idx_plus_one) {
 					hcc_variable_to_string(astgen, variable, buf, sizeof(buf), false);
 				}
@@ -7331,7 +7351,7 @@ BINARY:
 		};
 		case HCC_EXPR_TYPE_LOCAL_VARIABLE: {
 			char buf[1024];
-			HccVariable* variable = &astgen->function_params_and_variables[astgen->print_function->params_start_idx + expr->variable.idx];
+			HccVariable* variable = &astgen->function_params_and_variables[astgen->function->params_start_idx + expr->variable.idx];
 			hcc_variable_to_string(astgen, variable, buf, sizeof(buf), false);
 			fprintf(f, "LOCAL_VARIABLE(#%u): %s", expr->variable.idx, buf);
 			break;
@@ -7460,6 +7480,9 @@ void hcc_astgen_print_ast(HccAstGen* astgen, FILE* f) {
 		fprintf(f, "Function(#%u): %.*s {\n", function_idx, (int)name.size, name.data);
 		fprintf(f, "\treturn_type: %.*s\n", (int)return_data_type_name.size, return_data_type_name.data);
 		fprintf(f, "\tshader_stage: %s\n", hcc_function_shader_stage_strings[function->shader_stage]);
+		fprintf(f, "\tstatic: %s\n", function->flags & HCC_FUNCTION_FLAGS_STATIC ? "true" : "false");
+		fprintf(f, "\tconst: %s\n", function->flags & HCC_FUNCTION_FLAGS_CONST ? "true" : "false");
+		fprintf(f, "\tinline: %s\n", function->flags & HCC_FUNCTION_FLAGS_INLINE ? "true" : "false");
 		if (function->params_count) {
 			fprintf(f, "\tparams[%u]: {\n", function->params_count);
 			for (U32 param_idx = 0; param_idx < function->params_count; param_idx += 1) {
@@ -7471,7 +7494,7 @@ void hcc_astgen_print_ast(HccAstGen* astgen, FILE* f) {
 			fprintf(f, "\t}\n");
 		}
 		if (function->block_expr_id.idx_plus_one) {
-			astgen->print_function = function;
+			astgen->function = function;
 			astgen->print_variable_base_idx = function->params_count;
 			HccExpr* expr = &astgen->exprs[function->block_expr_id.idx_plus_one - 1];
 			hcc_astgen_print_expr(astgen, expr, 1, f);
@@ -7499,11 +7522,14 @@ void hcc_ir_init(HccIR* ir) {
 	HCC_ASSERT(ir->instructions, "out of memory");
 	ir->operands = HCC_ALLOC_ARRAY(HccIROperand, 8192);
 	HCC_ASSERT(ir->operands, "out of memory");
+	ir->function_call_param_data_types = HCC_ALLOC_ARRAY(HccDataType, 8192);
+	HCC_ASSERT(ir->function_call_param_data_types, "out of memory");
 	ir->functions_cap = 8192;
 	ir->basic_blocks_cap = 8192;
 	ir->values_cap = 8192;
 	ir->instructions_cap = 8192;
 	ir->operands_cap = 8192;
+	ir->function_call_param_data_types_cap = 8192;
 }
 
 HccIRBasicBlock* hcc_ir_add_basic_block(HccIR* ir, HccIRFunction* ir_function) {
@@ -8311,17 +8337,25 @@ UNARY:
 				U32 args_count = ((U8*)call_args_expr)[1];
 				U8* next_arg_expr_rel_indices = &((U8*)call_args_expr)[2];
 
-				HccIROperand* operands = hcc_ir_add_operands_many(ir, ir_function, args_count + 1);
+				HccIROperand* operands = hcc_ir_add_operands_many(ir, ir_function, args_count + 2);
 				U16 return_value_idx = hcc_ir_add_value(ir, ir_function, function->return_data_type);
 				operands[0] = HCC_IR_OPERAND_VALUE_INIT(return_value_idx);
+				operands[1] = HCC_IR_OPERAND_FUNCTION_INIT(function_expr->function.idx); // TODO function pointer support
+
+				HCC_ASSERT_ARRAY_BOUNDS(ir->function_call_param_data_types_count + args_count - 1, ir->function_call_param_data_types_cap);
+				HccDataType* param_data_types = &ir->function_call_param_data_types[ir->function_call_param_data_types_count];
+				HccVariable* variables = &astgen->function_params_and_variables[function->params_start_idx];
+				ir->function_call_param_data_types_count += args_count;
+				ir_function->call_param_data_types_count += args_count;
 
 				for (U32 i = 0; i < args_count; i += 1) {
 					arg_expr = &arg_expr[next_arg_expr_rel_indices[i]];
 					basic_block = hcc_ir_generate_instructions(ir, astgen, ir_function, basic_block, arg_expr);
-					operands[i + 1] = ir->last_operand;
+					param_data_types[i] = hcc_typedef_resolve(astgen, variables[i].data_type);
+					operands[i + 2] = ir->last_operand;
 				}
 
-				hcc_ir_add_instruction(ir, ir_function, HCC_IR_OP_CODE_FUNCTION_CALL, operands, args_count);
+				hcc_ir_add_instruction(ir, ir_function, HCC_IR_OP_CODE_FUNCTION_CALL, operands, args_count + 2);
 				ir->last_operand = operands[0];
 			}
 
@@ -8565,6 +8599,8 @@ void hcc_ir_generate_function(HccIR* ir, HccAstGen* astgen, U32 function_idx) {
 	ir_function->values_count = 0;
 	ir_function->operands_start_idx = ir->operands_count;
 	ir_function->operands_count = 0;
+	ir_function->call_param_data_types_start_idx = ir->function_call_param_data_types_count;
+	ir_function->call_param_data_types_count = 0;
 
 	HCC_DEBUG_ASSERT(function->block_expr_id.idx_plus_one, "expected to have a function body");
 
@@ -8595,6 +8631,12 @@ void hcc_ir_print_operand(HccAstGen* astgen, HccIROperand operand, FILE* f) {
 		case HCC_IR_OPERAND_GLOBAL_VARIABLE:
 			fprintf(f, "global_var%u", HCC_IR_OPERAND_VARIABLE_IDX(operand));
 			break;
+		case HCC_IR_OPERAND_FUNCTION: {
+			HccFunction* function = &astgen->functions[HCC_IR_OPERAND_FUNCTION_IDX(operand)];
+			HccString ident = hcc_string_table_get(&astgen->string_table, function->identifier_string_id);
+			fprintf(f, "function%u(%.*s)", HCC_IR_OPERAND_FUNCTION_IDX(operand), (int)ident.size, ident.data);
+			break;
+		};
 		default: {
 			HccString data_type_name = hcc_data_type_string(astgen, operand);
 			fprintf(f, "%.*s", (int)data_type_name.size, data_type_name.data);
@@ -8825,6 +8867,23 @@ BINARY_OP:
 						fprintf(f, "\n");
 						break;
 					};
+					case HCC_IR_OP_CODE_FUNCTION_CALL: {
+						HccIROperand* operands = &ir->operands[ir_function->operands_start_idx + (U32)instruction->operands_start_idx];
+						fprintf(f, "\t\t");
+						hcc_ir_print_operand(astgen, operands[0], f);
+						fprintf(f, " = OP_FUNCTION_CALL: ");
+						hcc_ir_print_operand(astgen, operands[1], f);
+						fprintf(f, "(");
+						for (U32 idx = 2; idx < instruction->operands_count; idx += 1) {
+							hcc_ir_print_operand(astgen, operands[idx], f);
+							if (idx + 1 < instruction->operands_count) {
+								fprintf(f, ", ");
+							}
+						}
+						fprintf(f, ")");
+						fprintf(f, "\n");
+						break;
+					};
 					default:
 						HCC_ABORT("unhandled instruction '%u'", instruction->op_code);
 				}
@@ -8841,7 +8900,7 @@ BINARY_OP:
 //
 // ===========================================
 
-HccSpirvOp hcc_spriv_binary_ops[HCC_BINARY_OP_COUNT][HCC_BASIC_TYPE_CLASS_COUNT] = {
+HccSpirvOp hcc_spirv_binary_ops[HCC_BINARY_OP_COUNT][HCC_BASIC_TYPE_CLASS_COUNT] = {
 	[HCC_BINARY_OP_ADD] = {
 		[HCC_BASIC_TYPE_CLASS_UINT] = HCC_SPIRV_OP_I_ADD,
 		[HCC_BASIC_TYPE_CLASS_SINT] = HCC_SPIRV_OP_I_ADD,
@@ -8920,7 +8979,7 @@ HccSpirvOp hcc_spriv_binary_ops[HCC_BINARY_OP_COUNT][HCC_BASIC_TYPE_CLASS_COUNT]
 	},
 };
 
-HccSpirvOp hcc_spriv_unary_ops[HCC_UNARY_OP_COUNT][HCC_BASIC_TYPE_CLASS_COUNT] = {
+HccSpirvOp hcc_spirv_unary_ops[HCC_UNARY_OP_COUNT][HCC_BASIC_TYPE_CLASS_COUNT] = {
 	[HCC_UNARY_OP_LOGICAL_NOT] = {
 		[HCC_BASIC_TYPE_CLASS_BOOL] = HCC_SPIRV_OP_LOGICAL_NOT,
 	},
@@ -8960,14 +9019,14 @@ U32 hcc_spirv_type_table_deduplicate_function(HccCompiler* c, HccSpirvTypeTable*
 		}
 
 		HccDataType* data_types = &table->data_types[entry->data_types_start_idx];
-		if (data_types[0] != function->return_data_type) {
+		if (data_types[0] != hcc_typedef_resolve(&c->astgen, function->return_data_type)) {
 			continue;
 		}
 
 		bool is_match = true;
 		HccVariable* params = &c->astgen.function_params_and_variables[function->params_start_idx];
-		for (U32 j = 0; j < entry->data_types_count; j += 1) {
-			if (data_types[j + 1] != params[j].data_type) {
+		for (U32 j = 0; j < function->params_count; j += 1) {
+			if (data_types[j + 1] != hcc_typedef_resolve(&c->astgen, params[j].data_type)) {
 				is_match = false;
 				break;
 			}
@@ -8991,16 +9050,18 @@ U32 hcc_spirv_type_table_deduplicate_function(HccCompiler* c, HccSpirvTypeTable*
 	HccDataType* data_types = &table->data_types[table->data_types_count];
 	table->data_types_count += entry->data_types_count;
 
-	data_types[0] = function->return_data_type;
+	data_types[0] = hcc_typedef_resolve(&c->astgen, function->return_data_type);
 	HccVariable* params = &c->astgen.function_params_and_variables[function->params_start_idx];
 	for (U32 j = 0; j < entry->data_types_count; j += 1) {
-		data_types[j + 1] = params[j].data_type;
+		data_types[j + 1] = hcc_typedef_resolve(&c->astgen, params[j].data_type);
 	}
 
 	return entry->spirv_id;
 }
 
 U32 hcc_spirv_type_table_deduplicate_variable(HccCompiler* c, HccSpirvTypeTable* table, HccDataType data_type, HccSpirvTypeKind kind) {
+	data_type = hcc_typedef_resolve(&c->astgen, data_type);
+
 	//
 	// TODO make this a hash table look for speeeds
 	for (U32 i = 0; i < table->entries_count; i += 1) {
@@ -9101,6 +9162,7 @@ U32 hcc_spirv_convert_operand(HccCompiler* c, HccIROperand ir_operand) {
 		case HCC_IR_OPERAND_BASIC_BLOCK: return c->spirv.basic_block_base_spirv_id + HCC_IR_OPERAND_BASIC_BLOCK_IDX(ir_operand);
 		case HCC_IR_OPERAND_LOCAL_VARIABLE: return c->spirv.local_variable_base_spirv_id + HCC_IR_OPERAND_VARIABLE_IDX(ir_operand);
 		case HCC_IR_OPERAND_GLOBAL_VARIABLE: return c->spirv.global_variable_base_spirv_id + HCC_IR_OPERAND_VARIABLE_IDX(ir_operand);
+		case HCC_IR_OPERAND_FUNCTION: return c->spirv.function_base_spirv_id + HCC_IR_OPERAND_FUNCTION_IDX(ir_operand) - HCC_FUNCTION_IDX_USER_START;
 		default: return hcc_spirv_resolve_type_id(c, ir_operand);
 	}
 }
@@ -9177,6 +9239,7 @@ TYPES_VARIABLES_CONSTANTS:
 		case HCC_SPIRV_OP_FUNCTION:
 		case HCC_SPIRV_OP_FUNCTION_PARAMETER:
 		case HCC_SPIRV_OP_FUNCTION_END:
+		case HCC_SPIRV_OP_FUNCTION_CALL:
 		case HCC_SPIRV_OP_COMPOSITE_CONSTRUCT:
 		case HCC_SPIRV_OP_ACCESS_CHAIN:
 		case HCC_SPIRV_OP_CONVERT_F_TO_U:
@@ -9315,42 +9378,51 @@ enum {
 	HCC_SPIRV_FUNCTION_CTRL_CONST        = 0x8,
 };
 
+U32 hcc_spirv_generate_variable_type(HccCompiler* c, HccDataType data_type, bool is_static) {
+	HccSpirvTypeKind type_kind = is_static ? HCC_SPIRV_TYPE_KIND_STATIC_VARIABLE : HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE;
+	U32 type_id = hcc_spirv_type_table_deduplicate_variable(c, &c->spirv.type_table, data_type, type_kind);
+	if (type_id == c->spirv.next_id) {
+		c->spirv.next_id += 1;
+		hcc_spirv_instr_start(c, HCC_SPIRV_OP_TYPE_POINTER);
+		hcc_spirv_instr_add_operand(c, type_id);
+		U32 storage_class = is_static ? HCC_SPIRV_STORAGE_CLASS_PRIVATE : HCC_SPIRV_STORAGE_CLASS_FUNCTION;
+		hcc_spirv_instr_add_operand(c, storage_class);
+		hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, data_type));
+		hcc_spirv_instr_end(c);
+	}
+
+	return type_id;
+}
+
 U32 hcc_spirv_generate_function_type(HccCompiler* c, HccFunction* function) {
 	if (function->shader_stage != HCC_FUNCTION_SHADER_STAGE_NONE) {
-		return c->spirv.shader_stage_function_type_spirv_id;
+		static HccFunction void_function = {0};
+		function = &void_function;
 	}
 
 	U32 function_type_id = hcc_spirv_type_table_deduplicate_function(c, &c->spirv.type_table, function);
 
 	if (function_type_id == c->spirv.next_id) {
-		hcc_spirv_instr_start(c, HCC_SPIRV_OP_TYPE_FUNCTION);
-		hcc_spirv_instr_add_result_operand(c);
-		hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, function->return_data_type));
+		c->spirv.next_id += 1;
+
+		//
+		// prebuild any function variable types
 		HccVariable* params = &c->astgen.function_params_and_variables[function->params_start_idx];
 		for (U32 i = 0; i < function->params_count; i += 1) {
-			hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, params[i].data_type));
+			hcc_spirv_generate_variable_type(c, params[i].data_type, false);
+		}
+
+		hcc_spirv_instr_start(c, HCC_SPIRV_OP_TYPE_FUNCTION);
+		hcc_spirv_instr_add_operand(c, function_type_id);
+		hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, function->return_data_type));
+		for (U32 i = 0; i < function->params_count; i += 1) {
+			U32 type_id = hcc_spirv_generate_variable_type(c, params[i].data_type, false);
+			hcc_spirv_instr_add_operand(c, type_id);
 		}
 		hcc_spirv_instr_end(c);
-		c->spirv.next_id += 1;
 	}
 
 	return function_type_id;
-}
-
-U32 hcc_spirv_generate_variable_type(HccCompiler* c, HccDataType data_type, bool is_static) {
-	HccSpirvTypeKind type_kind = is_static ? HCC_SPIRV_TYPE_KIND_STATIC_VARIABLE : HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE;
-	U32 type_id = hcc_spirv_type_table_deduplicate_variable(c, &c->spirv.type_table, data_type, type_kind);
-	if (type_id == c->spirv.next_id) {
-		hcc_spirv_instr_start(c, HCC_SPIRV_OP_TYPE_POINTER);
-		hcc_spirv_instr_add_result_operand(c);
-		U32 storage_class = is_static ? HCC_SPIRV_STORAGE_CLASS_PRIVATE : HCC_SPIRV_STORAGE_CLASS_FUNCTION;
-		hcc_spirv_instr_add_operand(c, storage_class);
-		hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, data_type));
-		hcc_spirv_instr_end(c);
-		c->spirv.next_id += 1;
-	}
-
-	return type_id;
 }
 
 void hcc_spirv_generate_select(HccCompiler* c, U32 result_spirv_operand, HccDataType dst_type, U32 cond_value_spirv_operand, U32 a_spirv_operand, U32 b_spirv_operand) {
@@ -9389,12 +9461,19 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 	}
 
 	U32 function_type_id = hcc_spirv_generate_function_type(c, function);
+	HccString ident = hcc_string_table_get(&c->astgen.string_table, function->identifier_string_id);
+	printf("function_type_id = %u, %.*s\n", function_type_id, (int)ident.size, ident.data);
 
-	U32 function_spirv_id = c->spirv.next_id;
+	U32 function_ctrl = HCC_SPIRV_FUNCTION_CTRL_NONE;
+	if (function->flags & HCC_FUNCTION_FLAGS_INLINE) {
+		function_ctrl |= HCC_SPIRV_FUNCTION_CTRL_INLINE;
+	}
+
+	U32 function_spirv_id = c->spirv.function_base_spirv_id + function_idx - HCC_FUNCTION_IDX_USER_START;
 	hcc_spirv_instr_start(c, HCC_SPIRV_OP_FUNCTION);
 	hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, return_data_type));
-	hcc_spirv_instr_add_result_operand(c);
-	hcc_spirv_instr_add_operand(c, HCC_SPIRV_FUNCTION_CTRL_NONE);
+	hcc_spirv_instr_add_operand(c, function_spirv_id);
+	hcc_spirv_instr_add_operand(c, function_ctrl);
 	hcc_spirv_instr_add_operand(c, function_type_id);
 	hcc_spirv_instr_end(c);
 
@@ -9453,8 +9532,11 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 	c->spirv.value_base_id = c->spirv.next_id;
 	c->spirv.next_id += ir_function->values_count;
 
+	U32 call_params_base_spirv_id = c->spirv.next_id;
+	c->spirv.next_id += ir_function->call_param_data_types_count;
+
 	//
-	// generate the local variable types before we make the local variables as the global variables have a linear spirv id range
+	// generate the local variable types before we make the local variables and the global variables have a linear spirv id range
 	{
 		if (function->shader_stage == HCC_FUNCTION_SHADER_STAGE_NONE) {
 			//
@@ -9471,14 +9553,17 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 			HccVariable* variable = &c->astgen.function_params_and_variables[function->params_start_idx + variable_idx];
 			hcc_spirv_generate_variable_type(c, variable->data_type, variable->is_static);
 		}
+
+		//
+		// local variables for every function call argument.
+		HccDataType* function_call_param_data_types = &c->ir.function_call_param_data_types[ir_function->call_param_data_types_start_idx];
+		for (U32 variable_idx = function->params_count; variable_idx < function->variables_count; variable_idx += 1) {
+			hcc_spirv_generate_variable_type(c, function_call_param_data_types[variable_idx], false);
+		}
 	}
 
 	for (U32 basic_block_idx = ir_function->basic_blocks_start_idx; basic_block_idx < ir_function->basic_blocks_start_idx + (U32)ir_function->basic_blocks_count; basic_block_idx += 1) {
 		HccIRBasicBlock* basic_block = &c->ir.basic_blocks[basic_block_idx];
-
-		hcc_spirv_instr_start(c, HCC_SPIRV_OP_LABEL);
-		hcc_spirv_instr_add_operand(c, c->spirv.basic_block_base_spirv_id + (basic_block_idx - ir_function->basic_blocks_start_idx));
-		hcc_spirv_instr_end(c);
 
 		if (basic_block_idx == ir_function->basic_blocks_start_idx) {
 			//
@@ -9493,7 +9578,13 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 					hcc_spirv_instr_end(c);
 				}
 			}
+		}
 
+		hcc_spirv_instr_start(c, HCC_SPIRV_OP_LABEL);
+		hcc_spirv_instr_add_operand(c, c->spirv.basic_block_base_spirv_id + (basic_block_idx - ir_function->basic_blocks_start_idx));
+		hcc_spirv_instr_end(c);
+
+		if (basic_block_idx == ir_function->basic_blocks_start_idx) {
 			//
 			// local variables
 			for (U32 variable_idx = function->params_count; variable_idx < function->variables_count; variable_idx += 1) {
@@ -9508,6 +9599,20 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 				} else {
 					hcc_spirv_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_FUNCTION);
 				}
+				hcc_spirv_instr_end(c);
+			}
+
+			//
+			// these are the local variables for every function call argument so that the value can be stored in here
+			// before the call to the function. it has to be done this way so that the argument has the same data type
+			// as the function param which is a 'pointer' to the actual data type.
+			HccDataType* function_call_param_data_types = &c->ir.function_call_param_data_types[ir_function->call_param_data_types_start_idx];
+			for (U32 idx = 0; idx < ir_function->call_param_data_types_count; idx += 1) {
+				U32 type_spirv_id = hcc_spirv_generate_variable_type(c, function_call_param_data_types[idx], false);
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_VARIABLE);
+				hcc_spirv_instr_add_operand(c, type_spirv_id);
+				hcc_spirv_instr_add_operand(c, call_params_base_spirv_id + idx);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_FUNCTION);
 				hcc_spirv_instr_end(c);
 			}
 		}
@@ -9622,7 +9727,7 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 					resolved_data_type = hcc_typedef_resolve(&c->astgen, resolved_data_type);
 					HccBasicTypeClass type_class = hcc_basic_type_class(HCC_DATA_TYPE_SCALAR(resolved_data_type));
 					printf("binary_op = %u, type_class = %u\n", binary_op, type_class);
-					HccSpirvOp spirv_op = hcc_spriv_binary_ops[binary_op][type_class];
+					HccSpirvOp spirv_op = hcc_spirv_binary_ops[binary_op][type_class];
 					HCC_DEBUG_ASSERT(spirv_op != HCC_SPIRV_OP_NO_OP, "internal error: invalid configuration for a binary op");
 
 					hcc_spirv_instr_start(c, spirv_op);
@@ -9644,7 +9749,7 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 					HccBasicTypeClass type_class = hcc_basic_type_class(scalar_data_type);
 
 					HccUnaryOp unary_op = instruction->op_code - HCC_IR_OP_CODE_UNARY_OP_START;
-					HccSpirvOp spirv_op = hcc_spriv_unary_ops[unary_op][type_class];
+					HccSpirvOp spirv_op = hcc_spirv_unary_ops[unary_op][type_class];
 					HCC_DEBUG_ASSERT(spirv_op != HCC_SPIRV_OP_NO_OP, "internal error: invalid configuration for a unary op");
 
 					hcc_spirv_instr_start(c, spirv_op);
@@ -9837,6 +9942,34 @@ SWITCH_SINGLE_WORD_LITERAL:
 					hcc_spirv_instr_add_converted_operand(c, operands[2]);
 					hcc_spirv_instr_add_converted_operand(c, operands[3]);
 					hcc_spirv_instr_end(c);
+					break;
+				};
+				case HCC_IR_OP_CODE_FUNCTION_CALL: {
+					U32 return_value_idx = HCC_IR_OPERAND_VALUE_IDX(operands[0]);
+					HccIRValue* return_value = &c->ir.values[ir_function->values_start_idx + return_value_idx];
+
+					//
+					// store the arguments inside the local variabes that were made at the
+					// beginning of the function.
+					for (U32 idx = 2; idx < instruction->operands_count; idx += 1) {
+						hcc_spirv_instr_start(c, HCC_SPIRV_OP_STORE);
+						hcc_spirv_instr_add_operand(c, call_params_base_spirv_id + idx - 2);
+						hcc_spirv_instr_add_converted_operand(c, operands[idx]);
+						hcc_spirv_instr_end(c);
+					}
+
+					hcc_spirv_instr_start(c, HCC_SPIRV_OP_FUNCTION_CALL);
+					hcc_spirv_instr_add_converted_operand(c, return_value->data_type);
+					hcc_spirv_instr_add_converted_operand(c, operands[0]);
+					hcc_spirv_instr_add_converted_operand(c, operands[1]);
+
+					for (U32 idx = 2; idx < instruction->operands_count; idx += 1) {
+						hcc_spirv_instr_add_operand(c, call_params_base_spirv_id + idx - 2);
+					}
+
+					hcc_spirv_instr_end(c);
+
+					call_params_base_spirv_id += instruction->operands_count - 2;
 					break;
 				};
 				default:
@@ -10097,14 +10230,6 @@ void hcc_spirv_generate(HccCompiler* c) {
 
 	hcc_spirv_generate_non_basic_type_constants(c);
 
-	{
-		c->spirv.shader_stage_function_type_spirv_id = c->spirv.next_id;
-		hcc_spirv_instr_start(c, HCC_SPIRV_OP_TYPE_FUNCTION);
-		hcc_spirv_instr_add_result_operand(c);
-		hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, HCC_DATA_TYPE_VOID));
-		hcc_spirv_instr_end(c);
-	}
-
 	hcc_spirv_instr_start(c, HCC_SPIRV_OP_MEMORY_MODEL);
 	hcc_spirv_instr_add_operand(c, HCC_SPIRV_ADDRESS_MODEL_PHYSICAL_STORAGE_BUFFER_64);
 	hcc_spirv_instr_add_operand(c, HCC_SPIRV_MEMORY_MODEL_VULKAN);
@@ -10145,6 +10270,8 @@ void hcc_spirv_generate(HccCompiler* c) {
 		hcc_spirv_instr_end(c);
 	}
 
+	c->spirv.function_base_spirv_id = c->spirv.next_id;
+	c->spirv.next_id += c->astgen.functions_count - HCC_FUNCTION_IDX_USER_START;
 	for (U32 function_idx = HCC_FUNCTION_IDX_USER_START; function_idx < c->astgen.functions_count; function_idx += 1) {
 		hcc_spirv_generate_function(c, function_idx);
 	}

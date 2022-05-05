@@ -106,11 +106,29 @@ enum {
 	MINUS_FOUR,
 };
 
-S32 global = 7;
+U32 global = 1;
 
 struct {
 	U32 omg;
 } global_struct;
+
+U32 add_u32(U32 a, U32 b) {
+	return a + b;
+}
+
+inline U32 inlined_add_u32(U32 a, U32 b) {
+	return a + b;
+}
+
+typedef struct AddOp AddOp;
+struct AddOp {
+	U32 a;
+	U32 b;
+};
+
+U32 add_op_u32(AddOp op) {
+	return op.a + op.b;
+}
 
 typedef S32 signed_int;
 typedef struct Named { S32 i[1]; } named_wrapped_signed_int;
@@ -262,7 +280,10 @@ fragment Vec4 billboard_shader_fragment(Vec4 state) {
 
 	TEST3(ZERO_POINT_FIVE);
 
-	return vec4(COND_TEST, COND_TEST1, COND_TEST2, 1.f);
+	AddOp add_op = { 2, 2 };
+	red = add_op_u32(add_op) != 4;
+
+	return vec4(red, 0.f, 0.f, 1.f);
 }
 
 /*

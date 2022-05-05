@@ -91,6 +91,7 @@ HCC_NORETURN void _hcc_abort(const char* file, int line, const char* message, ..
 #define HCC_INT_ROUND_DOWN_ALIGN(i, align) ((i) & ~((align) - 1))
 
 #define HCC_ARRAY_COUNT(array) (sizeof(array) / sizeof(*(array)))
+#define HCC_IS_POWER_OF_TWO_OR_ZERO(v) ((((v) & ((v) - 1)) == 0))
 #define HCC_IS_POWER_OF_TWO(v) (((v) != 0) && (((v) & ((v) - 1)) == 0))
 #define HCC_PTR_ADD(ptr, by) (void*)((Uptr)(ptr) + (Uptr)(by))
 #define HCC_PTR_SUB(ptr, by) (void*)((Uptr)(ptr) - (Uptr)(by))
@@ -699,14 +700,23 @@ enum {
 };
 extern char* hcc_function_shader_stage_strings[HCC_FUNCTION_SHADER_STAGE_COUNT];
 
+typedef U8 HccFunctionFlags;
+enum {
+	HCC_FUNCTION_FLAGS_STATIC = 0x1,
+	HCC_FUNCTION_FLAGS_CONST =  0x2,
+	HCC_FUNCTION_FLAGS_INLINE = 0x4,
+};
+
 typedef struct HccFunction HccFunction;
 struct HccFunction {
 	U32                    identifier_token_idx;
 	HccStringId            identifier_string_id;
 	HccDataType            return_data_type;
+	U32                    return_data_type_token_idx;
 	U32                    params_start_idx;
 	U16                    variables_count;
 	U8                     params_count;
+	HccFunctionFlags       flags;
 	HccFunctionShaderStage shader_stage;
 	HccExprId              block_expr_id;
 	U32                    used_static_variables_start_idx;
@@ -1083,10 +1093,22 @@ struct HccCodeSpan {
 
 typedef U16 HccAstGenFlags;
 enum {
-	HCC_ASTGEN_FLAGS_FOUND_STATIC = 0x1,
-	HCC_ASTGEN_FLAGS_FOUND_CONST = 0x2,
-	HCC_ASTGEN_FLAGS_FOUND_INLINE = 0x4,
-	HCC_ASTGEN_FLAGS_FOUND_NO_RETURN = 0x8,
+	HCC_ASTGEN_FLAGS_FOUND_STATIC =             0x1,
+	HCC_ASTGEN_FLAGS_FOUND_CONST =              0x2,
+	HCC_ASTGEN_FLAGS_FOUND_INLINE =             0x4,
+	HCC_ASTGEN_FLAGS_FOUND_NO_RETURN =          0x8,
+
+	HCC_ASTGEN_FLAGS_FOUND_VERTEX =            0x10,
+	HCC_ASTGEN_FLAGS_FOUND_FRAGMENT =          0x20,
+	HCC_ASTGEN_FLAGS_FOUND_ALL_SHADER_STAGES = HCC_ASTGEN_FLAGS_FOUND_VERTEX | HCC_ASTGEN_FLAGS_FOUND_FRAGMENT,
+
+	HCC_ASTGEN_FLAGS_FOUND_ALL_VARIABLE_SPECIFIERS = HCC_ASTGEN_FLAGS_FOUND_STATIC | HCC_ASTGEN_FLAGS_FOUND_CONST,
+	HCC_ASTGEN_FLAGS_FOUND_ALL_FUNCTION_SPECIFIERS =
+			HCC_ASTGEN_FLAGS_FOUND_STATIC    |
+			HCC_ASTGEN_FLAGS_FOUND_CONST     |
+			HCC_ASTGEN_FLAGS_FOUND_INLINE    |
+			HCC_ASTGEN_FLAGS_FOUND_NO_RETURN |
+			HCC_ASTGEN_FLAGS_FOUND_ALL_SHADER_STAGES,
 };
 
 typedef struct HccMacroArg HccMacroArg;
@@ -1198,7 +1220,7 @@ struct HccAstGen {
 	U16 compound_type_find_fields_count;
 
 	HccExpr* stmt_block;
-	HccFunction* print_function;
+	HccFunction* function;
 	U32 print_variable_base_idx;
 
 	HccSwitchState switch_state;
@@ -1431,6 +1453,7 @@ enum {
 	HCC_IR_OPERAND_BASIC_BLOCK,
 	HCC_IR_OPERAND_LOCAL_VARIABLE,
 	HCC_IR_OPERAND_GLOBAL_VARIABLE,
+	HCC_IR_OPERAND_FUNCTION,
 };
 #define HCC_IR_OPERAND_IS_DATA_TYPE(operand) (((operand) & 0xff) < HCC_DATA_TYPE_COUNT)
 
@@ -1450,16 +1473,21 @@ enum {
 #define HCC_IR_OPERAND_GLOBAL_VARIABLE_INIT(variable_idx) (((variable_idx) << 8) | HCC_IR_OPERAND_GLOBAL_VARIABLE)
 #define HCC_IR_OPERAND_VARIABLE_IDX(operand) HCC_DATA_TYPE_IDX(operand)
 
+#define HCC_IR_OPERAND_FUNCTION_INIT(function_idx) (((function_idx) << 8) | HCC_IR_OPERAND_FUNCTION)
+#define HCC_IR_OPERAND_FUNCTION_IDX(operand) HCC_DATA_TYPE_IDX(operand)
+
 typedef struct HccIRFunction HccIRFunction;
 struct HccIRFunction {
 	U32 basic_blocks_start_idx;
 	U32 instructions_start_idx;
 	U32 values_start_idx;
 	U32 operands_start_idx;
+	U32 call_param_data_types_start_idx;
 	U16 basic_blocks_count;
 	U16 instructions_count;
 	U16 values_count;
 	U16 operands_count;
+	U16 call_param_data_types_count;
 };
 
 typedef struct HccIRBranchState HccIRBranchState;
@@ -1492,6 +1520,10 @@ struct HccIR {
 	HccIROperand* operands;
 	U32 operands_count;
 	U32 operands_cap;
+
+	HccDataType* function_call_param_data_types;
+	U32 function_call_param_data_types_count;
+	U32 function_call_param_data_types_cap;
 
 	HccIROperand last_operand;
 	bool do_not_load_variable;
@@ -1538,6 +1570,7 @@ enum {
 	HCC_SPIRV_OP_FUNCTION = 54,
 	HCC_SPIRV_OP_FUNCTION_PARAMETER = 55,
 	HCC_SPIRV_OP_FUNCTION_END = 56,
+	HCC_SPIRV_OP_FUNCTION_CALL = 57,
 	HCC_SPIRV_OP_VARIABLE = 59,
 	HCC_SPIRV_OP_LOAD = 61,
 	HCC_SPIRV_OP_STORE = 62,
@@ -1714,8 +1747,6 @@ struct HccSpirv {
 	U32 out_functions_count;
 	U32 out_functions_cap;
 
-	U32 shader_stage_function_type_spirv_id;
-
 	U32 pointer_type_inputs_base_id;
 	U32 pointer_type_outputs_base_id;
 	U64 pointer_type_inputs_made_bitset[4];
@@ -1728,6 +1759,7 @@ struct HccSpirv {
 	U32 basic_block_base_spirv_id;
 	U32 local_variable_base_spirv_id;
 	U32 global_variable_base_spirv_id;
+	U32 function_base_spirv_id;
 	U32 next_id;
 	HccSpirvOp instr_op;
 	U16 instr_operands_count;
