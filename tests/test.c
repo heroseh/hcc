@@ -1,4 +1,6 @@
 
+#include "../hcc_std.h"
+
 typedef _Bool Bool;
 typedef uint32_t U32;
 typedef int32_t S32;
@@ -85,8 +87,27 @@ typedef vec4_t Vec4;
 #define COND_TEST2 0.f
 #endif
 
-vertex Vec4 billboard_shader_vertex(U32 vertex_idx, U32 instance_idx) {
-	return vec4(0.f, 0.f, 0.f, 0.f);
+HCC_DEFINE_STATE(
+	BillboardShaderState,
+	(POSITION, Vec4, position),
+	(NOINTERP, Vec2, uv),
+	(INTERP,   Vec4, color),
+);
+
+vertex BillboardShaderState billboard_shader_vertex(HccVertexInput input) {
+	Vec4 vertices[6] = {
+		vec4(-1.f, -1.f, 0.25f, 1.f),
+		vec4( 1.f, -1.f, 0.25f, 1.f),
+		vec4( 1.f,  1.f, 0.25f, 1.f),
+
+		vec4( 1.f,  1.f, 0.25f, 1.f),
+		vec4(-1.f,  1.f, 0.25f, 1.f),
+		vec4(-1.f, -1.f, 0.25f, 1.f),
+	};
+
+	BillboardShaderState state;
+	state.position = vertices[input.vertex_idx];
+	return state;
 }
 
 typedef enum NamedEnum TypedefNamedEnum;
@@ -281,7 +302,7 @@ fragment Vec4 billboard_shader_fragment(Vec4 state) {
 	TEST3(ZERO_POINT_FIVE);
 
 	AddOp add_op = { 2, 2 };
-	red = add_op_u32(add_op) != 4;
+	red = add_op_u32(add_op) == 4 && inlined_add_u32(1, 1) == 2;
 
 	return vec4(red, 0.f, 0.f, 1.f);
 }

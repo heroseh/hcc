@@ -25,6 +25,7 @@
 
 #define HCC_DEBUG_CODE_SPAN_PUSH_POP 0
 #define HCC_DEBUG_CODE_PREPROCESSOR 0
+#define HCC_DEBUG_CODE_MACRO_EXPAND 1
 
 void _hcc_assert_failed(const char* cond, const char* file, int line, const char* message, ...) {
 	fprintf(stderr, "assertion failed: %s\nmessage: ", cond);
@@ -389,6 +390,10 @@ char* hcc_token_strings[HCC_TOKEN_COUNT] = {
 	[HCC_TOKEN_KEYWORD_ALIGNAS] = "_Alignas",
 	[HCC_TOKEN_KEYWORD_STATIC_ASSERT] = "_Static_assert",
 	[HCC_TOKEN_KEYWORD_RESTRICT] = "restrict",
+	[HCC_TOKEN_KEYWORD_INTRINSIC] = "__hcc_intrinsic",
+	[HCC_TOKEN_KEYWORD_STATE_STRUCT] = "__hcc_state_struct",
+	[HCC_TOKEN_KEYWORD_POSITION] = "__hcc_position",
+	[HCC_TOKEN_KEYWORD_NOINTERP] = "__hcc_nointerp",
 	[HCC_TOKEN_KEYWORD_RO_BUFFER] = "ro_buffer",
 	[HCC_TOKEN_KEYWORD_RW_BUFFER] = "rw_buffer",
 	[HCC_TOKEN_KEYWORD_RO_IMAGE1D] = "ro_image1d",
@@ -419,6 +424,29 @@ char* hcc_function_shader_stage_strings[HCC_FUNCTION_SHADER_STAGE_COUNT] = {
 	[HCC_FUNCTION_SHADER_STAGE_TESSELLATION] = "tessellation",
 	[HCC_FUNCTION_SHADER_STAGE_COMPUTE] = "compute",
 	[HCC_FUNCTION_SHADER_STAGE_MESHTASK] = "meshtask",
+};
+
+HccIntrinsicTypedef hcc_intrinsic_typedefs[HCC_TYPEDEF_IDX_INTRINSIC_END] = {
+	[HCC_TYPEDEF_IDX_VERTEX_INPUT] = { .name = hcc_string_lit("HccVertexInput") },
+	[HCC_TYPEDEF_IDX_FRAGMENT_INPUT] = { .name = hcc_string_lit("HccFragmentInput") },
+};
+
+HccIntrinsicStruct hcc_intrinsic_structs[HCC_STRUCT_IDX_INTRINSIC_END] = {
+	[HCC_STRUCT_IDX_VERTEX_INPUT] = {
+		.name = hcc_string_lit("HccVertexInput"),
+		.fields_count = 2,
+		.fields = {
+			[HCC_VERTEX_INPUT_VERTEX_INDEX] = { .data_type = HCC_DATA_TYPE_S32, .name = hcc_string_lit("vertex_idx") },
+			[HCC_VERTEX_INPUT_INSTANCE_INDEX] = { .data_type = HCC_DATA_TYPE_S32, .name = hcc_string_lit("instance_idx") },
+		},
+	},
+	[HCC_STRUCT_IDX_FRAGMENT_INPUT] = {
+		.name = hcc_string_lit("HccFragmentInput"),
+		.fields_count = 1,
+		.fields = {
+			[HCC_FRAGMENT_INPUT_FRAG_COORD] = { .data_type = HCC_DATA_TYPE_VEC2(HCC_DATA_TYPE_F32), .name = hcc_string_lit("frag_coord") },
+		},
+	},
 };
 
 HccIntrinsicFunction hcc_intrinsic_functions[HCC_FUNCTION_IDX_INTRINSIC_END] = {
@@ -1179,11 +1207,24 @@ HccCodeSpan* hcc_code_span_get(HccAstGen* astgen, U32 span_idx) {
 	return &astgen->code_spans[span_idx];
 }
 
+HccToken hcc_specifier_tokens[HCC_SPECIFIER_COUNT] = {
+	[HCC_SPECIFIER_STATIC] =    HCC_TOKEN_KEYWORD_STATIC,
+	[HCC_SPECIFIER_CONST] =     HCC_TOKEN_KEYWORD_CONST,
+	[HCC_SPECIFIER_INLINE] =    HCC_TOKEN_KEYWORD_INLINE,
+	[HCC_SPECIFIER_NO_RETURN] = HCC_TOKEN_KEYWORD_NO_RETURN,
+	[HCC_SPECIFIER_INTRINSIC] = HCC_TOKEN_KEYWORD_INTRINSIC,
+	[HCC_SPECIFIER_POSITION] =  HCC_TOKEN_KEYWORD_POSITION,
+	[HCC_SPECIFIER_NOINTERP] =  HCC_TOKEN_KEYWORD_NOINTERP,
+	[HCC_SPECIFIER_VERTEX] =    HCC_TOKEN_KEYWORD_VERTEX,
+	[HCC_SPECIFIER_FRAGMENT] =  HCC_TOKEN_KEYWORD_FRAGMENT,
+};
+
 char* hcc_predefined_macro_identifier_strings[HCC_PREDEFINED_MACRO_COUNT] = {
 	[HCC_PREDEFINED_MACRO___FILE__] = "__FILE__",
 	[HCC_PREDEFINED_MACRO___LINE__] = "__LINE__",
 	[HCC_PREDEFINED_MACRO___COUNTER__] = "__COUNTER__",
 	[HCC_PREDEFINED_MACRO___HCC__] = "__HCC__",
+	[HCC_PREDEFINED_MACRO___HCC_GPU__] = "__HCC_GPU__",
 };
 
 void hcc_astgen_init(HccAstGen* astgen, HccCompilerSetup* setup) {
@@ -1328,6 +1369,8 @@ void hcc_astgen_init(HccAstGen* astgen, HccCompilerSetup* setup) {
 		}
 		astgen->functions_count = HCC_FUNCTION_IDX_USER_START;
 	}
+	astgen->compound_data_types_count = HCC_STRUCT_IDX_INTRINSIC_END;
+	astgen->typedefs_count = HCC_TYPEDEF_IDX_INTRINSIC_END;
 	hcc_hash_table_init(&astgen->path_to_code_file_id_map);
 	hcc_hash_table_init(&astgen->struct_declarations);
 	hcc_hash_table_init(&astgen->union_declarations);
@@ -1472,7 +1515,15 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 					HccLocation* file_location = &span->macro->location;
 					printf(error_fmt);
 
-					hcc_astgen_error_file_line(astgen, file_location);
+					location->parent_location_idx = file_location->parent_location_idx;
+					location->span_idx = file_location->span_idx;
+					location->code_start_idx += file_location->code_start_idx;
+					location->code_end_idx += file_location->code_end_idx;
+					location->line_start += file_location->line_start + 1;
+					location->line_end += file_location->line_start + 1;
+
+					hcc_astgen_error_file_line(astgen, location);
+					span = &astgen->code_spans[location->span_idx];
 					break;
 				};
 				case HCC_CODE_SPAN_TYPE_MACRO_ARG: {
@@ -1584,7 +1635,7 @@ void hcc_astgen_print_code(HccAstGen* astgen, HccLocation* location) {
 			putchar(' ');
 		}
 
-		for (U32 i = 0; i < column_start - 1; i += 1) {
+		for (U32 i = 0; i < HCC_MAX(column_start, 1) - 1; i += 1) {
 			if (file_span->code[code_start_idx + i] == '\t') {
 				printf("    ");
 			} else {
@@ -1841,7 +1892,7 @@ HccCodeSpan* hcc_code_span_find_evaluating_macro(HccAstGen* astgen, HccCodeSpan*
 		U32 span_idx = astgen->code_span_stack[idx];
 		HccCodeSpan* parent_span = &astgen->code_spans[span_idx];
 		if (parent_span->type == HCC_CODE_SPAN_TYPE_MACRO) {
-			if (found_macros == found_args && idx + 1 < astgen->code_span_stack_count) {
+			if (found_macros == found_args) {
 				*parent_span_out = parent_span;
 				return span;
 			}
@@ -1900,6 +1951,7 @@ void hcc_code_span_push_predefined_macro(HccAstGen* astgen, HccPredefinedMacro p
 			astgen->__counter__ += 1;
 			break;
 		case HCC_PREDEFINED_MACRO___HCC__:
+		case HCC_PREDEFINED_MACRO___HCC_GPU__:
 			return;
 	}
 
@@ -1980,8 +2032,8 @@ bool hcc_code_span_pop(HccAstGen* astgen) {
 				break;
 			};
 			case HCC_CODE_SPAN_TYPE_PP_EXPR: {
-				HccString name = hcc_string_table_get(&astgen->string_table, popped_span->macro->identifier_string_id);
 				printf("POP_PREPROCESSOR_EXPR(%.*s)\n", (int)popped_span->code_size, popped_span->code);
+				break;
 			};
 		}
 #endif // HCC_DEBUG_CODE_SPAN_PUSH_POP
@@ -2492,37 +2544,6 @@ HccString hcc_astgen_parse_ident(HccAstGen* astgen, char* error_fmt) {
 	return hcc_astgen_parse_ident_from_code(astgen, code, error_fmt);
 }
 
-void hcc_astgen_token_consume_whitespace(HccAstGen* astgen) {
-	while (astgen->span->location.code_end_idx < astgen->span->code_size) {
-		U8 byte = astgen->span->code[astgen->span->location.code_end_idx];
-		if (byte != ' ' && byte != '\t') {
-			break;
-		}
-
-		astgen->span->location.code_end_idx += 1;
-		astgen->span->location.column_end += 1;
-	}
-}
-
-bool hcc_astgen_token_consume_whitespace_and_newlines(HccAstGen* astgen) {
-	bool found_whitespace = false;
-	while (astgen->span->location.code_end_idx < astgen->span->code_size) {
-		U8 byte = astgen->span->code[astgen->span->location.code_end_idx];
-		if (byte != ' ' && byte != '\t' && byte != '\r' && byte != '\n') {
-			U8 next_byte = astgen->span->code[astgen->span->location.code_end_idx + 1];
-			if (byte != '\\' || (next_byte != '\r' && next_byte != '\n')) {
-				break;
-			}
-		}
-
-		astgen->span->location.code_end_idx += 1;
-		astgen->span->location.column_end += 1;
-		found_whitespace = true;
-	}
-
-	return found_whitespace;
-}
-
 bool hcc_astgen_token_consume_backslash(HccAstGen* astgen) {
 	astgen->span->location.code_end_idx += 1;
 	astgen->span->location.column_end += 1;
@@ -2545,6 +2566,40 @@ bool hcc_astgen_token_consume_backslash(HccAstGen* astgen) {
 		hcc_astgen_add_line_start_idx(astgen, astgen->span);
 	}
 	return found_newline;
+}
+
+void hcc_astgen_token_consume_whitespace(HccAstGen* astgen) {
+	while (astgen->span->location.code_end_idx < astgen->span->code_size) {
+		U8 byte = astgen->span->code[astgen->span->location.code_end_idx];
+		if (byte != ' ' && byte != '\t') {
+			U8 next_byte = astgen->span->code[astgen->span->location.code_end_idx + 1];
+			if (byte != '\\' || !hcc_astgen_token_consume_backslash(astgen)) {
+				break;
+			}
+		} else {
+			astgen->span->location.code_end_idx += 1;
+			astgen->span->location.column_end += 1;
+		}
+	}
+}
+
+bool hcc_astgen_token_consume_whitespace_and_newlines(HccAstGen* astgen) {
+	bool found_whitespace = false;
+	while (astgen->span->location.code_end_idx < astgen->span->code_size) {
+		U8 byte = astgen->span->code[astgen->span->location.code_end_idx];
+		if (byte != ' ' && byte != '\t' && byte != '\r' && byte != '\n') {
+			U8 next_byte = astgen->span->code[astgen->span->location.code_end_idx + 1];
+			if (byte != '\\' || !hcc_astgen_token_consume_backslash(astgen)) {
+				break;
+			}
+		} else {
+			astgen->span->location.code_end_idx += 1;
+			astgen->span->location.column_end += 1;
+		}
+		found_whitespace = true;
+	}
+
+	return found_whitespace;
 }
 
 void hcc_astgen_token_consume_until_any_byte(HccAstGen* astgen, char* terminator_bytes) {
@@ -3437,6 +3492,7 @@ bool hcc_astgen_parse_preprocessor_directive(HccAstGen* astgen, bool is_skipping
 			case HCC_PP_DIRECTIVE_LINE:
 			case HCC_PP_DIRECTIVE_ERROR:
 			case HCC_PP_DIRECTIVE_PRAGMA:
+				hcc_astgen_token_consume_until_any_byte(astgen, "\n");
 				break;
 			case HCC_PP_DIRECTIVE_IF:
 			case HCC_PP_DIRECTIVE_IFDEF:
@@ -3541,9 +3597,10 @@ bool hcc_astgen_parse_preprocessor_directive(HccAstGen* astgen, bool is_skipping
 			hcc_astgen_parse_preprocessor_skip_false_conditional(astgen, is_skipping_until_endif);
 		}
 		is_skipping_code = false;
+
+		hcc_astgen_token_consume_whitespace(astgen);
 	}
 
-	hcc_astgen_token_consume_whitespace(astgen);
 END: {}
 	if (!is_skipping_code) {
 		byte = span->code[span->location.code_end_idx];
@@ -3587,7 +3644,15 @@ void hcc_macro_paste_buffer_append(HccAstGen* astgen, HccString string) {
 	astgen->macro_paste_buffer_size += string.size;
 }
 
-void hcc_macro_args_add(HccAstGen* astgen, HccMacroArg arg) {
+void hcc_macro_args_add(HccAstGen* astgen, HccMacro* macro, U32 param_idx, HccMacroArg arg) {
+#if HCC_DEBUG_CODE_MACRO_EXPAND
+	HccString param_name = hcc_astgen_macro_param_name(astgen, macro, param_idx);
+	printf("%.*s = %.*s\n", (int)param_name.size, param_name.data, (int)arg.string.size, arg.string.data);
+#else
+	(void)macro;
+	(void)param_idx;
+#endif // HCC_DEBUG_CODE_MACRO_EXPAND
+
 	HCC_ASSERT_ARRAY_BOUNDS(astgen->macro_args_count, astgen->macro_args_cap);
 	astgen->macro_args[astgen->macro_args_count] = arg;
 	astgen->macro_args_count += 1;
@@ -3670,6 +3735,10 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 		return false;
 	}
 
+#if HCC_DEBUG_CODE_MACRO_EXPAND
+	printf("MACRO_EXPAND(%.*s)\n", (int)ident_string.size, ident_string.data);
+#endif // HCC_DEBUG_CODE_MACRO_EXPAND
+
 	span->location.column_start = span->location.column_end;
 	span->location.code_start_idx = span->location.code_end_idx;
 	span->location.column_end += ident_string.size;
@@ -3682,9 +3751,15 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 		return true;
 	}
 
+	hcc_astgen_token_consume_whitespace(astgen);
+
 	if (span->code[span->location.code_end_idx] != '(') {
-		hcc_astgen_token_error_1(astgen, "'%.*s' is defined as a macro function, please use a '(' to begin specifying arguments", (int)ident_string.size, ident_string.data);
+		/* C compilers should not report this error. but should we have an opition to warn about it?
+			hcc_astgen_token_error_1(astgen, "'%.*s' is defined as a macro function, please use a '(' to begin specifying arguments", (int)ident_string.size, ident_string.data);
+		*/
+		return false;
 	}
+
 	span->location.column_end += 1;
 	span->location.code_end_idx += 1;
 	hcc_astgen_token_consume_whitespace(astgen);
@@ -3700,7 +3775,7 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 
 		HccString va_args = {0};
 		while (1) {
-			bool is_vararg = args_count ? macro_params[HCC_MIN(args_count, macro->params_count)].idx_plus_one == 0 : false;
+			bool is_vararg = macro->params_count ? macro_params[HCC_MIN(args_count, macro->params_count)].idx_plus_one == 0 : false;
 
 			HccLocation arg_location = span->location;
 			arg_location.column_start = span->location.column_end;
@@ -3779,19 +3854,29 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 				U32 arg_start_idx = 0;
 				HccString pasted_arg = arg.string;
 				for (U32 arg_end_idx = 0; arg_end_idx < pasted_arg.size; arg_end_idx += 1) {
+					bool is_this_a_vararg = macro->params_count ? macro_params[HCC_MIN(args_count, macro->params_count)].idx_plus_one == 0 : false;
+					if (is_this_a_vararg) {
+						arg.string = hcc_string_slice_start(pasted_arg, arg_start_idx);
+
+						hcc_macro_args_add(astgen, macro, args_count, arg);
+						args_count += 1;
+						arg_start_idx = arg_end_idx + 1;
+						break;
+					}
+
 					if (pasted_arg.data[arg_end_idx] == ',' || arg_end_idx + 1 == pasted_arg.size) {
 						arg.string = hcc_string_slice(pasted_arg, arg_start_idx, arg_end_idx);
 						if (arg_end_idx + 1 == pasted_arg.size) {
 							arg.string.size += 1;
 						}
 
-						hcc_macro_args_add(astgen, arg);
+						hcc_macro_args_add(astgen, macro, args_count, arg);
 						args_count += 1;
 						arg_start_idx = arg_end_idx + 1;
 					}
 				}
 			} else {
-				hcc_macro_args_add(astgen, arg);
+				hcc_macro_args_add(astgen, macro, args_count, arg);
 				args_count += 1;
 			}
 
@@ -3816,7 +3901,7 @@ bool hcc_code_span_push_macro_if_it_is_one(HccAstGen* astgen, HccString ident_st
 		arg_location.column_start -= 1;
 		_hcc_token_location_add(astgen, &arg_location);
 
-		hcc_macro_args_add(astgen, arg);
+		hcc_macro_args_add(astgen, macro, args_count, arg);
 		args_count += 1;
 	}
 
@@ -4558,7 +4643,10 @@ MAKE_NEW: {}
 	return data_type;
 }
 
+HccToken hcc_astgen_consume_specifiers(HccAstGen* astgen);
+
 HccDataType hcc_astgen_generate_compound_data_type(HccAstGen* astgen) {
+	U32 compound_data_type_token_idx = astgen->token_read_idx;
 	HccToken token = hcc_token_peek(astgen);
 	bool is_union = false;
 	switch (token) {
@@ -4574,9 +4662,35 @@ HccDataType hcc_astgen_generate_compound_data_type(HccAstGen* astgen) {
 	HccDataType data_type;
 	HccStringId identifier_string_id = {0};
 	HccCompoundDataType* compound_data_type = NULL;
+	U32 intrinsic_id = 0;
 	if (token == HCC_TOKEN_IDENT) {
+		compound_data_type_token_idx = astgen->token_read_idx;
 		token = hcc_token_next(astgen);
 		identifier_string_id = hcc_token_value_next(astgen).string_id;
+
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_INTRINSIC) {
+			HccString identifier_string = hcc_string_table_get(&astgen->string_table, identifier_string_id);
+
+			if (is_union) {
+				hcc_astgen_error_1(astgen, "we do not have any intrinsic unions, we only have intrinsic structures");
+			}
+
+			U32 i = 0;
+			for (; i < HCC_ARRAY_COUNT(hcc_intrinsic_structs); i += 1) {
+				HccIntrinsicStruct* s = &hcc_intrinsic_structs[i];
+				if (hcc_string_eq(s->name, identifier_string)) {
+					break;
+				}
+			}
+
+			if (i == HCC_ARRAY_COUNT(hcc_intrinsic_structs)) {
+				hcc_astgen_error_1(astgen, "'%.*s' is not a valid intrinsic for this compiler version", (int)identifier_string.size, identifier_string.data);
+			}
+			intrinsic_id = i + 1;
+
+			astgen->specifier_flags &= ~HCC_SPECIFIER_FLAGS_INTRINSIC;
+		}
+
 		HccDataType* insert_value_ptr;
 		HccHashTable(HccStringId, HccDataType)* declarations;
 		if (is_union) {
@@ -4589,14 +4703,20 @@ HccDataType hcc_astgen_generate_compound_data_type(HccAstGen* astgen) {
 			data_type = *insert_value_ptr;
 			compound_data_type = hcc_compound_data_type_get(astgen, data_type);
 		} else {
-			*insert_value_ptr = HCC_DATA_TYPE_INIT(is_union ? HCC_DATA_TYPE_UNION : HCC_DATA_TYPE_STRUCT, astgen->compound_data_types_count);
+			U32 insert_idx = intrinsic_id ? intrinsic_id - 1 : astgen->compound_data_types_count;
+			*insert_value_ptr = HCC_DATA_TYPE_INIT(is_union ? HCC_DATA_TYPE_UNION : HCC_DATA_TYPE_STRUCT, insert_idx);
 			goto MAKE_NEW;
 		}
 	} else {
 MAKE_NEW: {}
-		U32 compound_data_type_idx = astgen->compound_data_types_count;
-		HCC_ASSERT_ARRAY_BOUNDS(astgen->compound_data_types_count, astgen->compound_data_types_cap);
-		astgen->compound_data_types_count += 1;
+		U32 compound_data_type_idx;
+		if (intrinsic_id) {
+			compound_data_type_idx = intrinsic_id - 1;
+		} else {
+			compound_data_type_idx = astgen->compound_data_types_count;
+			HCC_ASSERT_ARRAY_BOUNDS(astgen->compound_data_types_count, astgen->compound_data_types_cap);
+			astgen->compound_data_types_count += 1;
+		}
 
 		compound_data_type = &astgen->compound_data_types[compound_data_type_idx];
 		memset(compound_data_type, 0x0, sizeof(*compound_data_type));
@@ -4608,6 +4728,25 @@ MAKE_NEW: {}
 		} else {
 			data_type = HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_STRUCT, compound_data_type_idx);
 		}
+	}
+
+	{
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_STRUCT_SPECIFIERS) {
+			HccSpecifier specifier = HCC_LEAST_SET_BIT_IDX_U32(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_STRUCT_SPECIFIERS);
+			HccToken token = hcc_specifier_tokens[specifier];
+			hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this structure declaration", hcc_token_strings[token]);
+		}
+
+		switch (HCC_LEAST_SET_BIT_IDX_U32(astgen->specifier_flags)) {
+			case HCC_SPECIFIER_STATE_STRUCT:
+				if (is_union) {
+					hcc_astgen_error_1(astgen, "the '%s' keyword can only be used on a 'struct' and not a 'union'", hcc_token_strings[HCC_TOKEN_KEYWORD_STATE_STRUCT]);
+				}
+				compound_data_type->flags |= HCC_COMPOUND_DATA_TYPE_FLAGS_IS_STATE_STRUCT;
+				break;
+		}
+
+		astgen->specifier_flags &= ~HCC_SPECIFIER_FLAGS_ALL_STRUCT_SPECIFIERS;
 	}
 
 	if (token != HCC_TOKEN_CURLY_OPEN) {
@@ -4662,6 +4801,27 @@ END_FIELDS_COUNT: {}
 	U32 field_idx = 0;
 	while (1) {
 		HccCompoundField* compound_field = &fields[field_idx];
+		token = hcc_astgen_consume_specifiers(astgen);
+
+		{
+			if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_STRUCT_FIELD_SPECIFIERS) {
+				HccSpecifier specifier = HCC_LEAST_SET_BIT_IDX_U32(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_STRUCT_FIELD_SPECIFIERS);
+				HccToken token = hcc_specifier_tokens[specifier];
+				hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this structure field declaration", hcc_token_strings[token]);
+			}
+
+			if (!HCC_IS_POWER_OF_TWO_OR_ZERO(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_STRUCT_FIELD_SPECIFIERS)) {
+				hcc_astgen_error_1(astgen, "only one of these can be used per field: '%s' or '%s'", hcc_token_strings[HCC_TOKEN_KEYWORD_POSITION], hcc_token_strings[HCC_TOKEN_KEYWORD_NOINTERP]);
+			}
+
+			switch (HCC_LEAST_SET_BIT_IDX_U32(astgen->specifier_flags)) {
+				case HCC_SPECIFIER_POSITION: compound_field->shader_state_field_kind = HCC_SHADER_STATE_FIELD_KIND_POSITION; break;
+				case HCC_SPECIFIER_NOINTERP: compound_field->shader_state_field_kind = HCC_SHADER_STATE_FIELD_KIND_NOINTERP; break;
+			}
+
+			astgen->specifier_flags &= ~HCC_SPECIFIER_FLAGS_ALL_STRUCT_FIELD_SPECIFIERS;
+		}
+
 		bool requires_name;
 		switch (token) {
 			case HCC_TOKEN_CURLY_CLOSE:
@@ -4726,6 +4886,27 @@ END:{}
 	hcc_hash_table_clear(&astgen->field_name_to_token_idx);
 	_hcc_compound_data_type_validate_field_names(astgen, data_type, compound_data_type);
 
+
+	if (intrinsic_id) {
+		HccIntrinsicStruct* s = &hcc_intrinsic_structs[intrinsic_id - 1];
+		if (s->fields_count != compound_data_type->fields_count) {
+			astgen->token_read_idx = compound_data_type_token_idx;
+			HccString name = hcc_string_table_get(&astgen->string_table, identifier_string_id);
+			hcc_astgen_error_1(astgen, "expected intrinsic struct '%.*s' to have '%u' fields but got '%u'", (int)name.size, name.data, s->fields_count, compound_data_type->fields_count);
+		}
+
+		for (U32 field_idx = 0; field_idx < s->fields_count; field_idx += 1) {
+			HccIntrinsicStructField* isf = &s->fields[field_idx];
+			HccCompoundField* f = &fields[field_idx];
+			HccString identifier_string = hcc_string_table_get(&astgen->string_table, f->identifier_string_id);
+			if (isf->data_type != f->data_type || !hcc_string_eq(isf->name, identifier_string)) {
+				astgen->token_read_idx = f->identifier_token_idx;
+				HccString data_type_name = hcc_data_type_string(astgen, isf->data_type);
+				hcc_astgen_error_1(astgen, "expected this intrinsic field to be '%.*s %.*s' for this compiler version", (int)data_type_name.size, data_type_name.data, (int)isf->name.size, isf->name.data);
+			}
+		}
+	}
+
 	token = hcc_token_next(astgen);
 	if (!is_union) {
 		compound_data_type->size = HCC_INT_ROUND_UP_ALIGN(compound_data_type->size, compound_data_type->align);
@@ -4786,6 +4967,8 @@ bool hcc_astgen_generate_data_type(HccAstGen* astgen, HccDataType* data_type_out
 HccDataType hcc_astgen_generate_typedef(HccAstGen* astgen) {
 	HCC_DEBUG_ASSERT(hcc_token_peek(astgen) == HCC_TOKEN_KEYWORD_TYPEDEF, "internal error: expected a typedef token");
 	hcc_token_consume(astgen, 1);
+	bool is_intrinsic = astgen->specifier_flags & HCC_SPECIFIER_FLAGS_INTRINSIC;
+
 	HccDataType aliased_data_type;
 	if (!hcc_astgen_generate_data_type(astgen, &aliased_data_type)) {
 		HccToken token = hcc_token_peek(astgen);
@@ -4797,6 +4980,30 @@ HccDataType hcc_astgen_generate_typedef(HccAstGen* astgen) {
 		hcc_astgen_error_1(astgen, "expected an 'identifier' for the typedef here but got '%s'", hcc_token_strings[token]);
 	}
 	HccStringId identifier_string_id = hcc_token_value_next(astgen).string_id;
+	HccString identifier_string = hcc_string_table_get(&astgen->string_table, identifier_string_id);
+
+	U32 intrinsic_id = 0;
+	if (is_intrinsic) {
+		U32 i = 0;
+		for (; i < HCC_ARRAY_COUNT(hcc_intrinsic_typedefs); i += 1) {
+			HccIntrinsicTypedef* it = &hcc_intrinsic_typedefs[i];
+			if (hcc_string_eq(it->name, identifier_string)) {
+				break;
+			}
+		}
+
+		if (i == HCC_ARRAY_COUNT(hcc_intrinsic_typedefs)) {
+			hcc_astgen_error_1(astgen, "'%.*s' is not a valid intrinsic for this compiler version", (int)identifier_string.size, identifier_string.data);
+		}
+		intrinsic_id = i + 1;
+
+		if (
+			!HCC_DATA_TYPE_IS_STRUCT(aliased_data_type) ||
+			identifier_string_id.idx_plus_one != hcc_compound_data_type_get(astgen, aliased_data_type)->identifier_string_id.idx_plus_one
+		) {
+			hcc_astgen_error_1(astgen, "this intrinsic is supposed to be 'typedef struct %.*s %.*s'", (int)identifier_string.size, identifier_string.data, (int)identifier_string.size, identifier_string.data);
+		}
+	}
 
 	HccDataType* insert_value_ptr;
 	HccTypedef* typedef_ = NULL;
@@ -4809,13 +5016,20 @@ HccDataType hcc_astgen_generate_typedef(HccAstGen* astgen) {
 			hcc_astgen_error_2(astgen, typedef_->identifier_token_idx, "redefinition of typename '%.*s'", (int)data_type_name.size, data_type_name.data);
 		}
 	} else {
-		data_type = HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_TYPEDEF, astgen->typedefs_count);
-		HCC_ASSERT_ARRAY_BOUNDS(astgen->typedefs_count, astgen->typedefs_cap);
-		typedef_ = &astgen->typedefs[astgen->typedefs_count];
+		U32 insert_idx;
+		if (intrinsic_id) {
+			insert_idx = intrinsic_id - 1;
+		} else {
+			HCC_ASSERT_ARRAY_BOUNDS(astgen->typedefs_count, astgen->typedefs_cap);
+			insert_idx = astgen->typedefs_count;
+			astgen->typedefs_count += 1;
+		}
+
+		data_type = HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_TYPEDEF, insert_idx);
+		typedef_ = &astgen->typedefs[insert_idx];
 		typedef_->identifier_token_idx = astgen->token_read_idx;
 		typedef_->identifier_string_id = identifier_string_id;
 		typedef_->aliased_data_type = aliased_data_type;
-		astgen->typedefs_count += 1;
 
 		hcc_found_data_type(astgen, data_type);
 		*insert_value_ptr = data_type;
@@ -6331,12 +6545,15 @@ HccToken hcc_astgen_consume_specifiers(HccAstGen* astgen) {
 	while (1) {
 		HccAstGenFlags flag = 0;
 		switch (token) {
-			case HCC_TOKEN_KEYWORD_STATIC:    flag = HCC_ASTGEN_FLAGS_FOUND_STATIC;    break;
-			case HCC_TOKEN_KEYWORD_CONST:     flag = HCC_ASTGEN_FLAGS_FOUND_CONST;     break;
-			case HCC_TOKEN_KEYWORD_INLINE:    flag = HCC_ASTGEN_FLAGS_FOUND_INLINE;    break;
-			case HCC_TOKEN_KEYWORD_NO_RETURN: flag = HCC_ASTGEN_FLAGS_FOUND_NO_RETURN; break;
-			case HCC_TOKEN_KEYWORD_VERTEX:    flag = HCC_ASTGEN_FLAGS_FOUND_VERTEX;    break;
-			case HCC_TOKEN_KEYWORD_FRAGMENT:  flag = HCC_ASTGEN_FLAGS_FOUND_FRAGMENT;  break;
+			case HCC_TOKEN_KEYWORD_STATIC:    flag = HCC_SPECIFIER_FLAGS_STATIC;    break;
+			case HCC_TOKEN_KEYWORD_CONST:     flag = HCC_SPECIFIER_FLAGS_CONST;     break;
+			case HCC_TOKEN_KEYWORD_INLINE:    flag = HCC_SPECIFIER_FLAGS_INLINE;    break;
+			case HCC_TOKEN_KEYWORD_NO_RETURN: flag = HCC_SPECIFIER_FLAGS_NO_RETURN; break;
+			case HCC_TOKEN_KEYWORD_INTRINSIC: flag = HCC_SPECIFIER_FLAGS_INTRINSIC; break;
+			case HCC_TOKEN_KEYWORD_POSITION:  flag = HCC_SPECIFIER_FLAGS_POSITION;  break;
+			case HCC_TOKEN_KEYWORD_NOINTERP:  flag = HCC_SPECIFIER_FLAGS_NOINTERP;  break;
+			case HCC_TOKEN_KEYWORD_VERTEX:    flag = HCC_SPECIFIER_FLAGS_VERTEX;    break;
+			case HCC_TOKEN_KEYWORD_FRAGMENT:  flag = HCC_SPECIFIER_FLAGS_FRAGMENT;  break;
 			case HCC_TOKEN_KEYWORD_AUTO: break;
 			case HCC_TOKEN_KEYWORD_VOLATILE:
 			case HCC_TOKEN_KEYWORD_EXTERN:
@@ -6344,29 +6561,29 @@ HccToken hcc_astgen_consume_specifiers(HccAstGen* astgen) {
 			default: return token;
 		}
 
-		if (astgen->flags & flag) {
+		if (astgen->specifier_flags & flag) {
 			hcc_astgen_error_1(astgen, "'%s' has already been used for this declaration", hcc_token_strings[token]);
 		}
-		astgen->flags |= flag;
+		astgen->specifier_flags |= flag;
 		token = hcc_token_next(astgen);
 	}
 }
 
 void _hcc_astgen_ensure_no_unused_specifiers(HccAstGen* astgen, char* what) {
-	if (astgen->flags & (HCC_ASTGEN_FLAGS_FOUND_STATIC | HCC_ASTGEN_FLAGS_FOUND_CONST | HCC_ASTGEN_FLAGS_FOUND_INLINE)) {
+	if (astgen->specifier_flags & (HCC_SPECIFIER_FLAGS_STATIC | HCC_SPECIFIER_FLAGS_CONST | HCC_SPECIFIER_FLAGS_INLINE)) {
 		const char* message = "the '%s' keyword was used, so we are expecting %s for a declaration but got '%s'";
 		HccToken keyword_token;
-		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_STATIC) {
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_STATIC) {
 			keyword_token = HCC_TOKEN_KEYWORD_STATIC;
-		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_CONST) {
+		} else if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_CONST) {
 			keyword_token = HCC_TOKEN_KEYWORD_CONST;
-		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_INLINE) {
+		} else if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_INLINE) {
 			keyword_token = HCC_TOKEN_KEYWORD_INLINE;
-		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_NO_RETURN) {
+		} else if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_NO_RETURN) {
 			keyword_token = HCC_TOKEN_KEYWORD_NO_RETURN;
-		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_VERTEX) {
+		} else if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_VERTEX) {
 			keyword_token = HCC_TOKEN_KEYWORD_VERTEX;
-		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_FRAGMENT) {
+		} else if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_FRAGMENT) {
 			keyword_token = HCC_TOKEN_KEYWORD_FRAGMENT;
 		}
 		hcc_astgen_error_1(astgen, message, keyword_token, what, hcc_token_strings[hcc_token_peek(astgen)]);
@@ -6384,20 +6601,10 @@ void hcc_astgen_ensure_no_unused_specifiers_identifier(HccAstGen* astgen) {
 U32 hcc_astgen_generate_variable_decl(HccAstGen* astgen, bool is_global, HccStringId identifier_string_id, HccDataType* data_type_mut, HccExpr** init_expr_out) {
 	HccToken token = hcc_token_peek(astgen);
 
-	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_INLINE) {
-		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_INLINE]);
-	}
-
-	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_NO_RETURN) {
-		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_NO_RETURN]);
-	}
-
-	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_VERTEX) {
-		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_VERTEX]);
-	}
-
-	if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_FRAGMENT) {
-		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration as it is a function specifier", hcc_token_strings[HCC_TOKEN_KEYWORD_FRAGMENT]);
+	if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_VARIABLE_SPECIFIERS) {
+		HccSpecifier specifier = HCC_LEAST_SET_BIT_IDX_U32(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_VARIABLE_SPECIFIERS);
+		HccToken token = hcc_specifier_tokens[specifier];
+		hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this variable declaration", hcc_token_strings[token]);
 	}
 
 	U32 existing_variable_id = hcc_astgen_variable_stack_find(astgen, identifier_string_id);
@@ -6427,8 +6634,8 @@ U32 hcc_astgen_generate_variable_decl(HccAstGen* astgen, bool is_global, HccStri
 	variable->identifier_string_id = identifier_string_id;
 	variable->identifier_token_idx = astgen->token_read_idx;
 	variable->data_type = *data_type_mut;
-	variable->is_static = !!(astgen->flags & HCC_ASTGEN_FLAGS_FOUND_STATIC) || is_global;
-	variable->is_const = !!(astgen->flags & HCC_ASTGEN_FLAGS_FOUND_CONST);
+	variable->is_static = !!(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_STATIC) || is_global;
+	variable->is_const = !!(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_CONST);
 	variable->initializer_constant_id.idx_plus_one = 0;
 
 	if (token == HCC_TOKEN_SQUARE_OPEN) {
@@ -6474,7 +6681,7 @@ U32 hcc_astgen_generate_variable_decl(HccAstGen* astgen, bool is_global, HccStri
 			hcc_astgen_error_1(astgen, "expected a ';' to end the declaration or a '=' to assign to the new variable");
 	}
 
-	astgen->flags &= ~HCC_ASTGEN_FLAGS_FOUND_ALL_VARIABLE_SPECIFIERS;
+	astgen->specifier_flags &= ~HCC_SPECIFIER_FLAGS_ALL_VARIABLE_SPECIFIERS;
 	return variable_idx;
 }
 
@@ -6846,29 +7053,35 @@ void hcc_astgen_generate_function(HccAstGen* astgen, HccStringId identifier_stri
 	HCC_DEBUG_ASSERT(token == HCC_TOKEN_PARENTHESIS_OPEN, "internal error: expected '%s' at the start of generating a function", hcc_token_strings[HCC_TOKEN_PARENTHESIS_OPEN]);
 
 	{
-		if (!HCC_IS_POWER_OF_TWO_OR_ZERO(astgen->flags & HCC_ASTGEN_FLAGS_FOUND_ALL_SHADER_STAGES)) {
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_FUNCTION_SPECIFIERS) {
+			HccSpecifier specifier = HCC_LEAST_SET_BIT_IDX_U32(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_FUNCTION_SPECIFIERS);
+			HccToken token = hcc_specifier_tokens[specifier];
+			hcc_astgen_error_1(astgen, "the '%s' keyword cannot be used on this function declaration", hcc_token_strings[token]);
+		}
+
+		if (!HCC_IS_POWER_OF_TWO_OR_ZERO(astgen->specifier_flags & HCC_SPECIFIER_FLAGS_ALL_SHADER_STAGES)) {
 			hcc_astgen_error_1(astgen, "only a single shader stage can be specified in a function declaration");
 		}
 
-		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_VERTEX) {
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_VERTEX) {
 			function->shader_stage = HCC_FUNCTION_SHADER_STAGE_VERTEX;
-		} else if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_FRAGMENT) {
+		} else if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_FRAGMENT) {
 			function->shader_stage = HCC_FUNCTION_SHADER_STAGE_FRAGMENT;
 		}
 
-		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_STATIC) {
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_STATIC) {
 			function->flags |= HCC_FUNCTION_FLAGS_STATIC;
 		}
 
-		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_CONST) {
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_CONST) {
 			function->flags |= HCC_FUNCTION_FLAGS_CONST;
 		}
 
-		if (astgen->flags & HCC_ASTGEN_FLAGS_FOUND_INLINE) {
+		if (astgen->specifier_flags & HCC_SPECIFIER_FLAGS_INLINE) {
 			function->flags |= HCC_FUNCTION_FLAGS_INLINE;
 		}
 
-		astgen->flags &= ~HCC_ASTGEN_FLAGS_FOUND_ALL_FUNCTION_SPECIFIERS;
+		astgen->specifier_flags &= ~HCC_SPECIFIER_FLAGS_ALL_FUNCTION_SPECIFIERS;
 	}
 
 	function->identifier_string_id = identifier_string_id;
@@ -6971,6 +7184,7 @@ void hcc_astgen_generate_function(HccAstGen* astgen, HccStringId identifier_stri
 void hcc_astgen_generate(HccAstGen* astgen) {
 	while (1) {
 		HccToken token = hcc_token_peek(astgen);
+		token = hcc_astgen_consume_specifiers(astgen);
 
 		switch (token) {
 			case HCC_TOKEN_EOF:
@@ -6979,7 +7193,6 @@ void hcc_astgen_generate(HccAstGen* astgen) {
 				hcc_astgen_generate_typedef(astgen);
 				break;
 			default: {
-				hcc_astgen_consume_specifiers(astgen);
 				HccDataType data_type;
 				U32 data_type_token_idx = astgen->token_read_idx;
 				if (hcc_astgen_generate_data_type(astgen, &data_type)) {
@@ -7004,7 +7217,7 @@ void hcc_astgen_generate(HccAstGen* astgen) {
 				} else {
 					hcc_astgen_ensure_no_unused_specifiers_data_type(astgen);
 				}
-				HCC_ABORT("TODO at scope see if this token is a type and varify it is a function, and support enums found token '%s'", hcc_token_strings[token]);
+				hcc_astgen_error_1(astgen, "unexpected token '%s'", hcc_token_strings[token]);
 			};
 		}
 	}
@@ -7640,6 +7853,8 @@ HccDataType hcc_ir_operand_data_type(HccIR* ir, HccAstGen* astgen, HccIRFunction
 			HccConstant constant = hcc_constant_table_get(&astgen->constant_table, HCC_IR_OPERAND_CONSTANT_ID(ir_operand));
 			return constant.data_type;
 		};
+		case HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24:
+			HCC_UNREACHABLE("not sure if we need to get the data type for an immediate constant");
 		case HCC_IR_OPERAND_BASIC_BLOCK:
 			HCC_UNREACHABLE("cannot get the type of a basic block");
 		case HCC_IR_OPERAND_LOCAL_VARIABLE: {
@@ -8361,7 +8576,39 @@ UNARY:
 
 			break;
 		};
-		case HCC_EXPR_TYPE_FIELD_ACCESS:
+		case HCC_EXPR_TYPE_FIELD_ACCESS: {
+			U32 function_idx = ir_function - ir->functions;
+			HccFunction* function = &astgen->functions[ir_function - ir->functions];
+			switch (function->shader_stage) {
+				case HCC_FUNCTION_SHADER_STAGE_VERTEX: {
+					HccExpr* left_expr = expr - expr->binary.left_expr_rel_idx;
+					HccDataType data_type = hcc_typedef_resolve(astgen, left_expr->data_type);
+					if (HCC_DATA_TYPE_IS_STRUCT(data_type) && HCC_DATA_TYPE_IDX(data_type) == HCC_STRUCT_IDX_VERTEX_INPUT) {
+						HCC_DEBUG_ASSERT(
+							!ir->do_not_load_variable,
+							"internal error: the compiler should have stopped HccVertexInput from being on the left hand side of the assignment or taking the address of one of it's field"
+						);
+
+						HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(astgen, data_type);
+						U32 field_idx = expr->binary.right_expr_rel_idx;
+						HccCompoundField* field = &astgen->compound_fields[compound_data_type->fields_start_idx + field_idx];
+
+						HccIROperand* operands = hcc_ir_add_operands_many(ir, ir_function, 2);
+						U16 return_value_idx = hcc_ir_add_value(ir, ir_function, field->data_type);
+						operands[0] = HCC_IR_OPERAND_VALUE_INIT(return_value_idx);
+						operands[1] = HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24_INIT(field_idx);
+						hcc_ir_add_instruction(ir, ir_function, HCC_IR_OP_CODE_LOAD_SHADER_STAGE_INPUT, operands, 2);
+
+						ir->last_operand = operands[0];
+						goto END;
+					}
+					break;
+				};
+			}
+
+			// fallthrough
+		};
+
 		case HCC_EXPR_TYPE_ARRAY_SUBSCRIPT:
 		{
 			bool do_load = !ir->do_not_load_variable;
@@ -8585,6 +8832,7 @@ UNARY:
 			HCC_ABORT("unhandle expr type %u\n", expr->type);
 	}
 
+END:{}
 	return basic_block;
 }
 
@@ -8621,6 +8869,9 @@ void hcc_ir_print_operand(HccAstGen* astgen, HccIROperand operand, FILE* f) {
 			break;
 		case HCC_IR_OPERAND_CONSTANT:
 			fprintf(f, "c%u", HCC_IR_OPERAND_CONSTANT_ID(operand).idx_plus_one - 1);
+			break;
+		case HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24:
+			fprintf(f, "immc(%u)", HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24(operand));
 			break;
 		case HCC_IR_OPERAND_BASIC_BLOCK:
 			fprintf(f, "b%u", HCC_IR_OPERAND_BASIC_BLOCK_IDX(operand));
@@ -8683,6 +8934,16 @@ void hcc_ir_print(HccIR* ir, HccAstGen* astgen, FILE* f) {
 						HccIROperand* operands = &ir->operands[ir_function->operands_start_idx + (U32)instruction->operands_start_idx];
 						hcc_ir_print_operand(astgen, operands[0], f);
 						fprintf(f, ", ");
+						hcc_ir_print_operand(astgen, operands[1], f);
+						fprintf(f, "\n");
+						break;
+					};
+					case HCC_IR_OP_CODE_LOAD_SHADER_STAGE_INPUT:
+					{
+						HccIROperand* operands = &ir->operands[ir_function->operands_start_idx + (U32)instruction->operands_start_idx];
+						fprintf(f, "\t\t");
+						hcc_ir_print_operand(astgen, operands[0], f);
+						fprintf(f, " = HCC_IR_OP_CODE_LOAD_SHADER_STAGE_INPUT: ");
 						hcc_ir_print_operand(astgen, operands[1], f);
 						fprintf(f, "\n");
 						break;
@@ -9159,6 +9420,8 @@ U32 hcc_spirv_convert_operand(HccCompiler* c, HccIROperand ir_operand) {
 	switch (ir_operand & 0xff) {
 		case HCC_IR_OPERAND_VALUE: return c->spirv.value_base_id + HCC_IR_OPERAND_VALUE_IDX(ir_operand);
 		case HCC_IR_OPERAND_CONSTANT: return c->spirv.constant_base_id + HCC_IR_OPERAND_CONSTANT_ID(ir_operand).idx_plus_one - 1;
+		case HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24:
+			HCC_UNREACHABLE("not sure if we need to convert the operand for the immediate constant");
 		case HCC_IR_OPERAND_BASIC_BLOCK: return c->spirv.basic_block_base_spirv_id + HCC_IR_OPERAND_BASIC_BLOCK_IDX(ir_operand);
 		case HCC_IR_OPERAND_LOCAL_VARIABLE: return c->spirv.local_variable_base_spirv_id + HCC_IR_OPERAND_VARIABLE_IDX(ir_operand);
 		case HCC_IR_OPERAND_GLOBAL_VARIABLE: return c->spirv.global_variable_base_spirv_id + HCC_IR_OPERAND_VARIABLE_IDX(ir_operand);
@@ -9443,6 +9706,16 @@ void hcc_spirv_generate_convert(HccCompiler* c, HccSpirvOp spirv_convert_op, U32
 	hcc_spirv_instr_end(c);
 }
 
+void hcc_spirv_generate_entry_point_used_global_variable_spirv_ids(HccCompiler* c, HccFunction* function) {
+	for (U32 idx = function->used_static_variables_start_idx; idx < function->used_static_variables_start_idx + function->used_static_variables_count; idx += 1) {
+		HccDecl decl = c->astgen.used_static_variables[idx];
+		U32 spirv_base_id = HCC_DECL_IS_LOCAL_VARIABLE(decl)
+			? c->spirv.local_variable_base_spirv_id
+			: c->spirv.global_variable_base_spirv_id;
+		hcc_spirv_instr_add_operand(c, spirv_base_id + HCC_DECL_IDX(decl));
+	}
+}
+
 void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 	HccFunction* function = &c->astgen.functions[function_idx];
 	HccIRFunction* ir_function = &c->ir.functions[function_idx];
@@ -9480,25 +9753,92 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 	c->spirv.local_variable_base_spirv_id = c->spirv.next_id;
 	c->spirv.next_id += function->params_count + function->variables_count;
 
+	U32 position_spirv_id;
+	U32 vertex_index_spirv_id;
+	U32 instance_index_spirv_id;
+	U32 frag_coord_spirv_id;
 	U32 frag_color_spirv_id;
 	switch (function->shader_stage) {
-		case HCC_FUNCTION_SHADER_STAGE_VERTEX:
-			break;
-		case HCC_FUNCTION_SHADER_STAGE_FRAGMENT:
+		case HCC_FUNCTION_SHADER_STAGE_VERTEX: {
+			hcc_spirv_generate_pointer_type_input(c, HCC_DATA_TYPE_S32);
 			hcc_spirv_generate_pointer_type_output(c, HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
 
-			frag_color_spirv_id = c->spirv.next_id;
-			hcc_spirv_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-			hcc_spirv_instr_add_operand(c, c->spirv.pointer_type_outputs_base_id + HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
-			hcc_spirv_instr_add_result_operand(c);
-			hcc_spirv_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_OUTPUT);
-			hcc_spirv_instr_end(c);
+			{
+				vertex_index_spirv_id = c->spirv.next_id;
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_VARIABLE);
+				hcc_spirv_instr_add_operand(c, c->spirv.pointer_type_inputs_base_id + HCC_DATA_TYPE_S32);
+				hcc_spirv_instr_add_result_operand(c);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_INPUT);
+				hcc_spirv_instr_end(c);
 
-			hcc_spirv_instr_start(c, HCC_SPIRV_OP_DECORATE);
-			hcc_spirv_instr_add_operand(c, frag_color_spirv_id);
-			hcc_spirv_instr_add_operand(c, HCC_SPRIV_DECORATION_LOCATION);
-			hcc_spirv_instr_add_operand(c, 0);
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_DECORATE);
+				hcc_spirv_instr_add_operand(c, vertex_index_spirv_id);
+				hcc_spirv_instr_add_operand(c, HCC_SPRIV_DECORATION_BUILTIN);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_BUILTIN_VERTEX_INDEX);
+				hcc_spirv_instr_end(c);
+			}
+
+			{
+				position_spirv_id = c->spirv.next_id;
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_VARIABLE);
+				hcc_spirv_instr_add_operand(c, c->spirv.pointer_type_outputs_base_id + HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
+				hcc_spirv_instr_add_result_operand(c);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_OUTPUT);
+				hcc_spirv_instr_end(c);
+
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_DECORATE);
+				hcc_spirv_instr_add_operand(c, position_spirv_id);
+				hcc_spirv_instr_add_operand(c, HCC_SPRIV_DECORATION_BUILTIN);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_BUILTIN_POSITION);
+				hcc_spirv_instr_end(c);
+			}
+
+			hcc_spirv_instr_start(c, HCC_SPIRV_OP_ENTRY_POINT);
+			hcc_spirv_instr_add_operand(c, HCC_SPIRV_EXECUTION_MODEL_VERTEX);
+			hcc_spirv_instr_add_operand(c, function_spirv_id);
+			HccString name = hcc_string_table_get(&c->astgen.string_table, function->identifier_string_id);
+			hcc_spirv_instr_add_operands_string(c, (char*)name.data, name.size);
+			hcc_spirv_instr_add_operand(c, vertex_index_spirv_id);
+			hcc_spirv_instr_add_operand(c, position_spirv_id);
+
+			hcc_spirv_generate_entry_point_used_global_variable_spirv_ids(c, function);
+
 			hcc_spirv_instr_end(c);
+			break;
+		};
+		case HCC_FUNCTION_SHADER_STAGE_FRAGMENT:
+			hcc_spirv_generate_pointer_type_input(c, HCC_DATA_TYPE_VEC3(HCC_DATA_TYPE_F32));
+			hcc_spirv_generate_pointer_type_output(c, HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
+
+			{
+				frag_coord_spirv_id = c->spirv.next_id;
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_VARIABLE);
+				hcc_spirv_instr_add_operand(c, c->spirv.pointer_type_inputs_base_id + HCC_DATA_TYPE_VEC3(HCC_DATA_TYPE_F32));
+				hcc_spirv_instr_add_result_operand(c);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_INPUT);
+				hcc_spirv_instr_end(c);
+
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_DECORATE);
+				hcc_spirv_instr_add_operand(c, frag_coord_spirv_id);
+				hcc_spirv_instr_add_operand(c, HCC_SPRIV_DECORATION_BUILTIN);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_BUILTIN_FRAG_COORD);
+				hcc_spirv_instr_end(c);
+			}
+
+			{
+				frag_color_spirv_id = c->spirv.next_id;
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_VARIABLE);
+				hcc_spirv_instr_add_operand(c, c->spirv.pointer_type_outputs_base_id + HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
+				hcc_spirv_instr_add_result_operand(c);
+				hcc_spirv_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_OUTPUT);
+				hcc_spirv_instr_end(c);
+
+				hcc_spirv_instr_start(c, HCC_SPIRV_OP_DECORATE);
+				hcc_spirv_instr_add_operand(c, frag_color_spirv_id);
+				hcc_spirv_instr_add_operand(c, HCC_SPRIV_DECORATION_LOCATION);
+				hcc_spirv_instr_add_operand(c, 0);
+				hcc_spirv_instr_end(c);
+			}
 
 			hcc_spirv_instr_start(c, HCC_SPIRV_OP_ENTRY_POINT);
 			hcc_spirv_instr_add_operand(c, HCC_SPIRV_EXECUTION_MODEL_FRAGMENT);
@@ -9506,18 +9846,14 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 			HccString name = hcc_string_table_get(&c->astgen.string_table, function->identifier_string_id);
 			hcc_spirv_instr_add_operands_string(c, (char*)name.data, name.size);
 			hcc_spirv_instr_add_operand(c, frag_color_spirv_id);
-			for (U32 idx = function->used_static_variables_start_idx; idx < function->used_static_variables_start_idx + function->used_static_variables_count; idx += 1) {
-				HccDecl decl = c->astgen.used_static_variables[idx];
-				U32 spirv_base_id = HCC_DECL_IS_LOCAL_VARIABLE(decl)
-					? c->spirv.local_variable_base_spirv_id
-					: c->spirv.global_variable_base_spirv_id;
-				hcc_spirv_instr_add_operand(c, spirv_base_id + HCC_DECL_IDX(decl));
-			}
+
+			hcc_spirv_generate_entry_point_used_global_variable_spirv_ids(c, function);
+
 			hcc_spirv_instr_end(c);
 
 			hcc_spirv_instr_start(c, HCC_SPIRV_OP_EXECUTION_MODE);
 			hcc_spirv_instr_add_operand(c, function_spirv_id);
-			hcc_spirv_instr_add_operand(c, HCC_SPIRV_EXECUTION_MODE_ORIGIN_LOWER_LEFT);
+			hcc_spirv_instr_add_operand(c, HCC_SPIRV_EXECUTION_MODE_ORIGIN_UPPER_LEFT);
 			hcc_spirv_instr_end(c);
 
 			break;
@@ -9622,10 +9958,13 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 			HccIROperand* operands = &c->ir.operands[ir_function->operands_start_idx + (U32)instruction->operands_start_idx];
 			switch (instruction->op_code) {
 				case HCC_IR_OP_CODE_LOAD: {
+					U32 type_spirv_id = hcc_spirv_resolve_type_id(c, hcc_ir_operand_data_type(&c->ir, &c->astgen, ir_function, operands[0]));
+					U32 src_operand_spirv_id = hcc_spirv_convert_operand(c, operands[1]);
+
 					hcc_spirv_instr_start(c, HCC_SPIRV_OP_LOAD);
-					hcc_spirv_instr_add_operand(c, hcc_spirv_resolve_type_id(c, hcc_ir_operand_data_type(&c->ir, &c->astgen, ir_function, operands[0])));
+					hcc_spirv_instr_add_operand(c, type_spirv_id);
 					hcc_spirv_instr_add_converted_operand(c, operands[0]);
-					hcc_spirv_instr_add_converted_operand(c, operands[1]);
+					hcc_spirv_instr_add_operand(c, src_operand_spirv_id);
 					hcc_spirv_instr_end(c);
 					break;
 				};
@@ -9633,6 +9972,44 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 					hcc_spirv_instr_start(c, HCC_SPIRV_OP_STORE);
 					hcc_spirv_instr_add_converted_operand(c, operands[0]);
 					hcc_spirv_instr_add_converted_operand(c, operands[1]);
+					hcc_spirv_instr_end(c);
+					break;
+				};
+				case HCC_IR_OP_CODE_LOAD_SHADER_STAGE_INPUT: {
+					U32 src_operand_spirv_id = 0;
+					HccDataType data_type = HCC_DATA_TYPE_VOID;
+					switch (function->shader_stage) {
+						case HCC_FUNCTION_SHADER_STAGE_VERTEX: {
+							switch (HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24(operands[1])) {
+								case HCC_VERTEX_INPUT_VERTEX_INDEX:
+									data_type = HCC_DATA_TYPE_S32;
+									src_operand_spirv_id = vertex_index_spirv_id;
+									break;
+								case HCC_VERTEX_INPUT_INSTANCE_INDEX:
+									data_type = HCC_DATA_TYPE_S32;
+									src_operand_spirv_id = instance_index_spirv_id;
+									break;
+							}
+
+							break;
+						};
+						case HCC_FUNCTION_SHADER_STAGE_FRAGMENT: {
+							switch (HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24(operands[1])) {
+								case HCC_FRAGMENT_INPUT_FRAG_COORD:
+									data_type = HCC_DATA_TYPE_VEC3(HCC_DATA_TYPE_F32);
+									src_operand_spirv_id = frag_coord_spirv_id;
+									break;
+							}
+
+							break;
+						};
+					}
+
+					U32 type_spirv_id = hcc_spirv_resolve_type_id(c, data_type);
+					hcc_spirv_instr_start(c, HCC_SPIRV_OP_LOAD);
+					hcc_spirv_instr_add_operand(c, type_spirv_id);
+					hcc_spirv_instr_add_converted_operand(c, operands[0]);
+					hcc_spirv_instr_add_operand(c, src_operand_spirv_id);
 					hcc_spirv_instr_end(c);
 					break;
 				};
@@ -9669,11 +10046,21 @@ void hcc_spirv_generate_function(HccCompiler* c, U32 function_idx) {
 					break;
 				};
 				case HCC_IR_OP_CODE_FUNCTION_RETURN: {
-					if (function->shader_stage == HCC_FUNCTION_SHADER_STAGE_FRAGMENT) {
-						hcc_spirv_instr_start(c, HCC_SPIRV_OP_STORE);
-						hcc_spirv_instr_add_operand(c, frag_color_spirv_id);
-						hcc_spirv_instr_add_converted_operand(c, operands[0]);
-						hcc_spirv_instr_end(c);
+					switch (function->shader_stage) {
+						case HCC_FUNCTION_SHADER_STAGE_VERTEX: {
+							hcc_spirv_instr_start(c, HCC_SPIRV_OP_STORE);
+							hcc_spirv_instr_add_operand(c, position_spirv_id);
+							hcc_spirv_instr_add_converted_operand(c, operands[0]);
+							hcc_spirv_instr_end(c);
+							break;
+						};
+						case HCC_FUNCTION_SHADER_STAGE_FRAGMENT: {
+							hcc_spirv_instr_start(c, HCC_SPIRV_OP_STORE);
+							hcc_spirv_instr_add_operand(c, frag_color_spirv_id);
+							hcc_spirv_instr_add_converted_operand(c, operands[0]);
+							hcc_spirv_instr_end(c);
+							break;
+						};
 					}
 
 					if (return_data_type == HCC_DATA_TYPE_VOID) {
