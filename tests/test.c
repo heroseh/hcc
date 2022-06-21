@@ -91,8 +91,9 @@ HCC_DEFINE_STATE(
 	BillboardShaderState,
 	(POSITION, Vec4, position),
 	(NOINTERP, Vec2, uv),
-	(INTERP,   Vec4, color),
+	(INTERP,   Vec4, color)
 );
+
 
 vertex BillboardShaderState billboard_shader_vertex(HccVertexInput input) {
 	Vec4 vertices[6] = {
