@@ -66,6 +66,7 @@ enum {
 	HCC_ALLOC_TAG_PP_MACRO_PARAMS,
 	HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK,
 	HCC_ALLOC_TAG_PP_EXPAND_STACK,
+	HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS,
 	HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER,
 	HCC_ALLOC_TAG_PP_IF_STACK,
 	HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS,
@@ -685,19 +686,25 @@ enum {
 	HCC_WARN_CODE_COUNT,
 };
 
-typedef struct HccLocation HccLocation;
-struct HccLocation {
-	HccCodeFile* code_file;
-	HccLocation* parent_location;
-	U32          code_start_idx;
-	U32          code_end_idx;
-	U32          line_start;
-	U32          line_end;
-	U32          column_start;
-	U32          column_end;
+typedef union HccLocation HccLocation;
+union HccLocation {
+	struct {
+		HccLocation* stable_pointer;
+		bool is_preexpanded_macro_arg;
+	};
+	struct {
+		HccCodeFile* code_file;
+		HccLocation* parent_location;
+		U32          code_start_idx;
+		U32          code_end_idx;
+		U32          line_start;
+		U32          line_end;
+		U32          column_start;
+		U32          column_end;
 
-	HccString    display_path;
-	U32          display_line;
+		HccString    display_path;
+		U32          display_line;
+	};
 };
 
 typedef struct HccMessage HccMessage;
@@ -719,6 +726,8 @@ struct HccMessageSys {
 const char* hcc_message_type_lang_strings[HCC_LANG_COUNT][HCC_MESSAGE_TYPE_COUNT];
 const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT];
 const char* hcc_warn_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_WARN_CODE_COUNT];
+
+void hcc_location_merge_apply(HccLocation* before, HccLocation* after);
 
 void hcc_message_print_file_line(HccCompiler* c, HccLocation* location);
 void hcc_message_print_pasted_buffer(HccCompiler* c, U32 line, U32 column);
@@ -1326,8 +1335,9 @@ static_assert(sizeof(HccTokenValue) == sizeof(U32), "HccTokenValue has been desi
 typedef struct HccTokenBag HccTokenBag;
 struct HccTokenBag {
 	HccStack(HccToken)      tokens;
-	HccStack(HccTokenValue) token_values;
 	HccStack(HccLocation)   token_locations;
+	HccStack(HccTokenValue) token_values;
+	U32                     expand_tokens_start_idx;
 };
 
 typedef struct HccTokenCursor HccTokenCursor;
@@ -1407,12 +1417,12 @@ struct HccPPIf {
 typedef struct HccPPMacroArg HccPPMacroArg;
 struct HccPPMacroArg {
 	HccTokenCursor cursor;
+	HccLocation* callsite_location;
 };
 
 typedef struct HccPPExpand HccPPExpand;
 struct HccPPExpand {
 	HccPPMacro*    macro;
-	HccLocation*   location;
 	U32            args_start_idx;
 	HccTokenCursor cursor;
 };
@@ -1433,8 +1443,8 @@ struct HccPP {
 	HccStack(HccStringId)          macro_params;
 	HccStack(HccPPMacroArg)        macro_args_stack;
 	HccStack(HccPPExpand)          expand_stack;
-	HccStack(HccLocation)          callsite_locations;
 	HccStack(U32)                  expand_macro_idx_stack;
+	HccStack(HccLocation)          expand_locations;     // used to keep expanded token locations for stable pointers
 	HccStack(char)                 stringify_buffer;
 	HccStack(HccPPIf*)             if_stack;
 	HccHashTable(HccStringId, U32) macro_declarations;
@@ -1448,6 +1458,7 @@ struct HccPPSetup {
 	U32 macro_params_cap;
 	U32 macro_args_stack_cap;
 	U32 expand_stack_cap;
+	U32 expand_locations_cap;
 	U32 stringify_buffer_cap;
 	U32 if_stack_cap;
 };
@@ -1483,13 +1494,14 @@ HccPPDirective hcc_pp_parse_directive_header(HccCompiler* c);
 void hcc_pp_parse_directive(HccCompiler* c);
 void hcc_pp_skip_false_conditional(HccCompiler* c, bool is_skipping_until_endif);
 void hcc_pp_copy_expand_predefined_macro(HccCompiler* c, HccPPPredefinedMacro predefined_macro);
-void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro);
+void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location);
 bool hcc_pp_is_callable_macro(HccCompiler* c, HccStringId ident_string_id, U32* macro_idx_out);
 HccPPExpand* hcc_pp_expand_push_macro(HccCompiler* c, HccPPMacro* macro);
-HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx);
+HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx, HccLocation** callsite_location_out);
 void hcc_pp_expand_pop(HccCompiler* c, HccPPExpand* expected_expand);
-void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag);
-void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag);
+HccLocation* hcc_pp_copy_expand_get_location(HccTokenBag* src_bag, U32 token_idx);
+void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, bool is_expanding_args);
+void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag);
 U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* expand, HccTokenBag* src_bag);
 
 // ===========================================
@@ -1499,7 +1511,6 @@ U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* ex
 //
 //
 // ===========================================
-
 typedef struct HccOpenBracket HccOpenBracket;
 struct HccOpenBracket {
 	HccToken close_token;
@@ -1521,9 +1532,12 @@ typedef struct HccTokenGen HccTokenGen;
 struct HccTokenGen {
 	HccTokenGenRunMode       run_mode;
 	HccTokenBag              token_bag;
+	HccTokenBag*             dst_token_bag;
 	HccStack(HccLocation)    location_stack;
 	HccStack(HccOpenBracket) open_brackets;
 
+	//
+	// data used when run_mode == HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST
 	bool                     macro_is_function;
 	bool                     macro_has_va_arg;
 	HccStringId*             macro_param_string_ids;
@@ -1531,8 +1545,8 @@ struct HccTokenGen {
 	U32                      macro_tokens_start_idx;
 
 	HccLocation              location;
-	U8*                      code;      // is a local copy of location.code_file->code_size
-	U32                      code_size; // is a local copy of location.code_file->code_size
+	U8*                      code;      // is a local copy of location.code_file->code.data
+	U32                      code_size; // is a local copy of location.code_file->code.size
 	U32                      custom_line_dst;
 	U32                      custom_line_src;
 
@@ -1551,7 +1565,6 @@ void hcc_tokengen_advance_column(HccCompiler* c, U32 by);
 void hcc_tokengen_advance_newline(HccCompiler* c);
 U32 hcc_tokengen_token_add(HccCompiler* c, HccToken token);
 U32 hcc_tokengen_token_value_add(HccCompiler* c, HccTokenValue value);
-U32 hcc_tokengen_location_add(HccCompiler* c, HccLocation* location);
 void hcc_tokengen_count_extra_newlines(HccCompiler* c);
 noreturn void hcc_tokengen_bail_error_1(HccCompiler* c, HccErrorCode error_code, ...);
 noreturn void hcc_tokengen_bail_error_2_idx(HccCompiler* c, HccErrorCode error_code, U32 other_token_idx, ...);
@@ -1574,7 +1587,7 @@ void hcc_tokengen_parse_string(HccCompiler* c, char terminator_byte, bool ignore
 U32 hcc_tokengen_find_macro_param(HccCompiler* c, HccStringId ident_string_id);
 void hcc_tokengen_consume_hash_for_define_replacement_list(HccCompiler* c);
 bool hcc_tokengen_is_first_non_whitespace_on_line(HccCompiler* c);
-void hcc_tokengen_run(HccCompiler* c, HccTokenGenRunMode run_mode);
+void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRunMode run_mode);
 
 void hcc_tokengen_print(HccCompiler* c, FILE* f);
 
