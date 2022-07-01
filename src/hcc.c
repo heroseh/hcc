@@ -21,6 +21,76 @@
 
 static HccCompiler* _hcc_compiler_ptr;
 
+const char* hcc_alloc_tag_strings[HCC_ALLOC_TAG_COUNT] = {
+	[HCC_ALLOC_TAG_MESSAGES] = "HCC_ALLOC_TAG_MESSAGES",
+	[HCC_ALLOC_TAG_MESSAGE_STRINGS] = "HCC_ALLOC_TAG_MESSAGE_STRINGS",
+	[HCC_ALLOC_TAG_STRING_TABLE_DATA] = "HCC_ALLOC_TAG_STRING_TABLE_DATA",
+	[HCC_ALLOC_TAG_STRING_TABLE_ENTRIES] = "HCC_ALLOC_TAG_STRING_TABLE_ENTRIES",
+	[HCC_ALLOC_TAG_CONSTANT_TABLE_DATA] = "HCC_ALLOC_TAG_CONSTANT_TABLE_DATA",
+	[HCC_ALLOC_TAG_CONSTANT_TABLE_ENTRIES] = "HCC_ALLOC_TAG_CONSTANT_TABLE_ENTRIES",
+	[HCC_ALLOC_TAG_STRING_BUFFER] = "HCC_ALLOC_TAG_STRING_BUFFER",
+	[HCC_ALLOC_TAG_INCLUDE_PATHS] = "HCC_ALLOC_TAG_INCLUDE_PATHS",
+	[HCC_ALLOC_TAG_CODE_FILES] = "HCC_ALLOC_TAG_CODE_FILES",
+	[HCC_ALLOC_TAG_PATH_TO_CODE_FILE_ID_MAP] = "HCC_ALLOC_TAG_PATH_TO_CODE_FILE_ID_MAP",
+	[HCC_ALLOC_TAG_CODE_FILE_LINE_CODE_START_INDICES] = "HCC_ALLOC_TAG_CODE_FILE_LINE_CODE_START_INDICES",
+	[HCC_ALLOC_TAG_CODE_FILE_PP_IF_SPANS] = "HCC_ALLOC_TAG_CODE_FILE_PP_IF_SPANS",
+	[HCC_ALLOC_TAG_CODE] = "HCC_ALLOC_TAG_CODE",
+	[HCC_ALLOC_TAG_PP_TOKENS] = "HCC_ALLOC_TAG_PP_TOKENS",
+	[HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS] = "HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS",
+	[HCC_ALLOC_TAG_PP_TOKEN_VALUES] = "HCC_ALLOC_TAG_PP_TOKEN_VALUES",
+	[HCC_ALLOC_TAG_PP_MACROS] = "HCC_ALLOC_TAG_PP_MACROS",
+	[HCC_ALLOC_TAG_PP_MACRO_PARAMS] = "HCC_ALLOC_TAG_PP_MACRO_PARAMS",
+	[HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK] = "HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK",
+	[HCC_ALLOC_TAG_PP_EXPAND_STACK] = "HCC_ALLOC_TAG_PP_EXPAND_STACK",
+	[HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS] = "HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS",
+	[HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER] = "HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER",
+	[HCC_ALLOC_TAG_PP_IF_SPAN_STACK] = "HCC_ALLOC_TAG_PP_IF_SPAN_STACK",
+	[HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS] = "HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS",
+	[HCC_ALLOC_TAG_TOKENGEN_TOKENS] = "HCC_ALLOC_TAG_TOKENGEN_TOKENS",
+	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS",
+	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES",
+	[HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK] = "HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK",
+	[HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES] = "HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES",
+	[HCC_ALLOC_TAG_ASTGEN_FUNCTIONS] = "HCC_ALLOC_TAG_ASTGEN_FUNCTIONS",
+	[HCC_ALLOC_TAG_ASTGEN_EXPRS] = "HCC_ALLOC_TAG_ASTGEN_EXPRS",
+	[HCC_ALLOC_TAG_ASTGEN_EXPR_LOCATIONS] = "HCC_ALLOC_TAG_ASTGEN_EXPR_LOCATIONS",
+	[HCC_ALLOC_TAG_ASTGEN_GLOBAL_VARIABLES] = "HCC_ALLOC_TAG_ASTGEN_GLOBAL_VARIABLES",
+	[HCC_ALLOC_TAG_ASTGEN_USED_STATIC_VARIABLES] = "HCC_ALLOC_TAG_ASTGEN_USED_STATIC_VARIABLES",
+	[HCC_ALLOC_TAG_ASTGEN_ARRAY_DATA_TYPES] = "HCC_ALLOC_TAG_ASTGEN_ARRAY_DATA_TYPES",
+	[HCC_ALLOC_TAG_ASTGEN_COMPOUND_DATA_TYPES] = "HCC_ALLOC_TAG_ASTGEN_COMPOUND_DATA_TYPES",
+	[HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELDS] = "HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELDS",
+	[HCC_ALLOC_TAG_ASTGEN_TYPEDEFS] = "HCC_ALLOC_TAG_ASTGEN_TYPEDEFS",
+	[HCC_ALLOC_TAG_ASTGEN_ENUM_DATA_TYPES] = "HCC_ALLOC_TAG_ASTGEN_ENUM_DATA_TYPES",
+	[HCC_ALLOC_TAG_ASTGEN_ENUM_VALUES] = "HCC_ALLOC_TAG_ASTGEN_ENUM_VALUES",
+	[HCC_ALLOC_TAG_ASTGEN_ORDERED_DATA_TYPES] = "HCC_ALLOC_TAG_ASTGEN_ORDERED_DATA_TYPES",
+	[HCC_ALLOC_TAG_ASTGEN_GLOBAL_DECLARATIONS] = "HCC_ALLOC_TAG_ASTGEN_GLOBAL_DECLARATIONS",
+	[HCC_ALLOC_TAG_ASTGEN_STRUCT_DECLARATIONS] = "HCC_ALLOC_TAG_ASTGEN_STRUCT_DECLARATIONS",
+	[HCC_ALLOC_TAG_ASTGEN_UNION_DECLARATIONS] = "HCC_ALLOC_TAG_ASTGEN_UNION_DECLARATIONS",
+	[HCC_ALLOC_TAG_ASTGEN_ENUM_DECLARATIONS] = "HCC_ALLOC_TAG_ASTGEN_ENUM_DECLARATIONS",
+	[HCC_ALLOC_TAG_ASTGEN_COMPOUND_TYPE_FIND_FIELDS] = "HCC_ALLOC_TAG_ASTGEN_COMPOUND_TYPE_FIND_FIELDS",
+	[HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS] = "HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS",
+	[HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS] = "HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS",
+	[HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZERS] = "HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZERS",
+	[HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZER_ELMT_INDICES] = "HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZER_ELMT_INDICES",
+	[HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS] = "HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS",
+	[HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES] = "HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES",
+	[HCC_ALLOC_TAG_ASTGEN_FIELD_NAME_TO_TOKEN_IDX] = "HCC_ALLOC_TAG_ASTGEN_FIELD_NAME_TO_TOKEN_IDX",
+	[HCC_ALLOC_TAG_IRGEN_FUNCTIONS] = "HCC_ALLOC_TAG_IRGEN_FUNCTIONS",
+	[HCC_ALLOC_TAG_IRGEN_BASIC_BLOCKS] = "HCC_ALLOC_TAG_IRGEN_BASIC_BLOCKS",
+	[HCC_ALLOC_TAG_IRGEN_VALUES] = "HCC_ALLOC_TAG_IRGEN_VALUES",
+	[HCC_ALLOC_TAG_IRGEN_INSTRUCTIONS] = "HCC_ALLOC_TAG_IRGEN_INSTRUCTIONS",
+	[HCC_ALLOC_TAG_IRGEN_OPERANDS] = "HCC_ALLOC_TAG_IRGEN_OPERANDS",
+	[HCC_ALLOC_TAG_IRGEN_FUNCTION_CALL_PARAM_DATA_TYPES] = "HCC_ALLOC_TAG_IRGEN_FUNCTION_CALL_PARAM_DATA_TYPES",
+	[HCC_ALLOC_TAG_SPIRVGEN_TYPE_TABLE_DATA_TYPES] = "HCC_ALLOC_TAG_SPIRVGEN_TYPE_TABLE_DATA_TYPES",
+	[HCC_ALLOC_TAG_SPIRVGEN_TYPE_TABLE_ENTRIES] = "HCC_ALLOC_TAG_SPIRVGEN_TYPE_TABLE_ENTRIES",
+	[HCC_ALLOC_TAG_SPIRVGEN_OUT_CAPABILITIES] = "HCC_ALLOC_TAG_SPIRVGEN_OUT_CAPABILITIES",
+	[HCC_ALLOC_TAG_SPIRVGEN_OUT_ENTRY_POINTS] = "HCC_ALLOC_TAG_SPIRVGEN_OUT_ENTRY_POINTS",
+	[HCC_ALLOC_TAG_SPIRVGEN_OUT_DEBUG_INFO] = "HCC_ALLOC_TAG_SPIRVGEN_OUT_DEBUG_INFO",
+	[HCC_ALLOC_TAG_SPIRVGEN_OUT_ANNOTATIONS] = "HCC_ALLOC_TAG_SPIRVGEN_OUT_ANNOTATIONS",
+	[HCC_ALLOC_TAG_SPIRVGEN_OUT_TYPES_VARIABLES_CONSTANTS] = "HCC_ALLOC_TAG_SPIRVGEN_OUT_TYPES_VARIABLES_CONSTANTS",
+	[HCC_ALLOC_TAG_SPIRVGEN_OUT_FUNCTIONS] = "HCC_ALLOC_TAG_SPIRVGEN_OUT_FUNCTIONS",
+};
+
 //
 // the padded zero bytes at the end of the file we add so we can look ahead in the tokenizer comparisions
 #define _HCC_TOKENIZER_LOOK_HEAD_SIZE 4
@@ -28,6 +98,7 @@ static HccCompiler* _hcc_compiler_ptr;
 #define HCC_DEBUG_CODE_SPAN_PUSH_POP 0
 #define HCC_DEBUG_CODE_PREPROCESSOR 0
 #define HCC_DEBUG_CODE_MACRO_EXPAND 1
+#define HCC_DEBUG_CODE_IF_SPAN 0
 
 void _hcc_assert_failed(const char* cond, const char* file, int line, const char* message, ...) {
 	fprintf(stderr, "assertion failed: %s\nmessage: ", cond);
@@ -129,8 +200,7 @@ bool hcc_change_working_directory(char* path) {
 #endif
 }
 
-bool hcc_change_working_directory_to_same_as_this_file(HccAstGen* astgen, char* path) {
-	(void)astgen;
+bool hcc_change_working_directory_to_same_as_this_file(char* path) {
 	char* end = strrchr(path, '/');
 	char path_buf[1024];
 	if (end == NULL) {
@@ -144,34 +214,31 @@ bool hcc_change_working_directory_to_same_as_this_file(HccAstGen* astgen, char* 
 	}
 
 	if (!hcc_change_working_directory(path_buf)) {
-		return false;
-		//
-		// TODO: remove this and the HccAstGen* astgen parameter when the tokengen and preprocessor code has been cleaned up
-#if 0
 		char error_buf[512];
 		hcc_get_last_system_error_string(error_buf, sizeof(error_buf));
-		hcc_astgen_token_error_1(c, "internal error: failed to change the working directory to '%s': %s", path_buf, error_buf);
-#endif
+		HCC_ABORT("internal error: failed to change the working directory to '%s': %s", path_buf, error_buf);
 	}
 
 	return true;
 }
 
-HccString hcc_path_canonicalize(HccAstGen* astgen, char* path) {
-	(void)astgen;
+char* hcc_path_canonicalize(char* path) {
 #ifdef __linux__
 	char* new_path = malloc(PATH_MAX);
 	if (realpath(path, new_path) == NULL) {
-		return hcc_string(NULL, 0);
-		//
-		// TODO: remove this and the HccAstGen* astgen parameter when the tokengen and preprocessor code has been cleaned up
-#if 0
 		char error_buf[512];
 		hcc_get_last_system_error_string(error_buf, sizeof(error_buf));
-		hcc_astgen_token_error_1(c, "failed to locate file at '%s': %s", path, error_buf);
-#endif
+		HCC_ABORT("internal error: failed to locate file at '%s': %s", path, error_buf);
 	}
-	return hcc_string_c_path(new_path);
+	return new_path;
+#else
+#error "unimplemented for this platform"
+#endif
+}
+
+bool hcc_path_is_absolute(char* path) {
+#ifdef __unix__
+	return path[0] == '/';
 #else
 #error "unimplemented for this platform"
 #endif
@@ -206,14 +273,6 @@ char* hcc_file_read_all_the_codes(char* path, U64* size_out) {
 	close(fd);
 
 	return bytes;
-#else
-#error "unimplemented for this platform"
-#endif
-}
-
-bool hcc_path_is_absolute(char* path) {
-#ifdef __unix__
-	return path[0] == '/';
 #else
 #error "unimplemented for this platform"
 #endif
@@ -800,6 +859,7 @@ char* hcc_pp_directive_enum_strings[HCC_PP_DIRECTIVE_COUNT] = {
 	[HCC_PP_DIRECTIVE_ENDIF] = "HCC_PP_DIRECTIVE_ENDIF",
 	[HCC_PP_DIRECTIVE_LINE] = "HCC_PP_DIRECTIVE_LINE",
 	[HCC_PP_DIRECTIVE_ERROR] = "HCC_PP_DIRECTIVE_ERROR",
+	[HCC_PP_DIRECTIVE_WARNING] = "HCC_PP_DIRECTIVE_WARNING",
 	[HCC_PP_DIRECTIVE_PRAGMA] = "HCC_PP_DIRECTIVE_PRAGMA",
 };
 
@@ -817,6 +877,7 @@ char* hcc_pp_directive_strings[HCC_PP_DIRECTIVE_COUNT] = {
 	[HCC_PP_DIRECTIVE_ENDIF] = "endif",
 	[HCC_PP_DIRECTIVE_LINE] = "line",
 	[HCC_PP_DIRECTIVE_ERROR] = "error",
+	[HCC_PP_DIRECTIVE_WARNING] = "warning",
 	[HCC_PP_DIRECTIVE_PRAGMA] = "pragma",
 };
 
@@ -834,21 +895,22 @@ U32 hcc_pp_directive_hashes[] = {
 	[HCC_PP_DIRECTIVE_ENDIF] = 0x1c12ad4d,
 	[HCC_PP_DIRECTIVE_LINE] = 0x17db1627,
 	[HCC_PP_DIRECTIVE_ERROR] = 0x21918751,
+	[HCC_PP_DIRECTIVE_WARNING] = 0x792112ef,
 	[HCC_PP_DIRECTIVE_PRAGMA] = 0x19fa4625,
 };
 
 void hcc_pp_init(HccCompiler* c, HccCompilerSetup* setup) {
 	c->pp.macro_token_bag.tokens = hcc_stack_init(HccToken, setup->pp.macro_tokens_cap, HCC_ALLOC_TAG_PP_TOKENS);
-	c->pp.macro_token_bag.token_locations = hcc_stack_init(HccToken, setup->pp.macro_tokens_cap, HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS);
+	c->pp.macro_token_bag.token_locations = hcc_stack_init(HccLocation, setup->pp.macro_tokens_cap, HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS);
 	c->pp.macro_token_bag.token_values = hcc_stack_init(HccTokenValue, setup->pp.macro_token_values_cap, HCC_ALLOC_TAG_PP_TOKEN_VALUES);
 	c->pp.macros = hcc_stack_init(HccPPMacro, setup->pp.macros_cap, HCC_ALLOC_TAG_PP_MACROS);
 	c->pp.macro_params = hcc_stack_init(HccStringId, setup->pp.macro_params_cap, HCC_ALLOC_TAG_PP_MACRO_PARAMS);
 	c->pp.macro_args_stack = hcc_stack_init(HccPPMacroArg, setup->pp.macro_args_stack_cap, HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK);
 	c->pp.expand_stack = hcc_stack_init(HccPPExpand, setup->pp.expand_stack_cap, HCC_ALLOC_TAG_PP_EXPAND_STACK);
 	c->pp.expand_macro_idx_stack = hcc_stack_init(U32, setup->pp.expand_stack_cap, HCC_ALLOC_TAG_PP_EXPAND_STACK);
-	c->pp.expand_locations = hcc_stack_init(U32, setup->pp.expand_locations_cap, HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS);
+	c->pp.expand_locations = hcc_stack_init(HccLocation, setup->pp.expand_locations_cap, HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS);
 	c->pp.stringify_buffer = hcc_stack_init(char, setup->pp.stringify_buffer_cap, HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER);
-	c->pp.if_stack = hcc_stack_init(HccPPIf, setup->pp.if_stack_cap, HCC_ALLOC_TAG_PP_IF_STACK);
+	c->pp.if_span_stack = hcc_stack_init(HccPPIfSpan*, setup->pp.if_stack_cap, HCC_ALLOC_TAG_PP_IF_SPAN_STACK);
 
 	hcc_hash_table_init(&c->pp.macro_declarations, setup->pp.macros_cap, HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS);
 	for (HccPPPredefinedMacro m = 0; m < HCC_PP_PREDEFINED_MACRO_COUNT; m += 1) {
@@ -864,48 +926,108 @@ HccPPMacro* hcc_pp_macro_get(HccCompiler* c, U32 macro_idx) {
 	return hcc_stack_get(c->pp.macros, macro_idx);
 }
 
-void hcc_pp_if_push(HccCompiler* c, HccPPDirective directive) {
+HccPPIfSpan* hcc_pp_if_span_get(HccCompiler* c, U32 if_span_id) {
+	HCC_DEBUG_ASSERT_NON_ZERO(if_span_id);
 	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
-	HccPPIf* pp_if;
-	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
-		pp_if = hcc_stack_push(code_file->pp_ifs);
-		pp_if->directive = directive;
-		pp_if->has_else = false;
-		pp_if->location_start = c->tokengen.location;
-	} else {
-		pp_if = hcc_stack_get(code_file->pp_ifs, code_file->pp_if_idx);
-		code_file->pp_if_idx += 1;
+	return hcc_stack_get(code_file->pp_if_spans, if_span_id - 1);
+}
 
+U32 hcc_pp_if_span_id(HccCompiler* c, HccPPIfSpan* if_span) {
+	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
+	HCC_DEBUG_ASSERT(code_file->pp_if_spans <= if_span && if_span <= hcc_stack_get_last(code_file->pp_if_spans), "if_span is out of the array bounds");
+	U32 id = (if_span - hcc_stack_get_first(code_file->pp_if_spans)) + 1;
+	return id;
+}
+
+HccPPIfSpan* hcc_pp_if_span_push(HccCompiler* c, HccCodeFile* code_file, HccPPDirective directive) {
+	U32 id = hcc_stack_count(code_file->pp_if_spans) + 1;
+
+	HccPPIfSpan* pp_if_span;
+	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
+#if HCC_DEBUG_CODE_IF_SPAN
+		printf("#%s at line %u\n", hcc_pp_directive_strings[directive], c->tokengen.location.line_start);
+#endif // HCC_DEBUG_CODE_IF_SPAN
+		pp_if_span = hcc_stack_push(code_file->pp_if_spans);
+		pp_if_span->directive = directive;
+		pp_if_span->location = c->tokengen.location;
+		pp_if_span->location.display_line = hcc_tokengen_display_line(c);
+		pp_if_span->first_id = hcc_pp_if_span_id(c, pp_if_span);
+		pp_if_span->has_else = false;
+		pp_if_span->prev_id = 0;
+		pp_if_span->next_id = 0;
+		pp_if_span->last_id = 0;
+	} else {
+#if HCC_DEBUG_CODE_IF_SPAN
+		printf("refound #%s at line %u\n", hcc_pp_directive_strings[directive], c->tokengen.location.line_start);
+#endif // HCC_DEBUG_CODE_IF_SPAN
+		code_file->pp_if_span_id += 1;
+		pp_if_span = hcc_pp_if_span_get(c, code_file->pp_if_span_id);
+
+		HccLocation location = c->tokengen.location;
+		location.display_line = pp_if_span->location.display_line;
 		HCC_DEBUG_ASSERT(
-			pp_if->directive == directive &&
-			HCC_CMP_ELMT(&pp_if->location_start, &c->tokengen.location),
+			pp_if_span->directive == directive &&
+			HCC_CMP_ELMT(&pp_if_span->location, &location),
 			"internal error: preprocessor if mismatch from first time this was included"
 		);
 	}
 
-	*hcc_stack_push(c->pp.if_stack) = pp_if;
+	return pp_if_span;
 }
 
-void hcc_pp_if_pop(HccCompiler* c) {
-	HccPPIf* pp_if = *hcc_stack_get_last(c->pp.if_stack);
-	pp_if->location_end = c->tokengen.location;
-	hcc_stack_pop(c->pp.if_stack);
+void hcc_pp_if_found_if(HccCompiler* c, HccPPDirective directive) {
+	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
+	HccPPIfSpan* pp_if_span = hcc_pp_if_span_push(c, code_file, directive);
+	*hcc_stack_push(c->pp.if_span_stack) = pp_if_span;
 }
 
-void hcc_pp_if_found_else(HccCompiler* c) {
-	HccPPIf* pp_if = *hcc_stack_get_last(c->pp.if_stack);
-	pp_if->has_else = true;
+HccPPIfSpan* hcc_pp_if_found_if_counterpart(HccCompiler* c, HccPPDirective directive) {
+	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
+	HccPPIfSpan* counterpart = hcc_pp_if_span_push(c, code_file, directive);
+	U32 id = hcc_pp_if_span_id(c, counterpart);
+
+	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
+		HccPPIfSpan* pp_if_span = *hcc_stack_get_last(c->pp.if_span_stack);
+		counterpart->first_id = hcc_pp_if_span_id(c, pp_if_span);
+		counterpart->prev_id = pp_if_span->last_id;
+		if (counterpart->prev_id) {
+			HccPPIfSpan* prev = hcc_pp_if_span_get(c, counterpart->prev_id);
+			prev->next_id = id;
+		} else {
+			pp_if_span->next_id = id;
+		}
+		pp_if_span->last_id = id;
+	}
+
+	return counterpart;
+}
+
+void hcc_pp_if_found_endif(HccCompiler* c) {
+	HccPPIfSpan* pp_if_span = hcc_pp_if_found_if_counterpart(c, HCC_PP_DIRECTIVE_ENDIF);
+	pp_if_span->next_id = 0;
+	hcc_stack_pop(c->pp.if_span_stack);
+}
+
+void hcc_pp_if_found_else(HccCompiler* c, HccPPDirective directive) {
+	HccPPIfSpan* pp_if_span = *hcc_stack_get_last(c->pp.if_span_stack);
+	pp_if_span->has_else = true;
+
+	pp_if_span = hcc_pp_if_found_if_counterpart(c, directive);
 }
 
 void hcc_pp_if_ensure_first_else(HccCompiler* c, HccPPDirective directive) {
-	HccPPIf* pp_if = *hcc_stack_get_last(c->pp.if_stack);
-	if (pp_if->has_else) {
-		hcc_tokengen_bail_error_2_ptr(c, HCC_ERROR_CODE_PP_ELSEIF_CANNOT_FOLLOW_ELSE, &pp_if->location_start, hcc_pp_directive_strings[directive]);
+	HccPPIfSpan* pp_if_span = *hcc_stack_get_last(c->pp.if_span_stack);
+
+	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
+	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
+		if (pp_if_span->has_else) {
+			hcc_tokengen_bail_error_2_ptr(c, HCC_ERROR_CODE_PP_ELSEIF_CANNOT_FOLLOW_ELSE, &pp_if_span->location, hcc_pp_directive_strings[directive]);
+		}
 	}
 }
 
 void hcc_pp_if_ensure_one_is_open(HccCompiler* c, HccPPDirective directive) {
-	if (hcc_stack_count(c->pp.if_stack) == 0) {
+	if (hcc_stack_count(c->pp.if_span_stack) == 0) {
 		hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_ENDIF_BEFORE_IF, hcc_pp_directive_strings[directive]);
 	}
 }
@@ -1237,7 +1359,7 @@ void hcc_pp_parse_define(HccCompiler* c) {
 	U32 token_values_start_idx = hcc_stack_count(c->pp.macro_token_bag.token_values);
 	c->tokengen.macro_is_function = is_function;
 	c->tokengen.macro_has_va_arg = has_va_args;
-	c->tokengen.macro_param_string_ids = hcc_stack_get(c->pp.macro_params, params_start_idx);
+	c->tokengen.macro_param_string_ids = hcc_stack_get_or_null(c->pp.macro_params, params_start_idx);
 	c->tokengen.macro_params_count = params_count;
 	hcc_tokengen_run(c, &c->pp.macro_token_bag, HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST);
 	U32 tokens_end_idx = hcc_stack_count(c->pp.macro_token_bag.tokens);
@@ -1247,12 +1369,12 @@ void hcc_pp_parse_define(HccCompiler* c) {
 	U32* macro_idx_ptr;
 	if (hcc_hash_table_find_or_insert(&c->pp.macro_declarations, identifier_string_id.idx_plus_one, &macro_idx_ptr)) {
 		HccPPMacro* existing_macro = hcc_pp_macro_get(c, *macro_idx_ptr);
-		HccToken* macro_tokens = hcc_stack_get(c->pp.macro_token_bag.tokens, tokens_start_idx);
-		HccTokenValue* macro_token_values = hcc_stack_get(c->pp.macro_token_bag.token_values, token_values_start_idx);
-		HccToken* existing_macro_tokens = hcc_stack_get(c->pp.macro_token_bag.tokens, existing_macro->token_cursor.tokens_start_idx);
-		HccTokenValue* existing_macro_token_values = hcc_stack_get(c->pp.macro_token_bag.token_values, existing_macro->token_cursor.token_value_idx);
-		HccStringId* param_string_ids = hcc_stack_get(c->pp.macro_params, params_start_idx);
-		HccStringId* existing_param_string_ids = hcc_stack_get(c->pp.macro_params, existing_macro->params_start_idx);
+		HccToken* macro_tokens = hcc_stack_get_or_null(c->pp.macro_token_bag.tokens, tokens_start_idx);
+		HccTokenValue* macro_token_values = hcc_stack_get_or_null(c->pp.macro_token_bag.token_values, token_values_start_idx);
+		HccToken* existing_macro_tokens = hcc_stack_get_or_null(c->pp.macro_token_bag.tokens, existing_macro->token_cursor.tokens_start_idx);
+		HccTokenValue* existing_macro_token_values = hcc_stack_get_or_null(c->pp.macro_token_bag.token_values, existing_macro->token_cursor.token_value_idx);
+		HccStringId* param_string_ids = hcc_stack_get_or_null(c->pp.macro_params, params_start_idx);
+		HccStringId* existing_param_string_ids = hcc_stack_get_or_null(c->pp.macro_params, existing_macro->params_start_idx);
 		if (
 			is_function != existing_macro->is_function ||
 			(is_function && (
@@ -1396,6 +1518,7 @@ void hcc_pp_parse_include(HccCompiler* c) {
 		}
 
 		if (idx == count) {
+			c->tokengen.location = *hcc_stack_get(token_bag->token_locations, tokens_start_idx);
 			hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_INCLUDE_PATH_DOES_NOT_EXIST);
 		}
 	}
@@ -1560,7 +1683,7 @@ void hcc_pp_parse_line(HccCompiler* c) {
 		if (token != HCC_TOKEN_STRING) {
 			hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_INVALID_PP_LINE_OPERANDS);
 		}
-		HccStringId string_id = hcc_stack_get(token_bag->token_values, token_values_start_idx + 1)->string_id;
+		HccStringId string_id = hcc_stack_get(token_bag->token_values, token_values_start_idx + 2)->string_id;
 		custom_path = hcc_string_table_get(&c->string_table, string_id);
 	}
 
@@ -1596,6 +1719,24 @@ void hcc_pp_parse_error(HccCompiler* c) {
 	message.size = (char*)&c->tokengen.code[c->tokengen.location.code_end_idx] - message.data;
 
 	hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_ERROR, (int)message.size, message.data);
+}
+
+void hcc_pp_parse_warning(HccCompiler* c) {
+	hcc_tokengen_consume_whitespace(c);
+	c->tokengen.location.code_start_idx = c->tokengen.location.code_end_idx;
+	c->tokengen.location.column_start = c->tokengen.location.column_end;
+
+	HccString message = hcc_string((char*)&c->tokengen.code[c->tokengen.location.code_end_idx], 0);
+	hcc_tokengen_consume_until_any_byte(c, "\n");
+	message.size = (char*)&c->tokengen.code[c->tokengen.location.code_end_idx] - message.data;
+
+	//
+	// make a copy of the location for this warning since we overrite this when we continue tokenizing
+	HccLocation* location = hcc_stack_push(c->pp.expand_locations);
+	*location = c->tokengen.location;
+	location->display_line = hcc_tokengen_display_line(c);
+
+	hcc_warn_push(c, HCC_WARN_CODE_PP_WARNING, location, NULL, (int)message.size, message.data);
 }
 
 void hcc_pp_parse_pragma(HccCompiler* c) {
@@ -1693,7 +1834,7 @@ void hcc_pp_parse_directive(HccCompiler* c) {
 	}
 
 #if HCC_DEBUG_CODE_PREPROCESSOR
-	U32 debug_indent_level = hcc_stack_count(c->pp.if_stack);
+	U32 debug_indent_level = hcc_stack_count(c->pp.if_span_stack);
 	U32 debug_line = c->tokengen.location.line_end - 1;
 	if (directive == HCC_PP_DIRECTIVE_ENDIF) {
 		debug_indent_level -= 1;
@@ -1718,23 +1859,26 @@ void hcc_pp_parse_directive(HccCompiler* c) {
 		case HCC_PP_DIRECTIVE_ERROR:
 			hcc_pp_parse_error(c);
 			break;
+		case HCC_PP_DIRECTIVE_WARNING:
+			hcc_pp_parse_warning(c);
+			break;
 		case HCC_PP_DIRECTIVE_PRAGMA:
 			hcc_pp_parse_pragma(c);
 			break;
 		case HCC_PP_DIRECTIVE_IF: {
-			hcc_pp_if_push(c, directive);
+			hcc_pp_if_found_if(c, directive);
 			is_skipping_code = !hcc_pp_parse_if(c);
 			break;
 		};
 		case HCC_PP_DIRECTIVE_IFDEF:
 		case HCC_PP_DIRECTIVE_IFNDEF: {
-			hcc_pp_if_push(c, directive);
+			hcc_pp_if_found_if(c, directive);
 			is_skipping_code = hcc_pp_parse_ifdef(c, directive) != (directive == HCC_PP_DIRECTIVE_IFDEF);
 			break;
 		};
 		case HCC_PP_DIRECTIVE_ENDIF:
 			hcc_pp_if_ensure_one_is_open(c, directive);
-			hcc_pp_if_pop(c);
+			hcc_pp_if_found_endif(c);
 			break;
 		case HCC_PP_DIRECTIVE_ELSE:
 		case HCC_PP_DIRECTIVE_ELIF:
@@ -1743,7 +1887,9 @@ void hcc_pp_parse_directive(HccCompiler* c) {
 			hcc_pp_if_ensure_one_is_open(c, directive);
 			hcc_pp_if_ensure_first_else(c, directive);
 			if (directive == HCC_PP_DIRECTIVE_ELSE) {
-				hcc_pp_if_found_else(c);
+				hcc_pp_if_found_else(c, directive);
+			} else {
+				hcc_pp_if_found_if_counterpart(c, directive);
 			}
 
 			//
@@ -1759,30 +1905,45 @@ void hcc_pp_parse_directive(HccCompiler* c) {
 #endif
 
 	if (is_skipping_code) {
-		HccCodeFile* code_file = c->tokengen.location.code_file;
-		if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
-			hcc_pp_skip_false_conditional(c, is_skipping_until_endif);
-		} else {
-			HccPPIf* pp_if = *hcc_stack_get_last(c->pp.if_stack);
-			c->tokengen.location = pp_if->location_end;
-		}
+		hcc_pp_skip_false_conditional(c, is_skipping_until_endif);
 	}
 }
 
 void hcc_pp_skip_false_conditional(HccCompiler* c, bool is_skipping_until_endif) {
 	bool first_non_white_space_char = false;
-	U32 nested_level = hcc_stack_count(c->pp.if_stack);
+	U32 nested_level = hcc_stack_count(c->pp.if_span_stack);
+	HccCodeFile* code_file = c->tokengen.location.code_file;
 	while (c->tokengen.location.code_end_idx < c->tokengen.code_size) {
+		if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
+			//
+			// TODO test a SIMD optimized version of this
+			//
+			while (c->tokengen.location.code_end_idx < c->tokengen.code_size) {
+				U8 byte = c->tokengen.code[c->tokengen.location.code_end_idx];
+				if (byte == '\n') break;
+				if (byte == '#') break;
+				first_non_white_space_char = false;
+				hcc_tokengen_advance_column(c, 1);
+			}
+		} else {
+			HccPPIfSpan* pp_if_span = hcc_pp_if_span_get(c, code_file->pp_if_span_id);
+			if (is_skipping_until_endif) {
+				HccPPIfSpan* first_pp_if_span = hcc_pp_if_span_get(c, pp_if_span->first_id);
+				HccPPIfSpan* last_pp_if_span = hcc_pp_if_span_get(c, first_pp_if_span->last_id);
+				c->tokengen.location = last_pp_if_span->location;
+				code_file->pp_if_span_id = first_pp_if_span->last_id - 1;
+			} else {
+				HccPPIfSpan* next_pp_if_span = hcc_pp_if_span_get(c, pp_if_span->next_id);
+				c->tokengen.location = next_pp_if_span->location;
+				code_file->pp_if_span_id = pp_if_span->next_id - 1;
+			}
 
-		//
-		// TODO test a SIMD optimized version of this
-		//
-		while (c->tokengen.location.code_end_idx < c->tokengen.code_size) {
-			U8 byte = c->tokengen.code[c->tokengen.location.code_end_idx];
-			if (byte == '\n') break;
-			if (byte == '#') break;
-			first_non_white_space_char = false;
-			hcc_tokengen_advance_column(c, 1);
+			//
+			// put cursor back to the start of the line
+			c->tokengen.location.code_end_idx = c->tokengen.location.code_start_idx;
+			c->tokengen.location.column_start = 1;
+			c->tokengen.location.column_end = 1;
+			first_non_white_space_char = true;
 		}
 
 		if (c->tokengen.location.code_end_idx >= c->tokengen.code_size) {
@@ -1793,6 +1954,9 @@ void hcc_pp_skip_false_conditional(HccCompiler* c, bool is_skipping_until_endif)
 		switch (byte) {
 			case '\n':
 				hcc_tokengen_advance_newline(c);
+				c->tokengen.location.line_start = c->tokengen.location.line_end - 1;
+				c->tokengen.location.code_start_idx = c->tokengen.location.code_end_idx;
+				c->tokengen.location.column_start = 1;
 				first_non_white_space_char = true;
 				break;
 			case '#': {
@@ -1814,6 +1978,7 @@ void hcc_pp_skip_false_conditional(HccCompiler* c, bool is_skipping_until_endif)
 					case HCC_PP_DIRECTIVE_INCLUDE:
 					case HCC_PP_DIRECTIVE_LINE:
 					case HCC_PP_DIRECTIVE_ERROR:
+					case HCC_PP_DIRECTIVE_WARNING:
 					case HCC_PP_DIRECTIVE_PRAGMA:
 						//
 						// we are skipping code an these directive have no
@@ -1828,14 +1993,14 @@ void hcc_pp_skip_false_conditional(HccCompiler* c, bool is_skipping_until_endif)
 						// push any if on the stack so we can keep track of when reach
 						// the original if block's #endif or #else
 						//
-						hcc_pp_if_push(c, directive);
+						hcc_pp_if_found_if(c, directive);
 						break;
 					};
 					case HCC_PP_DIRECTIVE_ENDIF:
-						if (hcc_stack_count(c->pp.if_stack) == nested_level) {
+						if (hcc_stack_count(c->pp.if_span_stack) == nested_level) {
 							is_finished = true;
 						}
-						hcc_pp_if_pop(c);
+						hcc_pp_if_found_endif(c);
 						break;
 					case HCC_PP_DIRECTIVE_ELSE:
 					case HCC_PP_DIRECTIVE_ELIF:
@@ -1843,10 +2008,12 @@ void hcc_pp_skip_false_conditional(HccCompiler* c, bool is_skipping_until_endif)
 					case HCC_PP_DIRECTIVE_ELIFNDEF:
 						hcc_pp_if_ensure_first_else(c, directive);
 						if (directive == HCC_PP_DIRECTIVE_ELSE) {
-							hcc_pp_if_found_else(c);
+							hcc_pp_if_found_else(c, directive);
+						} else {
+							hcc_pp_if_found_if_counterpart(c, directive);
 						}
 
-						if (!is_skipping_until_endif && hcc_stack_count(c->pp.if_stack) == nested_level) {
+						if (!is_skipping_until_endif && hcc_stack_count(c->pp.if_span_stack) == nested_level) {
 							switch (directive) {
 								case HCC_PP_DIRECTIVE_ELSE:
 									is_finished = true;
@@ -1915,6 +2082,7 @@ void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro, HccLocati
 	HccPPExpand args_expand;
 	HccTokenBag* args_src_bag = &c->pp.macro_token_bag;
 	if (macro->is_function) {
+		HCC_DEBUG_ASSERT(c->tokengen.code[c->tokengen.location.code_end_idx] == '(', "internal error: expected to be on a '(' but got '%c'", c->tokengen.code[c->tokengen.location.code_end_idx]);
 		//
 		// our arguments are currently in string form.
 		// tokenize them before we call into the expand code.
@@ -1927,6 +2095,11 @@ void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro, HccLocati
 		hcc_tokengen_run(c, args_src_bag, HCC_TOKENGEN_RUN_MODE_PP_MACRO_ARGS);
 		args_expand.cursor.tokens_end_idx = hcc_stack_count(args_src_bag->tokens);
 	}
+
+	//
+	// make the location a stable pointer
+	*hcc_stack_push(c->pp.expand_locations) = *macro_callsite_location;
+	macro_callsite_location = hcc_stack_get_last(c->pp.expand_locations);
 
 	c->tokengen.token_bag.expand_tokens_start_idx = hcc_stack_count(c->tokengen.token_bag.tokens);
 	c->pp.macro_token_bag.expand_tokens_start_idx = hcc_stack_count(c->pp.macro_token_bag.tokens);
@@ -2026,13 +2199,31 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 				if (can_expand) {
 					expand->cursor.token_idx += 1; // skip the identifier token
 					expand->cursor.token_value_idx += 1;
-					hcc_pp_copy_expand_macro(c, macro, token_location, expand, src_bag, dst_bag, alt_dst_bag);
+
+					//
+					// make a new location for this callsite that links back to the parent callsite
+					HccLocation* callsite_location = hcc_stack_push(c->pp.expand_locations);
+					*callsite_location = *token_location;
+					callsite_location->parent_location = parent_or_child_location;
+
+					hcc_pp_copy_expand_macro(c, macro, callsite_location, expand, src_bag, dst_bag, alt_dst_bag);
 					continue;
 				}
 			}
 		} else if (token == HCC_TOKEN_MACRO_WHITESPACE) {
 			expand->cursor.token_idx += 1;
 			continue;
+		}
+
+		if (is_the_starting_expansion) {
+			HccToken bracket = token - HCC_TOKEN_BRACKET_START;
+			if (bracket < HCC_TOKEN_BRACKET_COUNT) {
+				if (bracket % 2 == 0) {
+					hcc_tokengen_bracket_open(c, token);
+				} else {
+					hcc_tokengen_bracket_close(c, token);
+				}
+			}
 		}
 
 		//
@@ -2117,9 +2308,6 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 	U32 restore_to_expand_args_count = hcc_stack_count(c->pp.macro_args_stack);
 	U32 args_start_idx = U32_MAX;
 	HccTokenBag* src_bag = &c->pp.macro_token_bag;
-
-	*hcc_stack_push(c->pp.expand_locations) = *macro_callsite_location;
-	macro_callsite_location = hcc_stack_get_last(c->pp.expand_locations);
 
 	if (macro->is_function) {
 		args_start_idx = hcc_pp_process_macro_args(c, macro, arg_expand, args_src_bag);
@@ -2368,6 +2556,11 @@ const char* hcc_message_type_lang_strings[HCC_LANG_COUNT][HCC_MESSAGE_TYPE_COUNT
 	},
 };
 
+const char* hcc_message_type_ascii_color_code[HCC_MESSAGE_TYPE_COUNT] = {
+	[HCC_MESSAGE_TYPE_ERROR] = "\x1b[1;91m",
+	[HCC_MESSAGE_TYPE_WARN] = "\x1b[1;93m",
+};
+
 const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT] = {
 	[HCC_LANG_ENG] = {
 		[HCC_ERROR_CODE_NONE] = "internal error: there is no error code set for this error",
@@ -2402,6 +2595,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_PREPROCESSOR_DIRECTIVE] =  "invalid preprocessor directive '#%.*s'",
 		[HCC_ERROR_CODE_PP_ENDIF_BEFORE_IF] = "'#%s' must follow an open #if/#ifdef/#ifndef",
 		[HCC_ERROR_CODE_PP_ELSEIF_CANNOT_FOLLOW_ELSE] = "'#%s' cannot follow an '#else' in the same preprocessor if chain",
+		[HCC_ERROR_CODE_PP_IF_UNTERMINATED] = "missing #endif to match this unterminated '#%s'",
 		[HCC_ERROR_CODE_TOO_MANY_UNDEF_OPERANDS] = "#%s has too many operands, we only expect an identifier operand to undefine a macro",
 		[HCC_ERROR_CODE_TOO_MANY_IFDEF_OPERANDS] = "#%s has too many operands, we only expect an identifier operand check if it is defined or not",
 		[HCC_ERROR_CODE_PP_DIRECTIVE_NOT_FIRST_ON_LINE] = "invalid token '#', preprocessor directives must be the first non-whitespace on the line",
@@ -2417,8 +2611,8 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_FLOAT_SUFFIX_MUST_FOLLOW_DECIMAL_PLACE] = "the 'f' suffix must come after a decimal place/full stop '.' e.g. 0.f or 1.0f",
 		[HCC_ERROR_CODE_INVALID_INTEGER_LITERALS] = "invalid suffix for integer literals",
 		[HCC_ERROR_CODE_INVALID_FLOAT_LITERALS] = "invalid suffix for float literals",
-		[HCC_ERROR_CODE_NO_BRACKETS_OPEN] = "no brackets are open to close '%c'",
-		[HCC_ERROR_CODE_INVALID_CLOSE_BRACKET_PAIR] = "expected to close bracket pair with '%s' but got '%c'",
+		[HCC_ERROR_CODE_NO_BRACKETS_OPEN] = "no brackets are open to close '%s'",
+		[HCC_ERROR_CODE_INVALID_CLOSE_BRACKET_PAIR] = "expected to close bracket pair with '%s' but got '%s'",
 		[HCC_ERROR_CODE_UNCLOSED_STRING_LITERAL] = "unclosed string literal. close with '%c' or strings spanning to the next line must end the line with '\\'",
 		[HCC_ERROR_CODE_MACRO_STARTS_WITH_CONCAT] = "macro cannot start with '##', this operator is used to concatinate two tokens. eg. ident ## ifier and 100. ## f",
 		[HCC_ERROR_CODE_STRINGIFY_MUST_BE_MACRO_PARAM] = "macro stringify '#' operator can only be used on a macro parameter",
@@ -2437,7 +2631,110 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_CANNOT_FIND_FIELD] = "cannot find a '%.*s' field in the '%.*s' type",
 		[HCC_ERROR_CODE_DUPLICATE_FIELD_IDENTIFIER] = "duplicate field identifier '%.*s' in '%.*s'",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION] =  "the condition expression must be convertable to a boolean but got '%.*s'",
+		[HCC_ERROR_CODE_MISSING_SEMICOLON] = "missing ';' to end the statement",
+		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL] = "redefinition of the '%.*s' identifier",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM] = "expected '{' to declare enum type values",
+		[HCC_ERROR_CODE_REIMPLEMENTATION] = "redefinition of '%.*s'",
+		[HCC_ERROR_CODE_EMPTY_ENUM] = "cannot have an empty enum, please declare some identifiers inside the {}",
+		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_ENUM_VALUE] = "expected an identifier for the enum value name",
+		[HCC_ERROR_CODE_ENUM_VALUE_OVERFLOW] = "enum value overflows a 32 bit signed integer",
+		[HCC_ERROR_CODE_ENUM_VALUE_INVALID_FORMAT] = "expected a constant integer value that fits into signed 32 bits",
+		[HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR_WITH_EXPLICIT_VALUE] = "expected a ',' to declare another value or a '}' to finish the enum values",
+		[HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR] = "expected an '=' to assign a value explicitly, ',' to declare another value or a '}' to finish the enum values",
+		[HCC_ERROR_CODE_INTRINSIC_NO_UNIONS] = "we do not have any intrinsic unions, we only have intrinsic structures",
+		[HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT] = "'struct %.*s' is not a valid intrinsic for this compiler version",
+		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT] = "the '%s' keyword cannot be used on this structure declaration",
+		[HCC_ERROR_CODE_NOT_AVAILABLE_FOR_UNION] = "the '%s' keyword can only be used on a 'struct' and not a 'union'",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_COMPOUND_TYPE] = "expected '{' to declare compound type fields",
+		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT_FIELD] = "the '%s' keyword cannot be used on this structure field declaration",
+		[HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD] = "only one of these can be used per field: '%s' or '%s'",
+		[HCC_ERROR_CODE_COMPOUND_FIELD_INVALID_TERMINATOR] = "expected 'type name', 'struct' or 'union' to declare another field or '}' to finish declaring the compound type fields",
+		[HCC_ERROR_CODE_COMPOUND_FIELD_MISSING_NAME] = "expected an identifier for the field name",
+		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT] = "expected intrinsic struct '%.*s' to have '%u' fields but got '%u'",
+		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD] = "expected this intrinsic field to be '%.*s %.*s' for this compiler version",
+		[HCC_ERROR_CODE_EXPECTED_TYPE_NAME] = "expected a 'type name' here but got '%s'",
+		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_TYPEDEF] = "expected an 'identifier' for the typedef here but got '%s'",
+		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_TYPEDEF] = "the '%s' keyword cannot be used on this typedef declaration",
+		[HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_TYPEDEF] = "'typedef %.*s' is not a valid intrinsic for this compiler version",
+		[HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF] = "this intrinsic is supposed to be 'typedef struct %.*s %.*s'",
+		[HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST] = "type mismatch '%.*s' is does not implicitly cast to '%.*s'",
+		[HCC_ERROR_CODE_TYPE_MISMATCH] = "type mismatch '%.*s' and '%.*s'",
+		[HCC_ERROR_CODE_UNSUPPORTED_BINARY_OPERATOR] = "operator '%s' is not supported for data type '%.*s' and '%.*s'",
+		[HCC_ERROR_CODE_INVALID_CURLY_EXPR] = "'{' can only be used as the assignment of variable declarations or compound literals",
+		[HCC_ERROR_CODE_FIELD_DESIGNATOR_ON_ARRAY_TYPE] = "field designator cannot be used for an the '%.*s' array type, please use '[' instead",
+		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_DESIGNATOR] = "expected an the field identifier that you wish to initialize from '%.*s'",
+		[HCC_ERROR_CODE_ARRAY_DESIGNATOR_ON_COMPOUND_TYPE] = "array designator cannot be used for an the '%.*s' compound type, please use '.' instead",
+		[HCC_ERROR_CODE_EXPECTED_INTEGER_FOR_ARRAY_IDX] = "expected a constant unsigned integer here to index a value from the '%.*s' array type",
+		[HCC_ERROR_CODE_ARRAY_INDEX_OUT_OF_BOUNDS] = "index is out of bounds for this array, expected a value between '0' - '%zu'",
+		[HCC_ERROR_CODE_ARRAY_DESIGNATOR_EXPECTED_SQUARE_BRACE_CLOSE] = "expected ']' to finish the array designator",
+		[HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_ARRAY_DESIGNATOR] = "expected an '=' to assign a value or a '[' for an array designator",
+		[HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_FIELD_DESIGNATOR] = "expected an '=' to assign a value or a '.' for an field designator",
+		[HCC_ERROR_CODE_EXPECTED_ASSIGN] = "expected an '=' to assign a value",
+		[HCC_ERROR_CODE_UNARY_OPERATOR_NOT_SUPPORTED] = "unary operator '%s' is not supported for the '%.*s' data type",
+		[HCC_ERROR_CODE_UNDECLARED_IDENTIFIER] = "undeclared identifier '%.*s'",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_EXPR] = "expected a ')' here to finish the expression",
+		[HCC_ERROR_CODE_INVALID_CAST] = "cannot cast '%.*s' to '%.*s'",
+		[HCC_ERROR_CODE_INVALID_CURLY_INITIALIZER_LIST_END] = "expected a '}' to finish the initializer list or a ',' to declare another initializer",
+		[HCC_ERROR_CODE_SIZEALIGNOF_TYPE_OPERAND_NOT_WRAPPED] = "the type after '%s' be wrapped in parenthesis. eg. sizeof(uint32_t)",
+		[HCC_ERROR_CODE_EXPECTED_EXPR] = "expected an expression here but got '%s'",
+		[HCC_ERROR_CODE_NOT_ENOUGH_FUNCTION_ARGS] = "not enough arguments, expected '%u' but got '%u' for '%.*s'",
+		[HCC_ERROR_CODE_TOO_MANY_FUNCTION_ARGS] = "too many arguments, expected '%u' but got '%u' for '%.*s'",
+		[HCC_ERROR_CODE_INVALID_FUNCTION_ARG_DELIMITER] = "expected a ',' to declaring more function arguments or a ')' to finish declaring function arguments",
+		[HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_SQUARE_BRACE_CLOSE] = "expected ']' to finish the array subscript",
+		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_ACCESS] = "expected an identifier for the field you wish to access from '%.*s'",
+		[HCC_ERROR_CODE_MISSING_COLON_TERNARY_OP] = "expected a ':' for the false side of the ternary operator",
+		[HCC_ERROR_CODE_PARENTHISES_USED_ON_NON_FUNCTION] = "unexpected '(', this can only be used when the left expression is a function or pointer to a function",
+		[HCC_ERROR_CODE_SQUARE_BRACE_USED_ON_NON_ARRAY_DATA_TYPE] = "unexpected '[', this can only be used when the left expression is an array or pointer but got '%.*s'",
+		[HCC_ERROR_CODE_FULL_STOP_USED_ON_NON_COMPOUND_DATA_TYPE] = "unexpected '.', this can only be used when the left expression is a struct or union type but got '%.*s'",
+		[HCC_ERROR_CODE_CANNOT_ASSIGN_TO_CONST] = "cannot assign to a target that has a constant data type of '%.*s'",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_CONDITION_EXPR] = "expected a '(' for the condition expression",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_CONDITION_EXPR] = "expected a ')' to finish the condition expression",
+		[HCC_ERROR_CODE_EXPECTED_ARRAY_SIZE] = "expected an array size here",
+		[HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_ARRAY_SIZE] = "expected the expression to resolve to an integer constant for the array size here",
+		[HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_NEGATIVE] = "the array size cannot be negative",
+		[HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_ZERO] = "the array size cannot be zero",
+		[HCC_ERROR_CODE_ARRAY_DECL_EXPECTED_SQUARE_BRACE_CLOSE] = "expected a ']' after the array size expression",
+		[HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER] = "'%s' is currently unsupported",
+		[HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED] = "'%s' has already been used for this declaration",
+		[HCC_ERROR_CODE_UNUSED_SPECIFIER] = "the '%s' keyword was used, so we are expecting %s for a declaration but got '%s'",
+		[HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL] = "the '%s' keyword cannot be used on this variable declaration",
+		[HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_DECL] = "the '%s' keyword cannot be used on this function declaration",
+		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_LOCAL] = "redefinition of '%.*s' local variable identifier",
+		[HCC_ERROR_CODE_STATIC_VARIABLE_INITIALIZER_MUST_BE_CONSTANT] = "variable declaration is static, so this initializer expression must be a constant",
+		[HCC_ERROR_CODE_INVALID_VARIABLE_DECL_TERMINATOR] = "expected a ';' to end the declaration or a '=' to assign to the new variable",
+		[HCC_ERROR_CODE_INVALID_ELSE] = "expected either 'if' or '{' to follow the 'else' keyword",
+		[HCC_ERROR_CODE_INVALID_SWITCH_CONDITION_TYPE] = "switch condition expression must be convertable to a integer type but got '%.*s'",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_SWITCH_STATEMENT] = "expected a '{' to begin the switch statement",
+		[HCC_ERROR_CODE_EXPECTED_WHILE_CONDITION_FOR_DO_WHILE] = "expected 'while' to define the condition of the do while loop",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_FOR] = "expected a '(' to follow 'for' for the operands",
+		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FOR_VARIABLE_DECL] = "expected an identifier for a variable declaration",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_FOR] = "expected a ')' to finish the for statement condition",
+		[HCC_ERROR_CODE_CASE_STATEMENT_OUTSIDE_OF_SWITCH] = "case statement must be inside a switch statement",
+		[HCC_ERROR_CODE_SWITCH_CASE_VALUE_MUST_BE_A_CONSTANT] = "the value of a switch case statement must be a constant",
+		[HCC_ERROR_CODE_EXPECTED_COLON_SWITCH_CASE] = "':' must follow the constant of the case statement",
+		[HCC_ERROR_CODE_DEFAULT_STATMENT_OUTSIDE_OF_SWITCH] = "default case statement must be inside a switch statement",
+		[HCC_ERROR_CODE_DEFAULT_STATEMENT_ALREADY_DECLARED] = "default case statement has already been declared",
+		[HCC_ERROR_CODE_EXPECTED_COLON_SWITCH_DEFAULT] = "':' must follow the default keyword",
+		[HCC_ERROR_CODE_INVALID_BREAK_STATEMENT_USAGE] = "'break' can only be used within a switch statement, a for loop or a while loop",
+		[HCC_ERROR_CODE_INVALID_CONTINUE_STATEMENT_USAGE] = "'continue' can only be used within a switch statement, a for loop or a while loop",
+		[HCC_ERROR_CODE_MULTIPLE_SHADER_STAGES_ON_FUNCTION] = "only a single shader stage can be specified in a function declaration",
+		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM] = "expected an identifier for a function parameter e.g. uint32_t param_identifier",
+		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM] = "redefinition of '%.*s' function paraemter identifier",
+		[HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR] = "expected a ',' to declaring more function parameters or a ')' to finish declaring function parameters",
+		[HCC_ERROR_CODE_UNEXPECTED_TOKEN] = "unexpected token '%s'",
 	},
+};
+
+const char* hcc_warn_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_WARN_CODE_COUNT] = {
+	[HCC_LANG_ENG] = {
+		[HCC_WARN_CODE_PP_WARNING] = "#warning '%.*s'",
+
+		//
+		// astgen
+		[HCC_WARN_CODE_CURLY_INITIALIZER_ON_SCALAR] = "'{' should ideally be for structure or array types but got '%.*s'",
+		[HCC_WARN_CODE_UNUSED_INITIALIZER_REACHED_END] = "unused initializer, we have reached the end of members for the '%.*s' type",
+		[HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR] = "you should ideally continue using field/array designators after they have been used",
+	}
 };
 
 void hcc_location_merge_apply(HccLocation* before, HccLocation* after) {
@@ -2450,11 +2747,12 @@ void hcc_location_merge_apply(HccLocation* before, HccLocation* after) {
 
 void hcc_message_print_file_line(HccCompiler* c, HccLocation* location) {
 	const char* file_path = location->display_path.data ? location->display_path.data : location->code_file->path_string.data;
+	U32 display_line = location->display_line ? location->display_line : location->line_start;
 
 	const char* error_fmt = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
 		? "\x1b[1;95mfile\x1b[97m: %s:%u:%u\n\x1b[0m"
 		: "file: %s:%u:%u\n";
-	printf(error_fmt, file_path, location->display_line, location->column_start);
+	printf(error_fmt, file_path, display_line, location->column_start);
 }
 
 void hcc_message_print_pasted_buffer(HccCompiler* c, U32 line, U32 column) {
@@ -2464,14 +2762,14 @@ void hcc_message_print_pasted_buffer(HccCompiler* c, U32 line, U32 column) {
 	printf(error_fmt, line, column);
 }
 
-void hcc_message_print_code_line(HccCompiler* c, HccLocation* location, U32 display_line_num_size, U32 line) {
+void hcc_message_print_code_line(HccCompiler* c, HccLocation* location, U32 display_line_num_size, U32 line, U32 display_line) {
 	U32 line_size = hcc_code_file_line_size(location->code_file, line);
 
 	if (line_size == 0) {
 		const char* fmt = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
 			? "\x1b[1;94m%*u|\x1b[0m\n"
 			: "%*u|\n";
-		printf(fmt, display_line_num_size, location->display_line);
+		printf(fmt, display_line_num_size, display_line);
 	} else {
 		HccCodeFile* code_file = location->code_file;
 		U32 code_start_idx = code_file->line_code_start_indices[line];
@@ -2501,7 +2799,7 @@ void hcc_message_print_code_line(HccCompiler* c, HccLocation* location, U32 disp
 		const char* fmt = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
 			? "\x1b[1;94m%*u|\x1b[0m %.*s\n"
 			: "%*u| %.*s\n";
-		printf(fmt, display_line_num_size, location->display_line, line_size, code_without_tabs);
+		printf(fmt, display_line_num_size, display_line, line_size, code_without_tabs);
 	}
 }
 
@@ -2535,11 +2833,12 @@ void hcc_message_print_code(HccCompiler* c, HccLocation* location) {
 	display_line_num_size = HCC_INT_ROUND_UP_ALIGN(display_line_num_size, tab_size) - 2;
 
 	line = location->line_start;
+	U32 display_line = location->display_line ? location->display_line : location->line_start;
 	if (line > 2) {
-		hcc_message_print_code_line(c, location, display_line_num_size, line - 2);
+		hcc_message_print_code_line(c, location, display_line_num_size, line - 2, display_line - 2);
 	}
 	if (line > 1) {
-		hcc_message_print_code_line(c, location, display_line_num_size, line - 1);
+		hcc_message_print_code_line(c, location, display_line_num_size, line - 1, display_line - 1);
 	}
 
 	U32 column_start = location->column_start;
@@ -2553,7 +2852,7 @@ void hcc_message_print_code(HccCompiler* c, HccLocation* location) {
 			column_end = hcc_code_file_line_size(code_file, line + idx) + 1;
 		}
 
-		hcc_message_print_code_line(c, location, display_line_num_size, line + idx);
+		hcc_message_print_code_line(c, location, display_line_num_size, line + idx, display_line + idx);
 
 		//
 		// print the padding for to get to the error location on the line
@@ -2590,36 +2889,38 @@ void hcc_message_print_code(HccCompiler* c, HccLocation* location) {
 	}
 
 	line = location->line_end - 1;
-	if (line + 1 < hcc_stack_count(code_file->line_code_start_indices)) {
-		hcc_message_print_code_line(c, location, display_line_num_size, line + 1);
+	U32 lines_count = hcc_code_file_lines_count(code_file);
+	if (line + 1 < lines_count) {
+		hcc_message_print_code_line(c, location, display_line_num_size, line + 1, display_line + 1);
 	}
-	if (line + 2 < hcc_stack_count(code_file->line_code_start_indices)) {
-		hcc_message_print_code_line(c, location, display_line_num_size, line + 2);
+	if (line + 2 < lines_count) {
+		hcc_message_print_code_line(c, location, display_line_num_size, line + 2, display_line + 2);
 	}
 }
 
 void hcc_message_print(HccCompiler* c, HccMessage* message) {
 	HccLang lang = HCC_LANG_ENG;
 	const char* message_type = hcc_message_type_lang_strings[lang][message->type];
+	const char* message_color = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
+		? hcc_message_type_ascii_color_code[message->type]
+		: "";
 	const char* error_fmt = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
-		? "\x1b[1;91m%s\x1b[0m: %.*s\n"
-		: "%s: %.*s\n";
-	printf(error_fmt, message_type, (int)message->string.size, message->string.data);
+		? "%s%s\x1b[0m: \x1b[1;97m%.*s\x1b[0m\n"
+		: "%s%s: %.*s\n";
+	printf(error_fmt, message_color, message_type, (int)message->string.size, message->string.data);
 
 	hcc_message_print_code(c, message->location);
 
-	printf("\n");
-
 	if (message->other_location) {
 		const char* error_fmt = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
-			? "\x1b[1;97\nmoriginally defined here\x1b[0m: \n"
+			? "\x1b[1;97m\noriginally defined here\x1b[0m: \n"
 			: "\noriginally defined here: ";
 		printf("%s", error_fmt);
 
 		hcc_message_print_code(c, message->other_location);
 	}
 
-	exit(1);
+	printf("\n");
 }
 
 void hcc_message_pushv(HccCompiler* c, HccMessageType type, HccMessageCode code, HccLocation* location, HccLocation* other_location, va_list va_args) {
@@ -2633,7 +2934,11 @@ void hcc_message_pushv(HccCompiler* c, HccMessageType type, HccMessageCode code,
 	m->other_location = other_location;
 
 	HccLang lang = HCC_LANG_ENG;
-	const char* fmt = hcc_error_code_lang_fmt_strings[lang][code];
+	const char* fmt = NULL;
+	switch (type) {
+		case HCC_MESSAGE_TYPE_ERROR: fmt = hcc_error_code_lang_fmt_strings[lang][code]; break;
+		case HCC_MESSAGE_TYPE_WARN: fmt = hcc_warn_code_lang_fmt_strings[lang][code]; break;
+	}
 
 	va_list va_args_copy;
 	va_copy(va_args_copy, va_args);
@@ -2696,7 +3001,7 @@ void hcc_warn_push(HccCompiler* c, HccWarnCode warn_code, HccLocation* location,
 U32 hcc_code_file_line_size(HccCodeFile* code_file, U32 line) {
 	U32 code_start_idx = *hcc_stack_get(code_file->line_code_start_indices, line);
 	U32 code_end_idx;
-	if (line + 1 >= hcc_stack_count(code_file->line_code_start_indices)) {
+	if (line >= hcc_code_file_lines_count(code_file)) {
 		code_end_idx = code_file->code.size;
 	} else {
 		code_end_idx = *hcc_stack_get(code_file->line_code_start_indices, line + 1);
@@ -2718,6 +3023,10 @@ U32 hcc_code_file_line_size(HccCodeFile* code_file, U32 line) {
 	} else {
 		return 0;
 	}
+}
+
+U32 hcc_code_file_lines_count(HccCodeFile* code_file) {
+	return hcc_stack_count(code_file->line_code_start_indices) - 1;
 }
 
 // ===========================================
@@ -3219,6 +3528,7 @@ void hcc_tokengen_init(HccCompiler* c, HccCompilerSetup* setup) {
 	c->tokengen.token_bag.tokens = hcc_stack_init(HccToken, setup->tokengen.tokens_cap, HCC_ALLOC_TAG_TOKENGEN_TOKENS);
 	c->tokengen.token_bag.token_locations = hcc_stack_init(HccLocation, setup->tokengen.token_locations_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS);
 	c->tokengen.token_bag.token_values = hcc_stack_init(HccTokenValue, setup->tokengen.token_values_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES);
+	c->tokengen.location_stack = hcc_stack_init(HccLocation, setup->tokengen.location_stack_cap, HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK);
 }
 
 void hcc_tokengen_advance_column(HccCompiler* c, U32 by) {
@@ -3236,14 +3546,18 @@ void hcc_tokengen_advance_newline(HccCompiler* c) {
 	*dst = c->tokengen.location.code_end_idx;
 }
 
+U32 hcc_tokengen_display_line(HccCompiler* c) {
+	U32 line_num = c->tokengen.location.line_start;
+	return c->tokengen.custom_line_dst ? c->tokengen.custom_line_dst + (line_num - c->tokengen.custom_line_src) : line_num;
+}
+
 U32 hcc_tokengen_token_add(HccCompiler* c, HccToken token) {
 	U32 token_idx = hcc_stack_count(c->tokengen.dst_token_bag->tokens);
 	*hcc_stack_push(c->tokengen.dst_token_bag->tokens) = token;
 
 	HccLocation* dst_location = hcc_stack_push(c->tokengen.dst_token_bag->token_locations);
 	*dst_location = c->tokengen.location;
-	U32 line_num = c->tokengen.location.line_end;
-	dst_location->display_line = c->tokengen.custom_line_dst ? c->tokengen.custom_line_dst + (line_num - c->tokengen.custom_line_src) : line_num;
+	dst_location->display_line = hcc_tokengen_display_line(c);
 
 	return token_idx;
 }
@@ -3275,6 +3589,7 @@ void hcc_tokengen_count_extra_newlines(HccCompiler* c) {
 noreturn void hcc_tokengen_bail_error_1(HccCompiler* c, HccErrorCode error_code, ...) {
 	va_list va_args;
 	va_start(va_args, error_code);
+	c->tokengen.location.display_line = hcc_tokengen_display_line(c);
 	hcc_error_pushv(c, error_code, &c->tokengen.location, NULL, va_args);
 	va_end(va_args);
 
@@ -3291,6 +3606,7 @@ noreturn void hcc_tokengen_bail_error_2_idx(HccCompiler* c, HccErrorCode error_c
 
 	va_list va_args;
 	va_start(va_args, other_token_idx);
+	c->tokengen.location.display_line = hcc_tokengen_display_line(c);
 	hcc_error_pushv(c, error_code, &c->tokengen.location, other_token_location, va_args);
 	va_end(va_args);
 
@@ -3305,6 +3621,7 @@ noreturn void hcc_tokengen_bail_error_2_idx(HccCompiler* c, HccErrorCode error_c
 noreturn void hcc_tokengen_bail_error_2_ptr(HccCompiler* c, HccErrorCode error_code, HccLocation* other_token_location, ...) {
 	va_list va_args;
 	va_start(va_args, other_token_location);
+	c->tokengen.location.display_line = hcc_tokengen_display_line(c);
 	hcc_error_pushv(c, error_code, &c->tokengen.location, other_token_location, va_args);
 	va_end(va_args);
 
@@ -3321,6 +3638,18 @@ void hcc_tokengen_location_push(HccCompiler* c) {
 }
 
 void hcc_tokengen_location_pop(HccCompiler* c) {
+	c->tokengen.location.code_file->flags |= HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE;
+	if (hcc_stack_count(c->pp.if_span_stack)) {
+		HccPPIfSpan* if_span = *hcc_stack_get_last(c->pp.if_span_stack);
+		c->tokengen.location = if_span->location;
+		hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_IF_UNTERMINATED, hcc_pp_directive_strings[if_span->directive]);
+	}
+
+	HccLocation* location = hcc_stack_get_last(c->tokengen.location_stack);
+	hcc_change_working_directory_to_same_as_this_file(location->code_file->path_string.data);
+	c->tokengen.location = *location;
+	c->tokengen.code = location->code_file->code.data;
+	c->tokengen.code_size = location->code_file->code.size;
 	hcc_stack_pop(c->tokengen.location_stack);
 }
 
@@ -3334,6 +3663,12 @@ void hcc_tokengen_location_setup_new_file(HccCompiler* c, HccCodeFile* code_file
 	location->line_end = 2;
 	location->column_start = 1;
 	location->column_end = 1;
+
+	c->tokengen.code = code_file->code.data;
+	c->tokengen.code_size = code_file->code.size;
+	code_file->pp_if_span_id = 0;
+
+	hcc_change_working_directory_to_same_as_this_file(code_file->path_string.data);
 }
 
 bool hcc_tokengen_consume_backslash(HccCompiler* c) {
@@ -3735,8 +4070,6 @@ void hcc_tokengen_parse_string(HccCompiler* c, char terminator_byte, bool ignore
 		if (ignore_escape_sequences_except_double_quotes) {
 			return;
 		}
-
-		hcc_stack_push_char(c->string_buffer, '\0');
 	} else {
 		bool ended_with_terminator = false;
 		while (c->tokengen.location.code_end_idx < c->tokengen.code_size) {
@@ -3774,12 +4107,13 @@ void hcc_tokengen_parse_string(HccCompiler* c, char terminator_byte, bool ignore
 			c->tokengen.location.code_end_idx -= 1;
 			hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_UNCLOSED_STRING_LITERAL, terminator_byte);
 		}
-
-		hcc_stack_push_char(c->string_buffer, '\0');
 	}
 
+	hcc_stack_push_char(c->string_buffer, '\0');
+
 	HccTokenValue token_value;
-	token_value.string_id = hcc_string_table_deduplicate(&c->string_table, hcc_stack_get(c->string_buffer, stringify_buffer_start_idx), hcc_stack_count(c->string_buffer) - stringify_buffer_start_idx);
+	U32 string_size = hcc_stack_count(c->string_buffer) - stringify_buffer_start_idx;
+	token_value.string_id = hcc_string_table_deduplicate(&c->string_table, hcc_stack_get(c->string_buffer, stringify_buffer_start_idx), string_size);
 	hcc_stack_resize(c->string_buffer, stringify_buffer_start_idx);
 
 	hcc_tokengen_token_add(c, terminator_byte == '>' ? HCC_TOKEN_INCLUDE_PATH_SYSTEM : HCC_TOKEN_STRING);
@@ -3864,6 +4198,27 @@ bool hcc_tokengen_is_first_non_whitespace_on_line(HccCompiler* c) {
 	return true;
 }
 
+
+void hcc_tokengen_bracket_open(HccCompiler* c, HccToken token) {
+	HccOpenBracket* ob = hcc_stack_push(c->tokengen.open_brackets);
+	HccToken close_token = token + 1; // the close token is defined right away after the open in the HccToken enum
+	ob->close_token = close_token;
+	ob->open_token_idx = hcc_stack_count(c->tokengen.token_bag.tokens);
+}
+
+void hcc_tokengen_bracket_close(HccCompiler* c, HccToken token) {
+	if (hcc_stack_count(c->tokengen.open_brackets) == 0) {
+		hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_NO_BRACKETS_OPEN, hcc_token_strings[token]);
+	}
+
+	HccOpenBracket* ob = hcc_stack_get_last(c->tokengen.open_brackets);
+	hcc_stack_pop(c->tokengen.open_brackets);
+	if (ob->close_token != token) {
+		hcc_tokengen_advance_column(c, 1);
+		hcc_tokengen_bail_error_2_idx(c, ob->open_token_idx, HCC_ERROR_CODE_INVALID_CLOSE_BRACKET_PAIR, hcc_token_strings[ob->close_token], hcc_token_strings[token]);
+	}
+}
+
 void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRunMode run_mode) {
 	HccTokenGenRunMode old_run_mode = c->tokengen.run_mode;
 	HccTokenBag* old_dst_token_bag = c->tokengen.dst_token_bag;
@@ -3909,6 +4264,14 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 				c->tokengen.location.code_end_idx += 1;
 				continue;
 			case '\n':
+				switch (run_mode) {
+					case HCC_TOKENGEN_RUN_MODE_PP_INCLUDE_OPERAND:
+					case HCC_TOKENGEN_RUN_MODE_PP_IF_OPERAND:
+					case HCC_TOKENGEN_RUN_MODE_PP_OPERAND:
+					case HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST:
+						goto RETURN;
+				}
+
 				hcc_tokengen_advance_newline(c);
 				continue;
 			case '.': token = HCC_TOKEN_FULL_STOP; break;
@@ -4095,54 +4458,22 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 				}
 				break;
 			};
-			case '{':
-				token = HCC_TOKEN_CURLY_OPEN;
-				close_token = HCC_TOKEN_CURLY_CLOSE;
-				goto OPEN_BRACKETS;
 			case '(':
-				token = HCC_TOKEN_PARENTHESIS_OPEN;
-				close_token = HCC_TOKEN_PARENTHESIS_CLOSE;
 				macro_args_nested_parenthesis_count += 1;
-				goto OPEN_BRACKETS;
-			case '[':
-				token = HCC_TOKEN_SQUARE_OPEN;
-				close_token = HCC_TOKEN_SQUARE_CLOSE;
-				goto OPEN_BRACKETS;
-OPEN_BRACKETS:
-			{
-				HccOpenBracket* ob = hcc_stack_push(c->tokengen.open_brackets);
-				ob->close_token = close_token;
-				ob->open_token_idx = hcc_stack_count(c->tokengen.token_bag.tokens);
+				hcc_tokengen_bracket_open(c, HCC_TOKEN_PARENTHESIS_OPEN);
 				break;
-			};
-			case '}':
-				token = HCC_TOKEN_CURLY_CLOSE;
-				goto CLOSE_BRACKETS;
+			case '{': hcc_tokengen_bracket_open(c, HCC_TOKEN_CURLY_OPEN); break;
+			case '[': hcc_tokengen_bracket_open(c, HCC_TOKEN_SQUARE_OPEN); break;
+
 			case ')':
-				token = HCC_TOKEN_PARENTHESIS_CLOSE;
 				macro_args_nested_parenthesis_count -= 1;
-				goto CLOSE_BRACKETS;
-			case ']':
-				token = HCC_TOKEN_SQUARE_CLOSE;
-				goto CLOSE_BRACKETS;
-CLOSE_BRACKETS:
-			{
-				if (hcc_stack_count(c->tokengen.open_brackets) == 0) {
-					hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_NO_BRACKETS_OPEN, byte);
-				}
-
-				HccOpenBracket* ob = hcc_stack_get_last(c->tokengen.open_brackets);
-				hcc_stack_pop(c->tokengen.open_brackets);
-				if (ob->close_token != token) {
-					hcc_tokengen_advance_column(c, 1);
-					hcc_tokengen_bail_error_2_idx(c, ob->open_token_idx, HCC_ERROR_CODE_INVALID_CLOSE_BRACKET_PAIR, hcc_token_strings[ob->close_token], byte);
-				}
-
+				hcc_tokengen_bracket_close(c, HCC_TOKEN_PARENTHESIS_CLOSE);
 				if (run_mode == HCC_TOKENGEN_RUN_MODE_PP_MACRO_ARGS && macro_args_nested_parenthesis_count == 0) {
 					goto RETURN;
 				}
 				break;
-			};
+			case '}': hcc_tokengen_bracket_close(c, HCC_TOKEN_CURLY_CLOSE); break;
+			case ']': hcc_tokengen_bracket_close(c, HCC_TOKEN_SQUARE_CLOSE); break;
 
 			case '"':
 				hcc_tokengen_parse_string(c, '"', false);
@@ -4194,7 +4525,7 @@ CLOSE_BRACKETS:
 				}
 
 				HccString ident_string = hcc_tokengen_parse_ident(c, HCC_ERROR_CODE_INVALID_TOKEN);
-				hcc_tokengen_advance_column(c, token_size);
+				hcc_tokengen_advance_column(c, ident_string.size);
 
 				HccStringId ident_string_id = hcc_string_table_deduplicate(&c->string_table, (char*)ident_string.data, ident_string.size);
 				if (run_mode == HCC_TOKENGEN_RUN_MODE_PP_IF_OPERAND && ident_string_id.idx_plus_one == HCC_STRING_ID_DEFINED) {
@@ -4234,8 +4565,8 @@ CLOSE_BRACKETS:
 							bool can_expand = true;
 
 							HccLocation macro_callsite_location = c->tokengen.location;
-							macro_callsite_location.code_end_idx -= token_size;
-							macro_callsite_location.column_end -= token_size;
+							macro_callsite_location.code_end_idx -= ident_string.size;
+							macro_callsite_location.column_end -= ident_string.size;
 
 							if (macro->is_function) {
 								HccLocation backup_location = c->tokengen.location;
@@ -4284,7 +4615,7 @@ CLOSE_BRACKETS:
 
 RETURN: {}
 	c->tokengen.run_mode = old_run_mode;
-	c->tokengen.dst_token_bag = dst_token_bag;
+	c->tokengen.dst_token_bag = old_dst_token_bag;
 }
 
 void hcc_tokengen_print(HccCompiler* c, FILE* f) {
@@ -4379,33 +4710,33 @@ void hcc_astgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 	U32 global_declarations_cap = setup->astgen.typedefs_cap + setup->astgen.functions_cap + setup->astgen.enum_values_cap + setup->astgen.global_variables_cap;
 	astgen->token_bag = c->tokengen.token_bag;
 
-	hcc_stack_init(astgen->function_params_and_variables, setup->astgen.function_params_and_variables_cap, HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES);
-	hcc_stack_init(astgen->functions, setup->astgen.functions_cap, HCC_ALLOC_TAG_ASTGEN_FUNCTIONS);
-	hcc_stack_init(astgen->exprs, setup->astgen.exprs_cap, HCC_ALLOC_TAG_ASTGEN_EXPRS);
-	hcc_stack_init(astgen->expr_locations, setup->astgen.expr_locations_cap, HCC_ALLOC_TAG_ASTGEN_EXPR_LOCATIONS);
-	hcc_stack_init(astgen->global_variables, setup->astgen.global_variables_cap, HCC_ALLOC_TAG_ASTGEN_GLOBAL_VARIABLES);
-	hcc_stack_init(astgen->used_static_variables, setup->astgen.used_static_variables_cap, HCC_ALLOC_TAG_ASTGEN_USED_STATIC_VARIABLES);
-	hcc_stack_init(astgen->array_data_types, setup->astgen.array_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ARRAY_DATA_TYPES);
-	hcc_stack_init(astgen->compound_data_types, compound_data_types_cap, HCC_ALLOC_TAG_ASTGEN_COMPOUND_DATA_TYPES);
-	hcc_stack_init(astgen->compound_fields, setup->astgen.compound_fields_cap, HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELDS);
-	hcc_stack_init(astgen->typedefs, setup->astgen.typedefs_cap, HCC_ALLOC_TAG_ASTGEN_TYPEDEFS);
-	hcc_stack_init(astgen->enum_data_types, setup->astgen.enum_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ENUM_DATA_TYPES);
-	hcc_stack_init(astgen->enum_values, setup->astgen.enum_values_cap, HCC_ALLOC_TAG_ASTGEN_ENUM_VALUES);
-	hcc_stack_init(astgen->ordered_data_types, setup->astgen.ordered_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ORDERED_DATA_TYPES);
-	hcc_stack_init(astgen->compound_type_find_fields, setup->astgen.compound_type_find_fields_cap, HCC_ALLOC_TAG_ASTGEN_COMPOUND_TYPE_FIND_FIELDS);
+	astgen->function_params_and_variables = hcc_stack_init(HccVariable, setup->astgen.function_params_and_variables_cap, HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES);
+	astgen->functions = hcc_stack_init(HccFunction, setup->astgen.functions_cap, HCC_ALLOC_TAG_ASTGEN_FUNCTIONS);
+	astgen->exprs = hcc_stack_init(HccExpr, setup->astgen.exprs_cap, HCC_ALLOC_TAG_ASTGEN_EXPRS);
+	astgen->expr_locations = hcc_stack_init(HccLocation, setup->astgen.expr_locations_cap, HCC_ALLOC_TAG_ASTGEN_EXPR_LOCATIONS);
+	astgen->global_variables = hcc_stack_init(HccVariable, setup->astgen.global_variables_cap, HCC_ALLOC_TAG_ASTGEN_GLOBAL_VARIABLES);
+	astgen->used_static_variables = hcc_stack_init(HccDecl, setup->astgen.used_static_variables_cap, HCC_ALLOC_TAG_ASTGEN_USED_STATIC_VARIABLES);
+	astgen->array_data_types = hcc_stack_init(HccArrayDataType, setup->astgen.array_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ARRAY_DATA_TYPES);
+	astgen->compound_data_types = hcc_stack_init(HccCompoundDataType, compound_data_types_cap, HCC_ALLOC_TAG_ASTGEN_COMPOUND_DATA_TYPES);
+	astgen->compound_fields = hcc_stack_init(HccCompoundField, setup->astgen.compound_fields_cap, HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELDS);
+	astgen->typedefs = hcc_stack_init(HccTypedef, setup->astgen.typedefs_cap, HCC_ALLOC_TAG_ASTGEN_TYPEDEFS);
+	astgen->enum_data_types = hcc_stack_init(HccEnumDataType, setup->astgen.enum_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ENUM_DATA_TYPES);
+	astgen->enum_values = hcc_stack_init(HccEnumValue, setup->astgen.enum_values_cap, HCC_ALLOC_TAG_ASTGEN_ENUM_VALUES);
+	astgen->ordered_data_types = hcc_stack_init(HccDataType, setup->astgen.ordered_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ORDERED_DATA_TYPES);
+	astgen->compound_type_find_fields = hcc_stack_init(HccFieldAccess, setup->astgen.compound_type_find_fields_cap, HCC_ALLOC_TAG_ASTGEN_COMPOUND_TYPE_FIND_FIELDS);
 
 	hcc_hash_table_init(&astgen->global_declarations, global_declarations_cap, HCC_ALLOC_TAG_ASTGEN_GLOBAL_DECLARATIONS);
 	hcc_hash_table_init(&astgen->struct_declarations, setup->astgen.struct_data_types_cap, HCC_ALLOC_TAG_ASTGEN_STRUCT_DECLARATIONS);
 	hcc_hash_table_init(&astgen->union_declarations, setup->astgen.union_data_types_cap, HCC_ALLOC_TAG_ASTGEN_UNION_DECLARATIONS);
 	hcc_hash_table_init(&astgen->enum_declarations, setup->astgen.enum_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ENUM_DECLARATIONS);
 
-	hcc_stack_init(astgen->curly_initializer.nested_curlys, setup->astgen.curly_initializer_nested_curlys_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS);
-	hcc_stack_init(astgen->curly_initializer.nested_elmts, setup->astgen.curly_initializer_nested_elmts_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS);
-	hcc_stack_init(astgen->curly_initializer.designated_initializers, setup->astgen.curly_initializer_designator_initializers_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZERS);
-	hcc_stack_init(astgen->curly_initializer.designated_initializer_elmt_indices, setup->astgen.curly_initializer_designator_initializer_elmt_indices_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZER_ELMT_INDICES);
+	astgen->curly_initializer.nested_curlys = hcc_stack_init(HccAstGenCurlyInitializerCurly, setup->astgen.curly_initializer_nested_curlys_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS);
+	astgen->curly_initializer.nested_elmts = hcc_stack_init(HccAstGenCurlyInitializerElmt, setup->astgen.curly_initializer_nested_elmts_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS);
+	astgen->curly_initializer.designated_initializers = hcc_stack_init(HccAstGenDesignatorInitializer, setup->astgen.curly_initializer_designator_initializers_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZERS);
+	astgen->curly_initializer.designated_initializer_elmt_indices = hcc_stack_init(U64, setup->astgen.curly_initializer_designator_initializer_elmt_indices_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZER_ELMT_INDICES);
 
-	hcc_stack_init(astgen->variable_stack_strings, setup->astgen.variable_stack_cap, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS);
-	hcc_stack_init(astgen->variable_stack_var_indices, setup->astgen.variable_stack_cap, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES);
+	astgen->variable_stack_strings = hcc_stack_init(HccStringId, setup->astgen.variable_stack_cap, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS);
+	astgen->variable_stack_var_indices = hcc_stack_init(U32, setup->astgen.variable_stack_cap, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES);
 
 	//
 	// TODO: make these intrinsic functions work like the intrinsic typedef and structs.
@@ -7763,12 +8094,12 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 // ===========================================
 
 void hcc_irgen_init(HccCompiler* c, HccCompilerSetup* setup) {
-	hcc_stack_init(c->irgen.functions, HCC_ALLOC_TAG_IRGEN_FUNCTIONS, setup->irgen.functions_cap);
-	hcc_stack_init(c->irgen.basic_blocks, HCC_ALLOC_TAG_IRGEN_BASIC_BLOCKS, setup->irgen.basic_blocks_cap);
-	hcc_stack_init(c->irgen.values, HCC_ALLOC_TAG_IRGEN_VALUES, setup->irgen.values_cap);
-	hcc_stack_init(c->irgen.instructions, HCC_ALLOC_TAG_IRGEN_INSTRUCTIONS, setup->irgen.instructions_cap);
-	hcc_stack_init(c->irgen.operands, HCC_ALLOC_TAG_IRGEN_OPERANDS, setup->irgen.operands_cap);
-	hcc_stack_init(c->irgen.function_call_param_data_types, HCC_ALLOC_TAG_IRGEN_FUNCTION_CALL_PARAM_DATA_TYPES, setup->irgen.function_call_param_data_types_cap);
+	c->irgen.functions = hcc_stack_init(HccIRFunction, HCC_ALLOC_TAG_IRGEN_FUNCTIONS, setup->irgen.functions_cap);
+	c->irgen.basic_blocks = hcc_stack_init(HccIRBasicBlock, HCC_ALLOC_TAG_IRGEN_BASIC_BLOCKS, setup->irgen.basic_blocks_cap);
+	c->irgen.values = hcc_stack_init(HccIRValue, HCC_ALLOC_TAG_IRGEN_VALUES, setup->irgen.values_cap);
+	c->irgen.instructions = hcc_stack_init(HccIRInstr, HCC_ALLOC_TAG_IRGEN_INSTRUCTIONS, setup->irgen.instructions_cap);
+	c->irgen.operands = hcc_stack_init(HccIROperand, HCC_ALLOC_TAG_IRGEN_OPERANDS, setup->irgen.operands_cap);
+	c->irgen.function_call_param_data_types = hcc_stack_init(HccDataType, HCC_ALLOC_TAG_IRGEN_FUNCTION_CALL_PARAM_DATA_TYPES, setup->irgen.function_call_param_data_types_cap);
 }
 
 HccIRFunction* hcc_irgen_current_function(HccCompiler* c) {
@@ -10992,6 +11323,7 @@ HccCompilerSetup hcc_compiler_setup_default = {
 		.token_locations_cap = 64 * 1024,
 		.tokens_cap = 64 * 1024,
 		.token_values_cap = 64 * 1024,
+		.location_stack_cap = 64 * 1024,
 	},
 	.astgen = {
 		.function_params_and_variables_cap = 64 * 1024,
@@ -11037,6 +11369,11 @@ HccCompilerSetup hcc_compiler_setup_default = {
 	.message_strings_cap = 64 * 1024,
 	.string_table_data_cap = 64 * 1024,
 	.string_table_entries_cap = 64 * 1024,
+	.string_buffer_cap = 64 * 1024,
+	.include_paths_cap = 64 * 1024,
+	.code_files_cap = 64 * 1024,
+	.code_file_lines_cap = 64 * 1024,
+	.code_file_pp_if_spans_cap = 64 * 1024,
 };
 
 void hcc_string_table_intrinsic_add(HccCompiler* c, U32 expected_string_id, char* string) {
@@ -11049,9 +11386,16 @@ bool hcc_compiler_init(HccCompiler* c, HccCompilerSetup* setup) {
 		return false;
 	}
 	c->flags |= HCC_COMPILER_FLAGS_SET_LONG_JMP;
+	c->code_file_lines_cap = setup->code_file_lines_cap;
+	c->code_file_pp_if_spans_cap = setup->code_file_pp_if_spans_cap;
+	hcc_options_set_enabled(c, HCC_OPTION_PRINT_COLOR);
 
 	c->message_sys.elmts = hcc_stack_init(HccMessage, setup->messages_cap, HCC_ALLOC_TAG_MESSAGES);
 	c->message_sys.strings = hcc_stack_init(char, setup->message_strings_cap, HCC_ALLOC_TAG_MESSAGE_STRINGS);
+	c->string_buffer = hcc_stack_init(char, setup->string_buffer_cap, HCC_ALLOC_TAG_STRING_BUFFER);
+	c->include_paths = hcc_stack_init(HccString, setup->include_paths_cap, HCC_ALLOC_TAG_INCLUDE_PATHS);
+	c->code_files = hcc_stack_init(HccCodeFile, setup->code_files_cap, HCC_ALLOC_TAG_CODE_FILES);
+	hcc_hash_table_init(&c->path_to_code_file_id_map, setup->code_files_cap, HCC_ALLOC_TAG_PATH_TO_CODE_FILE_ID_MAP);
 
 	c->available_basic_types = 0xffff;
 	c->available_basic_types &= ~( // remove support for these types for now, this is because they require SPIR-V capaibilities/vulkan features
@@ -11156,7 +11500,7 @@ bool hcc_compiler_init(HccCompiler* c, HccCompilerSetup* setup) {
 		}
 
 		hcc_string_table_intrinsic_add(c, HCC_STRING_ID_ONCE, "once");
-		hcc_string_table_intrinsic_add(c, HCC_STRING_ID_DEFINED, "once");
+		hcc_string_table_intrinsic_add(c, HCC_STRING_ID_DEFINED, "defined");
 		hcc_string_table_intrinsic_add(c, HCC_STRING_ID___VA_ARGS__, "__VA_ARGS__");
 	}
 
@@ -11175,6 +11519,7 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path) {
 	if (setjmp(c->compile_entry_jmp_loc)) {
 		return false;
 	}
+	_hcc_compiler_ptr = c;
 	c->flags |= HCC_COMPILER_FLAGS_SET_LONG_JMP;
 
 	c->allocation_failure_alloc_tag = HCC_ALLOC_TAG_NONE;
@@ -11201,6 +11546,7 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path) {
 	hcc_tokengen_location_setup_new_file(c, code_file);
 	hcc_tokengen_run(c, &c->tokengen.token_bag, HCC_TOKENGEN_RUN_MODE_CODE);
 
+	/*
 	hcc_astgen_generate(c);
 
 	if (c->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
@@ -11209,10 +11555,11 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path) {
 
 	hcc_irgen_generate(c);
 	hcc_spirvgen_generate(c);
+	*/
 
 	hcc_tokengen_print(c, stdout);
-	hcc_astgen_print(c, stdout);
-	hcc_irgen_print(c, stdout);
+	//hcc_astgen_print(c, stdout);
+	//hcc_irgen_print(c, stdout);
 
 	c->flags &= ~HCC_COMPILER_FLAGS_SET_LONG_JMP;
 	HCC_ZERO_ELMT(&c->compile_entry_jmp_loc);
@@ -11236,7 +11583,9 @@ noreturn void hcc_compiler_bail_collection_is_full(HccCompiler* c, HccAllocTag t
 }
 
 bool hcc_compiler_code_file_find_or_insert(HccCompiler* c, HccString path_string, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out) {
-	path_string = hcc_path_canonicalize(NULL, path_string.data);
+	char* path_string_c = hcc_path_canonicalize(path_string.data);
+	path_string = hcc_string_c(path_string_c);
+	path_string.size += 1; // include the null terminator in the string
 	HccStringId path_string_id = hcc_string_table_deduplicate(&c->string_table, path_string.data, path_string.size);
 
 	U32* code_file_idx;
@@ -11249,6 +11598,9 @@ bool hcc_compiler_code_file_find_or_insert(HccCompiler* c, HccString path_string
 
 	HccCodeFile* code_file = hcc_stack_push(c->code_files);
 	code_file->path_string = hcc_string_table_get(&c->string_table, path_string_id);
+	code_file->line_code_start_indices = hcc_stack_init(U32, c->code_file_lines_cap, HCC_ALLOC_TAG_CODE_FILE_LINE_CODE_START_INDICES);
+	code_file->pp_if_spans = hcc_stack_init(HccPPIfSpan, c->code_file_pp_if_spans_cap, HCC_ALLOC_TAG_CODE_FILE_PP_IF_SPANS);
+	hcc_stack_push_many(code_file->line_code_start_indices, 2);
 	*code_file_id_out = ((HccCodeFileId) { .idx_plus_one = *code_file_idx + 1 });
 	*code_file_out = code_file;
 	return false;
@@ -11262,5 +11614,10 @@ bool hcc_options_is_enabled(HccCompiler* c, HccOption opt) {
 void hcc_options_set_enabled(HccCompiler* c, HccOption opt) {
 	U64 bit = (U64)1 << (opt % 64);
 	c->options.bitset[opt / 64] |= bit;
+}
+
+void hcc_options_set_disabled(HccCompiler* c, HccOption opt) {
+	U64 bit = (U64)1 << (opt % 64);
+	c->options.bitset[opt / 64] &= ~bit;
 }
 

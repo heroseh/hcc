@@ -10,7 +10,7 @@
 typedef struct HccCompiler HccCompiler;
 typedef struct HccCompilerSetup HccCompilerSetup;
 typedef struct HccCodeFile HccCodeFile;
-typedef struct HccPPIf HccPPIf;
+typedef struct HccPPIfSpan HccPPIfSpan;
 
 // ===========================================
 //
@@ -56,7 +56,12 @@ enum {
 	HCC_ALLOC_TAG_STRING_TABLE_ENTRIES,
 	HCC_ALLOC_TAG_CONSTANT_TABLE_DATA,
 	HCC_ALLOC_TAG_CONSTANT_TABLE_ENTRIES,
-
+	HCC_ALLOC_TAG_STRING_BUFFER,
+	HCC_ALLOC_TAG_INCLUDE_PATHS,
+	HCC_ALLOC_TAG_CODE_FILES,
+	HCC_ALLOC_TAG_PATH_TO_CODE_FILE_ID_MAP,
+	HCC_ALLOC_TAG_CODE_FILE_LINE_CODE_START_INDICES,
+	HCC_ALLOC_TAG_CODE_FILE_PP_IF_SPANS,
 	HCC_ALLOC_TAG_CODE,
 
 	HCC_ALLOC_TAG_PP_TOKENS,
@@ -68,12 +73,13 @@ enum {
 	HCC_ALLOC_TAG_PP_EXPAND_STACK,
 	HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS,
 	HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER,
-	HCC_ALLOC_TAG_PP_IF_STACK,
+	HCC_ALLOC_TAG_PP_IF_SPAN_STACK,
 	HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS,
 
 	HCC_ALLOC_TAG_TOKENGEN_TOKENS,
 	HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS,
 	HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES,
+	HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK,
 
 	HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES,
 	HCC_ALLOC_TAG_ASTGEN_FUNCTIONS,
@@ -119,6 +125,8 @@ enum {
 
 	HCC_ALLOC_TAG_COUNT,
 };
+
+const char* hcc_alloc_tag_strings[HCC_ALLOC_TAG_COUNT];
 
 #ifndef HCC_ALLOC
 #define HCC_ALLOC(tag, size, align) malloc(size)
@@ -296,8 +304,11 @@ static inline bool hcc_ascii_is_a_to_f(U32 byte) {
 
 void hcc_get_last_system_error_string(char* buf_out, U32 buf_out_size);
 bool hcc_file_exist(char* path);
-char* hcc_file_read_all_the_codes(char* path, U64* size_out);
+bool hcc_change_working_directory(char* path);
+bool hcc_change_working_directory_to_same_as_this_file(char* path);
+char* hcc_path_canonicalize(char* path);
 bool hcc_path_is_absolute(char* path);
+char* hcc_file_read_all_the_codes(char* path, U64* size_out);
 
 // ===========================================
 //
@@ -391,7 +402,7 @@ struct HccStackHeader {
 #define hcc_stack_clear(stack)   ((stack)  ? hcc_stack_header(stack)->count = 0 : 0)
 #define hcc_stack_is_full(stack) (hcc_stack_count(stack) == hcc_stack_cap(stack))
 
-#define hcc_stack_init(T, cap, tag) _hcc_stack_init(cap, tag, sizeof(T))
+#define hcc_stack_init(T, cap, tag) ((HccStack(T))_hcc_stack_init(cap, tag, sizeof(T)))
 HccStack(void) _hcc_stack_init(Uptr cap, HccAllocTag tag, Uptr elmt_size);
 
 #define hcc_stack_deinit(stack, tag) _hcc_stack_deinit(stack, tag, sizeof(*(stack))); (stack) = NULL
@@ -405,6 +416,7 @@ void _hcc_stack_deinit(HccStack(void) stack, HccAllocTag tag, Uptr elmt_size);
 #define hcc_stack_get_first(stack) hcc_stack_get(stack, 0)
 #define hcc_stack_get_last(stack) hcc_stack_get(stack, hcc_stack_count(stack) - 1)
 #define hcc_stack_get_back(stack, back_idx) hcc_stack_get(stack, hcc_stack_count(stack) - back_idx - 1)
+#define hcc_stack_get_or_null(stack, idx) ((idx) < hcc_stack_count(stack) ? &(stack)[idx] : NULL)
 
 #define hcc_stack_resize(stack, new_count) _hcc_stack_resize(stack, new_count, sizeof(*(stack)))
 Uptr _hcc_stack_resize(HccStack(void) stack, Uptr new_count, Uptr elmt_size);
@@ -534,6 +546,7 @@ enum {
 	HCC_ERROR_CODE_INVALID_PREPROCESSOR_DIRECTIVE,
 	HCC_ERROR_CODE_PP_ENDIF_BEFORE_IF,
 	HCC_ERROR_CODE_PP_ELSEIF_CANNOT_FOLLOW_ELSE,
+	HCC_ERROR_CODE_PP_IF_UNTERMINATED,
 	HCC_ERROR_CODE_TOO_MANY_UNDEF_OPERANDS,
 	HCC_ERROR_CODE_TOO_MANY_IFDEF_OPERANDS,
 	HCC_ERROR_CODE_PP_DIRECTIVE_NOT_FIRST_ON_LINE,
@@ -569,97 +582,97 @@ enum {
 	HCC_ERROR_CODE_CANNOT_FIND_FIELD,
 	HCC_ERROR_CODE_DUPLICATE_FIELD_IDENTIFIER,
 	HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION,
-	HCC_ERROR_CODE_MISSING_SEMICOLON, //"missing ';' to end the statement"
-	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL, //"redefinition of the '%.*s' identifier"
-	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM, //"expected '{' to declare enum type values"
-	HCC_ERROR_CODE_REIMPLEMENTATION, //"redefinition of '%.*s'"
-	HCC_ERROR_CODE_EMPTY_ENUM, //"cannot have an empty enum, please declare some identifiers inside the {}"
-	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_ENUM_VALUE, //"expected an identifier for the enum value name"
-	HCC_ERROR_CODE_ENUM_VALUE_OVERFLOW, //"enum value overflows a 32 bit signed integer");
-	HCC_ERROR_CODE_ENUM_VALUE_INVALID_FORMAT, //"expected a constant integer value that fits into signed 32 bits"
-	HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR_WITH_EXPLICIT_VALUE, //"expected a ',' to declare another value or a '}' to finish the enum values"
-	HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR, //"expected an '=' to assign a value explicitly, ',' to declare another value or a '}' to finish the enum values"
-	HCC_ERROR_CODE_INTRINSIC_NO_UNIONS, //"we do not have any intrinsic unions, we only have intrinsic structures"
-	HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT, //"'struct %.*s' is not a valid intrinsic for this compiler version"
-	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT, //"the '%s' keyword cannot be used on this structure declaration"
-	HCC_ERROR_CODE_NOT_AVAILABLE_FOR_UNION, //"the '%s' keyword can only be used on a 'struct' and not a 'union'"
-	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_COMPOUND_TYPE, //"expected '{' to declare compound type fields"
-	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT_FIELD, //"the '%s' keyword cannot be used on this structure field declaration"
-	HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD, //"only one of these can be used per field: '%s' or '%s'"
-	HCC_ERROR_CODE_COMPOUND_FIELD_INVALID_TERMINATOR, //"expected 'type name', 'struct' or 'union' to declare another field or '}' to finish declaring the compound type fields"
-	HCC_ERROR_CODE_COMPOUND_FIELD_MISSING_NAME, //"expected an identifier for the field name"
-	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT, //"expected intrinsic struct '%.*s' to have '%u' fields but got '%u'"
-	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD, //"expected this intrinsic field to be '%.*s %.*s' for this compiler version"
-	HCC_ERROR_CODE_EXPECTED_TYPE_NAME, //"expected a 'type name' here but got '%s'"
-	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_TYPEDEF, //"expected an 'identifier' for the typedef here but got '%s'"
-	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_TYPEDEF, //"the '%s' keyword cannot be used on this typedef declaration"
-	HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_TYPEDEF, //"'typedef %.*s' is not a valid intrinsic for this compiler version"
-	HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF, //"this intrinsic is supposed to be 'typedef struct %.*s %.*s'"
-	HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST, //"type mismatch '%.*s' is does not implicitly cast to '%.*s'"
-	HCC_ERROR_CODE_TYPE_MISMATCH, //"type mismatch '%.*s' and '%.*s'"
-	HCC_ERROR_CODE_UNSUPPORTED_BINARY_OPERATOR, //"operator '%s' is not supported for data type '%.*s' and '%.*s'"
-	HCC_ERROR_CODE_INVALID_CURLY_EXPR, //"'{' can only be used as the assignment of variable declarations or compound literals"
-	HCC_ERROR_CODE_FIELD_DESIGNATOR_ON_ARRAY_TYPE, //"field designator cannot be used for an the '%.*s' array type, please use '[' instead"
-	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_DESIGNATOR, //"expected an the field identifier that you wish to initialize from '%.*s'"
-	HCC_ERROR_CODE_ARRAY_DESIGNATOR_ON_COMPOUND_TYPE, //"array designator cannot be used for an the '%.*s' compound type, please use '.' instead"
-	HCC_ERROR_CODE_EXPECTED_INTEGER_FOR_ARRAY_IDX, //"expected a constant unsigned integer here to index a value from the '%.*s' array type"
-	HCC_ERROR_CODE_ARRAY_INDEX_OUT_OF_BOUNDS, //"index is out of bounds for this array, expected a value between '0' - '%zu'"
-	HCC_ERROR_CODE_ARRAY_DESIGNATOR_EXPECTED_SQUARE_BRACE_CLOSE, //"expected ']' to finish the array designator"
-	HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_ARRAY_DESIGNATOR, //"expected an '=' to assign a value or a '[' for an array designator"
-	HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_FIELD_DESIGNATOR, //"expected an '=' to assign a value or a '.' for an field designator"
-	HCC_ERROR_CODE_EXPECTED_ASSIGN, //"expected an '=' to assign a value"
-	HCC_ERROR_CODE_UNARY_OPERATOR_NOT_SUPPORTED, //"unary operator '%s' is not supported for the '%.*s' data type"
-	HCC_ERROR_CODE_UNDECLARED_IDENTIFIER, //"undeclared identifier '%.*s'"
-	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_EXPR, //"expected a ')' here to finish the expression"
-	HCC_ERROR_CODE_INVALID_CAST, //"cannot cast '%.*s' to '%.*s'"
-	HCC_ERROR_CODE_INVALID_CURLY_INITIALIZER_LIST_END, //"expected a '}' to finish the initializer list or a ',' to declare another initializer"
-	HCC_ERROR_CODE_SIZEALIGNOF_TYPE_OPERAND_NOT_WRAPPED, //"the type after '%s' be wrapped in parenthesis. eg. sizeof(uint32_t)"
-	HCC_ERROR_CODE_EXPECTED_EXPR, //"expected an expression here but got '%s'"
-	HCC_ERROR_CODE_NOT_ENOUGH_FUNCTION_ARGS, //"not enough arguments, expected '%u' but got '%u' for '%.*s'"
-	HCC_ERROR_CODE_TOO_MANY_FUNCTION_ARGS, //"too many arguments, expected '%u' but got '%u' for '%.*s'"
-	HCC_ERROR_CODE_INVALID_FUNCTION_ARG_DELIMITER, //"expected a ',' to declaring more function arguments or a ')' to finish declaring function arguments"
-	HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_SQUARE_BRACE_CLOSE, //"expected ']' to finish the array subscript"
-	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_ACCESS, //"expected an identifier for the field you wish to access from '%.*s'"
-	HCC_ERROR_CODE_MISSING_COLON_TERNARY_OP, //"expected a ':' for the false side of the ternary operator"
-	HCC_ERROR_CODE_PARENTHISES_USED_ON_NON_FUNCTION, //"unexpected '(', this can only be used when the left expression is a function or pointer to a function"
-	HCC_ERROR_CODE_SQUARE_BRACE_USED_ON_NON_ARRAY_DATA_TYPE, //"unexpected '[', this can only be used when the left expression is an array or pointer but got '%.*s'"
-	HCC_ERROR_CODE_FULL_STOP_USED_ON_NON_COMPOUND_DATA_TYPE, //"unexpected '.', this can only be used when the left expression is a struct or union type but got '%.*s'"
-	HCC_ERROR_CODE_CANNOT_ASSIGN_TO_CONST, //"cannot assign to a target that has a constant data type of '%.*s'"
-	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_CONDITION_EXPR, //"expected a '(' for the condition expression"
-	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_CONDITION_EXPR, //"expected a ')' to finish the condition expression"
-	HCC_ERROR_CODE_EXPECTED_ARRAY_SIZE, //"expected an array size here"
-	HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_ARRAY_SIZE, //"expected the expression to resolve to an integer constant for the array size here"
-	HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_NEGATIVE, //"the array size cannot be negative"
-	HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_ZERO, //"the array size cannot be zero"
-	HCC_ERROR_CODE_ARRAY_DECL_EXPECTED_SQUARE_BRACE_CLOSE, //"expected a ']' after the array size expression"
-	HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER, //"'%s' is currently unsupported"
-	HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED, //"'%s' has already been used for this declaration"
-	HCC_ERROR_CODE_UNUSED_SPECIFIER, //"the '%s' keyword was used, so we are expecting %s for a declaration but got '%s'"
-	HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL, //"the '%s' keyword cannot be used on this variable declaration"
-	HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_DECL, //"the '%s' keyword cannot be used on this function declaration"
-	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_LOCAL, //"redefinition of '%.*s' local variable identifier"
-	HCC_ERROR_CODE_STATIC_VARIABLE_INITIALIZER_MUST_BE_CONSTANT, //"variable declaration is static, so this initializer expression must be a constant"
-	HCC_ERROR_CODE_INVALID_VARIABLE_DECL_TERMINATOR, //"expected a ';' to end the declaration or a '=' to assign to the new variable"
-	HCC_ERROR_CODE_INVALID_ELSE, //"expected either 'if' or '{' to follow the 'else' keyword"
-	HCC_ERROR_CODE_INVALID_SWITCH_CONDITION_TYPE, //"switch condition expression must be convertable to a integer type but got '%.*s'"
-	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_SWITCH_STATEMENT, //"expected a '{' to begin the switch statement"
-	HCC_ERROR_CODE_EXPECTED_WHILE_CONDITION_FOR_DO_WHILE, //"expected 'while' to define the condition of the do while loop"
-	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_FOR, //"expected a '(' to follow 'for' for the operands"
-	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FOR_VARIABLE_DECL, //"expected an identifier for a variable declaration"
-	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_FOR, //"expected a ')' to finish the for statement condition"
-	HCC_ERROR_CODE_CASE_STATEMENT_OUTSIDE_OF_SWITCH, //"case statement must be inside a switch statement"
-	HCC_ERROR_CODE_SWITCH_CASE_VALUE_MUST_BE_A_CONSTANT, //"the value of a switch case statement must be a constant"
-	HCC_ERROR_CODE_EXPECTED_COLON_SWITCH_CASE, //"':' must follow the constant of the case statement"
-	HCC_ERROR_CODE_DEFAULT_STATMENT_OUTSIDE_OF_SWITCH, //"default case statement must be inside a switch statement"
-	HCC_ERROR_CODE_DEFAULT_STATEMENT_ALREADY_DECLARED, //"default case statement has already been declared"
-	HCC_ERROR_CODE_EXPECTED_COLON_SWITCH_DEFAULT, //"':' must follow the default keyword"
-	HCC_ERROR_CODE_INVALID_BREAK_STATEMENT_USAGE, //"'break' can only be used within a switch statement, a for loop or a while loop"
-	HCC_ERROR_CODE_INVALID_CONTINUE_STATEMENT_USAGE, //"'continue' can only be used within a switch statement, a for loop or a while loop"
-	HCC_ERROR_CODE_MULTIPLE_SHADER_STAGES_ON_FUNCTION, //"only a single shader stage can be specified in a function declaration"
-	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM, //"expected an identifier for a function parameter e.g. uint32_t param_identifier"
-	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM, //"redefinition of '%.*s' function paraemter identifier", (int)string.size, string.data
-	HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR, //"expected a ',' to declaring more function parameters or a ')' to finish declaring function parameters"
-	HCC_ERROR_CODE_UNEXPECTED_TOKEN, //"unexpected token '%s'", hcc_token_strings[token]
+	HCC_ERROR_CODE_MISSING_SEMICOLON,
+	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL,
+	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM,
+	HCC_ERROR_CODE_REIMPLEMENTATION,
+	HCC_ERROR_CODE_EMPTY_ENUM,
+	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_ENUM_VALUE,
+	HCC_ERROR_CODE_ENUM_VALUE_OVERFLOW,
+	HCC_ERROR_CODE_ENUM_VALUE_INVALID_FORMAT,
+	HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR_WITH_EXPLICIT_VALUE,
+	HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR,
+	HCC_ERROR_CODE_INTRINSIC_NO_UNIONS,
+	HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT,
+	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT,
+	HCC_ERROR_CODE_NOT_AVAILABLE_FOR_UNION,
+	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_COMPOUND_TYPE,
+	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT_FIELD,
+	HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD,
+	HCC_ERROR_CODE_COMPOUND_FIELD_INVALID_TERMINATOR,
+	HCC_ERROR_CODE_COMPOUND_FIELD_MISSING_NAME,
+	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT,
+	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD,
+	HCC_ERROR_CODE_EXPECTED_TYPE_NAME,
+	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_TYPEDEF,
+	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_TYPEDEF,
+	HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_TYPEDEF,
+	HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF,
+	HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST,
+	HCC_ERROR_CODE_TYPE_MISMATCH,
+	HCC_ERROR_CODE_UNSUPPORTED_BINARY_OPERATOR,
+	HCC_ERROR_CODE_INVALID_CURLY_EXPR,
+	HCC_ERROR_CODE_FIELD_DESIGNATOR_ON_ARRAY_TYPE,
+	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_DESIGNATOR,
+	HCC_ERROR_CODE_ARRAY_DESIGNATOR_ON_COMPOUND_TYPE,
+	HCC_ERROR_CODE_EXPECTED_INTEGER_FOR_ARRAY_IDX,
+	HCC_ERROR_CODE_ARRAY_INDEX_OUT_OF_BOUNDS,
+	HCC_ERROR_CODE_ARRAY_DESIGNATOR_EXPECTED_SQUARE_BRACE_CLOSE,
+	HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_ARRAY_DESIGNATOR,
+	HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_FIELD_DESIGNATOR,
+	HCC_ERROR_CODE_EXPECTED_ASSIGN,
+	HCC_ERROR_CODE_UNARY_OPERATOR_NOT_SUPPORTED,
+	HCC_ERROR_CODE_UNDECLARED_IDENTIFIER,
+	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_EXPR,
+	HCC_ERROR_CODE_INVALID_CAST,
+	HCC_ERROR_CODE_INVALID_CURLY_INITIALIZER_LIST_END,
+	HCC_ERROR_CODE_SIZEALIGNOF_TYPE_OPERAND_NOT_WRAPPED,
+	HCC_ERROR_CODE_EXPECTED_EXPR,
+	HCC_ERROR_CODE_NOT_ENOUGH_FUNCTION_ARGS,
+	HCC_ERROR_CODE_TOO_MANY_FUNCTION_ARGS,
+	HCC_ERROR_CODE_INVALID_FUNCTION_ARG_DELIMITER,
+	HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_SQUARE_BRACE_CLOSE,
+	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_ACCESS,
+	HCC_ERROR_CODE_MISSING_COLON_TERNARY_OP,
+	HCC_ERROR_CODE_PARENTHISES_USED_ON_NON_FUNCTION,
+	HCC_ERROR_CODE_SQUARE_BRACE_USED_ON_NON_ARRAY_DATA_TYPE,
+	HCC_ERROR_CODE_FULL_STOP_USED_ON_NON_COMPOUND_DATA_TYPE,
+	HCC_ERROR_CODE_CANNOT_ASSIGN_TO_CONST,
+	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_CONDITION_EXPR,
+	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_CONDITION_EXPR,
+	HCC_ERROR_CODE_EXPECTED_ARRAY_SIZE,
+	HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_ARRAY_SIZE,
+	HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_NEGATIVE,
+	HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_ZERO,
+	HCC_ERROR_CODE_ARRAY_DECL_EXPECTED_SQUARE_BRACE_CLOSE,
+	HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER,
+	HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED,
+	HCC_ERROR_CODE_UNUSED_SPECIFIER,
+	HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL,
+	HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_DECL,
+	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_LOCAL,
+	HCC_ERROR_CODE_STATIC_VARIABLE_INITIALIZER_MUST_BE_CONSTANT,
+	HCC_ERROR_CODE_INVALID_VARIABLE_DECL_TERMINATOR,
+	HCC_ERROR_CODE_INVALID_ELSE,
+	HCC_ERROR_CODE_INVALID_SWITCH_CONDITION_TYPE,
+	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_SWITCH_STATEMENT,
+	HCC_ERROR_CODE_EXPECTED_WHILE_CONDITION_FOR_DO_WHILE,
+	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_FOR,
+	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FOR_VARIABLE_DECL,
+	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_FOR,
+	HCC_ERROR_CODE_CASE_STATEMENT_OUTSIDE_OF_SWITCH,
+	HCC_ERROR_CODE_SWITCH_CASE_VALUE_MUST_BE_A_CONSTANT,
+	HCC_ERROR_CODE_EXPECTED_COLON_SWITCH_CASE,
+	HCC_ERROR_CODE_DEFAULT_STATMENT_OUTSIDE_OF_SWITCH,
+	HCC_ERROR_CODE_DEFAULT_STATEMENT_ALREADY_DECLARED,
+	HCC_ERROR_CODE_EXPECTED_COLON_SWITCH_DEFAULT,
+	HCC_ERROR_CODE_INVALID_BREAK_STATEMENT_USAGE,
+	HCC_ERROR_CODE_INVALID_CONTINUE_STATEMENT_USAGE,
+	HCC_ERROR_CODE_MULTIPLE_SHADER_STAGES_ON_FUNCTION,
+	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM,
+	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM,
+	HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR,
+	HCC_ERROR_CODE_UNEXPECTED_TOKEN,
 
 	//
 	// spirv
@@ -673,12 +686,13 @@ enum {
 
 	//
 	// tokengen
+	HCC_WARN_CODE_PP_WARNING,
 
 	//
 	// astgen
-	HCC_WARN_CODE_CURLY_INITIALIZER_ON_SCALAR, //"'{' should ideally be for structure or array types but got '%.*s'"
-	HCC_WARN_CODE_UNUSED_INITIALIZER_REACHED_END, //"unused initializer, we have reached the end of members for the '%.*s' type"
-	HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR, //"you should ideally continue using field/array designators after they have been used"
+	HCC_WARN_CODE_CURLY_INITIALIZER_ON_SCALAR,
+	HCC_WARN_CODE_UNUSED_INITIALIZER_REACHED_END,
+	HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR,
 
 	//
 	// spirv
@@ -724,6 +738,7 @@ struct HccMessageSys {
 };
 
 const char* hcc_message_type_lang_strings[HCC_LANG_COUNT][HCC_MESSAGE_TYPE_COUNT];
+const char* hcc_message_type_ascii_color_code[HCC_MESSAGE_TYPE_COUNT];
 const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT];
 const char* hcc_warn_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_WARN_CODE_COUNT];
 
@@ -731,7 +746,7 @@ void hcc_location_merge_apply(HccLocation* before, HccLocation* after);
 
 void hcc_message_print_file_line(HccCompiler* c, HccLocation* location);
 void hcc_message_print_pasted_buffer(HccCompiler* c, U32 line, U32 column);
-void hcc_message_print_code_line(HccCompiler* c, HccLocation* location, U32 display_line_num_size, U32 line);
+void hcc_message_print_code_line(HccCompiler* c, HccLocation* location, U32 display_line_num_size, U32 line, U32 display_line);
 void hcc_message_print_code(HccCompiler* c, HccLocation* location);
 void hcc_message_print(HccCompiler* c, HccMessage* message);
 
@@ -760,16 +775,17 @@ enum {
 
 typedef struct HccCodeFile HccCodeFile;
 struct HccCodeFile {
-	HccCodeFileFlags  flags;
-	HccStringId       path_string_id;
-	HccString         path_string;
-	HccString         code;
-	HccStack(U32)     line_code_start_indices;
-	HccStack(HccPPIf) pp_ifs;
-	U32               pp_if_idx;
+	HccCodeFileFlags      flags;
+	HccStringId           path_string_id;
+	HccString             path_string;
+	HccString             code;
+	HccStack(U32)         line_code_start_indices;
+	HccStack(HccPPIfSpan) pp_if_spans;
+	U32                   pp_if_span_id;
 };
 
 U32 hcc_code_file_line_size(HccCodeFile* code_file, U32 line);
+U32 hcc_code_file_lines_count(HccCodeFile* code_file);
 
 // ===========================================
 //
@@ -1206,6 +1222,9 @@ enum {
 	//
 	// symbols
 	//
+#define HCC_TOKEN_BRACKET_START HCC_TOKEN_CURLY_OPEN
+#define HCC_TOKEN_BRACKET_END (HCC_TOKEN_SQUARE_CLOSE + 1)
+#define HCC_TOKEN_BRACKET_COUNT (HCC_TOKEN_BRACKET_END - HCC_TOKEN_BRACKET_START)
 	HCC_TOKEN_CURLY_OPEN,
 	HCC_TOKEN_CURLY_CLOSE,
 	HCC_TOKEN_PARENTHESIS_OPEN,
@@ -1401,17 +1420,24 @@ enum {
 	HCC_PP_DIRECTIVE_ENDIF,
 	HCC_PP_DIRECTIVE_LINE,
 	HCC_PP_DIRECTIVE_ERROR,
+	HCC_PP_DIRECTIVE_WARNING,
 	HCC_PP_DIRECTIVE_PRAGMA,
 
 	HCC_PP_DIRECTIVE_COUNT,
 };
 
-typedef struct HccPPIf HccPPIf;
-struct HccPPIf {
+//
+// this represents the span from any preprocessor conditional (#if, #elif, #else, #endif etc)
+// to the next preprocessor conditional.
+typedef struct HccPPIfSpan HccPPIfSpan;
+struct HccPPIfSpan {
 	HccPPDirective directive;
-	bool           has_else;
-	HccLocation    location_start;
-	HccLocation    location_end;
+	HccLocation    location;
+	U32            first_id: 31; // a link to the span that is the original #if/n/def
+	U32            has_else: 1;
+	U32            prev_id;
+	U32            next_id;
+	U32            last_id; // set when this is the original #if/n/def to link to the matching #endif
 };
 
 typedef struct HccPPMacroArg HccPPMacroArg;
@@ -1446,7 +1472,7 @@ struct HccPP {
 	HccStack(U32)                  expand_macro_idx_stack;
 	HccStack(HccLocation)          expand_locations;     // used to keep expanded token locations for stable pointers
 	HccStack(char)                 stringify_buffer;
-	HccStack(HccPPIf*)             if_stack;
+	HccStack(HccPPIfSpan*)         if_span_stack;
 	HccHashTable(HccStringId, U32) macro_declarations;
 };
 
@@ -1470,9 +1496,13 @@ U32 hcc_pp_directive_hashes[HCC_PP_DIRECTIVE_COUNT];
 
 void hcc_pp_init(HccCompiler* c, HccCompilerSetup* setup);
 HccPPMacro* hcc_pp_macro_get(HccCompiler* c, U32 macro_idx);
-void hcc_pp_if_push(HccCompiler* c, HccPPDirective directive);
-void hcc_pp_if_pop(HccCompiler* c);
-void hcc_pp_if_found_else(HccCompiler* c);
+HccPPIfSpan* hcc_pp_if_span_get(HccCompiler* c, U32 if_span_id);
+U32 hcc_pp_if_span_id(HccCompiler* c, HccPPIfSpan* if_span);
+HccPPIfSpan* hcc_pp_if_span_push(HccCompiler* c, HccCodeFile* code_file, HccPPDirective directive);
+void hcc_pp_if_found_if(HccCompiler* c, HccPPDirective directive);
+HccPPIfSpan* hcc_pp_if_found_if_counterpart(HccCompiler* c, HccPPDirective directive);
+void hcc_pp_if_found_endif(HccCompiler* c);
+void hcc_pp_if_found_else(HccCompiler* c, HccPPDirective directive);
 void hcc_pp_if_ensure_first_else(HccCompiler* c, HccPPDirective directive);
 void hcc_pp_if_ensure_one_is_open(HccCompiler* c, HccPPDirective directive);
 
@@ -1545,7 +1575,7 @@ struct HccTokenGen {
 	U32                      macro_tokens_start_idx;
 
 	HccLocation              location;
-	U8*                      code;      // is a local copy of location.code_file->code.data
+	char*                    code;      // is a local copy of location.code_file->code.data
 	U32                      code_size; // is a local copy of location.code_file->code.size
 	U32                      custom_line_dst;
 	U32                      custom_line_src;
@@ -1558,11 +1588,13 @@ struct HccTokenGenSetup {
 	U32 token_locations_cap;
 	U32 tokens_cap;
 	U32 token_values_cap;
+	U32 location_stack_cap;
 };
 
 void hcc_tokengen_init(HccCompiler* c, HccCompilerSetup* setup);
 void hcc_tokengen_advance_column(HccCompiler* c, U32 by);
 void hcc_tokengen_advance_newline(HccCompiler* c);
+U32 hcc_tokengen_display_line(HccCompiler* c);
 U32 hcc_tokengen_token_add(HccCompiler* c, HccToken token);
 U32 hcc_tokengen_token_value_add(HccCompiler* c, HccTokenValue value);
 void hcc_tokengen_count_extra_newlines(HccCompiler* c);
@@ -1587,6 +1619,8 @@ void hcc_tokengen_parse_string(HccCompiler* c, char terminator_byte, bool ignore
 U32 hcc_tokengen_find_macro_param(HccCompiler* c, HccStringId ident_string_id);
 void hcc_tokengen_consume_hash_for_define_replacement_list(HccCompiler* c);
 bool hcc_tokengen_is_first_non_whitespace_on_line(HccCompiler* c);
+void hcc_tokengen_bracket_open(HccCompiler* c, HccToken token);
+void hcc_tokengen_bracket_close(HccCompiler* c, HccToken token);
 void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRunMode run_mode);
 
 void hcc_tokengen_print(HccCompiler* c, FILE* f);
@@ -2626,15 +2660,15 @@ enum {
 #define HCC_STRING_ID_INTRINSIC_PARAM_NAMES_END HCC_STRING_ID_KEYWORDS_START
 
 	HCC_STRING_ID_KEYWORDS_START,
-#define HCC_STRING_ID_KEYWORDS_END HCC_STRING_ID_KEYWORDS_START + HCC_TOKEN_KEYWORDS_COUNT
+#define HCC_STRING_ID_KEYWORDS_END (HCC_STRING_ID_KEYWORDS_START + HCC_TOKEN_KEYWORDS_COUNT)
 
 	HCC_STRING_ID_INTRINSIC_TYPES_START = HCC_STRING_ID_KEYWORDS_END,
-#define HCC_STRING_ID_INTRINSIC_TYPES_END HCC_STRING_ID_INTRINSIC_TYPES_START + HCC_TOKEN_INTRINSIC_TYPES_COUNT
+#define HCC_STRING_ID_INTRINSIC_TYPES_END (HCC_STRING_ID_INTRINSIC_TYPES_START + HCC_TOKEN_INTRINSIC_TYPES_COUNT)
 
 	HCC_STRING_ID_PREDEFINED_MACROS_START = HCC_STRING_ID_INTRINSIC_TYPES_END,
-	HCC_STRING_ID_PREDEFINED_MACROS_END = HCC_STRING_ID_PREDEFINED_MACROS_START + HCC_PP_PREDEFINED_MACRO_COUNT,
+#define HCC_STRING_ID_PREDEFINED_MACROS_END (HCC_STRING_ID_PREDEFINED_MACROS_START + HCC_PP_PREDEFINED_MACRO_COUNT)
 
-	HCC_STRING_ID_ONCE,
+	HCC_STRING_ID_ONCE = HCC_STRING_ID_PREDEFINED_MACROS_END,
 	HCC_STRING_ID_DEFINED,
 	HCC_STRING_ID___VA_ARGS__,
 };
@@ -2700,6 +2734,8 @@ struct HccCompiler {
 	HccStack(HccString)   include_paths;
 	HccStack(HccCodeFile) code_files;
 	HccHashTable(HccStringId, HccCodeFileId) path_to_code_file_id_map;
+	U32                   code_file_lines_cap;
+	U32                   code_file_pp_if_spans_cap;
 
 	HccPP                 pp;
 	HccTokenGen           tokengen;
@@ -2721,6 +2757,11 @@ struct HccCompilerSetup {
 	U32 message_strings_cap;
 	U32 string_table_data_cap;
 	U32 string_table_entries_cap;
+	U32 string_buffer_cap;
+	U32 include_paths_cap;
+	U32 code_files_cap;
+	U32 code_file_lines_cap;
+	U32 code_file_pp_if_spans_cap;
 };
 
 extern HccCompilerSetup hcc_compiler_setup_default;
@@ -2730,9 +2771,9 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path);
 noreturn void hcc_compiler_bail(HccCompiler* c);
 noreturn void hcc_compiler_bail_allocation_failure(HccCompiler* c, HccAllocTag tag);
 noreturn void hcc_compiler_bail_collection_is_full(HccCompiler* c, HccAllocTag tag);
-HccCodeFile* hcc_compiler_code_file_insert(HccCompiler* c);
 bool hcc_compiler_code_file_find_or_insert(HccCompiler* c, HccString path_string, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out);
 
 bool hcc_options_is_enabled(HccCompiler* c, HccOption opt);
 void hcc_options_set_enabled(HccCompiler* c, HccOption opt);
+void hcc_options_set_disabled(HccCompiler* c, HccOption opt);
 
