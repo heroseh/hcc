@@ -1486,6 +1486,13 @@ struct HccPPSetup {
 	U32 if_stack_cap;
 };
 
+typedef U8 HccPPExpandFlags;
+enum {
+	HCC_PP_EXPAND_FLAGS_DEST_IS_ORIGINAL_LOCATION = 0x1,
+	HCC_PP_EXPAND_FLAGS_IS_ARGS                   = 0x2,
+	HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS              = 0x4,
+};
+
 char* hcc_pp_predefined_macro_identifier_strings[HCC_PP_PREDEFINED_MACRO_COUNT];
 char* hcc_pp_directive_enum_strings[HCC_PP_DIRECTIVE_COUNT];
 char* hcc_pp_directive_strings[HCC_PP_DIRECTIVE_COUNT];
@@ -1526,8 +1533,8 @@ bool hcc_pp_is_callable_macro(HccCompiler* c, HccStringId ident_string_id, U32* 
 HccPPExpand* hcc_pp_expand_push_macro(HccCompiler* c, HccPPMacro* macro);
 HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx, U32 args_start_idx, HccLocation** callsite_location_out);
 void hcc_pp_expand_pop(HccCompiler* c, HccPPExpand* expected_expand);
-void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, HccLocation* grandparent_location, bool is_expanding_args, bool is_expanding_into_original_location, bool is_expanding_as_args, HccPPMacro* expand_macro);
-void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccLocation* parent_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag, bool is_expanding_into_original_location, bool is_expanding_as_args);
+void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, HccLocation* grandparent_location, HccPPExpandFlags flags, HccPPMacro* expand_macro);
+void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccLocation* parent_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag, HccPPExpandFlags flags);
 U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location);
 HccPPMacroArg* hcc_pp_push_macro_arg(HccCompiler* c, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location);
 void hcc_pp_finalize_macro_arg(HccCompiler* c, HccPPMacroArg* arg, HccPPExpand* expand, HccTokenBag* src_bag);

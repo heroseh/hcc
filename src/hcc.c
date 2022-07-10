@@ -2165,7 +2165,7 @@ void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro, HccLocati
 
 	HccTokenBag* dst_bag = &c->tokengen.token_bag;
 	HccTokenBag* alt_dst_bag = &c->pp.macro_token_bag;
-	hcc_pp_copy_expand_macro(c, macro, macro_callsite_location, macro_callsite_location, &args_expand, args_src_bag, dst_bag, alt_dst_bag, true, false);
+	hcc_pp_copy_expand_macro(c, macro, macro_callsite_location, macro_callsite_location, &args_expand, args_src_bag, dst_bag, alt_dst_bag, HCC_PP_EXPAND_FLAGS_DEST_IS_ORIGINAL_LOCATION);
 }
 
 bool hcc_pp_is_callable_macro(HccCompiler* c, HccStringId ident_string_id, U32* macro_idx_out) {
@@ -2213,14 +2213,14 @@ void hcc_pp_expand_pop(HccCompiler* c, HccPPExpand* expected_expand) {
 	hcc_stack_pop(c->pp.expand_macro_idx_stack);
 }
 
-void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, HccLocation* grandparent_location, bool is_expanding_args, bool is_expanding_into_original_location, bool is_expanding_as_args, HccPPMacro* expand_macro) {
+void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, HccLocation* grandparent_location, HccPPExpandFlags flags, HccPPMacro* expand_macro) {
 	//
 	// copy each token from src_bag into the dst_bag, while looking out for macros to expand into the dst_bag
 	//
 	while (expand->cursor.token_idx < expand->cursor.tokens_end_idx) {
 		HccToken token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx);
 		if (token == HCC_TOKEN_MACRO_WHITESPACE) {
-			if (is_expanding_into_original_location || *hcc_stack_get_last(dst_bag->tokens) == HCC_TOKEN_MACRO_WHITESPACE) {
+			if ((flags & HCC_PP_EXPAND_FLAGS_DEST_IS_ORIGINAL_LOCATION) || *hcc_stack_get_last(dst_bag->tokens) == HCC_TOKEN_MACRO_WHITESPACE) {
 				expand->cursor.token_idx += 1;
 				continue;
 			}
@@ -2234,7 +2234,7 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 		location_idx = hcc_stack_count(c->tokengen.token_locations);
 		HccLocation* location = hcc_stack_push(c->tokengen.token_locations);
 		{
-			if (is_expanding_args || !is_preexpanded_macro_arg) {
+			if ((flags & HCC_PP_EXPAND_FLAGS_IS_ARGS) || !is_preexpanded_macro_arg) {
 				//
 				// location needs a parent as we are either are:
 				//     - copying the contents of argument tokens
@@ -2243,7 +2243,7 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 				HccLocation* parent_location;
 				HccLocation* child_location;
 				HccPPMacro* macro;
-				if (is_expanding_args) {
+				if ((flags & HCC_PP_EXPAND_FLAGS_IS_ARGS)) {
 					// for expanded macro argument tokens:
 					// the child is the macro parameter location for all of the argument tokens.
 					// the parent is the original argument token location at the callsite
@@ -2263,13 +2263,16 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 					// the parent is the whole macro span at the callsite
 					parent_location = parent_or_child_location;
 					child_location = token_location;
-					macro = expand->macro;
+					macro = expand_macro;
 				}
 
 				*location = *child_location;
 				location->parent_location = parent_location;
 				location->macro = macro;
 			} else {
+				//
+				// we are on a argument that has been preexpanded before
+				// so there is no need to setup any parent location or macro links
 				*location = *token_location;
 			}
 		}
@@ -2294,14 +2297,20 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 					expand->cursor.token_idx += 1; // skip the identifier token
 					expand->cursor.token_value_idx += 1;
 
-					HccLocation* callsite_location = is_expanding_args ? location->parent_location : location;
-					hcc_pp_copy_expand_macro(c, macro, callsite_location, location, expand, src_bag, dst_bag, alt_dst_bag, is_expanding_into_original_location, is_expanding_args);
+					HccLocation* callsite_location = location;
+					HccPPExpandFlags expand_flags = flags;
+					if (expand_flags & HCC_PP_EXPAND_FLAGS_IS_ARGS) {
+						expand_flags |= HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS;
+						expand_flags &= ~HCC_PP_EXPAND_FLAGS_IS_ARGS;
+						callsite_location = location->parent_location;
+					}
+					hcc_pp_copy_expand_macro(c, macro, callsite_location, location, expand, src_bag, dst_bag, alt_dst_bag, expand_flags);
 					continue;
 				}
 			}
 		}
 
-		if (is_expanding_into_original_location) {
+		if ((flags & HCC_PP_EXPAND_FLAGS_DEST_IS_ORIGINAL_LOCATION)) {
 			HccToken bracket = token - HCC_TOKEN_BRACKET_START;
 			if (bracket < HCC_TOKEN_BRACKET_COUNT) {
 				if (bracket % 2 == 0) {
@@ -2317,7 +2326,7 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 		//
 		*hcc_stack_push(dst_bag->tokens) = token;
 
-		U32 mask = is_expanding_args || is_expanding_as_args ? HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK : 0;
+		U32 mask = (flags & HCC_PP_EXPAND_FLAGS_IS_ARGS | HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS) ? HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK : 0;
 		*hcc_stack_push(dst_bag->token_location_indices) = location_idx | mask;
 
 		expand->cursor.token_idx += 1;
@@ -2331,7 +2340,7 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 	}
 }
 
-void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccLocation* parent_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag, bool is_expanding_into_original_location, bool is_expanding_as_args) {
+void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccLocation* parent_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag, HccPPExpandFlags flags) {
 	U32 restore_to_tokens_count = hcc_stack_count(alt_dst_bag->tokens);
 	U32 restore_to_token_values_count = hcc_stack_count(alt_dst_bag->token_values);
 	U32 restore_to_expand_args_count = hcc_stack_count(c->pp.macro_args_stack);
@@ -2363,7 +2372,10 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 					HccPPExpand* param_arg_expand = hcc_pp_expand_push_macro_arg(c, param_idx, args_start_idx, NULL);
 					param_arg_expand->macro = arg_expand->macro;
 
-					hcc_pp_copy_expand_range(c, param_arg_expand, alt_dst_bag, args_src_bag, dst_bag, location, is_expanding_as_args ? parent_location : parent_location->parent_location, true, false, false, macro);
+					HccLocation* grandparent_location = (flags & HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS)
+						? parent_location
+						: parent_location->parent_location;
+					hcc_pp_copy_expand_range(c, param_arg_expand, alt_dst_bag, args_src_bag, dst_bag, location, grandparent_location, HCC_PP_EXPAND_FLAGS_IS_ARGS, macro);
 					hcc_pp_expand_pop(c, param_arg_expand);
 
 					cursor.token_idx += 1;
@@ -2484,7 +2496,7 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 	//
 	// expand the macro tokens into the dst_bag
 	//
-	hcc_pp_copy_expand_range(c, macro_expand, dst_bag, src_bag, alt_dst_bag, parent_location, NULL, false, is_expanding_into_original_location, is_expanding_as_args, macro);
+	hcc_pp_copy_expand_range(c, macro_expand, dst_bag, src_bag, alt_dst_bag, parent_location, NULL, flags, macro);
 	hcc_pp_expand_pop(c, macro_expand);
 
 	//
