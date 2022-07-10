@@ -11,6 +11,7 @@ typedef struct HccCompiler HccCompiler;
 typedef struct HccCompilerSetup HccCompilerSetup;
 typedef struct HccCodeFile HccCodeFile;
 typedef struct HccPPIfSpan HccPPIfSpan;
+typedef struct HccPPMacro HccPPMacro;
 
 // ===========================================
 //
@@ -65,21 +66,22 @@ enum {
 	HCC_ALLOC_TAG_CODE,
 
 	HCC_ALLOC_TAG_PP_TOKENS,
-	HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS,
+	HCC_ALLOC_TAG_PP_TOKEN_LOCATION_INDICES,
 	HCC_ALLOC_TAG_PP_TOKEN_VALUES,
 	HCC_ALLOC_TAG_PP_MACROS,
 	HCC_ALLOC_TAG_PP_MACRO_PARAMS,
 	HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK,
 	HCC_ALLOC_TAG_PP_EXPAND_STACK,
-	HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS,
 	HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER,
 	HCC_ALLOC_TAG_PP_IF_SPAN_STACK,
 	HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS,
 
 	HCC_ALLOC_TAG_TOKENGEN_TOKENS,
-	HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS,
+	HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES,
 	HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES,
+	HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS,
 	HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK,
+	HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK,
 
 	HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES,
 	HCC_ALLOC_TAG_ASTGEN_FUNCTIONS,
@@ -700,25 +702,20 @@ enum {
 	HCC_WARN_CODE_COUNT,
 };
 
-typedef union HccLocation HccLocation;
-union HccLocation {
-	struct {
-		HccLocation* stable_pointer;
-		bool is_preexpanded_macro_arg;
-	};
-	struct {
-		HccCodeFile* code_file;
-		HccLocation* parent_location;
-		U32          code_start_idx;
-		U32          code_end_idx;
-		U32          line_start;
-		U32          line_end;
-		U32          column_start;
-		U32          column_end;
+typedef struct HccLocation HccLocation;
+struct HccLocation {
+	HccCodeFile* code_file;
+	HccLocation* parent_location;
+	HccPPMacro*  macro;
+	U32          code_start_idx;
+	U32          code_end_idx;
+	U32          line_start;
+	U32          line_end;
+	U32          column_start;
+	U32          column_end;
 
-		HccString    display_path;
-		U32          display_line;
-	};
+	HccString    display_path;
+	U32          display_line;
 };
 
 typedef struct HccMessage HccMessage;
@@ -1217,7 +1214,9 @@ enum {
 	HCC_TOKEN_MACRO_WHITESPACE,
 	HCC_TOKEN_MACRO_PARAM,
 	HCC_TOKEN_MACRO_STRINGIFY,
+	HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE,
 	HCC_TOKEN_MACRO_CONCAT,
+	HCC_TOKEN_MACRO_CONCAT_WHITESPACE,
 
 	//
 	// symbols
@@ -1354,9 +1353,8 @@ static_assert(sizeof(HccTokenValue) == sizeof(U32), "HccTokenValue has been desi
 typedef struct HccTokenBag HccTokenBag;
 struct HccTokenBag {
 	HccStack(HccToken)      tokens;
-	HccStack(HccLocation)   token_locations;
+	HccStack(U32)           token_location_indices;
 	HccStack(HccTokenValue) token_values;
-	U32                     expand_tokens_start_idx;
 };
 
 typedef struct HccTokenCursor HccTokenCursor;
@@ -1372,8 +1370,9 @@ extern char* hcc_token_strings[HCC_TOKEN_COUNT];
 U32 hcc_token_num_values(HccToken token);
 
 U32 hcc_token_cursor_tokens_count(HccTokenCursor* cursor);
-void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor);
-HccStringId hcc_token_bag_stringify_range(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor);
+HccLocation* hcc_token_bag_location_get(HccCompiler* c, HccTokenBag* bag, U32 token_idx);
+void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro, U32 args_start_idx, HccTokenBag* args_src_bag);
+HccStringId hcc_token_bag_stringify_range(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro, U32 args_start_idx, HccTokenBag* args_src_bag);
 
 // ===========================================
 //
@@ -1383,7 +1382,8 @@ HccStringId hcc_token_bag_stringify_range(HccCompiler* c, HccTokenBag* bag, HccT
 //
 // ===========================================
 
-typedef struct HccPPMacro HccPPMacro;
+#define HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK 0x80000000
+
 struct HccPPMacro {
 	HccStringId identifier_string_id;
 	HccLocation location;
@@ -1449,7 +1449,6 @@ struct HccPPMacroArg {
 typedef struct HccPPExpand HccPPExpand;
 struct HccPPExpand {
 	HccPPMacro*    macro;
-	U32            args_start_idx;
 	HccTokenCursor cursor;
 };
 
@@ -1470,7 +1469,6 @@ struct HccPP {
 	HccStack(HccPPMacroArg)        macro_args_stack;
 	HccStack(HccPPExpand)          expand_stack;
 	HccStack(U32)                  expand_macro_idx_stack;
-	HccStack(HccLocation)          expand_locations;     // used to keep expanded token locations for stable pointers
 	HccStack(char)                 stringify_buffer;
 	HccStack(HccPPIfSpan*)         if_span_stack;
 	HccHashTable(HccStringId, U32) macro_declarations;
@@ -1484,7 +1482,6 @@ struct HccPPSetup {
 	U32 macro_params_cap;
 	U32 macro_args_stack_cap;
 	U32 expand_stack_cap;
-	U32 expand_locations_cap;
 	U32 stringify_buffer_cap;
 	U32 if_stack_cap;
 };
@@ -1527,12 +1524,14 @@ void hcc_pp_copy_expand_predefined_macro(HccCompiler* c, HccPPPredefinedMacro pr
 void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location);
 bool hcc_pp_is_callable_macro(HccCompiler* c, HccStringId ident_string_id, U32* macro_idx_out);
 HccPPExpand* hcc_pp_expand_push_macro(HccCompiler* c, HccPPMacro* macro);
-HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx, HccLocation** callsite_location_out);
+HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx, U32 args_start_idx, HccLocation** callsite_location_out);
 void hcc_pp_expand_pop(HccCompiler* c, HccPPExpand* expected_expand);
-HccLocation* hcc_pp_copy_expand_get_location(HccTokenBag* src_bag, U32 token_idx);
-void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, bool is_expanding_args);
-void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag);
-U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* expand, HccTokenBag* src_bag);
+void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, HccLocation* grandparent_location, bool is_expanding_args, bool is_expanding_into_original_location, bool is_expanding_as_args, HccPPMacro* expand_macro);
+void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccLocation* parent_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag, bool is_expanding_into_original_location, bool is_expanding_as_args);
+U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location);
+HccPPMacroArg* hcc_pp_push_macro_arg(HccCompiler* c, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location);
+void hcc_pp_finalize_macro_arg(HccCompiler* c, HccPPMacroArg* arg, HccPPExpand* expand, HccTokenBag* src_bag);
+void hcc_pp_attach_to_most_parent(HccCompiler* c, HccLocation* location, HccLocation* parent_location);
 
 // ===========================================
 //
@@ -1541,6 +1540,7 @@ U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* ex
 //
 //
 // ===========================================
+
 typedef struct HccOpenBracket HccOpenBracket;
 struct HccOpenBracket {
 	HccToken close_token;
@@ -1564,7 +1564,8 @@ struct HccTokenGen {
 	HccTokenBag              token_bag;
 	HccTokenBag*             dst_token_bag;
 	HccStack(HccLocation)    location_stack;
-	HccStack(HccOpenBracket) open_brackets;
+	HccStack(HccOpenBracket) open_bracket_stack;
+	HccStack(HccLocation)    token_locations;
 
 	//
 	// data used when run_mode == HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST
@@ -1585,10 +1586,11 @@ struct HccTokenGen {
 
 typedef struct HccTokenGenSetup HccTokenGenSetup;
 struct HccTokenGenSetup {
-	U32 token_locations_cap;
 	U32 tokens_cap;
 	U32 token_values_cap;
+	U32 token_locations_cap;
 	U32 location_stack_cap;
+	U32 open_bracket_stack_cap;
 };
 
 void hcc_tokengen_init(HccCompiler* c, HccCompilerSetup* setup);

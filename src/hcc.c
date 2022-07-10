@@ -36,20 +36,21 @@ const char* hcc_alloc_tag_strings[HCC_ALLOC_TAG_COUNT] = {
 	[HCC_ALLOC_TAG_CODE_FILE_PP_IF_SPANS] = "HCC_ALLOC_TAG_CODE_FILE_PP_IF_SPANS",
 	[HCC_ALLOC_TAG_CODE] = "HCC_ALLOC_TAG_CODE",
 	[HCC_ALLOC_TAG_PP_TOKENS] = "HCC_ALLOC_TAG_PP_TOKENS",
-	[HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS] = "HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS",
+	[HCC_ALLOC_TAG_PP_TOKEN_LOCATION_INDICES] = "HCC_ALLOC_TAG_PP_TOKEN_LOCATION_INDICES",
 	[HCC_ALLOC_TAG_PP_TOKEN_VALUES] = "HCC_ALLOC_TAG_PP_TOKEN_VALUES",
 	[HCC_ALLOC_TAG_PP_MACROS] = "HCC_ALLOC_TAG_PP_MACROS",
 	[HCC_ALLOC_TAG_PP_MACRO_PARAMS] = "HCC_ALLOC_TAG_PP_MACRO_PARAMS",
 	[HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK] = "HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK",
 	[HCC_ALLOC_TAG_PP_EXPAND_STACK] = "HCC_ALLOC_TAG_PP_EXPAND_STACK",
-	[HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS] = "HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS",
 	[HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER] = "HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER",
 	[HCC_ALLOC_TAG_PP_IF_SPAN_STACK] = "HCC_ALLOC_TAG_PP_IF_SPAN_STACK",
 	[HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS] = "HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS",
 	[HCC_ALLOC_TAG_TOKENGEN_TOKENS] = "HCC_ALLOC_TAG_TOKENGEN_TOKENS",
-	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS",
+	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES",
 	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES",
+	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS",
 	[HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK] = "HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK",
+	[HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK] = "HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK",
 	[HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES] = "HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES",
 	[HCC_ALLOC_TAG_ASTGEN_FUNCTIONS] = "HCC_ALLOC_TAG_ASTGEN_FUNCTIONS",
 	[HCC_ALLOC_TAG_ASTGEN_EXPRS] = "HCC_ALLOC_TAG_ASTGEN_EXPRS",
@@ -622,11 +623,17 @@ char* hcc_token_strings[HCC_TOKEN_COUNT] = {
 	[HCC_TOKEN_INTRINSIC_TYPE_MAT4X4] = "mat4x4_t",
 	[HCC_TOKEN_EOF] = "end of file",
 	[HCC_TOKEN_IDENT] = "identifier",
-	[HCC_TOKEN_STRING] = "\"\"",
+	[HCC_TOKEN_STRING] = "string",
 	[HCC_TOKEN_INCLUDE_PATH_SYSTEM] = "<>",
 	[HCC_TOKEN_BACK_SLASH] = "\\",
 	[HCC_TOKEN_HASH] = "#",
 	[HCC_TOKEN_DOUBLE_HASH] = "##",
+	[HCC_TOKEN_MACRO_WHITESPACE] = " ",
+	[HCC_TOKEN_MACRO_PARAM] = "macro param",
+	[HCC_TOKEN_MACRO_STRINGIFY] = "macro stringify",
+	[HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE] = "macro stringify whitespace",
+	[HCC_TOKEN_MACRO_CONCAT] = "##",
+	[HCC_TOKEN_MACRO_CONCAT_WHITESPACE] = " ##",
 	[HCC_TOKEN_CURLY_OPEN] = "{",
 	[HCC_TOKEN_CURLY_CLOSE] = "}",
 	[HCC_TOKEN_PARENTHESIS_OPEN] = "(",
@@ -734,6 +741,7 @@ U32 hcc_token_num_values(HccToken token) {
 		case HCC_TOKEN_INCLUDE_PATH_SYSTEM:
 		case HCC_TOKEN_MACRO_PARAM:
 		case HCC_TOKEN_MACRO_STRINGIFY:
+		case HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE:
 			return 1;
 		case HCC_TOKEN_LIT_U32:
 		case HCC_TOKEN_LIT_U64:
@@ -751,10 +759,48 @@ U32 hcc_token_cursor_tokens_count(HccTokenCursor* cursor) {
 	return cursor->tokens_end_idx - cursor->tokens_start_idx;
 }
 
-void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor) {
+HccLocation* hcc_token_bag_location_get(HccCompiler* c, HccTokenBag* bag, U32 token_idx) {
+	U32 location_idx = *hcc_stack_get(bag->token_location_indices, token_idx) & ~HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK;
+	return hcc_stack_get(c->tokengen.token_locations, location_idx);
+}
+
+void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro, U32 args_start_idx, HccTokenBag* args_src_bag) {
 	HccToken token = *hcc_stack_get(bag->tokens, cursor->token_idx);
 	cursor->token_idx += 1;
 	switch (token) {
+		case HCC_TOKEN_IDENT: {
+			HccStringId string_id = hcc_stack_get(bag->token_values, cursor->token_value_idx)->string_id;
+			cursor->token_value_idx += 1;
+			HccString string = hcc_string_table_get(&c->string_table, string_id);
+			hcc_stack_push_string(c->pp.stringify_buffer, string);
+			break;
+		};
+
+		case HCC_TOKEN_MACRO_PARAM:
+			if (args_start_idx != U32_MAX) {
+				U32 param_idx = hcc_stack_get(bag->token_values, cursor->token_value_idx)->macro_param_idx;
+				cursor->token_value_idx += 1;
+				HccPPMacroArg* arg = hcc_stack_get(c->pp.macro_args_stack, args_start_idx + param_idx);
+				HccTokenCursor arg_cursor = arg->cursor;
+				hcc_token_bag_stringify_range(c, args_src_bag, &arg_cursor, NULL, U32_MAX, NULL);
+				break;
+			}
+			// fallthrough
+		case HCC_TOKEN_MACRO_STRINGIFY:
+		case HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE: {
+			U32 param_idx = hcc_stack_get(bag->token_values, cursor->token_value_idx)->macro_param_idx;
+			HccStringId string_id = *hcc_stack_get(c->pp.macro_params, macro->params_start_idx + param_idx);
+			cursor->token_value_idx += 1;
+			if (token == HCC_TOKEN_MACRO_STRINGIFY) {
+				hcc_stack_push_char(c->pp.stringify_buffer, '#');
+			} else if (token == HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE) {
+				hcc_stack_push_string(c->pp.stringify_buffer, hcc_string_lit("# "));
+			}
+			HccString string = hcc_string_table_get(&c->string_table, string_id);
+			hcc_stack_push_string(c->pp.stringify_buffer, string);
+			break;
+		};
+
 		case HCC_TOKEN_LIT_U32:
 		case HCC_TOKEN_LIT_U64:
 		case HCC_TOKEN_LIT_S32:
@@ -802,14 +848,19 @@ void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCu
 
 			break;
 		};
-		case HCC_TOKEN_MACRO_CONCAT: {
+		case HCC_TOKEN_MACRO_CONCAT:
+		case HCC_TOKEN_MACRO_CONCAT_WHITESPACE: {
 			//
 			// tokengen will reorder macro concat so comes before the two operands.
 			// so `ident ## ifier` becomes `## ident ifier`
 			// so when stringifing, put it back in the order it was in string form.
-			hcc_token_bag_stringify_single(c, bag, cursor);
+			hcc_token_bag_stringify_single(c, bag, cursor, NULL, U32_MAX, NULL);
 			hcc_stack_push_string(c->pp.stringify_buffer, hcc_string_c(hcc_token_strings[token]));
-			hcc_token_bag_stringify_single(c, bag, cursor);
+			if (*hcc_stack_get(bag->tokens, cursor->token_idx) == HCC_TOKEN_MACRO_WHITESPACE) {
+				hcc_stack_push_char(c->pp.stringify_buffer, ' ');
+				cursor->token_idx += 1;
+			}
+			hcc_token_bag_stringify_single(c, bag, cursor, NULL, U32_MAX, NULL);
 			break;
 		};
 
@@ -819,11 +870,9 @@ void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCu
 	}
 }
 
-HccStringId hcc_token_bag_stringify_range(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor) {
-	hcc_stack_clear(c->pp.stringify_buffer);
-
+HccStringId hcc_token_bag_stringify_range(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro, U32 args_start_idx, HccTokenBag* args_src_bag) {
 	while (cursor->token_idx < cursor->tokens_end_idx) {
-		hcc_token_bag_stringify_single(c, bag, cursor);
+		hcc_token_bag_stringify_single(c, bag, cursor, macro, args_start_idx, args_src_bag);
 	}
 
 	return hcc_string_table_deduplicate(&c->string_table, c->pp.stringify_buffer, hcc_stack_count(c->pp.stringify_buffer));
@@ -901,14 +950,13 @@ U32 hcc_pp_directive_hashes[] = {
 
 void hcc_pp_init(HccCompiler* c, HccCompilerSetup* setup) {
 	c->pp.macro_token_bag.tokens = hcc_stack_init(HccToken, setup->pp.macro_tokens_cap, HCC_ALLOC_TAG_PP_TOKENS);
-	c->pp.macro_token_bag.token_locations = hcc_stack_init(HccLocation, setup->pp.macro_tokens_cap, HCC_ALLOC_TAG_PP_TOKEN_LOCATIONS);
+	c->pp.macro_token_bag.token_location_indices = hcc_stack_init(U32, setup->pp.macro_tokens_cap, HCC_ALLOC_TAG_PP_TOKEN_LOCATION_INDICES);
 	c->pp.macro_token_bag.token_values = hcc_stack_init(HccTokenValue, setup->pp.macro_token_values_cap, HCC_ALLOC_TAG_PP_TOKEN_VALUES);
 	c->pp.macros = hcc_stack_init(HccPPMacro, setup->pp.macros_cap, HCC_ALLOC_TAG_PP_MACROS);
 	c->pp.macro_params = hcc_stack_init(HccStringId, setup->pp.macro_params_cap, HCC_ALLOC_TAG_PP_MACRO_PARAMS);
 	c->pp.macro_args_stack = hcc_stack_init(HccPPMacroArg, setup->pp.macro_args_stack_cap, HCC_ALLOC_TAG_PP_MACRO_ARGS_STACK);
 	c->pp.expand_stack = hcc_stack_init(HccPPExpand, setup->pp.expand_stack_cap, HCC_ALLOC_TAG_PP_EXPAND_STACK);
 	c->pp.expand_macro_idx_stack = hcc_stack_init(U32, setup->pp.expand_stack_cap, HCC_ALLOC_TAG_PP_EXPAND_STACK);
-	c->pp.expand_locations = hcc_stack_init(HccLocation, setup->pp.expand_locations_cap, HCC_ALLOC_TAG_PP_EXPAND_LOCATIONS);
 	c->pp.stringify_buffer = hcc_stack_init(char, setup->pp.stringify_buffer_cap, HCC_ALLOC_TAG_PP_STRINGIFY_BUFFER);
 	c->pp.if_span_stack = hcc_stack_init(HccPPIfSpan*, setup->pp.if_stack_cap, HCC_ALLOC_TAG_PP_IF_SPAN_STACK);
 
@@ -1269,8 +1317,7 @@ void hcc_pp_parse_define(HccCompiler* c) {
 	HccString ident_string = hcc_tokengen_parse_ident(c, HCC_ERROR_CODE_INVALID_TOKEN_MACRO_IDENTIFIER);
 	HccStringId identifier_string_id = hcc_string_table_deduplicate(&c->string_table, (char*)ident_string.data, ident_string.size);
 	hcc_tokengen_advance_column(c, ident_string.size);
-	U32 ident_column_end = c->tokengen.location.column_end;
-	U32 ident_code_end_idx = c->tokengen.location.code_end_idx;
+	HccLocation ident_location = c->tokengen.location;
 
 	U32 params_start_idx = hcc_stack_count(c->pp.macro_params);
 	U32 params_count = 0;
@@ -1291,6 +1338,7 @@ void hcc_pp_parse_define(HccCompiler* c) {
 			// function-like has parameters
 			//
 			while (1) { // for each parameter
+				params_count += 1;
 				HccStringId param_string_id;
 				if (
 					c->tokengen.code[c->tokengen.location.code_end_idx] == '.' &&
@@ -1363,8 +1411,14 @@ void hcc_pp_parse_define(HccCompiler* c) {
 	c->tokengen.macro_params_count = params_count;
 	hcc_tokengen_run(c, &c->pp.macro_token_bag, HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST);
 	U32 tokens_end_idx = hcc_stack_count(c->pp.macro_token_bag.tokens);
+	U32 token_values_end_idx = hcc_stack_count(c->pp.macro_token_bag.token_values);
 	U32 tokens_count = tokens_end_idx - tokens_start_idx;
-	U32 token_values_count = tokens_end_idx - tokens_start_idx;
+	U32 token_values_count = token_values_end_idx - token_values_start_idx;
+
+	if (c->pp.macro_token_bag.tokens[tokens_end_idx - 1] == HCC_TOKEN_MACRO_WHITESPACE) {
+		tokens_end_idx -= 1;
+		tokens_count -= 1;
+	}
 
 	U32* macro_idx_ptr;
 	if (hcc_hash_table_find_or_insert(&c->pp.macro_declarations, identifier_string_id.idx_plus_one, &macro_idx_ptr)) {
@@ -1385,6 +1439,7 @@ void hcc_pp_parse_define(HccCompiler* c) {
 			!HCC_CMP_ELMT_MANY(macro_tokens, existing_macro_tokens, tokens_count) ||
 			!HCC_CMP_ELMT_MANY(macro_token_values, existing_macro_token_values, token_values_count)
 		) {
+			c->tokengen.location = ident_location;
 			hcc_tokengen_bail_error_2_ptr(c, HCC_ERROR_CODE_MACRO_ALREADY_DEFINED, &existing_macro->location, (int)ident_string.size, ident_string.data);
 		}
 
@@ -1393,7 +1448,7 @@ void hcc_pp_parse_define(HccCompiler* c) {
 		// so just removed the parameters and tokens that where parsed and return.
 		hcc_stack_resize(c->pp.macro_params, params_start_idx);
 		hcc_stack_resize(c->pp.macro_token_bag.tokens, tokens_start_idx);
-		hcc_stack_resize(c->pp.macro_token_bag.token_locations, tokens_start_idx);
+		hcc_stack_resize(c->pp.macro_token_bag.token_location_indices, tokens_start_idx);
 		hcc_stack_resize(c->pp.macro_token_bag.token_values, token_values_start_idx);
 		return;
 	}
@@ -1401,12 +1456,11 @@ void hcc_pp_parse_define(HccCompiler* c) {
 
 	HccPPMacro* macro = hcc_stack_push(c->pp.macros);
 	macro->identifier_string_id = identifier_string_id;
-	macro->location = c->tokengen.location;
-	macro->location.column_end = ident_column_end;
-	macro->location.code_end_idx = ident_code_end_idx;
+	macro->location = ident_location;
 	macro->token_cursor.tokens_start_idx = tokens_start_idx;
 	macro->token_cursor.tokens_end_idx = tokens_end_idx;
 	macro->token_cursor.token_value_idx = token_values_start_idx;
+	macro->token_cursor.token_idx = tokens_start_idx;
 	macro->params_start_idx = params_start_idx;
 	macro->params_count = params_count;
 	macro->is_function = is_function;
@@ -1443,7 +1497,8 @@ void hcc_pp_parse_include(HccCompiler* c) {
 	HccTokenBag* token_bag = &c->tokengen.token_bag;
 	U32 tokens_start_idx = hcc_stack_count(token_bag->tokens);
 	U32 token_values_start_idx = hcc_stack_count(token_bag->token_values);
-	U32 token_location_start_idx = hcc_stack_count(token_bag->token_locations);
+	U32 token_location_indices_start_idx = hcc_stack_count(token_bag->token_location_indices);
+	U32 token_location_start_idx = hcc_stack_count(c->tokengen.token_locations);
 	hcc_tokengen_run(c, token_bag, HCC_TOKENGEN_RUN_MODE_PP_INCLUDE_OPERAND);
 
 	//
@@ -1518,7 +1573,7 @@ void hcc_pp_parse_include(HccCompiler* c) {
 		}
 
 		if (idx == count) {
-			c->tokengen.location = *hcc_stack_get(token_bag->token_locations, tokens_start_idx);
+			c->tokengen.location = *hcc_token_bag_location_get(c, token_bag, tokens_start_idx);
 			hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_INCLUDE_PATH_DOES_NOT_EXIST);
 		}
 	}
@@ -1552,7 +1607,8 @@ void hcc_pp_parse_include(HccCompiler* c) {
 	// using the call to hcc_tokengen_run.
 	hcc_stack_resize(token_bag->tokens, tokens_start_idx);
 	hcc_stack_resize(token_bag->token_values, token_values_start_idx);
-	hcc_stack_resize(token_bag->token_locations, token_location_start_idx);
+	hcc_stack_resize(token_bag->token_location_indices, token_location_indices_start_idx);
+	hcc_stack_resize(c->tokengen.token_locations, token_location_start_idx);
 }
 
 bool hcc_pp_parse_if(HccCompiler* c) {
@@ -1565,7 +1621,8 @@ bool hcc_pp_parse_if(HccCompiler* c) {
 	HccTokenBag* token_bag = &c->tokengen.token_bag;
 	U32 tokens_start_idx = hcc_stack_count(token_bag->tokens);
 	U32 token_values_start_idx = hcc_stack_count(token_bag->token_values);
-	U32 token_location_start_idx = hcc_stack_count(token_bag->token_locations);
+	U32 token_location_indices_start_idx = hcc_stack_count(token_bag->token_location_indices);
+	U32 token_location_start_idx = hcc_stack_count(c->tokengen.token_locations);
 	hcc_tokengen_run(c, token_bag, HCC_TOKENGEN_RUN_MODE_PP_IF_OPERAND);
 
 	//
@@ -1587,7 +1644,8 @@ bool hcc_pp_parse_if(HccCompiler* c) {
 	// generated by the call to hcc_tokengen_run.
 	hcc_stack_resize(token_bag->tokens, tokens_start_idx);
 	hcc_stack_resize(token_bag->token_values, token_values_start_idx);
-	hcc_stack_resize(token_bag->token_locations, token_location_start_idx);
+	hcc_stack_resize(token_bag->token_location_indices, token_location_indices_start_idx);
+	hcc_stack_resize(c->tokengen.token_locations, token_location_start_idx);
 
 	return is_true;
 }
@@ -1649,7 +1707,8 @@ void hcc_pp_parse_line(HccCompiler* c) {
 	HccTokenBag* token_bag = &c->tokengen.token_bag;
 	U32 tokens_start_idx = hcc_stack_count(token_bag->tokens);
 	U32 token_values_start_idx = hcc_stack_count(token_bag->token_values);
-	U32 token_location_start_idx = hcc_stack_count(token_bag->token_locations);
+	U32 token_location_indices_start_idx = hcc_stack_count(token_bag->token_location_indices);
+	U32 token_location_start_idx = hcc_stack_count(c->tokengen.token_locations);
 	hcc_tokengen_run(c, token_bag, HCC_TOKENGEN_RUN_MODE_PP_OPERAND);
 
 	//
@@ -1706,7 +1765,8 @@ void hcc_pp_parse_line(HccCompiler* c) {
 	// generated by the call to hcc_tokengen_run.
 	hcc_stack_resize(token_bag->tokens, tokens_start_idx);
 	hcc_stack_resize(token_bag->token_values, token_values_start_idx);
-	hcc_stack_resize(token_bag->token_locations, token_location_start_idx);
+	hcc_stack_resize(token_bag->token_location_indices, token_location_indices_start_idx);
+	hcc_stack_resize(c->tokengen.token_locations, token_location_start_idx);
 }
 
 void hcc_pp_parse_error(HccCompiler* c) {
@@ -1732,7 +1792,7 @@ void hcc_pp_parse_warning(HccCompiler* c) {
 
 	//
 	// make a copy of the location for this warning since we overrite this when we continue tokenizing
-	HccLocation* location = hcc_stack_push(c->pp.expand_locations);
+	HccLocation* location = hcc_stack_push(c->tokengen.token_locations);
 	*location = c->tokengen.location;
 	location->display_line = hcc_tokengen_display_line(c);
 
@@ -1761,7 +1821,8 @@ void hcc_pp_parse_pragma(HccCompiler* c) {
 	HccTokenBag* token_bag = &c->tokengen.token_bag;
 	U32 tokens_start_idx = hcc_stack_count(token_bag->tokens);
 	U32 token_values_start_idx = hcc_stack_count(token_bag->token_values);
-	U32 token_location_start_idx = hcc_stack_count(token_bag->token_locations);
+	U32 token_location_indices_start_idx = hcc_stack_count(token_bag->token_location_indices);
+	U32 token_location_start_idx = hcc_stack_count(c->tokengen.token_locations);
 	hcc_tokengen_run(c, token_bag, HCC_TOKENGEN_RUN_MODE_PP_OPERAND);
 
 	//
@@ -1800,7 +1861,8 @@ void hcc_pp_parse_pragma(HccCompiler* c) {
 	// generated by the call to hcc_tokengen_run.
 	hcc_stack_resize(token_bag->tokens, tokens_start_idx);
 	hcc_stack_resize(token_bag->token_values, token_values_start_idx);
-	hcc_stack_resize(token_bag->token_locations, token_location_start_idx);
+	hcc_stack_resize(token_bag->token_location_indices, token_location_indices_start_idx);
+	hcc_stack_resize(c->tokengen.token_locations, token_location_start_idx);
 }
 
 HccPPDirective hcc_pp_parse_directive_header(HccCompiler* c) {
@@ -2088,8 +2150,8 @@ void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro, HccLocati
 		// tokenize them before we call into the expand code.
 		//
 		args_expand.macro = NULL;
-		args_expand.args_start_idx = U32_MAX;
 		args_expand.cursor.tokens_start_idx = hcc_stack_count(args_src_bag->tokens);
+		args_expand.cursor.token_idx = hcc_stack_count(args_src_bag->tokens);
 		args_expand.cursor.token_value_idx = hcc_stack_count(args_src_bag->token_values);
 
 		hcc_tokengen_run(c, args_src_bag, HCC_TOKENGEN_RUN_MODE_PP_MACRO_ARGS);
@@ -2098,14 +2160,12 @@ void hcc_pp_copy_expand_macro_begin(HccCompiler* c, HccPPMacro* macro, HccLocati
 
 	//
 	// make the location a stable pointer
-	*hcc_stack_push(c->pp.expand_locations) = *macro_callsite_location;
-	macro_callsite_location = hcc_stack_get_last(c->pp.expand_locations);
+	*hcc_stack_push(c->tokengen.token_locations) = *macro_callsite_location;
+	macro_callsite_location = hcc_stack_get_last(c->tokengen.token_locations);
 
-	c->tokengen.token_bag.expand_tokens_start_idx = hcc_stack_count(c->tokengen.token_bag.tokens);
-	c->pp.macro_token_bag.expand_tokens_start_idx = hcc_stack_count(c->pp.macro_token_bag.tokens);
 	HccTokenBag* dst_bag = &c->tokengen.token_bag;
 	HccTokenBag* alt_dst_bag = &c->pp.macro_token_bag;
-	hcc_pp_copy_expand_macro(c, macro, macro_callsite_location, &args_expand, args_src_bag, dst_bag, alt_dst_bag);
+	hcc_pp_copy_expand_macro(c, macro, macro_callsite_location, macro_callsite_location, &args_expand, args_src_bag, dst_bag, alt_dst_bag, true, false);
 }
 
 bool hcc_pp_is_callable_macro(HccCompiler* c, HccStringId ident_string_id, U32* macro_idx_out) {
@@ -2130,21 +2190,18 @@ bool hcc_pp_is_callable_macro(HccCompiler* c, HccStringId ident_string_id, U32* 
 HccPPExpand* hcc_pp_expand_push_macro(HccCompiler* c, HccPPMacro* macro) {
 	HccPPExpand* expand = hcc_stack_push(c->pp.expand_stack);
 	*hcc_stack_push(c->pp.expand_macro_idx_stack) = macro - c->pp.macros;
-	expand->args_start_idx = U32_MAX;
 	expand->cursor = macro->token_cursor;
+	expand->macro = macro;
 	return expand;
 }
 
-HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx, HccLocation** callsite_location_out) {
-	HccPPExpand* expand = hcc_stack_get_last(c->pp.expand_stack);
-	HCC_DEBUG_ASSERT(expand->args_start_idx != U32_MAX, "internal error: cannot push macro argument expand from a non-function macro");
-	HccPPMacroArg* arg = hcc_stack_get(c->pp.macro_args_stack, expand->args_start_idx + param_idx);
-	*callsite_location_out = arg->callsite_location;
+HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx, U32 args_start_idx, HccLocation** callsite_location_out) {
+	HccPPMacroArg* arg = hcc_stack_get(c->pp.macro_args_stack, args_start_idx + param_idx);
+	if (callsite_location_out) *callsite_location_out = arg->callsite_location;
 
-	expand = hcc_stack_push(c->pp.expand_stack);
+	HccPPExpand* expand = hcc_stack_push(c->pp.expand_stack);
 	*hcc_stack_push(c->pp.expand_macro_idx_stack) = -1;
 	expand->macro = NULL;
-	expand->args_start_idx = U32_MAX;
 	expand->cursor = arg->cursor;
 	return expand;
 }
@@ -2152,34 +2209,71 @@ HccPPExpand* hcc_pp_expand_push_macro_arg(HccCompiler* c, U32 param_idx, HccLoca
 void hcc_pp_expand_pop(HccCompiler* c, HccPPExpand* expected_expand) {
 	HccPPExpand* popped_ptr = hcc_stack_get_last(c->pp.expand_stack);
 	HCC_DEBUG_ASSERT(popped_ptr == expected_expand, "internal error: we expected to pop %p but it was actually %p", expected_expand, popped_ptr);
-	if (popped_ptr->args_start_idx != U32_MAX) {
-		hcc_stack_resize(c->pp.macro_args_stack, popped_ptr->args_start_idx);
-	}
 	hcc_stack_pop(c->pp.expand_stack);
 	hcc_stack_pop(c->pp.expand_macro_idx_stack);
 }
 
-HccLocation* hcc_pp_copy_expand_get_location(HccTokenBag* src_bag, U32 token_idx) {
-	HccLocation* location =  hcc_stack_get(src_bag->token_locations, token_idx);
-	if (src_bag->expand_tokens_start_idx <= token_idx) {
-		//
-		// this source token is a result of the current set of expansions.
-		// so fish out the location from the stable pointer that points to the c->pp.expand_locations array
-		//
-		return location->stable_pointer;
-	}
-
-	return location;
-}
-
-void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, bool is_expanding_args) {
+void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* dst_bag, HccTokenBag* src_bag, HccTokenBag* alt_dst_bag, HccLocation* parent_or_child_location, HccLocation* grandparent_location, bool is_expanding_args, bool is_expanding_into_original_location, bool is_expanding_as_args, HccPPMacro* expand_macro) {
 	//
 	// copy each token from src_bag into the dst_bag, while looking out for macros to expand into the dst_bag
 	//
-	bool is_the_starting_expansion = hcc_stack_count(c->pp.expand_stack) == 1;
 	while (expand->cursor.token_idx < expand->cursor.tokens_end_idx) {
 		HccToken token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx);
-		HccLocation* token_location = hcc_pp_copy_expand_get_location(src_bag, expand->cursor.token_idx);
+		if (token == HCC_TOKEN_MACRO_WHITESPACE) {
+			if (is_expanding_into_original_location || *hcc_stack_get_last(dst_bag->tokens) == HCC_TOKEN_MACRO_WHITESPACE) {
+				expand->cursor.token_idx += 1;
+				continue;
+			}
+		}
+
+		U32 location_idx = *hcc_stack_get(src_bag->token_location_indices, expand->cursor.token_idx);
+		bool is_preexpanded_macro_arg = location_idx & HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK;
+		location_idx &= ~HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK;
+		HccLocation* token_location = hcc_stack_get(c->tokengen.token_locations, location_idx);
+
+		location_idx = hcc_stack_count(c->tokengen.token_locations);
+		HccLocation* location = hcc_stack_push(c->tokengen.token_locations);
+		{
+			if (is_expanding_args || !is_preexpanded_macro_arg) {
+				//
+				// location needs a parent as we are either are:
+				//     - copying the contents of argument tokens
+				//     - copying a macro and are not on any of the preexpanded macro argument tokens
+				//
+				HccLocation* parent_location;
+				HccLocation* child_location;
+				HccPPMacro* macro;
+				if (is_expanding_args) {
+					// for expanded macro argument tokens:
+					// the child is the macro parameter location for all of the argument tokens.
+					// the parent is the original argument token location at the callsite
+					parent_location = hcc_stack_push(c->tokengen.token_locations);
+					*parent_location = *token_location;
+					if (grandparent_location) {
+						hcc_pp_attach_to_most_parent(c, parent_location, grandparent_location);
+					}
+					if (!token_location->macro) {
+						parent_location->macro = expand->macro;
+					}
+					child_location = parent_or_child_location;
+					macro = expand_macro;
+				} else {
+					// for expanded macro tokens:
+					// the child is the original macro token location
+					// the parent is the whole macro span at the callsite
+					parent_location = parent_or_child_location;
+					child_location = token_location;
+					macro = expand->macro;
+				}
+
+				*location = *child_location;
+				location->parent_location = parent_location;
+				location->macro = macro;
+			} else {
+				*location = *token_location;
+			}
+		}
+
 		if (token == HCC_TOKEN_IDENT) {
 			HccStringId ident_string_id = hcc_stack_get(src_bag->token_values, expand->cursor.token_value_idx)->string_id;
 
@@ -2189,7 +2283,7 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 				// we found a callable macro, lets expand it into the dst_bag
 				//
 				HccPPMacro* macro = hcc_pp_macro_get(c, macro_idx);
-				bool can_expand = false;
+				bool can_expand = true;
 				if (macro->is_function) {
 					HccToken next_token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx + 1);
 					HccToken next_next_token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx + 2);
@@ -2200,22 +2294,14 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 					expand->cursor.token_idx += 1; // skip the identifier token
 					expand->cursor.token_value_idx += 1;
 
-					//
-					// make a new location for this callsite that links back to the parent callsite
-					HccLocation* callsite_location = hcc_stack_push(c->pp.expand_locations);
-					*callsite_location = *token_location;
-					callsite_location->parent_location = parent_or_child_location;
-
-					hcc_pp_copy_expand_macro(c, macro, callsite_location, expand, src_bag, dst_bag, alt_dst_bag);
+					HccLocation* callsite_location = is_expanding_args ? location->parent_location : location;
+					hcc_pp_copy_expand_macro(c, macro, callsite_location, location, expand, src_bag, dst_bag, alt_dst_bag, is_expanding_into_original_location, is_expanding_args);
 					continue;
 				}
 			}
-		} else if (token == HCC_TOKEN_MACRO_WHITESPACE) {
-			expand->cursor.token_idx += 1;
-			continue;
 		}
 
-		if (is_the_starting_expansion) {
+		if (is_expanding_into_original_location) {
 			HccToken bracket = token - HCC_TOKEN_BRACKET_START;
 			if (bracket < HCC_TOKEN_BRACKET_COUNT) {
 				if (bracket % 2 == 0) {
@@ -2231,65 +2317,8 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 		//
 		*hcc_stack_push(dst_bag->tokens) = token;
 
-		HccLocation* dst_location = hcc_stack_push(dst_bag->token_locations);
-		if (!is_expanding_args && is_the_starting_expansion) {
-			dst_location = hcc_stack_push(dst_bag->token_locations);
-		} else {
-			//
-			// we are _not_ expanding to the original destination of the expansion,
-			// so place the location into a different array as we need stable pointers of the locations for expanded tokens
-			dst_location->stable_pointer = hcc_stack_push(c->pp.expand_locations);
-
-			//
-			// set a value to tell if this was a macro argument token that was copied
-			dst_location->is_preexpanded_macro_arg = is_expanding_args;
-
-			dst_location = dst_location->stable_pointer;
-		}
-
-		{
-			bool location_needs_parent = true;
-			if (!is_expanding_args) {
-				if (src_bag->expand_tokens_start_idx <= expand->cursor.token_idx) {
-					//
-					// this source token is a result of the current set of expansions.
-					// only then could it be a preexpanded macro argument token.
-					// so fish the value out from the non stable pointer location for this token.
-					//
-					HccLocation* token_location = hcc_stack_get(src_bag->token_locations, expand->cursor.token_idx);
-					location_needs_parent = !token_location->is_preexpanded_macro_arg;
-				}
-			}
-
-			if (location_needs_parent) {
-
-				//
-				// location needs a parent as we are either:
-				//     - copying the contents of argument tokens
-				//     - copying a macro and are not on any of the preexpanded macro argument tokens
-				//
-				HccLocation* parent_location;
-				HccLocation* child_location;
-				if (is_expanding_args) {
-					// for expanded macro argument tokens:
-					// the child is the macro parameter location for all of the argument tokens.
-					// the parent is the original argument token location at the callsite
-					parent_location = token_location;
-					child_location = parent_or_child_location;
-				} else {
-					// for expanded macro tokens:
-					// the child is the original macro token location
-					// the parent is the whole macro span at the callsite
-					parent_location = parent_or_child_location;
-					child_location = token_location;
-				}
-
-				*dst_location = *child_location;
-				dst_location->parent_location = parent_location;
-			} else {
-				*dst_location = *token_location;
-			}
-		}
+		U32 mask = is_expanding_args || is_expanding_as_args ? HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK : 0;
+		*hcc_stack_push(dst_bag->token_location_indices) = location_idx | mask;
 
 		expand->cursor.token_idx += 1;
 
@@ -2302,7 +2331,7 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 	}
 }
 
-void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag) {
+void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* macro_callsite_location, HccLocation* parent_location, HccPPExpand* arg_expand, HccTokenBag* args_src_bag, HccTokenBag* dst_bag, HccTokenBag* alt_dst_bag, bool is_expanding_into_original_location, bool is_expanding_as_args) {
 	U32 restore_to_tokens_count = hcc_stack_count(alt_dst_bag->tokens);
 	U32 restore_to_token_values_count = hcc_stack_count(alt_dst_bag->token_values);
 	U32 restore_to_expand_args_count = hcc_stack_count(c->pp.macro_args_stack);
@@ -2310,8 +2339,8 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 	HccTokenBag* src_bag = &c->pp.macro_token_bag;
 
 	if (macro->is_function) {
-		args_start_idx = hcc_pp_process_macro_args(c, macro, arg_expand, args_src_bag);
-		HccLocation* final_location = hcc_stack_get(args_src_bag->token_locations, arg_expand->cursor.tokens_end_idx);
+		args_start_idx = hcc_pp_process_macro_args(c, macro, arg_expand, args_src_bag, parent_location);
+		HccLocation* final_location = hcc_token_bag_location_get(c, args_src_bag, arg_expand->cursor.tokens_end_idx - 1);
 		hcc_location_merge_apply(macro_callsite_location, final_location);
 	}
 
@@ -2328,77 +2357,97 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 			HccToken token = *hcc_stack_get(src_bag->tokens, cursor.token_idx);
 			switch (token) {
 				case HCC_TOKEN_MACRO_PARAM: {
+					HccLocation* location = hcc_token_bag_location_get(c, src_bag, cursor.token_idx);
 					U32 param_idx = hcc_stack_get(src_bag->token_values, cursor.token_value_idx)->macro_param_idx;
+
+					HccPPExpand* param_arg_expand = hcc_pp_expand_push_macro_arg(c, param_idx, args_start_idx, NULL);
+					param_arg_expand->macro = arg_expand->macro;
+
+					hcc_pp_copy_expand_range(c, param_arg_expand, alt_dst_bag, args_src_bag, dst_bag, location, is_expanding_as_args ? parent_location : parent_location->parent_location, true, false, false, macro);
+					hcc_pp_expand_pop(c, param_arg_expand);
+
+					cursor.token_idx += 1;
 					cursor.token_value_idx += 1;
-					HccLocation* callsite_location;
-					HccPPExpand* arg_expand = hcc_pp_expand_push_macro_arg(c, param_idx, &callsite_location);
-					hcc_pp_copy_expand_range(c, arg_expand, alt_dst_bag, alt_dst_bag, dst_bag, callsite_location, true);
-					hcc_pp_expand_pop(c, arg_expand);
 					continue;
 				};
 
-				case HCC_TOKEN_MACRO_STRINGIFY: {
+				case HCC_TOKEN_MACRO_STRINGIFY:
+				case HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE: {
 					U32 param_idx = hcc_stack_get(src_bag->token_values, cursor.token_value_idx)->macro_param_idx;
-					cursor.token_value_idx += 1;
 
 					HccLocation* callsite_location;
-					HccPPExpand* arg_expand = hcc_pp_expand_push_macro_arg(c, param_idx, &callsite_location);
+					HccPPExpand* param_arg_expand = hcc_pp_expand_push_macro_arg(c, param_idx, args_start_idx, &callsite_location);
 
-					HccStringId string_id = hcc_token_bag_stringify_range(c, alt_dst_bag, &arg_expand->cursor);
-					hcc_pp_expand_pop(c, arg_expand);
+					hcc_stack_clear(c->pp.stringify_buffer);
+					HccStringId string_id = hcc_token_bag_stringify_range(c, args_src_bag, &param_arg_expand->cursor, NULL, U32_MAX, NULL);
+					hcc_pp_expand_pop(c, param_arg_expand);
 
 					//
-					// push a copy of the location to the expand_locations array for a stable pointer
-					// and parent the location to the callsite that is being stringified
-					HccLocation* location = hcc_stack_push(c->pp.expand_locations);
-					*location = *hcc_pp_copy_expand_get_location(src_bag, cursor.token_idx);
-					location->parent_location = callsite_location;
+					// push on the location
+					*hcc_stack_push(alt_dst_bag->token_location_indices) = hcc_stack_count(c->tokengen.token_locations) | HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK;
+					HccLocation* dst_location = hcc_stack_push(c->tokengen.token_locations);
+					*dst_location = *hcc_token_bag_location_get(c, src_bag, cursor.token_idx);
+					dst_location->parent_location = callsite_location;
+					dst_location->macro = macro;
 
 					*hcc_stack_push(alt_dst_bag->tokens) = HCC_TOKEN_STRING;
-					HccLocation* dst_location = hcc_stack_push(alt_dst_bag->token_locations);
-					dst_location->stable_pointer = location;
-					dst_location->is_preexpanded_macro_arg = true;
 					hcc_stack_push(alt_dst_bag->token_values)->string_id = string_id;
+
+					cursor.token_idx += 1;
+					cursor.token_value_idx += 1;
 					continue;
 				};
 
-				case HCC_TOKEN_MACRO_CONCAT: {
+				case HCC_TOKEN_MACRO_CONCAT:
+				case HCC_TOKEN_MACRO_CONCAT_WHITESPACE: {
 					cursor.token_idx += 1;
 
 					hcc_stack_clear(c->pp.stringify_buffer);
 
-					HccLocation* before = hcc_pp_copy_expand_get_location(src_bag, cursor.token_idx);
-					hcc_token_bag_stringify_single(c, src_bag, &cursor);
+					HccLocation* before = hcc_token_bag_location_get(c, src_bag, cursor.token_idx);
+					hcc_token_bag_stringify_single(c, src_bag, &cursor, macro, args_start_idx, args_src_bag);
 
-					HccLocation* after = hcc_pp_copy_expand_get_location(src_bag, cursor.token_idx);
-					hcc_token_bag_stringify_single(c, src_bag, &cursor);
+					if (*hcc_stack_get(src_bag->tokens, cursor.token_idx) == HCC_TOKEN_MACRO_WHITESPACE) {
+						cursor.token_idx += 1;
+					}
 
-					HccLocation* location = hcc_stack_push(c->pp.expand_locations);
-					*location = *before;
-					hcc_location_merge_apply(location, after);
+					HccLocation* after = hcc_token_bag_location_get(c, src_bag, cursor.token_idx);
+					hcc_token_bag_stringify_single(c, src_bag, &cursor, macro, args_start_idx, args_src_bag);
+
+					U32 location_idx = hcc_stack_count(c->tokengen.token_locations);
+					HccLocation* dst_location = hcc_stack_push(c->tokengen.token_locations);
+					*dst_location = *before;
+
+					hcc_location_merge_apply(dst_location, after);
 
 					HccCodeFile code_file = {0};
 					code_file.path_string = hcc_string_lit("<concat buffer>");
 					code_file.code = hcc_string(c->pp.stringify_buffer, hcc_stack_count(c->pp.stringify_buffer));
+					hcc_tokengen_location_push(c);
+					hcc_tokengen_location_setup_new_file(c, &code_file);
 
-					U32 token_location_start_idx = hcc_stack_count(alt_dst_bag->token_locations);
+					U32 token_location_start_idx = hcc_stack_count(alt_dst_bag->token_location_indices);
 					hcc_tokengen_run(c, alt_dst_bag, HCC_TOKENGEN_RUN_MODE_PP_CONCAT);
 
 					//
 					// hcc_tokengen_run puts the locations in the token bag but we don't care about them.
 					// what we really want is the location that spans the concatination operands and links back to their parents.
 					// so just link to it as a stable pointer.
-					for (U32 idx = token_location_start_idx; idx < hcc_stack_count(alt_dst_bag->token_locations); idx += 1) {
-						HccLocation* dst_location = hcc_stack_get(alt_dst_bag->token_locations, idx);
-						dst_location->stable_pointer = location;
-						dst_location->is_preexpanded_macro_arg = true;
+					for (U32 idx = token_location_start_idx; idx < hcc_stack_count(alt_dst_bag->token_location_indices); idx += 1) {
+						*hcc_stack_get(alt_dst_bag->token_location_indices, idx) = location_idx;
 					}
+
+					//
+					// remove the added locations that we don't care about
+					hcc_stack_resize(c->tokengen.token_locations, location_idx + 1);
 					continue;
 				};
-
 				case HCC_TOKEN_MACRO_WHITESPACE:
-					cursor.token_idx += 1;
-					continue;
+					if (*hcc_stack_get_last(alt_dst_bag->tokens) == HCC_TOKEN_MACRO_WHITESPACE) {
+						cursor.token_idx += 1;
+						continue;
+					}
+					break;
 			}
 
 			//
@@ -2406,18 +2455,7 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 			//
 
 			*hcc_stack_push(alt_dst_bag->tokens) = token;
-
-			//
-			// create location with a stable pointer for this expanded token
-			HccLocation* location = hcc_stack_push(c->pp.expand_locations);
-			*location = *hcc_pp_copy_expand_get_location(src_bag, cursor.token_idx);
-
-			//
-			// create the metadata that includes point to the stable pointer
-			HccLocation* dst_location = hcc_stack_push(alt_dst_bag->token_locations);
-			dst_location->stable_pointer = location;
-			dst_location->is_preexpanded_macro_arg = false;
-
+			*hcc_stack_push(alt_dst_bag->token_location_indices) = *hcc_stack_get(src_bag->token_location_indices, cursor.token_idx);
 			cursor.token_idx += 1;
 
 			U32 num_values = hcc_token_num_values(token);
@@ -2431,7 +2469,6 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 		//
 		// setup the copy expand after so that this same macro can be expanded as a macro argument to itself
 		macro_expand = hcc_pp_expand_push_macro(c, macro);
-		macro_expand->args_start_idx = args_start_idx;
 		macro_expand->cursor.token_idx = tokens_start_idx;
 		macro_expand->cursor.tokens_end_idx = hcc_stack_count(alt_dst_bag->tokens);
 		macro_expand->cursor.token_value_idx = token_values_start_idx;
@@ -2443,10 +2480,11 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 		macro_expand = hcc_pp_expand_push_macro(c, macro);
 	}
 
+
 	//
 	// expand the macro tokens into the dst_bag
 	//
-	hcc_pp_copy_expand_range(c, macro_expand, dst_bag, src_bag, alt_dst_bag, macro_callsite_location, false);
+	hcc_pp_copy_expand_range(c, macro_expand, dst_bag, src_bag, alt_dst_bag, parent_location, NULL, false, is_expanding_into_original_location, is_expanding_as_args, macro);
 	hcc_pp_expand_pop(c, macro_expand);
 
 	//
@@ -2454,13 +2492,13 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 	// that where generated for the expansion of the macro.
 	//
 	hcc_stack_resize(alt_dst_bag->tokens, restore_to_tokens_count);
-	hcc_stack_resize(alt_dst_bag->token_locations, restore_to_tokens_count);
+	hcc_stack_resize(alt_dst_bag->token_location_indices, restore_to_tokens_count);
 	hcc_stack_resize(alt_dst_bag->token_values, restore_to_token_values_count);
 	hcc_stack_resize(c->pp.macro_args_stack, restore_to_expand_args_count);
 }
 
-U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* expand, HccTokenBag* src_bag) {
-	HCC_DEBUG_ASSERT(*hcc_stack_get(src_bag->tokens, expand->cursor.token_idx) != HCC_TOKEN_PARENTHESIS_OPEN , "internal error: expected to be on a '(' for the macro function arguments");
+U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location) {
+	HCC_DEBUG_ASSERT(*hcc_stack_get(src_bag->tokens, expand->cursor.token_idx) == HCC_TOKEN_PARENTHESIS_OPEN, "internal error: expected to be on a '(' for the macro function arguments");
 	expand->cursor.token_idx += 1;
 
 	//
@@ -2468,15 +2506,13 @@ U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* ex
 	// the c->pp.macro_args_stack array
 	//
 	U32 args_start_idx = hcc_stack_count(c->pp.macro_args_stack);
-	HccPPMacroArg* arg = hcc_stack_push(c->pp.macro_args_stack);
-	arg->cursor.tokens_start_idx = expand->cursor.token_idx;
-	arg->cursor.token_value_idx = expand->cursor.token_value_idx;
-	arg->callsite_location = hcc_stack_push(c->pp.expand_locations);
-	*arg->callsite_location = *hcc_pp_copy_expand_get_location(src_bag, expand->cursor.token_idx);
+	HccPPMacroArg* arg = hcc_pp_push_macro_arg(c, expand, src_bag, parent_location);
 	U32 nested_parenthesis = 0;
-	bool reached_va_args = false;
+	bool reached_va_args = macro->has_va_args && macro->params_count == 1;
 	while (1) {
 		HccToken token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx);
+		HccLocation* location = hcc_token_bag_location_get(c, src_bag, expand->cursor.token_idx);
+
 		switch (token) {
 			case HCC_TOKEN_COMMA:
 				if (nested_parenthesis == 0 && !reached_va_args) {
@@ -2484,18 +2520,12 @@ U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* ex
 					// we found a ',' outside of nested_parenthesis,
 					// so lets finalize the current argument and start the next one.
 					expand->cursor.token_idx += 1;
-					arg->cursor.tokens_end_idx = expand->cursor.token_idx - 1;
-					HccLocation* location = hcc_pp_copy_expand_get_location(src_bag, expand->cursor.token_idx - 2);
-					hcc_location_merge_apply(arg->callsite_location, location);
+					hcc_pp_finalize_macro_arg(c, arg, expand, src_bag);
 
 					//
 					// start the next argument
 					//
-					arg = hcc_stack_push(c->pp.macro_args_stack);
-					arg->cursor.tokens_start_idx = expand->cursor.token_idx;
-					arg->cursor.token_value_idx = expand->cursor.token_value_idx;
-					arg->callsite_location = hcc_stack_push(c->pp.expand_locations);
-					*arg->callsite_location = *hcc_pp_copy_expand_get_location(src_bag, expand->cursor.token_idx);
+					arg = hcc_pp_push_macro_arg(c, expand, src_bag, parent_location);
 
 					U32 args_count = hcc_stack_count(c->pp.macro_args_stack) - args_start_idx;
 					if (macro->has_va_args && args_count == macro->params_count) {
@@ -2526,19 +2556,69 @@ U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* ex
 		expand->cursor.token_value_idx += hcc_token_num_values(token);
 	}
 BREAK: {}
-	arg->cursor.tokens_end_idx = expand->cursor.token_idx - 1;
-	HccLocation* location = hcc_pp_copy_expand_get_location(src_bag, expand->cursor.token_idx - 2);
-	hcc_location_merge_apply(arg->callsite_location, location);
+	hcc_pp_finalize_macro_arg(c, arg, expand, src_bag);
 
 	U32 args_count = hcc_stack_count(c->pp.macro_args_stack) - args_start_idx;
+	if (args_count == 1 && arg->cursor.tokens_start_idx == arg->cursor.tokens_end_idx) {
+		args_count = 0;
+	}
+
 	if (args_count < macro->params_count) {
 		// this is not a error that breaks a rule in the C spec.
 		// TODO: see if we want ot have a compiler option to enable this.
 		// hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_NOT_ENOUGH_MACRO_ARGUMENTS, macro->params_count, args_count);
+
+		U32 missing_count = macro->params_count - args_count;
+		HccPPMacroArg* args = hcc_stack_push_many(c->pp.macro_args_stack, missing_count);
+		HCC_ZERO_ELMT_MANY(args, missing_count);
 	} else if (args_count > macro->params_count) {
 		hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_TOO_MANY_MACRO_ARGUMENTS, macro->params_count, args_count);
 	}
 	return args_start_idx;
+}
+	
+HccPPMacroArg* hcc_pp_push_macro_arg(HccCompiler* c, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location) {
+	HccPPMacroArg* arg = hcc_stack_push(c->pp.macro_args_stack);
+	arg->cursor.tokens_start_idx = expand->cursor.token_idx;
+	arg->cursor.token_idx = expand->cursor.token_idx;
+	arg->cursor.token_value_idx = expand->cursor.token_value_idx;
+	arg->callsite_location = hcc_stack_push(c->tokengen.token_locations);
+	*arg->callsite_location = *hcc_token_bag_location_get(c, src_bag, expand->cursor.token_idx);
+	if (parent_location) {
+		hcc_pp_attach_to_most_parent(c, arg->callsite_location, parent_location);
+	}
+	arg->callsite_location->macro = expand->macro;
+	return arg;
+}
+
+void hcc_pp_finalize_macro_arg(HccCompiler* c, HccPPMacroArg* arg, HccPPExpand* expand, HccTokenBag* src_bag) {
+	arg->cursor.tokens_end_idx = expand->cursor.token_idx - 1;
+	HccLocation* location = hcc_token_bag_location_get(c, src_bag, expand->cursor.token_idx - 2);
+	hcc_location_merge_apply(arg->callsite_location, location);
+	if (*hcc_stack_get(src_bag->tokens, arg->cursor.tokens_start_idx) == HCC_TOKEN_MACRO_WHITESPACE) {
+		arg->cursor.tokens_start_idx += 1;
+		arg->cursor.token_idx += 1;
+	}
+
+	if (*hcc_stack_get(src_bag->tokens, arg->cursor.tokens_end_idx - 1) == HCC_TOKEN_MACRO_WHITESPACE) {
+		arg->cursor.tokens_end_idx -= 1;
+	}
+}
+
+void hcc_pp_attach_to_most_parent(HccCompiler* c, HccLocation* location, HccLocation* parent_location) {
+	HccLocation* prev_pl = location;
+	HccLocation* pl = location;
+	while (pl->parent_location) {
+		prev_pl = pl;
+		pl = pl->parent_location;
+	}
+
+	if (prev_pl->parent_location) {
+		pl = hcc_stack_push(c->tokengen.token_locations);
+		*pl = *prev_pl->parent_location;
+		prev_pl->parent_location = pl;
+	}
+	pl->parent_location = parent_location;
 }
 
 // ===========================================
@@ -2572,7 +2652,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_DUPLICATE_MACRO_PARAM_IDENTIFIER] = "duplicate macro argument identifier '%.*s'",
 		[HCC_ERROR_CODE_INVALID_MACRO_PARAM_DELIMITER] = "expected a ',' to declaring more macro arguments or a ')' to finish declaring macro arguments",
 		[HCC_ERROR_CODE_MACRO_PARAM_VA_ARG_NOT_LAST] = "cannot declare another parameter, the vararg '...' parameter must come last",
-		[HCC_ERROR_CODE_MACRO_ALREADY_DEFINED] = "the '%s' macro has already been defined and is not identical",
+		[HCC_ERROR_CODE_MACRO_ALREADY_DEFINED] = "the '%.*s' macro has already been defined and is not identical",
 		[HCC_ERROR_CODE_INVALID_INCLUDE_OPERAND] = "expected a '<' or '\"' to define the path to the file you wish to include",
 		[HCC_ERROR_CODE_TOO_MANY_INCLUDE_OPERANDS] = "too many operands for the '#include' directive",
 		[HCC_ERROR_CODE_INCLUDE_PATH_IS_EMPTY] = "no file path was provided for this include directive",
@@ -2739,7 +2819,9 @@ const char* hcc_warn_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_WARN_CODE_COUNT] 
 
 void hcc_location_merge_apply(HccLocation* before, HccLocation* after) {
 	before->code_end_idx = after->code_end_idx;
-	before->column_start = after->column_start;
+	if (before->line_start != after->line_start) {
+		before->column_start = after->column_start;
+	}
 	before->column_end = after->column_end;
 	before->line_start = after->line_start;
 	before->line_end = after->line_end;
@@ -2807,6 +2889,17 @@ void hcc_message_print_code(HccCompiler* c, HccLocation* location) {
 	if (location->parent_location) {
 		HccLocation* parent_location = location->parent_location;
 		hcc_message_print_code(c, parent_location);
+		printf("\n");
+
+		HccPPMacro* macro = location->macro;
+		if (macro) { 
+			HccString ident_string = hcc_string_table_get(&c->string_table, macro->identifier_string_id);
+
+			const char* error_fmt = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
+				? "\x1b[1;96mexpanded from macro\x1b[97m: %.*s\n\x1b[0m"
+				: "expanded from macro: %.*s\n";
+			printf(error_fmt, (int)ident_string.size, ident_string.data);
+		}
 	}
 	hcc_message_print_file_line(c, location);
 
@@ -3526,9 +3619,11 @@ U32 hcc_function_to_string(HccCompiler* c, HccFunction* function, char* buf, U32
 
 void hcc_tokengen_init(HccCompiler* c, HccCompilerSetup* setup) {
 	c->tokengen.token_bag.tokens = hcc_stack_init(HccToken, setup->tokengen.tokens_cap, HCC_ALLOC_TAG_TOKENGEN_TOKENS);
-	c->tokengen.token_bag.token_locations = hcc_stack_init(HccLocation, setup->tokengen.token_locations_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS);
+	c->tokengen.token_bag.token_location_indices = hcc_stack_init(U32, setup->tokengen.tokens_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES);
 	c->tokengen.token_bag.token_values = hcc_stack_init(HccTokenValue, setup->tokengen.token_values_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES);
+	c->tokengen.token_locations = hcc_stack_init(HccLocation, setup->tokengen.token_locations_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES);
 	c->tokengen.location_stack = hcc_stack_init(HccLocation, setup->tokengen.location_stack_cap, HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK);
+	c->tokengen.open_bracket_stack = hcc_stack_init(HccOpenBracket, setup->tokengen.open_bracket_stack_cap, HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK);
 }
 
 void hcc_tokengen_advance_column(HccCompiler* c, U32 by) {
@@ -3555,7 +3650,8 @@ U32 hcc_tokengen_token_add(HccCompiler* c, HccToken token) {
 	U32 token_idx = hcc_stack_count(c->tokengen.dst_token_bag->tokens);
 	*hcc_stack_push(c->tokengen.dst_token_bag->tokens) = token;
 
-	HccLocation* dst_location = hcc_stack_push(c->tokengen.dst_token_bag->token_locations);
+	*hcc_stack_push(c->tokengen.dst_token_bag->token_location_indices) = hcc_stack_count(c->tokengen.token_locations);
+	HccLocation* dst_location = hcc_stack_push(c->tokengen.token_locations);
 	*dst_location = c->tokengen.location;
 	dst_location->display_line = hcc_tokengen_display_line(c);
 
@@ -3602,7 +3698,7 @@ noreturn void hcc_tokengen_bail_error_1(HccCompiler* c, HccErrorCode error_code,
 }
 
 noreturn void hcc_tokengen_bail_error_2_idx(HccCompiler* c, HccErrorCode error_code, U32 other_token_idx, ...) {
-	HccLocation* other_token_location = other_token_idx == U32_MAX ? NULL : hcc_stack_get(c->tokengen.token_bag.token_locations, other_token_idx);
+	HccLocation* other_token_location = other_token_idx == U32_MAX ? NULL : hcc_token_bag_location_get(c, &c->tokengen.token_bag, other_token_idx);
 
 	va_list va_args;
 	va_start(va_args, other_token_idx);
@@ -3657,6 +3753,7 @@ void hcc_tokengen_location_setup_new_file(HccCompiler* c, HccCodeFile* code_file
 	HccLocation* location = &c->tokengen.location;
 	location->code_file = code_file;
 	location->parent_location = NULL;
+	location->macro = NULL;
 	location->code_start_idx = 0;
 	location->code_end_idx = 0;
 	location->line_start = 1;
@@ -4138,21 +4235,31 @@ void hcc_tokengen_consume_hash_for_define_replacement_list(HccCompiler* c) {
 		}
 
 		HccToken temp_token = *hcc_stack_get_last(c->pp.macro_token_bag.tokens);
-		HccLocation temp_token_location = *hcc_stack_get_last(c->pp.macro_token_bag.token_locations);
+		U32 temp_token_location_idx = *hcc_stack_get_last(c->pp.macro_token_bag.token_location_indices);
+		bool has_left_whitespace = false;
+		if (temp_token == HCC_TOKEN_MACRO_WHITESPACE) {
+			hcc_stack_pop(c->pp.macro_token_bag.tokens);
+			hcc_stack_pop(c->pp.macro_token_bag.token_location_indices);
+			temp_token = *hcc_stack_get_last(c->pp.macro_token_bag.tokens);
+			temp_token_location_idx = *hcc_stack_get_last(c->pp.macro_token_bag.token_location_indices);
+			has_left_whitespace = true;
+		}
 
-		hcc_stack_resize(c->pp.macro_token_bag.tokens, hcc_stack_count(c->pp.macro_token_bag.tokens) - 1);
-		hcc_stack_resize(c->pp.macro_token_bag.token_locations, hcc_stack_count(c->pp.macro_token_bag.token_locations) - 1);
+		hcc_stack_pop(c->pp.macro_token_bag.tokens);
+		hcc_stack_pop(c->pp.macro_token_bag.token_location_indices);
 
 		hcc_tokengen_advance_column(c, 2); // skip the '##'
-		hcc_tokengen_token_add(c, HCC_TOKEN_MACRO_CONCAT);
+		hcc_tokengen_token_add(c, has_left_whitespace ? HCC_TOKEN_MACRO_CONCAT_WHITESPACE : HCC_TOKEN_MACRO_CONCAT);
 
 		*hcc_stack_push(c->pp.macro_token_bag.tokens) = temp_token;
-		*hcc_stack_push(c->pp.macro_token_bag.token_locations) = temp_token_location;
+		*hcc_stack_push(c->pp.macro_token_bag.token_location_indices) = temp_token_location_idx;
 	} else {
 		if (c->tokengen.macro_is_function) {
 			hcc_tokengen_advance_column(c, 1); // skip the '#'
 
+			U32 before_ident_start_idx = c->tokengen.location.code_end_idx;
 			hcc_tokengen_consume_whitespace(c);
+			bool whitespace_after_hash = before_ident_start_idx != c->tokengen.location.code_end_idx;
 			HccString ident_string = hcc_tokengen_parse_ident(c, HCC_ERROR_CODE_STRINGIFY_MUST_BE_MACRO_PARAM);
 			HccStringId ident_string_id = hcc_string_table_deduplicate(&c->string_table, (char*)ident_string.data, ident_string.size);
 
@@ -4172,7 +4279,7 @@ void hcc_tokengen_consume_hash_for_define_replacement_list(HccCompiler* c) {
 			}
 
 			hcc_tokengen_advance_column(c, ident_string.size);
-			hcc_tokengen_token_add(c, HCC_TOKEN_MACRO_STRINGIFY);
+			hcc_tokengen_token_add(c, whitespace_after_hash ? HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE : HCC_TOKEN_MACRO_STRINGIFY);
 			hcc_tokengen_token_value_add(c, ((HccTokenValue) { .macro_param_idx = param_idx }));
 		} else {
 			hcc_tokengen_advance_column(c, 1); // skip the '#'
@@ -4200,19 +4307,19 @@ bool hcc_tokengen_is_first_non_whitespace_on_line(HccCompiler* c) {
 
 
 void hcc_tokengen_bracket_open(HccCompiler* c, HccToken token) {
-	HccOpenBracket* ob = hcc_stack_push(c->tokengen.open_brackets);
+	HccOpenBracket* ob = hcc_stack_push(c->tokengen.open_bracket_stack);
 	HccToken close_token = token + 1; // the close token is defined right away after the open in the HccToken enum
 	ob->close_token = close_token;
 	ob->open_token_idx = hcc_stack_count(c->tokengen.token_bag.tokens);
 }
 
 void hcc_tokengen_bracket_close(HccCompiler* c, HccToken token) {
-	if (hcc_stack_count(c->tokengen.open_brackets) == 0) {
+	if (hcc_stack_count(c->tokengen.open_bracket_stack) == 0) {
 		hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_NO_BRACKETS_OPEN, hcc_token_strings[token]);
 	}
 
-	HccOpenBracket* ob = hcc_stack_get_last(c->tokengen.open_brackets);
-	hcc_stack_pop(c->tokengen.open_brackets);
+	HccOpenBracket* ob = hcc_stack_get_last(c->tokengen.open_bracket_stack);
+	hcc_stack_pop(c->tokengen.open_bracket_stack);
 	if (ob->close_token != token) {
 		hcc_tokengen_advance_column(c, 1);
 		hcc_tokengen_bail_error_2_idx(c, ob->open_token_idx, HCC_ERROR_CODE_INVALID_CLOSE_BRACKET_PAIR, hcc_token_strings[ob->close_token], hcc_token_strings[token]);
@@ -4255,8 +4362,13 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 			case ' ':
 			case '\t':
 				hcc_tokengen_consume_whitespace(c);
-				if (run_mode == HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST) {
-					hcc_tokengen_token_add(c, HCC_TOKEN_MACRO_WHITESPACE);
+				switch (run_mode) {
+					case HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST:
+					case HCC_TOKENGEN_RUN_MODE_PP_MACRO_ARGS:
+						if (*hcc_stack_get_last(dst_token_bag->tokens) != HCC_TOKEN_MACRO_WHITESPACE) {
+							hcc_tokengen_token_add(c, HCC_TOKEN_MACRO_WHITESPACE);
+						}
+						break;
 				}
 				continue;
 			case '\r':
@@ -4270,6 +4382,11 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 					case HCC_TOKENGEN_RUN_MODE_PP_OPERAND:
 					case HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST:
 						goto RETURN;
+					case HCC_TOKENGEN_RUN_MODE_PP_MACRO_ARGS:
+						if (*hcc_stack_get_last(dst_token_bag->tokens) != HCC_TOKEN_MACRO_WHITESPACE) {
+							hcc_tokengen_token_add(c, HCC_TOKEN_MACRO_WHITESPACE);
+						}
+						break;
 				}
 
 				hcc_tokengen_advance_newline(c);
@@ -4460,20 +4577,28 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 			};
 			case '(':
 				macro_args_nested_parenthesis_count += 1;
-				hcc_tokengen_bracket_open(c, HCC_TOKEN_PARENTHESIS_OPEN);
+				token = HCC_TOKEN_PARENTHESIS_OPEN;
+				goto OPEN_BRACKET;
+			case '{': token = HCC_TOKEN_CURLY_OPEN; goto OPEN_BRACKET;
+			case '[': token = HCC_TOKEN_SQUARE_OPEN; goto OPEN_BRACKET;
+OPEN_BRACKET:
+				hcc_tokengen_bracket_open(c, token);
 				break;
-			case '{': hcc_tokengen_bracket_open(c, HCC_TOKEN_CURLY_OPEN); break;
-			case '[': hcc_tokengen_bracket_open(c, HCC_TOKEN_SQUARE_OPEN); break;
 
 			case ')':
 				macro_args_nested_parenthesis_count -= 1;
-				hcc_tokengen_bracket_close(c, HCC_TOKEN_PARENTHESIS_CLOSE);
+				token = HCC_TOKEN_PARENTHESIS_CLOSE;
 				if (run_mode == HCC_TOKENGEN_RUN_MODE_PP_MACRO_ARGS && macro_args_nested_parenthesis_count == 0) {
+					hcc_tokengen_advance_column(c, 1);
+					hcc_tokengen_token_add(c, token);
 					goto RETURN;
 				}
 				break;
-			case '}': hcc_tokengen_bracket_close(c, HCC_TOKEN_CURLY_CLOSE); break;
-			case ']': hcc_tokengen_bracket_close(c, HCC_TOKEN_SQUARE_CLOSE); break;
+			case '}': token = HCC_TOKEN_CURLY_CLOSE; break;
+			case ']': token = HCC_TOKEN_SQUARE_CLOSE; break;
+CLOSE_BRACKET:
+				hcc_tokengen_bracket_close(c, token);
+				break;
 
 			case '"':
 				hcc_tokengen_parse_string(c, '"', false);
@@ -4493,7 +4618,7 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_INVALID_TOKEN_HASH_IN_PP_OPERAND);
 					case HCC_TOKENGEN_RUN_MODE_PP_DEFINE_REPLACEMENT_LIST:
 						hcc_tokengen_consume_hash_for_define_replacement_list(c);
-						break;
+						continue;
 					case HCC_TOKENGEN_RUN_MODE_PP_CONCAT:
 						if (c->tokengen.code[c->tokengen.location.code_end_idx + 1] == '#') {
 							hcc_tokengen_advance_column(c, 2); // skip the '##'
@@ -4556,7 +4681,7 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 				if (run_mode == HCC_TOKENGEN_RUN_MODE_CODE) {
 					U32 macro_idx;
 					if (hcc_hash_table_find(&c->pp.macro_declarations, ident_string_id.idx_plus_one, &macro_idx)) {
-						if (HCC_STRING_ID_PREDEFINED_MACROS_START <= ident_string_id.idx_plus_one || ident_string_id.idx_plus_one < HCC_STRING_ID_PREDEFINED_MACROS_END) {
+						if (HCC_STRING_ID_PREDEFINED_MACROS_START <= ident_string_id.idx_plus_one && ident_string_id.idx_plus_one < HCC_STRING_ID_PREDEFINED_MACROS_END) {
 							HccPPPredefinedMacro m = ident_string_id.idx_plus_one - HCC_STRING_ID_PREDEFINED_MACROS_START;
 							hcc_pp_copy_expand_predefined_macro(c, m);
 							continue;
@@ -4565,9 +4690,6 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 							bool can_expand = true;
 
 							HccLocation macro_callsite_location = c->tokengen.location;
-							macro_callsite_location.code_end_idx -= ident_string.size;
-							macro_callsite_location.column_end -= ident_string.size;
-
 							if (macro->is_function) {
 								HccLocation backup_location = c->tokengen.location;
 								U32 backup_lines_count = hcc_stack_count(c->tokengen.location.code_file->line_code_start_indices);
@@ -4631,6 +4753,12 @@ void hcc_tokengen_print(HccCompiler* c, FILE* f) {
 				string = hcc_string_table_get(&c->string_table, value.string_id);
 				fprintf(f, "%s -> %.*s\n", hcc_token_strings[token], (int)string.size, string.data);
 				break;
+			case HCC_TOKEN_STRING:
+				value = *hcc_stack_get(c->tokengen.token_bag.token_values, token_value_idx);
+				token_value_idx += 1;
+				string = hcc_string_table_get(&c->string_table, value.string_id);
+				fprintf(f, "%s -> \"%.*s\"\n", hcc_token_strings[token], (int)string.size, string.data);
+				break;
 			case HCC_TOKEN_LIT_U32:
 			case HCC_TOKEN_LIT_U64:
 			case HCC_TOKEN_LIT_S32:
@@ -4650,12 +4778,27 @@ void hcc_tokengen_print(HccCompiler* c, FILE* f) {
 	}
 
 	for (U32 macros_idx = 0; macros_idx < hcc_stack_count(c->pp.macros); macros_idx += 1) {
-		HccPPMacro* d = hcc_stack_get(c->pp.macros, macros_idx);
-		HccString name = hcc_string_table_get(&c->string_table, d->identifier_string_id);
-		HccTokenCursor cursor = d->token_cursor;
-		HccStringId string_id = hcc_token_bag_stringify_range(c, &c->pp.macro_token_bag, &cursor);
+		HccPPMacro* macro = hcc_stack_get(c->pp.macros, macros_idx);
+		HccString name = hcc_string_table_get(&c->string_table, macro->identifier_string_id);
+		HccTokenCursor cursor = macro->token_cursor;
+		hcc_stack_clear(c->pp.stringify_buffer);
+		HccStringId string_id = hcc_token_bag_stringify_range(c, &c->pp.macro_token_bag, &cursor, macro, U32_MAX, NULL);
 		HccString string = hcc_string_table_get(&c->string_table, string_id);
-		fprintf(f, "#define %.*s %.*s\n", (int)name.size, name.data, (int)string.size, string.data);
+		fprintf(f, "#define %.*s", (int)name.size, name.data);
+		char macro_param_names[1024];
+		if (macro->is_function) {
+			fprintf(f, "(");
+			for (U32 idx = 0; idx < macro->params_count; idx += 1) {
+				HccStringId param_string_id = *hcc_stack_get(c->pp.macro_params, macro->params_start_idx + idx);
+				HccString param_string = hcc_string_table_get(&c->string_table, param_string_id);
+				fprintf(f, "%.*s", (int)param_string.size, param_string.data);
+				if (idx + 1 < macro->params_count) {
+					fprintf(f, ", ");
+				}
+			}
+			fprintf(f, ")");
+		}
+		fprintf(f, " %.*s\n", (int)string.size, string.data);
 	}
 }
 
@@ -4754,7 +4897,7 @@ void hcc_astgen_error_1(HccCompiler* c, HccErrorCode error_code, ...) {
 	va_list va_args;
 	va_start(va_args, error_code);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
 	hcc_error_pushv(c, error_code, location, NULL, va_args);
 	va_end(va_args);
 }
@@ -4763,8 +4906,8 @@ void hcc_astgen_error_2_idx(HccCompiler* c, HccErrorCode error_code, U32 other_t
 	va_list va_args;
 	va_start(va_args, other_token_idx);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
-	HccLocation* other_location = other_token_idx == U32_MAX ? NULL : hcc_stack_get(c->astgen.token_bag.token_locations, other_token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
+	HccLocation* other_location = other_token_idx == U32_MAX ? NULL : hcc_token_bag_location_get(c, &c->astgen.token_bag, other_token_idx);
 	hcc_error_pushv(c, error_code, location, other_location, va_args);
 	va_end(va_args);
 }
@@ -4773,7 +4916,7 @@ void hcc_astgen_error_2_ptr(HccCompiler* c, HccErrorCode error_code, HccLocation
 	va_list va_args;
 	va_start(va_args, other_location);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
 	hcc_error_pushv(c, error_code, location, other_location, va_args);
 	va_end(va_args);
 }
@@ -4782,7 +4925,7 @@ void hcc_astgen_warn_1(HccCompiler* c, HccWarnCode warn_code, ...) {
 	va_list va_args;
 	va_start(va_args, warn_code);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
 	hcc_warn_pushv(c, warn_code, location, NULL, va_args);
 	va_end(va_args);
 }
@@ -4791,8 +4934,8 @@ void hcc_astgen_warn_2_idx(HccCompiler* c, HccWarnCode warn_code, U32 other_toke
 	va_list va_args;
 	va_start(va_args, other_token_idx);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
-	HccLocation* other_location = other_token_idx == U32_MAX ? NULL : hcc_stack_get(c->astgen.token_bag.token_locations, other_token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
+	HccLocation* other_location = other_token_idx == U32_MAX ? NULL : hcc_token_bag_location_get(c, &c->astgen.token_bag, other_token_idx);
 	hcc_warn_pushv(c, warn_code, location, other_location, va_args);
 	va_end(va_args);
 }
@@ -4801,7 +4944,7 @@ void hcc_astgen_warn_2_ptr(HccCompiler* c, HccWarnCode warn_code, HccLocation* o
 	va_list va_args;
 	va_start(va_args, other_location);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
 	hcc_warn_pushv(c, warn_code, location, other_location, va_args);
 	va_end(va_args);
 }
@@ -4810,7 +4953,7 @@ noreturn void hcc_astgen_bail_error_1(HccCompiler* c, HccErrorCode error_code, .
 	va_list va_args;
 	va_start(va_args, error_code);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
 	hcc_error_pushv(c, error_code, location, NULL, va_args);
 	va_end(va_args);
 
@@ -4821,8 +4964,8 @@ noreturn void hcc_astgen_bail_error_2_idx(HccCompiler* c, HccErrorCode error_cod
 	va_list va_args;
 	va_start(va_args, other_token_idx);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
-	HccLocation* other_location = other_token_idx == U32_MAX ? NULL : hcc_stack_get(c->astgen.token_bag.token_locations, other_token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
+	HccLocation* other_location = other_token_idx == U32_MAX ? NULL : hcc_token_bag_location_get(c, &c->astgen.token_bag, other_token_idx);
 	hcc_error_pushv(c, error_code, location, other_location, va_args);
 	va_end(va_args);
 
@@ -4833,7 +4976,7 @@ noreturn void hcc_astgen_bail_error_2_ptr(HccCompiler* c, HccErrorCode error_cod
 	va_list va_args;
 	va_start(va_args, other_location);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
-	HccLocation* location = hcc_stack_get(c->astgen.token_bag.token_locations, token_idx);
+	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
 	hcc_error_pushv(c, error_code, location, other_location, va_args);
 	va_end(va_args);
 
@@ -11315,15 +11458,15 @@ HccCompilerSetup hcc_compiler_setup_default = {
 		.macro_params_cap = 64 * 1024,
 		.macro_args_stack_cap = 64 * 1024,
 		.expand_stack_cap = 64 * 1024,
-		.expand_locations_cap = 64 * 1024,
 		.stringify_buffer_cap = 64 * 1024,
 		.if_stack_cap = 64 * 1024,
 	},
 	.tokengen = {
-		.token_locations_cap = 64 * 1024,
 		.tokens_cap = 64 * 1024,
 		.token_values_cap = 64 * 1024,
+		.token_locations_cap = 64 * 1024,
 		.location_stack_cap = 64 * 1024,
+		.open_bracket_stack_cap = 64 * 1024,
 	},
 	.astgen = {
 		.function_params_and_variables_cap = 64 * 1024,
@@ -11545,6 +11688,12 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path) {
 
 	hcc_tokengen_location_setup_new_file(c, code_file);
 	hcc_tokengen_run(c, &c->tokengen.token_bag, HCC_TOKENGEN_RUN_MODE_CODE);
+
+	if (1) {
+		c->tokengen.location = *hcc_token_bag_location_get(c, &c->tokengen.token_bag, 0);
+		hcc_error_push(c, HCC_ERROR_CODE_INVALID_PP_LINE_OPERANDS, &c->tokengen.location, NULL);
+		hcc_compiler_bail(c);
+	}
 
 	/*
 	hcc_astgen_generate(c);
