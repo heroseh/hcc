@@ -419,6 +419,7 @@ void _hcc_stack_deinit(HccStack(void) stack, HccAllocTag tag, Uptr elmt_size);
 #define hcc_stack_get_last(stack) hcc_stack_get(stack, hcc_stack_count(stack) - 1)
 #define hcc_stack_get_back(stack, back_idx) hcc_stack_get(stack, hcc_stack_count(stack) - back_idx - 1)
 #define hcc_stack_get_or_null(stack, idx) ((idx) < hcc_stack_count(stack) ? &(stack)[idx] : NULL)
+#define hcc_stack_get_next_push(stack) (&(stack)[hcc_stack_count(stack)])
 
 #define hcc_stack_resize(stack, new_count) _hcc_stack_resize(stack, new_count, sizeof(*(stack)))
 Uptr _hcc_stack_resize(HccStack(void) stack, Uptr new_count, Uptr elmt_size);
@@ -549,6 +550,7 @@ enum {
 	HCC_ERROR_CODE_PP_ENDIF_BEFORE_IF,
 	HCC_ERROR_CODE_PP_ELSEIF_CANNOT_FOLLOW_ELSE,
 	HCC_ERROR_CODE_PP_IF_UNTERMINATED,
+	HCC_ERROR_CODE_INVALID_PP_CONCAT_OPERANDS,
 	HCC_ERROR_CODE_TOO_MANY_UNDEF_OPERANDS,
 	HCC_ERROR_CODE_TOO_MANY_IFDEF_OPERANDS,
 	HCC_ERROR_CODE_PP_DIRECTIVE_NOT_FIRST_ON_LINE,
@@ -781,6 +783,8 @@ struct HccCodeFile {
 	U32                   pp_if_span_id;
 };
 
+HccCodeFile* hcc_code_file_init(HccCompiler* c, HccStringId path_string_id);
+bool hcc_code_file_find_or_insert(HccCompiler* c, HccString path_string, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out);
 U32 hcc_code_file_line_size(HccCodeFile* code_file, U32 line);
 U32 hcc_code_file_lines_count(HccCodeFile* code_file);
 
@@ -1273,12 +1277,14 @@ enum {
 	HCC_TOKEN_INCREMENT,
 	HCC_TOKEN_DECREMENT,
 
+#define HCC_TOKEN_LIT_NUMBERS_START HCC_TOKEN_LIT_U32
 	HCC_TOKEN_LIT_U32,
 	HCC_TOKEN_LIT_U64,
 	HCC_TOKEN_LIT_S32,
 	HCC_TOKEN_LIT_S64,
 	HCC_TOKEN_LIT_F32,
 	HCC_TOKEN_LIT_F64,
+#define HCC_TOKEN_LIT_NUMBERS_END (HCC_TOKEN_LIT_F64 + 1)
 
 	//
 	// keywords
@@ -1335,6 +1341,7 @@ enum {
 #define HCC_TOKEN_KEYWORDS_END HCC_TOKEN_COUNT
 #define HCC_TOKEN_KEYWORDS_COUNT (HCC_TOKEN_KEYWORDS_END - HCC_TOKEN_KEYWORDS_START)
 #define HCC_TOKEN_IS_KEYWORD(token) (HCC_TOKEN_KEYWORDS_START <= (token) && (token) < HCC_TOKEN_KEYWORDS_END)
+#define HCC_TOKEN_IS_LIT_NUMBER(token) (HCC_TOKEN_LIT_NUMBERS_START <= (token) && (token) < HCC_TOKEN_LIT_NUMBERS_END)
 
 	HCC_TOKEN_COUNT,
 };
@@ -1368,11 +1375,13 @@ struct HccTokenCursor {
 extern char* hcc_token_strings[HCC_TOKEN_COUNT];
 
 U32 hcc_token_num_values(HccToken token);
+bool hcc_token_concat_is_okay(HccToken before, HccToken after);
 
 U32 hcc_token_cursor_tokens_count(HccTokenCursor* cursor);
 HccLocation* hcc_token_bag_location_get(HccCompiler* c, HccTokenBag* bag, U32 token_idx);
-void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro, U32 args_start_idx, HccTokenBag* args_src_bag);
-HccStringId hcc_token_bag_stringify_range(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro, U32 args_start_idx, HccTokenBag* args_src_bag);
+void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro);
+HccToken hcc_token_bag_stringify_single_or_macro_param(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, U32 args_start_idx, HccTokenBag* args_src_bag, bool false_before_true_after);
+HccStringId hcc_token_bag_stringify_range(HccCompiler* c, HccTokenBag* bag, HccTokenCursor* cursor, HccPPMacro* macro);
 
 // ===========================================
 //
@@ -1551,7 +1560,7 @@ void hcc_pp_attach_to_most_parent(HccCompiler* c, HccLocation* location, HccLoca
 typedef struct HccOpenBracket HccOpenBracket;
 struct HccOpenBracket {
 	HccToken close_token;
-	U32 open_token_idx;
+	HccLocation* open_token_location;
 };
 
 typedef U8 HccTokenGenRunMode;
@@ -1609,10 +1618,10 @@ U32 hcc_tokengen_token_value_add(HccCompiler* c, HccTokenValue value);
 void hcc_tokengen_count_extra_newlines(HccCompiler* c);
 noreturn void hcc_tokengen_bail_error_1(HccCompiler* c, HccErrorCode error_code, ...);
 noreturn void hcc_tokengen_bail_error_2_idx(HccCompiler* c, HccErrorCode error_code, U32 other_token_idx, ...);
-noreturn void hcc_tokengen_bail_error_2_ptr(HccCompiler* c, HccErrorCode error_code, HccLocation* other_token_location, ...);
+noreturn void hcc_tokengen_bail_error_2_ptr(HccCompiler* c, HccErrorCode error_code, HccLocation* token_location, HccLocation* other_token_location, ...);
 void hcc_tokengen_location_push(HccCompiler* c);
 void hcc_tokengen_location_pop(HccCompiler* c);
-void hcc_tokengen_location_setup_new_file(HccCompiler* c, HccCodeFile* code_file);
+void hcc_tokengen_location_setup_new_file(HccCompiler* c, HccCodeFile* code_file, bool change_dir);
 
 bool hcc_tokengen_consume_backslash(HccCompiler* c);
 void hcc_tokengen_consume_whitespace(HccCompiler* c);
@@ -1628,8 +1637,8 @@ void hcc_tokengen_parse_string(HccCompiler* c, char terminator_byte, bool ignore
 U32 hcc_tokengen_find_macro_param(HccCompiler* c, HccStringId ident_string_id);
 void hcc_tokengen_consume_hash_for_define_replacement_list(HccCompiler* c);
 bool hcc_tokengen_is_first_non_whitespace_on_line(HccCompiler* c);
-void hcc_tokengen_bracket_open(HccCompiler* c, HccToken token);
-void hcc_tokengen_bracket_close(HccCompiler* c, HccToken token);
+void hcc_tokengen_bracket_open(HccCompiler* c, HccToken token, HccLocation* location);
+void hcc_tokengen_bracket_close(HccCompiler* c, HccToken token, HccLocation* location);
 void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRunMode run_mode);
 
 void hcc_tokengen_print(HccCompiler* c, FILE* f);
@@ -2745,6 +2754,7 @@ struct HccCompiler {
 	HccHashTable(HccStringId, HccCodeFileId) path_to_code_file_id_map;
 	U32                   code_file_lines_cap;
 	U32                   code_file_pp_if_spans_cap;
+	HccCodeFile*          concat_buffer_code_file;
 
 	HccPP                 pp;
 	HccTokenGen           tokengen;
@@ -2780,7 +2790,6 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path);
 noreturn void hcc_compiler_bail(HccCompiler* c);
 noreturn void hcc_compiler_bail_allocation_failure(HccCompiler* c, HccAllocTag tag);
 noreturn void hcc_compiler_bail_collection_is_full(HccCompiler* c, HccAllocTag tag);
-bool hcc_compiler_code_file_find_or_insert(HccCompiler* c, HccString path_string, HccCodeFileId* code_file_id_out, HccCodeFile** code_file_out);
 
 bool hcc_options_is_enabled(HccCompiler* c, HccOption opt);
 void hcc_options_set_enabled(HccCompiler* c, HccOption opt);
