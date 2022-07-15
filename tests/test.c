@@ -94,7 +94,6 @@ HCC_DEFINE_STATE(
 	(INTERP,   Vec4, color)
 );
 
-
 vertex BillboardShaderState billboard_shader_vertex(HccVertexInput input) {
 	Vec4 vertices[6] = {
 		vec4(-1.f, -1.f, 0.25f, 1.f),
@@ -161,7 +160,7 @@ fragment Vec4 billboard_shader_fragment(Vec4 state) {
 	struct Struct {
 		U32 a;
 		struct {
-			U32 k;
+			F32 k;
 			S32 d;
 		};
 		union {
@@ -206,16 +205,16 @@ fragment Vec4 billboard_shader_fragment(Vec4 state) {
 			{
 				22u
 			},
-			[44].something_else = 12u,
-			[99].f2 = { [12].i[2] = 34.f },
-			[99] = { .another = 299u }
+			[1].something_else = 12u,
+			[2].f2 = { [12].i[1] = 34.f },
+			[3] = { .another = 299u }
 		}
 	};
 
 	TypedefStruct st = {
 		66u,
 		{
-			.k = 44u,
+			.k = 44.f,
 			.d = -22,
 		},
 		{

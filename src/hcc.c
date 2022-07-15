@@ -98,7 +98,6 @@ const char* hcc_alloc_tag_strings[HCC_ALLOC_TAG_COUNT] = {
 
 #define HCC_DEBUG_CODE_SPAN_PUSH_POP 0
 #define HCC_DEBUG_CODE_PREPROCESSOR 0
-#define HCC_DEBUG_CODE_MACRO_EXPAND 1
 #define HCC_DEBUG_CODE_IF_SPAN 0
 
 void _hcc_assert_failed(const char* cond, const char* file, int line, const char* message, ...) {
@@ -1069,18 +1068,19 @@ HccPPMacro* hcc_pp_macro_get(HccCompiler* c, U32 macro_idx) {
 
 HccPPIfSpan* hcc_pp_if_span_get(HccCompiler* c, U32 if_span_id) {
 	HCC_DEBUG_ASSERT_NON_ZERO(if_span_id);
-	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
+	HccCodeFile* code_file = c->tokengen.location.code_file;
 	return hcc_stack_get(code_file->pp_if_spans, if_span_id - 1);
 }
 
 U32 hcc_pp_if_span_id(HccCompiler* c, HccPPIfSpan* if_span) {
-	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
+	HccCodeFile* code_file = c->tokengen.location.code_file;
 	HCC_DEBUG_ASSERT(code_file->pp_if_spans <= if_span && if_span <= hcc_stack_get_last(code_file->pp_if_spans), "if_span is out of the array bounds");
 	U32 id = (if_span - hcc_stack_get_first(code_file->pp_if_spans)) + 1;
 	return id;
 }
 
-HccPPIfSpan* hcc_pp_if_span_push(HccCompiler* c, HccCodeFile* code_file, HccPPDirective directive) {
+HccPPIfSpan* hcc_pp_if_span_push(HccCompiler* c, HccPPDirective directive) {
+	HccCodeFile* code_file = c->tokengen.location.code_file;
 	U32 id = hcc_stack_count(code_file->pp_if_spans) + 1;
 
 	HccPPIfSpan* pp_if_span;
@@ -1117,14 +1117,13 @@ HccPPIfSpan* hcc_pp_if_span_push(HccCompiler* c, HccCodeFile* code_file, HccPPDi
 }
 
 void hcc_pp_if_found_if(HccCompiler* c, HccPPDirective directive) {
-	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
-	HccPPIfSpan* pp_if_span = hcc_pp_if_span_push(c, code_file, directive);
+	HccPPIfSpan* pp_if_span = hcc_pp_if_span_push(c, directive);
 	*hcc_stack_push(c->pp.if_span_stack) = pp_if_span;
 }
 
 HccPPIfSpan* hcc_pp_if_found_if_counterpart(HccCompiler* c, HccPPDirective directive) {
-	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
-	HccPPIfSpan* counterpart = hcc_pp_if_span_push(c, code_file, directive);
+	HccCodeFile* code_file = c->tokengen.location.code_file;
+	HccPPIfSpan* counterpart = hcc_pp_if_span_push(c, directive);
 	U32 id = hcc_pp_if_span_id(c, counterpart);
 
 	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
@@ -1159,7 +1158,7 @@ void hcc_pp_if_found_else(HccCompiler* c, HccPPDirective directive) {
 void hcc_pp_if_ensure_first_else(HccCompiler* c, HccPPDirective directive) {
 	HccPPIfSpan* pp_if_span = *hcc_stack_get_last(c->pp.if_span_stack);
 
-	HccCodeFile* code_file = hcc_stack_get_last(c->code_files);
+	HccCodeFile* code_file = c->tokengen.location.code_file;
 	if (!(code_file->flags & HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE)) {
 		if (pp_if_span->has_else) {
 			hcc_tokengen_bail_error_2_ptr(c, HCC_ERROR_CODE_PP_ELSEIF_CANNOT_FOLLOW_ELSE, &c->tokengen.location, &pp_if_span->location, hcc_pp_directive_strings[directive]);
@@ -1508,7 +1507,7 @@ void hcc_pp_parse_define(HccCompiler* c) {
 	U32 tokens_count = tokens_end_idx - tokens_start_idx;
 	U32 token_values_count = token_values_end_idx - token_values_start_idx;
 
-	if (c->pp.macro_token_bag.tokens[tokens_end_idx - 1] == HCC_TOKEN_MACRO_WHITESPACE) {
+	if (tokens_count && c->pp.macro_token_bag.tokens[tokens_end_idx - 1] == HCC_TOKEN_MACRO_WHITESPACE) {
 		tokens_end_idx -= 1;
 		tokens_count -= 1;
 	}
@@ -2137,10 +2136,9 @@ void hcc_pp_skip_false_conditional(HccCompiler* c, bool is_skipping_until_endif)
 					case HCC_PP_DIRECTIVE_WARNING:
 					case HCC_PP_DIRECTIVE_PRAGMA:
 						//
-						// we are skipping code an these directive have no
-						// impact on breaking out of the skipping process.
-						// so just continue skipping.
-						//
+						// consume until the new line and continue so the operands
+						// of these defines do not mess with the skipping code.
+						hcc_tokengen_consume_until_any_byte(c, "\n");
 						break;
 					case HCC_PP_DIRECTIVE_IF:
 					case HCC_PP_DIRECTIVE_IFDEF:
@@ -2383,9 +2381,12 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 				HccPPMacro* macro = hcc_pp_macro_get(c, macro_idx);
 				bool can_expand = true;
 				if (macro->is_function) {
-					HccToken next_token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx + 1);
-					HccToken next_next_token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx + 2);
-					can_expand = next_token == HCC_TOKEN_PARENTHESIS_OPEN || (next_token == HCC_TOKEN_MACRO_WHITESPACE && next_next_token == HCC_TOKEN_PARENTHESIS_OPEN);
+					HccToken* next_token = hcc_stack_get_or_null(src_bag->tokens, expand->cursor.token_idx + 1);
+					HccToken* next_next_token = hcc_stack_get_or_null(src_bag->tokens, expand->cursor.token_idx + 2);
+					can_expand = next_token &&
+						(*next_token == HCC_TOKEN_PARENTHESIS_OPEN ||
+							(*next_token == HCC_TOKEN_MACRO_WHITESPACE &&
+								next_next_token && *next_next_token == HCC_TOKEN_PARENTHESIS_OPEN));
 				}
 
 				if (can_expand) {
@@ -2615,8 +2616,13 @@ void hcc_pp_copy_expand_macro(HccCompiler* c, HccPPMacro* macro, HccLocation* ma
 }
 
 U32 hcc_pp_process_macro_args(HccCompiler* c, HccPPMacro* macro, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location) {
-	HCC_DEBUG_ASSERT(*hcc_stack_get(src_bag->tokens, expand->cursor.token_idx) == HCC_TOKEN_PARENTHESIS_OPEN, "internal error: expected to be on a '(' for the macro function arguments");
-	expand->cursor.token_idx += 1;
+	HCC_DEBUG_ASSERT(
+		*hcc_stack_get(src_bag->tokens, expand->cursor.token_idx) == HCC_TOKEN_PARENTHESIS_OPEN ||
+			(*hcc_stack_get(src_bag->tokens, expand->cursor.token_idx) == HCC_TOKEN_MACRO_WHITESPACE &&
+				*hcc_stack_get(src_bag->tokens, expand->cursor.token_idx + 1) == HCC_TOKEN_PARENTHESIS_OPEN),
+		"internal error: expected to be on a '(' for the macro function arguments"
+	);
+	expand->cursor.token_idx += *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx) == HCC_TOKEN_MACRO_WHITESPACE ? 2 : 1;
 
 	//
 	// scan the src_bag tokens and keep a record of the token ranges for each macro argument in
@@ -2831,7 +2837,6 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_STRINGIFY_MUST_BE_MACRO_PARAM] = "macro stringify '#' operator can only be used on a macro parameter",
 		[HCC_ERROR_CODE_INVALID_TOKEN] = "invalid token '%c'",
 		[HCC_ERROR_CODE_INVALID_TOKEN_HASH_IN_PP_OPERAND] = "invalid token '#', not allowed in preprocessor operand",
-		[HCC_ERROR_CODE_PP_DIRECTIVE_MUST_BE_FIRST_ON_LINE] = "invalid token '#', preprocessor directives must be the first non-whitespace on the line",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_PP_IF_DEFINED] = "expected an 'identifier' of a macro to follow the 'defined' preprocessor unary operator",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_DEFINED] = "expected an ')' to finish the 'defined' preprocessor unary operator",
 		[HCC_ERROR_CODE_INVALID_USE_OF_VA_ARGS] = "'__VA_ARGS__' can only be used in a function-like macro that has '...' as it's last parameter",
@@ -2882,7 +2887,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_ARRAY_DESIGNATOR_EXPECTED_SQUARE_BRACE_CLOSE] = "expected ']' to finish the array designator",
 		[HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_ARRAY_DESIGNATOR] = "expected an '=' to assign a value or a '[' for an array designator",
 		[HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_FIELD_DESIGNATOR] = "expected an '=' to assign a value or a '.' for an field designator",
-		[HCC_ERROR_CODE_EXPECTED_ASSIGN] = "expected an '=' to assign a value",
+		[HCC_ERROR_CODE_EXPECTED_ASSIGN] = "expected an '=' to assign a '%.*s' value",
 		[HCC_ERROR_CODE_UNARY_OPERATOR_NOT_SUPPORTED] = "unary operator '%s' is not supported for the '%.*s' data type",
 		[HCC_ERROR_CODE_UNDECLARED_IDENTIFIER] = "undeclared identifier '%.*s'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_EXPR] = "expected a ')' here to finish the expression",
@@ -4821,7 +4826,7 @@ CLOSE_BRACKET:
 							hcc_pp_parse_directive(c);
 							continue;
 						} else {
-							hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_DIRECTIVE_MUST_BE_FIRST_ON_LINE);
+							hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_DIRECTIVE_NOT_FIRST_ON_LINE);
 						}
 						break;
 				}
@@ -4920,6 +4925,9 @@ CLOSE_BRACKET:
 	}
 
 RETURN: {}
+	if (run_mode == HCC_TOKENGEN_RUN_MODE_CODE && hcc_stack_count(c->tokengen.location_stack) == 0) {
+		hcc_tokengen_token_add(c, HCC_TOKEN_EOF);
+	}
 	c->tokengen.run_mode = old_run_mode;
 	c->tokengen.dst_token_bag = old_dst_token_bag;
 }
@@ -5074,6 +5082,9 @@ void hcc_astgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 		}
 	}
 
+	hcc_stack_resize(c->astgen.typedefs, HCC_TYPEDEF_IDX_USER_START);
+	hcc_stack_resize(c->astgen.compound_data_types, HCC_COMPOUND_DATA_TYPE_IDX_USER_START);
+
 	hcc_hash_table_init(&astgen->field_name_to_token_idx, setup->astgen.compound_type_fields_cap, HCC_ALLOC_TAG_ASTGEN_FIELD_NAME_TO_TOKEN_IDX);
 }
 
@@ -5213,7 +5224,7 @@ HccCompoundField* hcc_astgen_compound_data_type_find_field_by_name_checked(HccCo
 	if (field == NULL) {
 		HccString data_type_name = hcc_data_type_string(c, data_type);
 		HccString identifier_string = hcc_string_table_get(&c->string_table, identifier_string_id);
-		hcc_astgen_error_2_idx(c, HCC_ERROR_CODE_CANNOT_FIND_FIELD, compound_data_type->identifier_token_idx, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data);
+		hcc_astgen_bail_error_2_idx(c, HCC_ERROR_CODE_CANNOT_FIND_FIELD, compound_data_type->identifier_token_idx, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data);
 	}
 	return field;
 }
@@ -5708,6 +5719,7 @@ U32 hcc_astgen_variable_stack_find(HccCompiler* c, HccStringId string_id) {
 
 HccToken hcc_astgen_curly_initializer_init(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type, HccExpr* first_expr) {
 	HccAstGenCurlyInitializer* gen = &c->astgen.curly_initializer;
+	hcc_stack_clear(gen->nested_curlys);
 	hcc_stack_clear(gen->nested_elmts);
 	gen->elmt_data_type = data_type;
 	gen->resolved_elmt_data_type = resolved_data_type;
@@ -5739,6 +5751,7 @@ HccToken hcc_astgen_curly_initializer_open(HccCompiler* c) {
 		.nested_elmts_start_idx = hcc_stack_count(gen->nested_elmts) + 1,
 		.found_designator = false,
 	};
+
 	hcc_astgen_curly_initializer_tunnel_in(c);
 	return hcc_astgen_token_next(c);
 }
@@ -5759,7 +5772,7 @@ HccToken hcc_astgen_curly_initializer_close(HccCompiler* c) {
 	return hcc_astgen_token_next(c);
 }
 
-void hcc_astgen_curly_initializer_next_elmt(HccCompiler* c) {
+bool hcc_astgen_curly_initializer_next_elmt(HccCompiler* c, HccDataType resolved_target_data_type) {
 	HccAstGenCurlyInitializer* gen = &c->astgen.curly_initializer;
 
 	//
@@ -5767,9 +5780,12 @@ void hcc_astgen_curly_initializer_next_elmt(HccCompiler* c) {
 	while (1) {
 		HccAstGenCurlyInitializerElmt* nested_elmt = hcc_stack_get_last(gen->nested_elmts);
 		HccAstGenCurlyInitializerCurly* curly = hcc_stack_get_last(gen->nested_curlys);
-		nested_elmt->elmt_idx += 1;
+		bool had_explicit_designator_for_union_field = nested_elmt->had_explicit_designator_for_union_field;
 
-		if (nested_elmt->elmt_idx >= gen->elmts_end_idx) {
+		nested_elmt->elmt_idx += 1;
+		nested_elmt->had_explicit_designator_for_union_field = false;
+
+		if (!had_explicit_designator_for_union_field && nested_elmt->elmt_idx >= gen->elmts_end_idx) {
 			//
 			// the end of this initializer/data_type has been reached.
 			// it could be either a composite or non composite data type.
@@ -5781,8 +5797,7 @@ void hcc_astgen_curly_initializer_next_elmt(HccCompiler* c) {
 				// so we have a initializer that is targeting nothing.
 				HccString data_type_name = hcc_data_type_string(c, gen->composite_data_type);
 				hcc_astgen_warn_1(c, HCC_WARN_CODE_UNUSED_INITIALIZER_REACHED_END, (int)data_type_name.size, data_type_name.data);
-				nested_elmt->elmt_idx -= 1; // avoid potential overflow when calling back into this function a crazy amount of times
-				return;
+				return false;
 			} else {
 				//
 				// otherwise we are tunneled inside a nested composite data type.
@@ -5797,13 +5812,21 @@ void hcc_astgen_curly_initializer_next_elmt(HccCompiler* c) {
 				gen->elmt_data_type = gen->compound_fields[nested_elmt->elmt_idx].data_type;
 				gen->resolved_elmt_data_type = hcc_typedef_resolve(c, gen->elmt_data_type);
 			}
+			
+			if (resolved_target_data_type == gen->resolved_elmt_data_type) {
+				return true;
+			}
+
+			if (resolved_target_data_type == HCC_DATA_TYPE_VOID) {
+				return true;
+			}
 
 			if (HCC_DATA_TYPE_IS_COMPOSITE_TYPE(gen->resolved_elmt_data_type)) {
 				hcc_astgen_curly_initializer_tunnel_in(c);
 			} else {
 				//
 				// we found the non composite data type
-				return;
+				return true;
 			}
 		}
 	}
@@ -5820,6 +5843,8 @@ HccToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccCompiler* c) 
 	// remove all of the excess nested elements so we are back on
 	// the open curly braces that we are in.
 	hcc_stack_resize(gen->nested_elmts, curly->nested_elmts_start_idx);
+	HccAstGenCurlyInitializerElmt* nested_elmt = hcc_stack_get_last(gen->nested_elmts);
+	hcc_astgen_curly_initializer_set_composite(c, nested_elmt->data_type, nested_elmt->resolved_data_type);
 
 	//
 	// parse and process the chain of designators for the composite types
@@ -5901,7 +5926,8 @@ HccToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccCompiler* c) 
 			// we reach here after processing a array or field designator that is followed by a '='
 			goto END;
 		} else if (!HCC_DATA_TYPE_IS_COMPOSITE_TYPE(gen->resolved_elmt_data_type)) {
-			hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_ASSIGN);
+			HccString data_type_name = hcc_data_type_string(c, gen->elmt_data_type);
+			hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_ASSIGN, (int)data_type_name.size, data_type_name.data);
 		}
 
 		hcc_astgen_curly_initializer_set_composite(c, gen->elmt_data_type, gen->resolved_elmt_data_type);
@@ -5909,6 +5935,18 @@ HccToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccCompiler* c) 
 END: {}
 	token = hcc_astgen_token_next(c);
 
+	//
+	// pop off the last nested element since we don't
+	// want to tunnel into the last designator in the chain.
+	hcc_stack_pop(gen->nested_elmts);
+
+	if (token != HCC_TOKEN_CURLY_OPEN) {
+		// take away one as the next call to hcc_astgen_curly_initializer_next_elmt
+		// will increment it past where the designator has specified.
+		nested_elmt = hcc_stack_get_last(gen->nested_elmts);
+		nested_elmt->elmt_idx -= 1;
+		nested_elmt->had_explicit_designator_for_union_field = HCC_DATA_TYPE_IS_UNION(gen->resolved_composite_data_type);
+	}
 	return token;
 }
 
@@ -5952,6 +5990,8 @@ void hcc_astgen_curly_initializer_set_composite(HccCompiler* c, HccDataType data
 	} else if (HCC_DATA_TYPE_IS_COMPOUND_TYPE(gen->resolved_composite_data_type)) {
 		gen->compound_data_type = hcc_compound_data_type_get(c, gen->resolved_composite_data_type);
 		gen->compound_fields = hcc_stack_get(c->astgen.compound_fields, gen->compound_data_type->fields_start_idx);
+		gen->elmt_data_type = gen->compound_fields[0].data_type;
+		gen->resolved_elmt_data_type = hcc_typedef_resolve(c, gen->elmt_data_type);
 
 		gen->elmts_end_idx = HCC_DATA_TYPE_IS_UNION(gen->resolved_composite_data_type) ? 1 : gen->compound_data_type->fields_count;
 	} else {
@@ -6531,6 +6571,7 @@ HccDataType hcc_astgen_generate_typedef_with_data_type(HccCompiler* c, HccDataTy
 			typedef_idx = intrinsic_id - 1;
 			typedef_ = &c->astgen.typedefs[typedef_idx];
 		} else {
+			typedef_idx = hcc_stack_count(c->astgen.typedefs);
 			typedef_ = hcc_stack_push(c->astgen.typedefs);
 		}
 
@@ -6762,26 +6803,30 @@ UNARY:
 			token = hcc_astgen_curly_initializer_init(c, assign_data_type, resolved_assign_data_type, variable_expr);
 
 			while (1) {
-				if (token == HCC_TOKEN_FULL_STOP || token == HCC_TOKEN_SQUARE_OPEN) {
-					token = hcc_astgen_curly_initializer_next_elmt_with_designator(c);
-				} else if (hcc_stack_get_last(gen->nested_curlys)->found_designator) {
-					hcc_astgen_warn_1(c, HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR);
-				} else {
-					hcc_astgen_curly_initializer_next_elmt(c);
-				}
-
 				if (token == HCC_TOKEN_CURLY_OPEN) {
+					hcc_astgen_curly_initializer_next_elmt(c, HCC_DATA_TYPE_VOID);
 					token = hcc_astgen_curly_initializer_open(c);
 					continue;
 				}
-
-				HccExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(c);
+				if (token == HCC_TOKEN_FULL_STOP || token == HCC_TOKEN_SQUARE_OPEN) {
+					token = hcc_astgen_curly_initializer_next_elmt_with_designator(c);
+					if (token == HCC_TOKEN_CURLY_OPEN) {
+						token = hcc_astgen_curly_initializer_open(c);
+						continue;
+					}
+				} else if (hcc_stack_get_last(gen->nested_curlys)->found_designator) {
+					hcc_astgen_warn_1(c, HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR);
+				}
 
 				HccExpr* value_expr = hcc_astgen_generate_expr(c, 0);
-				U32 other_token_idx = U32_MAX;
-				hcc_data_type_ensure_compatible_assignment(c, other_token_idx, c->astgen.curly_initializer.elmt_data_type, &value_expr);
-
-				initializer_expr->designated_initializer.value_expr_rel_idx = value_expr - initializer_expr;
+				HccDataType resolved_value_data_type = hcc_typedef_resolve(c, value_expr->data_type);
+				bool emit_elmt_initializer = hcc_astgen_curly_initializer_next_elmt(c, resolved_value_data_type);
+				if (emit_elmt_initializer) {
+					HccExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(c);
+					U32 other_token_idx = U32_MAX;
+					hcc_data_type_ensure_compatible_assignment(c, other_token_idx, c->astgen.curly_initializer.elmt_data_type, &value_expr);
+					initializer_expr->designated_initializer.value_expr_rel_idx = initializer_expr - value_expr;
+				}
 
 				token = hcc_astgen_token_peek(c);
 
@@ -7185,16 +7230,14 @@ HccExpr* hcc_astgen_generate_field_access_expr(HccCompiler* c, HccExpr* left_exp
 		const_mask = HCC_DATA_TYPE_CONST_MASK;
 	}
 
-	HccExpr* deepest_expr = hcc_stack_get_last(c->astgen.exprs);
 	U32 fields_count = hcc_stack_count(c->astgen.compound_type_find_fields);
 	for (U32 i = 0; i < fields_count; i += 1) {
 		HccFieldAccess* access = hcc_stack_get(c->astgen.compound_type_find_fields, i);
 		HccExpr* expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_FIELD_ACCESS);
-		expr->binary.left_expr_rel_idx = 1; // link to the previous expression
+		expr->binary.left_expr_rel_idx = i == 0 ? (expr - left_expr) : 1; // link to the previous expression
 		expr->binary.right_expr_rel_idx = access->idx;
 		expr->data_type = access->data_type | const_mask;
 	}
-	deepest_expr->binary.left_expr_rel_idx = deepest_expr - left_expr;
 
 	HccExpr* field_access_expr = hcc_stack_get_last(c->astgen.exprs);
 	return field_access_expr;
@@ -8221,7 +8264,7 @@ BINARY:
 				fprintf(f, " = ");
 
 				if (initializer_expr->designated_initializer.value_expr_rel_idx) {
-					HccExpr* value_expr = &initializer_expr[initializer_expr->designated_initializer.value_expr_rel_idx];
+					HccExpr* value_expr = initializer_expr - initializer_expr->designated_initializer.value_expr_rel_idx;
 					hcc_astgen_print_expr(c, value_expr, 0, f);
 				} else {
 					fprintf(f, "<ZERO>\n");
@@ -8312,7 +8355,7 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 		fprintf(f, "ENUM(#%u): %.*s {\n", enum_type_idx, (int)name.size, name.data);
 		for (U32 value_idx = 0; value_idx < d->values_count; value_idx += 1) {
 			HccEnumValue* value = hcc_stack_get(c->astgen.enum_values, d->values_start_idx + value_idx);
-			HccString identifier = hcc_string_table_get(&c->string_table, value->identifier_string_id);
+			HccString identifier = hcc_string_table_get_or_empty(&c->string_table, value->identifier_string_id);
 
 			HccConstant constant = hcc_constant_table_get(c, value->value_constant_id);
 
@@ -8339,7 +8382,7 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 			HccString data_type_name = hcc_data_type_string(c, field->data_type);
 			fprintf(f, "\t\t%.*s ", (int)data_type_name.size, data_type_name.data);
 			if (field->identifier_string_id.idx_plus_one) {
-				HccString identifier = hcc_string_table_get(&c->string_table, field->identifier_string_id);
+				HccString identifier = hcc_string_table_get_or_empty(&c->string_table, field->identifier_string_id);
 				fprintf(f, "%.*s\n", (int)identifier.size, identifier.data);
 			} else {
 				fprintf(f, "\n");
@@ -8363,7 +8406,7 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 
 	for (U32 typedefs_idx = 0; typedefs_idx < hcc_stack_count(c->astgen.typedefs); typedefs_idx += 1) {
 		HccTypedef* d = hcc_stack_get(c->astgen.typedefs, typedefs_idx);
-		HccString name = hcc_string_table_get(&c->string_table, d->identifier_string_id);
+		HccString name = hcc_string_table_get_or_empty(&c->string_table, d->identifier_string_id);
 		HccString aliased_data_type_name = hcc_data_type_string(c, d->aliased_data_type);
 		fprintf(f, "typedef(#%u) %.*s %.*s\n", typedefs_idx, (int)aliased_data_type_name.size, aliased_data_type_name.data, (int)name.size, name.data);
 	}
@@ -8384,7 +8427,7 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 		if (function->identifier_string_id.idx_plus_one == 0) {
 			continue;
 		}
-		HccString name = hcc_string_table_get(&c->string_table, function->identifier_string_id);
+		HccString name = hcc_string_table_get_or_empty(&c->string_table, function->identifier_string_id);
 		HccString return_data_type_name = hcc_data_type_string(c, function->return_data_type);
 		fprintf(f, "Function(#%u): %.*s {\n", function_idx, (int)name.size, name.data);
 		fprintf(f, "\treturn_type: %.*s\n", (int)return_data_type_name.size, return_data_type_name.data);
@@ -9356,7 +9399,7 @@ UNARY:
 
 				HccIROperand value_operand;
 				if (initializer_expr->designated_initializer.value_expr_rel_idx) {
-					HccExpr* value_expr = &initializer_expr[initializer_expr->designated_initializer.value_expr_rel_idx];
+					HccExpr* value_expr = initializer_expr - initializer_expr->designated_initializer.value_expr_rel_idx;
 					hcc_irgen_generate_instructions(c, value_expr);
 					value_operand = c->irgen.last_operand;
 				} else {
@@ -11605,13 +11648,23 @@ HccStringId hcc_string_table_deduplicate(HccStringTable* string_table, char* str
 
 HccString hcc_string_table_get(HccStringTable* string_table, HccStringId id) {
 	HCC_DEBUG_ASSERT(id.idx_plus_one, "string id is null");
+	U32 idx = id.idx_plus_one - 1;
+	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(idx, string_table->entries_count);
 
-	HccStringEntry* entry = &string_table->entries[id.idx_plus_one - 1];
+	HccStringEntry* entry = &string_table->entries[idx];
 
 	HccString string;
 	string.data = string_table->data + entry->start_idx;
 	string.size = entry->size;
 	return string;
+}
+
+HccString hcc_string_table_get_or_empty(HccStringTable* string_table, HccStringId id) {
+	if (id.idx_plus_one - 1 < string_table->entries_count) {
+		return hcc_string_table_get(string_table, id);
+	}
+
+	return hcc_string_lit("");
 }
 
 char* hcc_string_intrinsic_param_names[HCC_STRING_ID_INTRINSIC_PARAM_NAMES_END] = {
@@ -11875,9 +11928,9 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path) {
 	hcc_tokengen_location_setup_new_file(c, code_file, true);
 	hcc_tokengen_run(c, &c->tokengen.token_bag, HCC_TOKENGEN_RUN_MODE_CODE);
 
-	/*
 	hcc_astgen_generate(c);
 
+	/*
 	if (c->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
 		return false;
 	}
@@ -11887,13 +11940,13 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path) {
 	*/
 
 	hcc_tokengen_print(c, stdout);
-	//hcc_astgen_print(c, stdout);
+	hcc_astgen_print(c, stdout);
 	//hcc_irgen_print(c, stdout);
 
 	c->flags &= ~HCC_COMPILER_FLAGS_SET_LONG_JMP;
 	HCC_ZERO_ELMT(&c->compile_entry_jmp_loc);
 
-	return true;
+	return !hcc_stack_count(c->message_sys.elmts);
 }
 
 noreturn void hcc_compiler_bail(HccCompiler* c) {

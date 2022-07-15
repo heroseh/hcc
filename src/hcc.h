@@ -573,7 +573,6 @@ enum {
 	HCC_ERROR_CODE_STRINGIFY_MUST_BE_MACRO_PARAM,
 	HCC_ERROR_CODE_INVALID_TOKEN,
 	HCC_ERROR_CODE_INVALID_TOKEN_HASH_IN_PP_OPERAND,
-	HCC_ERROR_CODE_PP_DIRECTIVE_MUST_BE_FIRST_ON_LINE,
 	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_PP_IF_DEFINED,
 	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_DEFINED,
 	HCC_ERROR_CODE_INVALID_USE_OF_VA_ARGS,
@@ -1511,7 +1510,7 @@ void hcc_pp_init(HccCompiler* c, HccCompilerSetup* setup);
 HccPPMacro* hcc_pp_macro_get(HccCompiler* c, U32 macro_idx);
 HccPPIfSpan* hcc_pp_if_span_get(HccCompiler* c, U32 if_span_id);
 U32 hcc_pp_if_span_id(HccCompiler* c, HccPPIfSpan* if_span);
-HccPPIfSpan* hcc_pp_if_span_push(HccCompiler* c, HccCodeFile* code_file, HccPPDirective directive);
+HccPPIfSpan* hcc_pp_if_span_push(HccCompiler* c, HccPPDirective directive);
 void hcc_pp_if_found_if(HccCompiler* c, HccPPDirective directive);
 HccPPIfSpan* hcc_pp_if_found_if_counterpart(HccCompiler* c, HccPPDirective directive);
 void hcc_pp_if_found_endif(HccCompiler* c);
@@ -1851,7 +1850,8 @@ typedef struct HccAstGenCurlyInitializerElmt  HccAstGenCurlyInitializerElmt;
 struct HccAstGenCurlyInitializerElmt {
 	HccDataType data_type; // this is the outer data type that we are initializing at this nested layer
 	HccDataType resolved_data_type;
-	U64 elmt_idx; // this is the element index into the outer data type that we are initializing
+	U64 elmt_idx: 63; // this is the element index into the outer data type that we are initializing
+	U64 had_explicit_designator_for_union_field: 1;
 };
 
 typedef struct HccAstGenDesignatorInitializer HccAstGenDesignatorInitializer;
@@ -2087,7 +2087,7 @@ U32 hcc_astgen_variable_stack_find(HccCompiler* c, HccStringId string_id);
 HccToken hcc_astgen_curly_initializer_init(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type, HccExpr* first_expr);
 HccToken hcc_astgen_curly_initializer_open(HccCompiler* c);
 HccToken hcc_astgen_curly_initializer_close(HccCompiler* c);
-void hcc_astgen_curly_initializer_next_elmt(HccCompiler* c);
+bool hcc_astgen_curly_initializer_next_elmt(HccCompiler* c, HccDataType resolved_target_data_type);
 HccToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccCompiler* c);
 void hcc_astgen_curly_initializer_nested_elmt_push(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type);
 void hcc_astgen_curly_initializer_tunnel_in(HccCompiler* c);
@@ -2698,6 +2698,7 @@ void hcc_string_table_init(HccStringTable* string_table, U32 data_cap, U32 entri
 #define hcc_string_table_deduplicate_c_string(string_table, c_string) hcc_string_table_deduplicate(string_table, c_string, strlen(c_string))
 HccStringId hcc_string_table_deduplicate(HccStringTable* string_table, char* string, U32 string_size);
 HccString hcc_string_table_get(HccStringTable* string_table, HccStringId id);
+HccString hcc_string_table_get_or_empty(HccStringTable* string_table, HccStringId id);
 
 // ===========================================
 //
