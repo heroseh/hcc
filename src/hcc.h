@@ -417,7 +417,7 @@ void _hcc_stack_deinit(HccStack(void) stack, HccAllocTag tag, Uptr elmt_size);
 #endif
 #define hcc_stack_get_first(stack) hcc_stack_get(stack, 0)
 #define hcc_stack_get_last(stack) hcc_stack_get(stack, hcc_stack_count(stack) - 1)
-#define hcc_stack_get_back(stack, back_idx) hcc_stack_get(stack, hcc_stack_count(stack) - back_idx - 1)
+#define hcc_stack_get_back(stack, back_idx) hcc_stack_get(stack, hcc_stack_count(stack) - (back_idx) - 1)
 #define hcc_stack_get_or_null(stack, idx) ((idx) < hcc_stack_count(stack) ? &(stack)[idx] : NULL)
 #define hcc_stack_get_next_push(stack) (&(stack)[hcc_stack_count(stack)])
 
@@ -1047,15 +1047,6 @@ enum {
 	HCC_FUNCTION_IDX_VEC2,
 	HCC_FUNCTION_IDX_VEC3,
 	HCC_FUNCTION_IDX_VEC4,
-	HCC_FUNCTION_IDX_MAT2x2,
-	HCC_FUNCTION_IDX_MAT2x3,
-	HCC_FUNCTION_IDX_MAT2x4,
-	HCC_FUNCTION_IDX_MAT3x2,
-	HCC_FUNCTION_IDX_MAT3x3,
-	HCC_FUNCTION_IDX_MAT3x4,
-	HCC_FUNCTION_IDX_MAT4x2,
-	HCC_FUNCTION_IDX_MAT4x3,
-	HCC_FUNCTION_IDX_MAT4x4,
 
 #define HCC_FUNCTION_IDX_INTRINSIC_END HCC_FUNCTION_IDX_USER_START
 	HCC_FUNCTION_IDX_USER_START,
@@ -2501,12 +2492,8 @@ struct HccSpirvTypeEntry {
 
 typedef struct HccSpirvTypeTable HccSpirvTypeTable;
 struct HccSpirvTypeTable {
-	HccDataType* data_types;
-	HccSpirvTypeEntry* entries;
-	U32 data_types_count;
-	U32 data_types_cap;
-	U32 entries_count;
-	U32 entries_cap;
+	HccStack(HccDataType) data_types;
+	HccStack(HccSpirvTypeEntry) entries;
 };
 
 typedef struct HccSpirvGen HccSpirvGen;

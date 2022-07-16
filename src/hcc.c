@@ -5084,6 +5084,7 @@ void hcc_astgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 
 	hcc_stack_resize(c->astgen.typedefs, HCC_TYPEDEF_IDX_USER_START);
 	hcc_stack_resize(c->astgen.compound_data_types, HCC_COMPOUND_DATA_TYPE_IDX_USER_START);
+	hcc_stack_resize(c->astgen.functions, HCC_FUNCTION_IDX_USER_START);
 
 	hcc_hash_table_init(&astgen->field_name_to_token_idx, setup->astgen.compound_type_fields_cap, HCC_ALLOC_TAG_ASTGEN_FIELD_NAME_TO_TOKEN_IDX);
 }
@@ -8464,12 +8465,14 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 // ===========================================
 
 void hcc_irgen_init(HccCompiler* c, HccCompilerSetup* setup) {
-	c->irgen.functions = hcc_stack_init(HccIRFunction, HCC_ALLOC_TAG_IRGEN_FUNCTIONS, setup->irgen.functions_cap);
-	c->irgen.basic_blocks = hcc_stack_init(HccIRBasicBlock, HCC_ALLOC_TAG_IRGEN_BASIC_BLOCKS, setup->irgen.basic_blocks_cap);
-	c->irgen.values = hcc_stack_init(HccIRValue, HCC_ALLOC_TAG_IRGEN_VALUES, setup->irgen.values_cap);
-	c->irgen.instructions = hcc_stack_init(HccIRInstr, HCC_ALLOC_TAG_IRGEN_INSTRUCTIONS, setup->irgen.instructions_cap);
-	c->irgen.operands = hcc_stack_init(HccIROperand, HCC_ALLOC_TAG_IRGEN_OPERANDS, setup->irgen.operands_cap);
-	c->irgen.function_call_param_data_types = hcc_stack_init(HccDataType, HCC_ALLOC_TAG_IRGEN_FUNCTION_CALL_PARAM_DATA_TYPES, setup->irgen.function_call_param_data_types_cap);
+	c->irgen.functions = hcc_stack_init(HccIRFunction, setup->irgen.functions_cap, HCC_ALLOC_TAG_IRGEN_FUNCTIONS);
+	c->irgen.basic_blocks = hcc_stack_init(HccIRBasicBlock, setup->irgen.basic_blocks_cap, HCC_ALLOC_TAG_IRGEN_BASIC_BLOCKS);
+	c->irgen.values = hcc_stack_init(HccIRValue, setup->irgen.values_cap, HCC_ALLOC_TAG_IRGEN_VALUES);
+	c->irgen.instructions = hcc_stack_init(HccIRInstr, setup->irgen.instructions_cap, HCC_ALLOC_TAG_IRGEN_INSTRUCTIONS);
+	c->irgen.operands = hcc_stack_init(HccIROperand, setup->irgen.operands_cap, HCC_ALLOC_TAG_IRGEN_OPERANDS);
+	c->irgen.function_call_param_data_types = hcc_stack_init(HccDataType, setup->irgen.function_call_param_data_types_cap, HCC_ALLOC_TAG_IRGEN_FUNCTION_CALL_PARAM_DATA_TYPES);
+
+	hcc_stack_resize(c->irgen.functions, HCC_FUNCTION_IDX_USER_START);
 }
 
 HccIRFunction* hcc_irgen_current_function(HccCompiler* c) {
@@ -8509,6 +8512,8 @@ void hcc_irgen_add_instruction(HccCompiler* c, HccIROpCode op_code, HccIROperand
 	HccIRInstr* instruction = hcc_stack_push(c->irgen.instructions);
 	instruction->op_code = op_code;
 	instruction->operands_start_idx = (operands - c->irgen.operands) - ir_function->operands_start_idx;
+	if (instruction->operands_start_idx > 65000) raise(SIGINT);
+	printf("instruction->operands_start_idx= %u\n", instruction->operands_start_idx);
 	instruction->operands_count = operands_count;
 
 	basic_block->instructions_count += 1;
@@ -8526,7 +8531,7 @@ void hcc_irgen_remove_last_instruction(HccCompiler* c) {
 	HccIRFunction* ir_function = hcc_irgen_current_function(c);
 	HccIRBasicBlock* basic_block = hcc_irgen_current_basic_block(c);
 
-	U16 operands_count = hcc_stack_count(c->irgen.operands) - hcc_stack_get_last(c->irgen.instructions)->operands_count;
+	U16 operands_count = hcc_stack_get_last(c->irgen.instructions)->operands_count;
 	hcc_stack_pop_many(c->irgen.operands, operands_count);
 	hcc_stack_pop(c->irgen.instructions);
 
@@ -8613,7 +8618,7 @@ void hcc_irgen_generate_convert_to_bool(HccCompiler* c, HccIROperand cond_operan
 	HccIRFunction* ir_function = hcc_irgen_current_function(c);
 	HccDataType cond_data_type = hcc_typedef_resolve(c, hcc_irgen_operand_data_type(c, ir_function, cond_operand));
 	HCC_DEBUG_ASSERT(
-		HCC_DATA_TYPE_IS_STRUCT(cond_data_type) || HCC_DATA_TYPE_IS_MATRIX(cond_data_type),
+		!HCC_DATA_TYPE_IS_STRUCT(cond_data_type) && !HCC_DATA_TYPE_IS_MATRIX(cond_data_type),
 		"a condition expression must be a non-structure & non-matrix type"
 	);
 
@@ -9281,7 +9286,7 @@ UNARY:
 			break;
 		};
 		case HCC_EXPR_TYPE_FIELD_ACCESS: {
-			U32 function_idx = hcc_stack_count(c->irgen.functions);
+			U32 function_idx = hcc_stack_count(c->irgen.functions) - 1;
 			HccFunction* function = hcc_stack_get(c->astgen.functions, function_idx);
 			switch (function->shader_stage) {
 				case HCC_FUNCTION_SHADER_STAGE_VERTEX: {
@@ -9493,7 +9498,7 @@ UNARY:
 				c->irgen.last_operand = HCC_IR_OPERAND_LOCAL_VARIABLE_INIT(expr->variable.idx);
 				c->irgen.do_not_load_variable = false;
 			} else {
-				U32 function_idx = hcc_stack_count(c->irgen.functions);
+				U32 function_idx = hcc_stack_count(c->irgen.functions) - 1;
 				HccFunction* function = hcc_stack_get(c->astgen.functions, function_idx);
 				HccVariable* variable = hcc_stack_get(c->astgen.function_params_and_variables, function->params_start_idx + expr->variable.idx);
 				hcc_irgen_generate_load(c, variable->data_type, HCC_IR_OPERAND_LOCAL_VARIABLE_INIT(expr->variable.idx));
@@ -9966,8 +9971,8 @@ U32 hcc_spirv_type_table_deduplicate_function(HccCompiler* c, HccFunction* funct
 
 	//
 	// TODO make this a hash table look for speeeds
-	for (U32 i = 0; i < table->entries_count; i += 1) {
-		HccSpirvTypeEntry* entry = &table->entries[i];
+	for (U32 i = 0; i < hcc_stack_count(table->entries); i += 1) {
+		HccSpirvTypeEntry* entry = hcc_stack_get(table->entries, i);
 		U32 function_data_types_count = function->params_count + 1;
 		if (entry->kind != HCC_SPIRV_TYPE_KIND_FUNCTION) {
 			continue;
@@ -9976,7 +9981,7 @@ U32 hcc_spirv_type_table_deduplicate_function(HccCompiler* c, HccFunction* funct
 			continue;
 		}
 
-		HccDataType* data_types = &table->data_types[entry->data_types_start_idx];
+		HccDataType* data_types = hcc_stack_get(table->data_types, entry->data_types_start_idx);
 		if (data_types[0] != hcc_typedef_resolve(c, function->return_data_type)) {
 			continue;
 		}
@@ -9995,19 +10000,13 @@ U32 hcc_spirv_type_table_deduplicate_function(HccCompiler* c, HccFunction* funct
 		}
 	}
 
-	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(table->entries_count, table->entries_cap);
-	HccSpirvTypeEntry* entry = &table->entries[table->entries_count];
-	table->entries_count += 1;
-
-	entry->data_types_start_idx = table->data_types_count;
+	HccSpirvTypeEntry* entry = hcc_stack_push(table->entries);
+	entry->data_types_start_idx = hcc_stack_count(table->data_types);
 	entry->data_types_count = function->params_count + 1;
 	entry->spirv_id = c->spirvgen.next_id;
 	entry->kind = HCC_SPIRV_TYPE_KIND_FUNCTION;
 
-	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(table->data_types_count + function->params_count, table->data_types_cap);
-	HccDataType* data_types = &table->data_types[table->data_types_count];
-	table->data_types_count += entry->data_types_count;
-
+	HccDataType* data_types = hcc_stack_push_many(table->data_types, entry->data_types_count);
 	data_types[0] = hcc_typedef_resolve(c, function->return_data_type);
 	HccVariable* params = &c->astgen.function_params_and_variables[function->params_start_idx];
 	for (U32 j = 0; j < entry->data_types_count; j += 1) {
@@ -10023,32 +10022,24 @@ U32 hcc_spirv_type_table_deduplicate_variable(HccCompiler* c, HccDataType data_t
 
 	//
 	// TODO make this a hash table look for speeeds
-	for (U32 i = 0; i < table->entries_count; i += 1) {
-		HccSpirvTypeEntry* entry = &table->entries[i];
+	for (U32 i = 0; i < hcc_stack_count(table->entries); i += 1) {
+		HccSpirvTypeEntry* entry = hcc_stack_get(table->entries, i);
 		if (entry->kind != kind) {
 			continue;
 		}
 
-		if (table->data_types[entry->data_types_start_idx] == data_type) {
+		if (*hcc_stack_get(table->data_types, entry->data_types_start_idx) == data_type) {
 			return entry->spirv_id;
 		}
 	}
 
-	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(table->entries_count, table->entries_cap);
-	HccSpirvTypeEntry* entry = &table->entries[table->entries_count];
-	table->entries_count += 1;
-
-	entry->data_types_start_idx = table->data_types_count;
+	HccSpirvTypeEntry* entry = hcc_stack_push(table->entries);
+	entry->data_types_start_idx = hcc_stack_count(table->data_types);
 	entry->data_types_count = 1;
 	entry->spirv_id = c->spirvgen.next_id;
 	entry->kind = kind;
 
-	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(table->data_types_count, table->data_types_cap);
-	HccDataType* data_types = &table->data_types[table->data_types_count];
-	table->data_types_count += entry->data_types_count;
-
-	data_types[0] = data_type;
-
+	*hcc_stack_push(table->data_types) = data_type;
 	return entry->spirv_id;
 }
 
@@ -11930,18 +11921,16 @@ bool hcc_compiler_compile(HccCompiler* c, char* file_path) {
 
 	hcc_astgen_generate(c);
 
-	/*
 	if (c->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
 		return false;
 	}
 
 	hcc_irgen_generate(c);
 	hcc_spirvgen_generate(c);
-	*/
 
 	hcc_tokengen_print(c, stdout);
 	hcc_astgen_print(c, stdout);
-	//hcc_irgen_print(c, stdout);
+	hcc_irgen_print(c, stdout);
 
 	c->flags &= ~HCC_COMPILER_FLAGS_SET_LONG_JMP;
 	HCC_ZERO_ELMT(&c->compile_entry_jmp_loc);
