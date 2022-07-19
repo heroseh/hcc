@@ -87,14 +87,15 @@ typedef vec4_t Vec4;
 #define COND_TEST2 0.f
 #endif
 
-HCC_DEFINE_STATE(
-	BillboardShaderState,
+HCC_DEFINE_RASTERIZER_STATE(
+	BillboardRasterizerState,
 	(POSITION, Vec4, position),
-	(NOINTERP, Vec2, uv),
-	(INTERP,   Vec4, color)
+	(INTERP,   Vec4, color),
+	(NOINTERP, Vec4, flat_color),
+	(NOINTERP, U32,  tri_idx)
 );
 
-vertex BillboardShaderState billboard_shader_vertex(HccVertexInput input) {
+vertex BillboardRasterizerState billboard_shader_vertex(const HccVertexInput input) {
 	Vec4 vertices[6] = {
 		vec4(-1.f, -1.f, 0.25f, 1.f),
 		vec4( 1.f, -1.f, 0.25f, 1.f),
@@ -105,8 +106,17 @@ vertex BillboardShaderState billboard_shader_vertex(HccVertexInput input) {
 		vec4(-1.f, -1.f, 0.25f, 1.f),
 	};
 
-	BillboardShaderState state;
+	Vec4 colors[3] = {
+		vec4(1.f, 0.f, 0.f, 1.f),
+		vec4(0.f, 1.f, 0.f, 1.f),
+		vec4(0.f, 0.f, 1.f, 1.f),
+	};
+
+	BillboardRasterizerState state;
 	state.position = vertices[input.vertex_idx];
+	state.color = colors[input.vertex_idx % 3];
+	state.flat_color = vec4(1.f, 0.f, 1.f, 1.f);
+	state.tri_idx = input.vertex_idx / 3;
 	return state;
 }
 
@@ -151,11 +161,16 @@ U32 add_op_u32(AddOp op) {
 	return op.a + op.b;
 }
 
+HCC_DEFINE_FRAGMENT_STATE(
+	BillboardFragment,
+	(Vec4, color)
+);
+
 typedef S32 signed_int;
 typedef struct Named { S32 i[1]; } named_wrapped_signed_int;
 typedef struct { F32 i[2]; } wrapped_float2;
 typedef struct { F32 i[4]; } wrapped_float4;
-fragment Vec4 billboard_shader_fragment(Vec4 state) {
+fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput input, const BillboardRasterizerState state) {
 	typedef struct Struct TypedefStruct;
 	struct Struct {
 		U32 a;
@@ -275,8 +290,7 @@ fragment Vec4 billboard_shader_fragment(Vec4 state) {
 	}
 	red = uint == 0;
 
-	uint = 0;
-	do {
+	uint = 0; do {
 		uint += 1;
 	} while (uint < 0);
 	blue = uint == 1;
@@ -304,7 +318,9 @@ fragment Vec4 billboard_shader_fragment(Vec4 state) {
 	AddOp add_op = { 2, 2 };
 	red = add_op_u32(add_op) == 4 && inlined_add_u32(1, 1) == 2;
 
-	return vec4(red, 0.f, 0.f, 1.f);
+	BillboardFragment frag;
+	frag.color = state.tri_idx ? state.flat_color : state.color;
+	return frag;
 }
 
 /*

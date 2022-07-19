@@ -51,32 +51,35 @@
 #ifdef __HCC_GPU__
 #define HCC_INTRINSIC __hcc_intrinsic
 
-#define HCC_STATE_STRUCT __hcc_state_struct
+#define HCC_RASTERIZER_STATE __hcc_rasterizer_state
 #define HCC_POSITION __hcc_position
 #define HCC_NOINTERP __hcc_nointerp
 #define HCC_INTERP
 
-#define _HCC_DEFINE_STATE_STRUCT_FIELD(StructName, KIND, DataType, name) \
+#define _HCC_DEFINE_RASTERIZER_STATE_FIELD(StructName, KIND, DataType, name) \
 	HCC_##KIND DataType name;
 
-#define HCC_DEFINE_STATE(Name, ...) \
+#define HCC_DEFINE_RASTERIZER_STATE(Name, ...) \
 	typedef struct Name Name; \
-	struct Name { \
-		HCC_PP_ARGS_FOREACH(_HCC_DEFINE_STATE_STRUCT_FIELD, Name, __VA_ARGS__) \
+	HCC_RASTERIZER_STATE struct Name { \
+		HCC_PP_ARGS_FOREACH(_HCC_DEFINE_RASTERIZER_STATE_FIELD, Name, __VA_ARGS__) \
 	}\
 
-#else
+#define HCC_FRAGMENT_STATE __hcc_fragment_state
+
+#else // !__HCC_GPU__
 
 #define HCC_POSITION
 #define HCC_NOINTERP
 #define HCC_INTERP
-#define HCC_STATE_STRUCT
+#define HCC_RASTERIZER_STATE
+#define HCC_FRAGMENT_STATE
 
 typedef U8 HccStateFieldKind;
 enum {
-	HCC_STATE_FIELD_KIND_POSITION,
-	HCC_STATE_FIELD_KIND_INTERP,
-	HCC_STATE_FIELD_KIND_NOINTERP,
+	HCC_RASTERIZER_STATE_FIELD_KIND_POSITION,
+	HCC_RASTERIZER_STATE_FIELD_KIND_INTERP,
+	HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP,
 };
 typedef struct HccStateField HccStateField;
 struct HccStateField {
@@ -86,27 +89,36 @@ struct HccStateField {
 };
 
 #define _HCC_DEFINE_METADATA_ENTRY(StructName, KIND, DataType, name) \
-	{ .name = #name, .kind = HCC_STATE_FIELD_KIND_##KIND, .offset = offsetof(StructName, name), },
+	{ .name = #name, .kind = HCC_RASTERIZER_STATE_FIELD_KIND_##KIND, .offset = offsetof(StructName, name), },
 
 #define _HCC_DEFINE_STRUCT_FIELD(StructName, KIND, DataType, name) \
 	DataType Name;
 
-#define HCC_DEFINE_STATE_METADATA(Name, ...) \
-	HccStateField hcc_state_fields_##Name[] = { \
+#define HCC_DEFINE_RASTERIZER_STATE_METADATA(Name, ...) \
+	HccStateField hcc_rasterizer_state_fields_##Name[] = { \
 		HCC_PP_ARGS_FOREACH(_HCC_DEFINE_METADATA_ENTRY, Name, __VA_ARGS__) \
 	}
 
-#define HCC_DEFINE_STATE_STRUCT(Name, ...) \
+#define HCC_DEFINE_RASTERIZER_STATE(Name, ...) \
 	typedef struct Name Name; \
 	struct Name { \
 		HCC_PP_ARGS_FOREACH(HCC_DEFINE_STRUCT_FIELD, Name, __VA_ARGS__) \
 	}
 
-#define HCC_DEFINE_STATE(Name, ...) \
-	HCC_DEFINE_STATE_METADATA(Name, __VA_ARGS__) \
-	HCC_DEFINE_STATE_STRUCT(Name, __VA_ARGS__)
+#define HCC_DEFINE_RASTERIZER_STATE(Name, ...) \
+	HCC_DEFINE_RASTERIZER_STATE_METADATA(Name, __VA_ARGS__) \
+	HCC_DEFINE_RASTERIZER_STATE(Name, __VA_ARGS__)
 
 #endif
+
+#define _HCC_DEFINE_FRAGMENT_STATE_FIELD(StructName, DataType, name) \
+	DataType name;
+
+#define HCC_DEFINE_FRAGMENT_STATE(Name, ...) \
+	typedef struct Name Name; \
+	HCC_FRAGMENT_STATE struct Name { \
+		HCC_PP_ARGS_FOREACH(_HCC_DEFINE_FRAGMENT_STATE_FIELD, Name, __VA_ARGS__) \
+	}\
 
 HCC_INTRINSIC typedef struct HccVertexInput HccVertexInput;
 HCC_INTRINSIC struct HccVertexInput {
@@ -116,6 +128,6 @@ HCC_INTRINSIC struct HccVertexInput {
 
 HCC_INTRINSIC typedef struct HccFragmentInput HccFragmentInput;
 HCC_INTRINSIC struct HccFragmentInput {
-	vec2_t frag_coord;
+	vec4_t frag_coord;
 };
 
