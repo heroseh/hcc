@@ -1,6 +1,22 @@
 #pragma once
 #define _HCC_STD_H_
 
+// ===========================================
+//
+//
+// Options
+//
+//
+// ===========================================
+
+// ===========================================
+//
+//
+// Metaprogramming
+//
+//
+// ===========================================
+
 #define HCC_CONCAT_(a,b) a ## b
 #define HCC_CONCAT(a, b) HCC_CONCAT_(a, b)
 
@@ -48,9 +64,29 @@
 #define HCC_PP_ARGS_FOREACH_(f, outer_arg, M, ...) M(f, outer_arg, __VA_ARGS__)
 #define HCC_PP_ARGS_FOREACH(f, outer_arg, ...) HCC_PP_ARGS_FOREACH_(f, outer_arg, HCC_CONCAT(HCC_PP_ARGS_FOREACH_, HCC_PP_ARGS_COUNT(__VA_ARGS__)), __VA_ARGS__)
 
+// ===========================================
+//
+//
+// Core
+//
+//
+// ===========================================
+
 #ifdef __HCC_GPU__
 #define HCC_INTRINSIC __hcc_intrinsic
+#else
+#define HCC_INTRINSIC
+#endif
 
+// ===========================================
+//
+//
+// Rasterizer State
+//
+//
+// ===========================================
+
+#ifdef __HCC_GPU__
 #define HCC_RASTERIZER_STATE __hcc_rasterizer_state
 #define HCC_POSITION __hcc_position
 #define HCC_NOINTERP __hcc_nointerp
@@ -65,15 +101,12 @@
 		HCC_PP_ARGS_FOREACH(_HCC_DEFINE_RASTERIZER_STATE_FIELD, Name, __VA_ARGS__) \
 	}\
 
-#define HCC_FRAGMENT_STATE __hcc_fragment_state
-
 #else // !__HCC_GPU__
 
 #define HCC_POSITION
 #define HCC_NOINTERP
 #define HCC_INTERP
 #define HCC_RASTERIZER_STATE
-#define HCC_FRAGMENT_STATE
 
 typedef U8 HccStateFieldKind;
 enum {
@@ -111,6 +144,20 @@ struct HccStateField {
 
 #endif
 
+// ===========================================
+//
+//
+// Fragment State
+//
+//
+// ===========================================
+
+#ifdef __HCC_GPU__
+#define HCC_FRAGMENT_STATE __hcc_fragment_state
+#else
+#define HCC_FRAGMENT_STATE
+#endif
+
 #define _HCC_DEFINE_FRAGMENT_STATE_FIELD(StructName, DataType, name) \
 	DataType name;
 
@@ -120,14 +167,34 @@ struct HccStateField {
 		HCC_PP_ARGS_FOREACH(_HCC_DEFINE_FRAGMENT_STATE_FIELD, Name, __VA_ARGS__) \
 	}\
 
+
+// ===========================================
+//
+//
+// Math - Scalar, Half, Vectors, Matices etc
+//
+//
+// ===========================================
+#define HCC_STD_MATH_INCLUDED_FROM_HCC_STD
+#include "hcc_std_math.h"
+#undef HCC_STD_MATH_INCLUDED_FROM_HCC_STD
+
+// ===========================================
+//
+//
+// Shader Input
+//
+//
+// ===========================================
+
 HCC_INTRINSIC typedef struct HccVertexInput HccVertexInput;
 HCC_INTRINSIC struct HccVertexInput {
-	int32_t vertex_idx;
-	int32_t instance_idx;
+	int32 vertex_idx;
+	int32 instance_idx;
 };
 
 HCC_INTRINSIC typedef struct HccFragmentInput HccFragmentInput;
 HCC_INTRINSIC struct HccFragmentInput {
-	vec4_t frag_coord;
+	vec4f frag_coord;
 };
 

@@ -493,7 +493,7 @@ void hcc_generate_enum_hashes(char* array_name, char** strings, char** enum_stri
 		printf("\t[%s] = 0x%x,\n", enum_string, hash);
 	}
 	printf("};\n");
-};
+}
 
 void hcc_generate_hashes() {
 	hcc_generate_enum_hashes("hcc_pp_directive_hashes", hcc_pp_directive_strings, hcc_pp_directive_enum_strings, HCC_PP_DIRECTIVE_COUNT);
