@@ -3324,5 +3324,6 @@ int main(int argc, char** argv) {
 	generate_math_types_header_file();
 	generate_math_header_file();
 	generate_math_file();
+	printf("Success! you will find libhccstd/{math_types.h, math.h, math.c} files have been updated\n");
 	return 0;
 }

@@ -1,5 +1,7 @@
 #pragma once
-#define _HCC_STD_H_
+#define _HCC_STD_CORE_H_
+
+#include "math_types.h"
 
 // ===========================================
 //
@@ -171,17 +173,6 @@ struct HccStateField {
 // ===========================================
 //
 //
-// Math - Scalar, Half, Vectors, Matices etc
-//
-//
-// ===========================================
-#define HCC_STD_MATH_INCLUDED_FROM_HCC_STD
-#include "hcc_std_math.h"
-#undef HCC_STD_MATH_INCLUDED_FROM_HCC_STD
-
-// ===========================================
-//
-//
 // Shader Input
 //
 //
@@ -197,4 +188,6 @@ HCC_INTRINSIC typedef struct HccFragmentInput HccFragmentInput;
 HCC_INTRINSIC struct HccFragmentInput {
 	vec4f frag_coord;
 };
+
+#endif // _HCC_STD_CORE_H_
 
