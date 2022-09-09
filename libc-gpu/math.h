@@ -1,5 +1,5 @@
 #ifndef	_MATH_H
-#define	_MATH_H	1
+#define	_MATH_H 1
 
 #ifndef __HCC_GPU__
 #error "this header is designed to only be used for the hcc compiler when targeting GPU"

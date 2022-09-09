@@ -1,13 +1,13 @@
 
-#include "../hcc_std.h"
+#include "../libhccstd/core.h"
 
 typedef _Bool Bool;
 typedef uint32_t U32;
 typedef int32_t S32;
 typedef float F32;
-typedef vec2_t Vec2;
-typedef vec3_t Vec3;
-typedef vec4_t Vec4;
+typedef vec2f Vec2;
+typedef vec3f Vec3;
+typedef vec4f Vec4;
 
 // C = A /+*
 
@@ -31,7 +31,7 @@ typedef vec4_t Vec4;
 
 #define M_SUPER(A, B, C, D) (M_NEG(M_NEG(M_ADD(A) * M_SUB(M_ADD(B)))) + M_ADD(C) + M_SUB(D))
 
-#define TEST(A, B, ...) vec4(M_SUB(M_SUPER(A, B, A, B)), M_ADD(M_SUB(M_SUPER(1 + __VA_ARGS__, __VA_ARGS__ + 1))), __VA_ARGS__)
+#define TEST(A, B, ...) v4f(M_SUB(M_SUPER(A, B, A, B)), M_ADD(M_SUB(M_SUPER(1 + __VA_ARGS__, __VA_ARGS__ + 1))), __VA_ARGS__)
 
 #define G(H) H
 #define A(D) G(D) + D
@@ -97,25 +97,25 @@ HCC_DEFINE_RASTERIZER_STATE(
 
 vertex BillboardRasterizerState billboard_shader_vertex(const HccVertexInput input) {
 	Vec4 vertices[6] = {
-		vec4(-1.f, -1.f, 0.25f, 1.f),
-		vec4( 1.f, -1.f, 0.25f, 1.f),
-		vec4( 1.f,  1.f, 0.25f, 1.f),
+		v4f(-1.f, -1.f, 0.25f, 1.f),
+		v4f( 1.f, -1.f, 0.25f, 1.f),
+		v4f( 1.f,  1.f, 0.25f, 1.f),
 
-		vec4( 1.f,  1.f, 0.25f, 1.f),
-		vec4(-1.f,  1.f, 0.25f, 1.f),
-		vec4(-1.f, -1.f, 0.25f, 1.f),
+		v4f( 1.f,  1.f, 0.25f, 1.f),
+		v4f(-1.f,  1.f, 0.25f, 1.f),
+		v4f(-1.f, -1.f, 0.25f, 1.f),
 	};
 
 	Vec4 colors[3] = {
-		vec4(1.f, 0.f, 0.f, 1.f),
-		vec4(0.f, 1.f, 0.f, 1.f),
-		vec4(0.f, 0.f, 1.f, 1.f),
+		v4f(1.f, 0.f, 0.f, 1.f),
+		v4f(0.f, 1.f, 0.f, 1.f),
+		v4f(0.f, 0.f, 1.f, 1.f),
 	};
 
 	BillboardRasterizerState state;
 	state.position = vertices[input.vertex_idx];
 	state.color = colors[input.vertex_idx % 3];
-	state.flat_color = vec4(1.f, 0.f, 1.f, 1.f);
+	state.flat_color = v4f(1.f, 0.f, 1.f, 1.f);
 	state.tri_idx = input.vertex_idx / 3;
 	return state;
 }
@@ -311,6 +311,12 @@ fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput inpu
 
 	green = uint == 1;
 
+	Vec4 vec = v4f(1.f, 0.f, 0.f, 1.f);
+	red = vec.x == 1.f;
+
+	vec.xy = v2f(0.f, 1.f);
+	blue = vec.r == 0.f && vec.g == 1.f;
+
 	float t = ZERO_POINT_FIVE + TEST2(ZERO_POINT_FIVE);
 
 	TEST3(ZERO_POINT_FIVE);
@@ -318,44 +324,9 @@ fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput inpu
 	AddOp add_op = { 2, 2 };
 	red = add_op_u32(add_op) == 4 && inlined_add_u32(1, 1) == 2;
 
+	Vec4 v = v4f(1.f, 0.f, 0.f, 1.f);
 	BillboardFragment frag;
 	frag.color = state.tri_idx ? state.flat_color : state.color;
 	return frag;
 }
-
-/*
-struct Globals {
-	U32 variable;
-};
-
-struct BillboardShaderState {
-	Vec4 position; [[position]]
-	Vec2 uv;
-	Vec4 color; [[nointerp]]
-};
-
-struct BillboardResources {
-	ro_buffer(Globals) globals;
-	image2d(r8)        height_map;
-	sampler            clamp_linear_sampler;
-};
-
-vertex BillboardShaderState billboard_shader_vertex(BillboardResources resources, U32 vertex_idx, U32 instance_idx) {
-
-	BillboardShaderState state;
-	state.position = vec4(0.f, 0.f, 0.f, 0.f);
-	state.uv = vec2(0.f, 0.f);
-	return state;
-}
-
-struct BillboardFragment {
-	Vec4 color;
-};
-
-fragment BillboardFragment billboard_shader_fragment(BillboardResources resources, BillboardShaderState state) {
-	BillboardFragment fragment;
-	fragment.color = vec4(1.f);
-	return fragment;
-}
-*/
 

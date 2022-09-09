@@ -1391,6 +1391,17 @@ void generate_math_types_header_file() {
 		"#ifndef _HCC_STD_MATH_TYPES_H_\n"
 		"#define _HCC_STD_MATH_TYPES_H_\n"
 	);
+	fprintf(ctx.f,"#include \"../libc-gpu/stdbool.h\"\n");
+	fprintf(ctx.f,"#include \"../libc-gpu/stdint.h\"\n");
+	fprintf(ctx.f,"\n");
+
+	fprintf(ctx.f,
+		"#ifdef __HCC_GPU__\n"
+		"#define HCC_INTRINSIC __hcc_intrinsic\n"
+		"#else\n"
+		"#define HCC_INTRINSIC\n"
+		"#endif\n"
+	);
 
 	print_section_header_libc_ext();
 	fprintf(ctx.f,
@@ -1405,7 +1416,7 @@ void generate_math_types_header_file() {
 
 	print_section_header_half();
 	fprintf(ctx.f,
-		"typedef struct half { uint16_t _bits; } half;\n"
+		"HCC_INTRINSIC typedef struct half { uint16_t _bits; } half;\n"
 		"#define ZEROH ((half){ _bits = 0; })\n"
 		"#define INFINITYH ((half){ _bits = 0x7c00; })\n"
 		"#define NEGINFINITYH ((half){ _bits = 0xfc00; })\n"
@@ -1420,7 +1431,7 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("typedef struct p$vS { $dI x; $dI y; } p$vs;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$vS { $dI x; $dI y; } p$vs;\n");
 		}
 
 		fprintf(ctx.f,"\n");
@@ -1428,7 +1439,7 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("typedef struct p$vS { $dI x; $dI y; $dI z; } p$vs;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$vS { $dI x; $dI y; $dI z; } p$vs;\n");
 		}
 
 		fprintf(ctx.f,"\n");
@@ -1436,7 +1447,7 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("typedef struct p$vS { $dI x; $dI y; $dI z; $dI w; } p$vs;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$vS { $dI x; $dI y; $dI z; $dI w; } p$vs;\n");
 		}
 	}
 
@@ -1448,17 +1459,17 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define p$vz(x, y)       ((p$vS){ { x, y } })\n");
+			print_entry("#define p$vx(x, y) ((p$vs){ { x, y } })\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define p$vz(x, y, z)    ((p$vS){ { x, y, z } })\n");
+			print_entry("#define p$vx(x, y, z) ((p$vs){ { x, y, z } })\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define p$vz(x, y, z, w) ((p$vS){ { x, y, z, w } })\n");
+			print_entry("#define p$vx(x, y, z, w) ((p$vs){ { x, y, z, w } })\n");
 		}
 
 		fprintf(ctx.f,"\n");
@@ -1470,7 +1481,7 @@ void generate_math_types_header_file() {
 		ctx.vector = vector;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("typedef union $vS $vs;\n");
+			print_entry("HCC_INTRINSIC typedef union $vS $vs;\n");
 		}
 		fprintf(ctx.f,"\n");
 	}
@@ -1529,17 +1540,17 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vz(x, y)       (($vS){ { x, y } })\n");
+			print_entry("#define $vx(x, y) (($vs){ { x, y } })\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vz(x, y, z)    (($vS){ { x, y, z } })\n");
+			print_entry("#define $vx(x, y, z) (($vs){ { x, y, z } })\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vz(x, y, z, w) (($vS){ { x, y, z, w } })\n");
+			print_entry("#define $vx(x, y, z, w) (($vs){ { x, y, z, w } })\n");
 		}
 	}
 	fprintf(ctx.f,"\n");
@@ -1629,7 +1640,7 @@ void generate_math_types_header_file() {
 		ctx.matrix = matrix;
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC typedef union p$mt { $dI cols[$mc][$mr]; p$mv vcols[$mc]; $dI scalars[$ms]; } p$mt;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$mt { $dI scalars[$ms]; } p$mt;\n");
 		}
 	}
 	fprintf(ctx.f,"\n");

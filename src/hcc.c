@@ -49,7 +49,7 @@ const char* hcc_alloc_tag_strings[HCC_ALLOC_TAG_COUNT] = {
 	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES",
 	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES",
 	[HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS] = "HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS",
-	[HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK] = "HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK",
+	[HCC_ALLOC_TAG_TOKENGEN_PAUSED_FILE_STACK] = "HCC_ALLOC_TAG_TOKENGEN_PAUSED_FILE_STACK",
 	[HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK] = "HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK",
 	[HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES] = "HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES",
 	[HCC_ALLOC_TAG_ASTGEN_FUNCTIONS] = "HCC_ALLOC_TAG_ASTGEN_FUNCTIONS",
@@ -131,6 +131,22 @@ noreturn Uptr _hcc_abort(const char* file, int line, const char* message, ...) {
 //
 //
 // ===========================================
+
+U32 onebitscount32(U32 bits) {
+#ifdef __GNUC__
+	return __builtin_popcount(bits);
+#else
+#error "unsupported fartcount"
+#endif
+}
+
+U32 leastsetbitidx32(U32 bits) {
+#ifdef __GNUC__
+	return __builtin_ctz(bits);
+#else
+#error "unsupported fartcount"
+#endif
+}
 
 void hcc_get_last_system_error_string(char* buf_out, U32 buf_out_size) {
 #if _WIN32
@@ -595,31 +611,6 @@ void hcc_hash_table_clear(HccHashTable* hash_table) {
 // ===========================================
 
 char* hcc_token_strings[HCC_TOKEN_COUNT] = {
-	[HCC_DATA_TYPE_VOID] = "void",
-	[HCC_DATA_TYPE_BOOL] = "_Bool",
-	[HCC_DATA_TYPE_U8] = "uint8_t",
-	[HCC_DATA_TYPE_U16] = "uint16_t",
-	[HCC_DATA_TYPE_U32] = "uint32_t",
-	[HCC_DATA_TYPE_U64] = "uint64_t",
-	[HCC_DATA_TYPE_S8] = "int8_t",
-	[HCC_DATA_TYPE_S16] = "int16_t",
-	[HCC_DATA_TYPE_S32] = "int32_t",
-	[HCC_DATA_TYPE_S64] = "int64_t",
-	[HCC_DATA_TYPE_F16] = "half",
-	[HCC_DATA_TYPE_F32] = "float",
-	[HCC_DATA_TYPE_F64] = "double",
-	[HCC_TOKEN_INTRINSIC_TYPE_VEC2] = "vec2_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_VEC3] = "vec3_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_VEC4] = "vec4_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT2X2] = "mat2x2_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT2X3] = "mat2x3_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT2X4] = "mat2x4_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT3X2] = "mat3x2_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT3X3] = "mat3x3_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT3X4] = "mat3x4_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT4X2] = "mat4x2_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT4X3] = "mat4x3_t",
-	[HCC_TOKEN_INTRINSIC_TYPE_MAT4X4] = "mat4x4_t",
 	[HCC_TOKEN_EOF] = "end of file",
 	[HCC_TOKEN_IDENT] = "identifier",
 	[HCC_TOKEN_STRING] = "string",
@@ -677,12 +668,26 @@ char* hcc_token_strings[HCC_TOKEN_COUNT] = {
 	[HCC_TOKEN_BIT_OR_ASSIGN] = "|=",
 	[HCC_TOKEN_INCREMENT] = "++",
 	[HCC_TOKEN_DECREMENT] = "--",
-	[HCC_TOKEN_LIT_U32] = "U32",
-	[HCC_TOKEN_LIT_U64] = "U64",
-	[HCC_TOKEN_LIT_S32] = "S32",
-	[HCC_TOKEN_LIT_S64] = "S64",
-	[HCC_TOKEN_LIT_F32] = "F32",
-	[HCC_TOKEN_LIT_F64] = "F64",
+	[HCC_TOKEN_LIT_UINT] = "unsigned int",
+	[HCC_TOKEN_LIT_ULONG] = "unsigned long",
+	[HCC_TOKEN_LIT_ULONGLONG] = "unsigned long long",
+	[HCC_TOKEN_LIT_SINT] = "int",
+	[HCC_TOKEN_LIT_SLONG] = "long",
+	[HCC_TOKEN_LIT_SLONGLONG] = "long long",
+	[HCC_TOKEN_LIT_FLOAT] = "float",
+	[HCC_TOKEN_LIT_DOUBLE] = "double",
+	[HCC_TOKEN_KEYWORD_VOID] = "void",
+	[HCC_TOKEN_KEYWORD_BOOL] = "_Bool",
+	[HCC_TOKEN_KEYWORD_CHAR] = "char",
+	[HCC_TOKEN_KEYWORD_SHORT] = "short",
+	[HCC_TOKEN_KEYWORD_INT] = "int",
+	[HCC_TOKEN_KEYWORD_LONG] = "long",
+	[HCC_TOKEN_KEYWORD_FLOAT] = "float",
+	[HCC_TOKEN_KEYWORD_DOUBLE] = "double",
+	[HCC_TOKEN_KEYWORD_UNSIGNED] = "unsigned",
+	[HCC_TOKEN_KEYWORD_SIGNED] = "signed",
+	[HCC_TOKEN_KEYWORD_COMPLEX] = "_Complex",
+	[HCC_TOKEN_KEYWORD_ATOMIC] = "_Atomic",
 	[HCC_TOKEN_KEYWORD_RETURN] = "return",
 	[HCC_TOKEN_KEYWORD_IF] = "if",
 	[HCC_TOKEN_KEYWORD_ELSE] = "else",
@@ -743,12 +748,14 @@ U32 hcc_token_num_values(HccToken token) {
 		case HCC_TOKEN_MACRO_STRINGIFY:
 		case HCC_TOKEN_MACRO_STRINGIFY_WHITESPACE:
 			return 1;
-		case HCC_TOKEN_LIT_U32:
-		case HCC_TOKEN_LIT_U64:
-		case HCC_TOKEN_LIT_S32:
-		case HCC_TOKEN_LIT_S64:
-		case HCC_TOKEN_LIT_F32:
-		case HCC_TOKEN_LIT_F64:
+		case HCC_TOKEN_LIT_UINT:
+		case HCC_TOKEN_LIT_ULONG:
+		case HCC_TOKEN_LIT_ULONGLONG:
+		case HCC_TOKEN_LIT_SINT:
+		case HCC_TOKEN_LIT_SLONG:
+		case HCC_TOKEN_LIT_SLONGLONG:
+		case HCC_TOKEN_LIT_FLOAT:
+		case HCC_TOKEN_LIT_DOUBLE:
 			return 2;
 		default:
 			return 0;
@@ -869,12 +876,14 @@ void hcc_token_bag_stringify_single(HccCompiler* c, HccTokenBag* bag, HccTokenCu
 			break;
 		};
 
-		case HCC_TOKEN_LIT_U32:
-		case HCC_TOKEN_LIT_U64:
-		case HCC_TOKEN_LIT_S32:
-		case HCC_TOKEN_LIT_S64:
-		case HCC_TOKEN_LIT_F32:
-		case HCC_TOKEN_LIT_F64: {
+		case HCC_TOKEN_LIT_UINT:
+		case HCC_TOKEN_LIT_ULONG:
+		case HCC_TOKEN_LIT_ULONGLONG:
+		case HCC_TOKEN_LIT_SINT:
+		case HCC_TOKEN_LIT_SLONG:
+		case HCC_TOKEN_LIT_SLONGLONG:
+		case HCC_TOKEN_LIT_FLOAT:
+		case HCC_TOKEN_LIT_DOUBLE: {
 			cursor->token_value_idx += 1;
 			HccStringId string_id = bag->token_values[cursor->token_value_idx].string_id;
 			cursor->token_value_idx += 1;
@@ -985,6 +994,9 @@ char* hcc_pp_predefined_macro_identifier_strings[HCC_PP_PREDEFINED_MACRO_COUNT] 
 	[HCC_PP_PREDEFINED_MACRO___COUNTER__] = "__COUNTER__",
 	[HCC_PP_PREDEFINED_MACRO___HCC__] = "__HCC__",
 	[HCC_PP_PREDEFINED_MACRO___HCC_GPU__] = "__HCC_GPU__",
+	[HCC_PP_PREDEFINED_MACRO___HCC_X86_64__] = "__HCC_X86_64__",
+	[HCC_PP_PREDEFINED_MACRO___HCC_LINUX__] = "__HCC_LINUX__",
+	[HCC_PP_PREDEFINED_MACRO___HCC_WINDOWS__] = "__HCC_WINDOWS__",
 };
 
 char* hcc_pp_directive_enum_strings[HCC_PP_DIRECTIVE_COUNT] = {
@@ -1055,6 +1067,16 @@ void hcc_pp_init(HccCompiler* c, HccCompilerSetup* setup) {
 
 	hcc_hash_table_init(&c->pp.macro_declarations, setup->pp.macros_cap, HCC_ALLOC_TAG_PP_MACRO_DECLARATIONS);
 	for (HccPPPredefinedMacro m = 0; m < HCC_PP_PREDEFINED_MACRO_COUNT; m += 1) {
+		if (m == HCC_PP_PREDEFINED_MACRO___HCC_LINUX__ && c->os != HCC_OS_LINUX) {
+			continue;
+		}
+		if (m == HCC_PP_PREDEFINED_MACRO___HCC_WINDOWS__ && c->os != HCC_OS_WINDOWS) {
+			continue;
+		}
+		if (m == HCC_PP_PREDEFINED_MACRO___HCC_X86_64__ && c->arch != HCC_ARCH_X86_64) {
+			continue;
+		}
+
 		U32* macro_idx_ptr;
 		HccStringId identifier_string_id = { HCC_STRING_ID_PREDEFINED_MACROS_START + m };
 		bool found = hcc_hash_table_find_or_insert(&c->pp.macro_declarations, identifier_string_id.idx_plus_one, &macro_idx_ptr);
@@ -1215,28 +1237,30 @@ HccPPEval hcc_pp_eval_unary_expr(HccCompiler* c, U32* token_idx_mut, U32* token_
 	HccPPEval eval;
 	HccUnaryOp unary_op;
 	switch (token) {
-		case HCC_TOKEN_LIT_U32:
-		case HCC_TOKEN_LIT_U64: {
+		case HCC_TOKEN_LIT_UINT:
+		case HCC_TOKEN_LIT_ULONG:
+		case HCC_TOKEN_LIT_ULONGLONG: {
 			HccConstantId constant_id = hcc_stack_get(c->tokengen.token_bag.token_values, *token_value_idx_mut)->constant_id;
 			*token_value_idx_mut += 1;
 
 			HccConstant constant = hcc_constant_table_get(c, constant_id);
 			U64 u64;
-			HCC_DEBUG_ASSERT(hcc_constant_as_uint(constant, &u64), "internal error: expected to be a unsigned int");
+			HCC_DEBUG_ASSERT(hcc_constant_as_uint(c, constant, &u64), "internal error: expected to be a unsigned int");
 
 			eval.is_signed = false;
 			eval.u64 = u64;
 			break;
 		};
 
-		case HCC_TOKEN_LIT_S32:
-		case HCC_TOKEN_LIT_S64: {
+		case HCC_TOKEN_LIT_SINT:
+		case HCC_TOKEN_LIT_SLONG:
+		case HCC_TOKEN_LIT_SLONGLONG: {
 			HccConstantId constant_id = hcc_stack_get(c->tokengen.token_bag.token_values, *token_value_idx_mut)->constant_id;
 			*token_value_idx_mut += 1;
 
 			HccConstant constant = hcc_constant_table_get(c, constant_id);
 			S64 s64;
-			HCC_DEBUG_ASSERT(hcc_constant_as_sint(constant, &s64), "internal error: expected to be a signed int");
+			HCC_DEBUG_ASSERT(hcc_constant_as_sint(c, constant, &s64), "internal error: expected to be a signed int");
 
 			eval.is_signed = true;
 			eval.s64 = s64;
@@ -1770,9 +1794,9 @@ void hcc_pp_parse_defined(HccCompiler* c) {
 
 	HccConstantId* basic_type_constant_ids = does_macro_exist ? c->basic_type_one_constant_ids : c->basic_type_zero_constant_ids;
 	HccTokenValue token_value;
-	token_value.constant_id = basic_type_constant_ids[HCC_DATA_TYPE_U32];
+	token_value.constant_id = basic_type_constant_ids[HCC_DATA_TYPE_SINT];
 
-	hcc_tokengen_token_add(c, HCC_TOKEN_LIT_U32);
+	hcc_tokengen_token_add(c, HCC_TOKEN_LIT_SINT);
 	hcc_tokengen_token_value_add(c, token_value);
 }
 
@@ -1816,13 +1840,13 @@ void hcc_pp_parse_line(HccCompiler* c) {
 	S64 custom_line;
 	{
 		HccToken token = *hcc_stack_get(token_bag->tokens, tokens_start_idx);
-		if (token != HCC_TOKEN_LIT_S32) {
+		if (token != HCC_TOKEN_LIT_SINT) {
 			hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_INVALID_PP_LINE_OPERANDS);
 		}
 		HccConstantId constant_id = hcc_stack_get(token_bag->token_values, token_values_start_idx)->constant_id;
 		HccConstant constant = hcc_constant_table_get(c, constant_id);
 
-		HCC_DEBUG_ASSERT(hcc_constant_as_sint(constant, &custom_line), "internal error: expected to be a signed int");
+		HCC_DEBUG_ASSERT(hcc_constant_as_sint(c, constant, &custom_line), "internal error: expected to be a signed int");
 		if (custom_line < 0 || custom_line > S32_MAX) {
 			hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_LINE_MUST_BE_MORE_THAN_ZERO, S32_MAX);
 		}
@@ -1934,7 +1958,7 @@ void hcc_pp_parse_pragma(HccCompiler* c) {
 	HccStringId ident_string_id = hcc_stack_get(token_bag->token_values, token_values_start_idx)->string_id;
 	switch (ident_string_id.idx_plus_one) {
 		case HCC_STRING_ID_ONCE: {
-			if (hcc_stack_count(c->tokengen.location_stack) == 0) {
+			if (hcc_stack_count(c->tokengen.paused_file_stack) == 0) {
 				hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_PRAGMA_OPERAND_USED_IN_MAIN_FILE);
 			}
 
@@ -2210,25 +2234,29 @@ void hcc_pp_copy_expand_predefined_macro(HccCompiler* c, HccPPPredefinedMacro pr
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___LINE__: {
-			S32 line_num = c->tokengen.location.line_end - 1;
+			HccBasic line_num = hcc_basic_from_sint(c, HCC_DATA_TYPE_SINT, c->tokengen.location.line_end - 1);
 			HccTokenValue token_value = {
-				.constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_S32, &line_num),
+				.constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SINT, &line_num),
 			};
-			hcc_tokengen_token_add(c, HCC_TOKEN_LIT_S32);
+			hcc_tokengen_token_add(c, HCC_TOKEN_LIT_SINT);
 			hcc_tokengen_token_value_add(c, token_value);
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___COUNTER__: {
+			HccBasic counter = hcc_basic_from_sint(c, HCC_DATA_TYPE_SINT, c->tokengen.__counter__);
 			HccTokenValue token_value = {
-				.constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_S32, &c->tokengen.__counter__),
+				.constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SINT, &counter),
 			};
-			hcc_tokengen_token_add(c, HCC_TOKEN_LIT_S32);
+			hcc_tokengen_token_add(c, HCC_TOKEN_LIT_SINT);
 			hcc_tokengen_token_value_add(c, token_value);
 			c->tokengen.__counter__ += 1;
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___HCC__:
 		case HCC_PP_PREDEFINED_MACRO___HCC_GPU__:
+		case HCC_PP_PREDEFINED_MACRO___HCC_X86_64__:
+		case HCC_PP_PREDEFINED_MACRO___HCC_LINUX__:
+		case HCC_PP_PREDEFINED_MACRO___HCC_WINDOWS__:
 			return;
 	}
 }
@@ -2700,7 +2728,7 @@ BREAK: {}
 	}
 	return args_start_idx;
 }
-	
+
 HccPPMacroArg* hcc_pp_push_macro_arg(HccCompiler* c, HccPPExpand* expand, HccTokenBag* src_bag, HccLocation* parent_location) {
 	HccPPMacroArg* arg = hcc_stack_push(c->pp.macro_args_stack);
 	arg->cursor.tokens_start_idx = expand->cursor.token_idx;
@@ -2824,7 +2852,9 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_MAX_SINT_OVERFLOW] = "integer literal is too large and will overflow a S64 integer",
 		[HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL] = "integer literal is too large and will overflow a S64 integer, consider using 'u' suffix to promote to an unsigned type. e.g. 1000u",
 		[HCC_ERROR_CODE_MAX_FLOAT_OVERFLOW] = "float literal is too large and will overflow a f64",
-		[HCC_ERROR_CODE_U_SUFFIX_ON_NON_POSITIVE_INTEGER] = "the 'u' suffix can only be applied to positive integer numbers. e.g. 3369",
+		[HCC_ERROR_CODE_U_SUFFIX_ALREADY_USED] = "the 'u' suffix can only be applied once",
+		[HCC_ERROR_CODE_U_SUFFIX_ON_FLOAT] = "the 'u' suffix cannot be applied to a floating point literal",
+		[HCC_ERROR_CODE_L_SUFFIX_ON_FLOAT] = "the 'l' suffix must be applied to a double literal not a float",
 		[HCC_ERROR_CODE_LONG_DOUBLE_IS_UNSUPPORTED] = "the 'l' suffix for a long double is unsupported",
 		[HCC_ERROR_CODE_FLOAT_HAS_DOUBLE_FULL_STOP] = "float literals can only have a single '.'",
 		[HCC_ERROR_CODE_FLOAT_MUST_BE_DECIMAL] = "octal and hexidecimal digits are not supported for float literals",
@@ -2860,8 +2890,8 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_ENUM_VALUE_INVALID_FORMAT] = "expected a constant integer value that fits into signed 32 bits",
 		[HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR_WITH_EXPLICIT_VALUE] = "expected a ',' to declare another value or a '}' to finish the enum values",
 		[HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR] = "expected an '=' to assign a value explicitly, ',' to declare another value or a '}' to finish the enum values",
-		[HCC_ERROR_CODE_INTRINSIC_NO_UNIONS] = "we do not have any intrinsic unions, we only have intrinsic structures",
 		[HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT] = "'struct %.*s' is not a valid intrinsic for this compiler version",
+		[HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_UNION] = "'union %.*s' is not a valid intrinsic for this compiler version",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT] = "only one of these can be used per field: '%s' or '%s'",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT] = "the '%s' keyword cannot be used on this structure declaration",
 		[HCC_ERROR_CODE_NOT_AVAILABLE_FOR_UNION] = "the '%s' keyword can only be used on a 'struct' and not a 'union'",
@@ -2872,17 +2902,30 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_COMPOUND_FIELD_MISSING_NAME] = "expected an identifier for the field name",
 		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT] = "expected intrinsic struct '%.*s' to have '%u' fields but got '%u'",
 		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD] = "expected this intrinsic field to be '%.*s %.*s' for this compiler version",
+		[HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN] = "expected the size and align for the intrinsic vector type '%.*s' to be size '%u' and align '%u' but got size '%u' and align '%u'",
+		[HCC_ERROR_CODE_INTRINSIC_MATRIX_INVALID_SIZE_AND_ALIGN] = "expected the size and align for the intrinsic matrix type '%.*s' to be size '%u' and align '%u' but got size '%u' and align '%u'",
 		[HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER] = "'%s' specifier must be placed before this struct definition before using '%s' or '%s'",
 		[HCC_ERROR_CODE_POSITION_ALREADY_SPECIFIED] = "'%s' has already been specified once before in rasterizer state structure",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_ALIGNAS] = "expected '(' to follow _Alignas that contains a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
+		[HCC_ERROR_CODE_INVALID_ALIGNAS_INT_CONSTANT] = "_Alignas integer constant must be an unsigned value",
+		[HCC_ERROR_CODE_INVALID_ALIGNAS_OPERAND] = "invalid _Alignas operand. expected a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_ALIGNAS] = "expected ')' to follow the type or integer constant for _Alignas",
+		[HCC_ERROR_CODE_ALIGNAS_REDUCES_ALIGNMENT] = "_Alignas cannot specify a lower alignment to '%zu' when it already has '%zu'",
 		[HCC_ERROR_CODE_UNSUPPORTED_RASTERIZER_STATE_DATA_TYPE] = "'%.*s' data type is not supported as a the rasterizer state field",
 		[HCC_ERROR_CODE_UNSUPPORTED_FRAGMENT_STATE_DATA_TYPE] = "'%.*s' data type is not supported as a the fragment state field",
 		[HCC_ERROR_CODE_POSITION_MUST_BE_VEC4_F32] = "field marked with '%s' must be a '%.*s' but got '%.*s'",
 		[HCC_ERROR_CODE_POSITION_NOT_SPECIFIED] = "'%s' must be specified for a rasterizer state structure",
 		[HCC_ERROR_CODE_EXPECTED_TYPE_NAME] = "expected a 'type name' here but got '%s'",
+		[HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE] = "'unsigned' and 'signed' cannot be used on this non-integer type",
+		[HCC_ERROR_CODE_COMPLEX_ON_NON_FLOAT_TYPE] = "'_Complex' cannot be used on this non-floating-point type",
+		[HCC_ERROR_CODE_MULTIPLE_TYPES_SPECIFIED] = "multiple types specfied",
+		[HCC_ERROR_CODE_COMPLEX_UNSUPPORTED_AT_THIS_TIME] = "'_Complex' is unsupported at this time",
+		[HCC_ERROR_CODE_UNSIGNED_AND_SIGNED] = "'unsigned' and 'signed' cannot be used together",
+		[HCC_ERROR_CODE_DUPLICATE_TYPE_SPECIFIER] = "duplicate type specifier '%s'",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_TYPEDEF] = "expected an 'identifier' for the typedef here but got '%s'",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_TYPEDEF] = "the '%s' keyword cannot be used on this typedef declaration",
 		[HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_TYPEDEF] = "'typedef %.*s' is not a valid intrinsic for this compiler version",
-		[HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF] = "this intrinsic is supposed to be 'typedef struct %.*s %.*s'",
+		[HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF] = "this intrinsic is supposed to be 'typedef %.*s %.*s' instead of 'typedef %.*s %.*s'",
 		[HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST] = "type mismatch '%.*s' is does not implicitly cast to '%.*s'",
 		[HCC_ERROR_CODE_TYPE_MISMATCH] = "type mismatch '%.*s' and '%.*s'",
 		[HCC_ERROR_CODE_UNSUPPORTED_BINARY_OPERATOR] = "operator '%s' is not supported for data type '%.*s' and '%.*s'",
@@ -2923,6 +2966,9 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER] = "'%s' is currently unsupported",
 		[HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED] = "'%s' has already been used for this declaration",
 		[HCC_ERROR_CODE_UNUSED_SPECIFIER] = "the '%s' keyword was used, so we are expecting %s for a declaration but got '%s'",
+		[HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_VARIABLE] = "unsupported intrinsic type/s used in the variable data type '%.*s'. if you wish to use this type, please turn on extension support for the follow types: %.*s",
+		[HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_PARAM] = "unsupported intrinsic type/s used in a parameter data type '%.*s'. if you wish to use this type, please turn on extension support for the follow types: %.*s",
+		[HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_EXPR] = "unsupported intrinsic type/s used in an expression data type '%.*s'. if you wish to use this type, please turn on extension support for the follow types: %.*s",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL] = "the '%s' keyword cannot be used on variable declarations",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_DECL] = "the '%s' keyword cannot be used on function declarations",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_PARAM] = "the '%s' keyword cannot be used on function parameters",
@@ -3048,7 +3094,7 @@ void hcc_message_print_code(HccCompiler* c, HccLocation* location) {
 		printf("\n");
 
 		HccPPMacro* macro = location->macro;
-		if (macro) { 
+		if (macro) {
 			HccString ident_string = hcc_string_table_get(&c->string_table, macro->identifier_string_id);
 
 			const char* error_fmt = hcc_options_is_enabled(c, HCC_OPTION_PRINT_COLOR)
@@ -3179,8 +3225,14 @@ void hcc_message_pushv(HccCompiler* c, HccMessageType type, HccMessageCode code,
 	HccMessage* m = hcc_stack_push(sys->elmts);
 	m->type = type;
 	m->code = code;
-	m->location = location;
-	m->other_location = other_location;
+	m->location = hcc_stack_push(sys->locations);
+	*m->location = *location;
+	if (other_location) {
+		m->other_location = hcc_stack_push(sys->locations);
+		*m->other_location = *other_location;
+	} else {
+		m->other_location = NULL;
+	}
 
 	HccLang lang = HCC_LANG_ENG;
 	const char* fmt = NULL;
@@ -3315,6 +3367,252 @@ U32 hcc_code_file_lines_count(HccCodeFile* code_file) {
 //
 // ===========================================
 
+U8 hcc_basic_type_size_and_aligns_x86_64_linux[HCC_DATA_TYPE_BASIC_COUNT] = {
+	[HCC_DATA_TYPE_BOOL] = 1,
+	[HCC_DATA_TYPE_CHAR] = 1,
+	[HCC_DATA_TYPE_SCHAR] = 1,
+	[HCC_DATA_TYPE_UCHAR] = 1,
+	[HCC_DATA_TYPE_SSHORT] = 2,
+	[HCC_DATA_TYPE_USHORT] = 2,
+	[HCC_DATA_TYPE_SINT] = 4,
+	[HCC_DATA_TYPE_UINT] = 4,
+	[HCC_DATA_TYPE_SLONG] = 8,
+	[HCC_DATA_TYPE_ULONG] = 8,
+	[HCC_DATA_TYPE_SLONGLONG] = 8,
+	[HCC_DATA_TYPE_ULONGLONG] = 8,
+	[HCC_DATA_TYPE_FLOAT] = 4,
+	[HCC_DATA_TYPE_DOUBLE] = 8,
+};
+
+U64 hcc_basic_type_int_mins_x86_64_linux[HCC_DATA_TYPE_BASIC_COUNT] = {
+	[HCC_DATA_TYPE_CHAR] = INT8_MIN,
+	[HCC_DATA_TYPE_SCHAR] = INT8_MIN,
+	[HCC_DATA_TYPE_SSHORT] = INT16_MIN,
+	[HCC_DATA_TYPE_SINT] = INT32_MIN,
+	[HCC_DATA_TYPE_SLONG] = INT64_MIN,
+	[HCC_DATA_TYPE_SLONGLONG] = INT64_MIN,
+	[HCC_DATA_TYPE_UCHAR] = 0,
+	[HCC_DATA_TYPE_USHORT] = 0,
+	[HCC_DATA_TYPE_UINT] = 0,
+	[HCC_DATA_TYPE_ULONG] = 0,
+	[HCC_DATA_TYPE_ULONGLONG] = 0,
+};
+
+U64 hcc_basic_type_int_maxes_x86_64_linux[HCC_DATA_TYPE_BASIC_COUNT] = {
+	[HCC_DATA_TYPE_CHAR] = INT8_MAX,
+	[HCC_DATA_TYPE_SCHAR] = INT8_MAX,
+	[HCC_DATA_TYPE_SSHORT] = INT16_MAX,
+	[HCC_DATA_TYPE_SINT] = INT32_MAX,
+	[HCC_DATA_TYPE_SLONG] = INT64_MAX,
+	[HCC_DATA_TYPE_SLONGLONG] = INT64_MAX,
+	[HCC_DATA_TYPE_UCHAR] = UINT8_MAX,
+	[HCC_DATA_TYPE_USHORT] = UINT16_MAX,
+	[HCC_DATA_TYPE_UINT] = UINT32_MAX,
+	[HCC_DATA_TYPE_ULONG] = UINT64_MAX,
+	[HCC_DATA_TYPE_ULONGLONG] = UINT64_MAX,
+};
+
+U8 hcc_packed_vec_sizes[HCC_VEC_COUNT] = {
+	[HCC_VEC2BOOL] = 2,
+	[HCC_VEC2U8] = 2,
+	[HCC_VEC2U16] = 4,
+	[HCC_VEC2U32] = 8,
+	[HCC_VEC2U64] = 16,
+	[HCC_VEC2I8] = 2,
+	[HCC_VEC2I16] = 4,
+	[HCC_VEC2I32] = 8,
+	[HCC_VEC2I64] = 16,
+	[HCC_VEC2H] = 4,
+	[HCC_VEC2F] = 8,
+	[HCC_VEC2D] = 16,
+	[HCC_VEC3BOOL] = 3,
+	[HCC_VEC3U8] = 3,
+	[HCC_VEC3U16] = 6,
+	[HCC_VEC3U32] = 12,
+	[HCC_VEC3U64] = 24,
+	[HCC_VEC3I8] = 3,
+	[HCC_VEC3I16] = 6,
+	[HCC_VEC3I32] = 12,
+	[HCC_VEC3I64] = 24,
+	[HCC_VEC3H] = 6,
+	[HCC_VEC3F] = 12,
+	[HCC_VEC3D] = 24,
+	[HCC_VEC4BOOL] = 4,
+	[HCC_VEC4U8] = 4,
+	[HCC_VEC4U16] = 8,
+	[HCC_VEC4U32] = 16,
+	[HCC_VEC4U64] = 32,
+	[HCC_VEC4I8] = 4,
+	[HCC_VEC4I16] = 8,
+	[HCC_VEC4I32] = 16,
+	[HCC_VEC4I64] = 32,
+	[HCC_VEC4H] = 8,
+	[HCC_VEC4F] = 16,
+	[HCC_VEC4D] = 32,
+};
+
+U8 hcc_packed_vec_aligns[HCC_VEC_COUNT] = {
+	[HCC_VEC2BOOL] = 1,
+	[HCC_VEC2U8] = 1,
+	[HCC_VEC2U16] = 2,
+	[HCC_VEC2U32] = 4,
+	[HCC_VEC2U64] = 8,
+	[HCC_VEC2I8] = 1,
+	[HCC_VEC2I16] = 2,
+	[HCC_VEC2I32] = 4,
+	[HCC_VEC2I64] = 8,
+	[HCC_VEC2H] = 2,
+	[HCC_VEC2F] = 4,
+	[HCC_VEC2D] = 8,
+	[HCC_VEC3BOOL] = 1,
+	[HCC_VEC3U8] = 1,
+	[HCC_VEC3U16] = 2,
+	[HCC_VEC3U32] = 4,
+	[HCC_VEC3U64] = 8,
+	[HCC_VEC3I8] = 1,
+	[HCC_VEC3I16] = 2,
+	[HCC_VEC3I32] = 4,
+	[HCC_VEC3I64] = 8,
+	[HCC_VEC3H] = 2,
+	[HCC_VEC3F] = 4,
+	[HCC_VEC3D] = 8,
+	[HCC_VEC4BOOL] = 1,
+	[HCC_VEC4U8] = 1,
+	[HCC_VEC4U16] = 2,
+	[HCC_VEC4U32] = 4,
+	[HCC_VEC4U64] = 8,
+	[HCC_VEC4I8] = 1,
+	[HCC_VEC4I16] = 2,
+	[HCC_VEC4I32] = 4,
+	[HCC_VEC4I64] = 8,
+	[HCC_VEC4H] = 2,
+	[HCC_VEC4F] = 4,
+	[HCC_VEC4D] = 8,
+};
+
+U8 hcc_vec_size_and_aligns[HCC_VEC_COUNT] = {
+	[HCC_VEC2BOOL] = 2,
+	[HCC_VEC2U8] = 2,
+	[HCC_VEC2U16] = 4,
+	[HCC_VEC2U32] = 8,
+	[HCC_VEC2U64] = 16,
+	[HCC_VEC2I8] = 2,
+	[HCC_VEC2I16] = 4,
+	[HCC_VEC2I32] = 8,
+	[HCC_VEC2I64] = 16,
+	[HCC_VEC2H] = 4,
+	[HCC_VEC2F] = 8,
+	[HCC_VEC2D] = 16,
+	[HCC_VEC3BOOL] = 4,
+	[HCC_VEC3U8] = 4,
+	[HCC_VEC3U16] = 8,
+	[HCC_VEC3U32] = 16,
+	[HCC_VEC3U64] = 32,
+	[HCC_VEC3I8] = 4,
+	[HCC_VEC3I16] = 8,
+	[HCC_VEC3I32] = 16,
+	[HCC_VEC3I64] = 32,
+	[HCC_VEC3H] = 8,
+	[HCC_VEC3F] = 16,
+	[HCC_VEC3D] = 32,
+	[HCC_VEC4BOOL] = 4,
+	[HCC_VEC4U8] = 4,
+	[HCC_VEC4U16] = 8,
+	[HCC_VEC4U32] = 16,
+	[HCC_VEC4U64] = 32,
+	[HCC_VEC4I8] = 4,
+	[HCC_VEC4I16] = 8,
+	[HCC_VEC4I32] = 16,
+	[HCC_VEC4I64] = 32,
+	[HCC_VEC4H] = 8,
+	[HCC_VEC4F] = 16,
+	[HCC_VEC4D] = 32,
+};
+
+U8 hcc_packed_mat_sizes[HCC_MAT_COUNT] = {
+	[HCC_MAT2X2F] = 16,
+	[HCC_MAT2X2D] = 32,
+	[HCC_MAT2X3F] = 24,
+	[HCC_MAT2X3D] = 48,
+	[HCC_MAT2X4F] = 32,
+	[HCC_MAT2X4D] = 64,
+	[HCC_MAT3X2F] = 24,
+	[HCC_MAT3X2D] = 48,
+	[HCC_MAT3X3F] = 36,
+	[HCC_MAT3X3D] = 72,
+	[HCC_MAT3X4F] = 48,
+	[HCC_MAT3X4D] = 96,
+	[HCC_MAT4X2F] = 32,
+	[HCC_MAT4X2D] = 64,
+	[HCC_MAT4X3F] = 48,
+	[HCC_MAT4X3D] = 96,
+	[HCC_MAT4X4F] = 64,
+	[HCC_MAT4X4D] = 128,
+};
+
+U8 hcc_packed_mat_aligns[HCC_MAT_COUNT] = {
+	[HCC_MAT2X2F] = 4,
+	[HCC_MAT2X2D] = 8,
+	[HCC_MAT2X3F] = 4,
+	[HCC_MAT2X3D] = 8,
+	[HCC_MAT2X4F] = 4,
+	[HCC_MAT2X4D] = 8,
+	[HCC_MAT3X2F] = 4,
+	[HCC_MAT3X2D] = 8,
+	[HCC_MAT3X3F] = 4,
+	[HCC_MAT3X3D] = 8,
+	[HCC_MAT3X4F] = 4,
+	[HCC_MAT3X4D] = 8,
+	[HCC_MAT4X2F] = 4,
+	[HCC_MAT4X2D] = 8,
+	[HCC_MAT4X3F] = 4,
+	[HCC_MAT4X3D] = 8,
+	[HCC_MAT4X4F] = 4,
+	[HCC_MAT4X4D] = 8,
+};
+
+U8 hcc_mat_sizes[HCC_MAT_COUNT] = {
+	[HCC_MAT2X2F] = 32,
+	[HCC_MAT2X2D] = 64,
+	[HCC_MAT2X3F] = 48,
+	[HCC_MAT2X3D] = 96,
+	[HCC_MAT2X4F] = 64,
+	[HCC_MAT2X4D] = 128,
+	[HCC_MAT3X2F] = 32,
+	[HCC_MAT3X2D] = 64,
+	[HCC_MAT3X3F] = 48,
+	[HCC_MAT3X3D] = 96,
+	[HCC_MAT3X4F] = 64,
+	[HCC_MAT3X4D] = 128,
+	[HCC_MAT4X2F] = 32,
+	[HCC_MAT4X2D] = 64,
+	[HCC_MAT4X3F] = 48,
+	[HCC_MAT4X3D] = 96,
+	[HCC_MAT4X4F] = 64,
+	[HCC_MAT4X4D] = 128,
+};
+
+U8 hcc_mat_aligns[HCC_MAT_COUNT] = {
+	[HCC_MAT2X2F] = 16,
+	[HCC_MAT2X2D] = 32,
+	[HCC_MAT2X3F] = 16,
+	[HCC_MAT2X3D] = 32,
+	[HCC_MAT2X4F] = 16,
+	[HCC_MAT2X4D] = 32,
+	[HCC_MAT3X2F] = 16,
+	[HCC_MAT3X2D] = 32,
+	[HCC_MAT3X3F] = 16,
+	[HCC_MAT3X3D] = 32,
+	[HCC_MAT3X4F] = 16,
+	[HCC_MAT3X4D] = 32,
+	[HCC_MAT4X2F] = 16,
+	[HCC_MAT4X2D] = 32,
+	[HCC_MAT4X3F] = 16,
+	[HCC_MAT4X3D] = 32,
+	[HCC_MAT4X4F] = 16,
+	[HCC_MAT4X4D] = 32,
+};
+
 char* hcc_function_shader_stage_strings[HCC_FUNCTION_SHADER_STAGE_COUNT] = {
 	[HCC_FUNCTION_SHADER_STAGE_NONE] = "none",
 	[HCC_FUNCTION_SHADER_STAGE_VERTEX] = "vertex",
@@ -3326,90 +3624,199 @@ char* hcc_function_shader_stage_strings[HCC_FUNCTION_SHADER_STAGE_COUNT] = {
 };
 
 HccIntrinsicTypedef hcc_intrinsic_typedefs[HCC_TYPEDEF_IDX_INTRINSIC_END] = {
-	[HCC_TYPEDEF_IDX_VERTEX_INPUT] = { .name = hcc_string_lit("HccVertexInput") },
-	[HCC_TYPEDEF_IDX_FRAGMENT_INPUT] = { .name = hcc_string_lit("HccFragmentInput") },
+	[HCC_TYPEDEF_IDX_UINT8] = { .string_id.idx_plus_one = HCC_STRING_ID_UINT8_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_UINT16] = { .string_id.idx_plus_one = HCC_STRING_ID_UINT16_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_UINT32] = { .string_id.idx_plus_one = HCC_STRING_ID_UINT32_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_UINT64] = { .string_id.idx_plus_one = HCC_STRING_ID_UINT64_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_UINTPTR] = { .string_id.idx_plus_one = HCC_STRING_ID_UINTPTR_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_INT8] = { .string_id.idx_plus_one = HCC_STRING_ID_INT8_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_INT16] = { .string_id.idx_plus_one = HCC_STRING_ID_INT16_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_INT32] = { .string_id.idx_plus_one = HCC_STRING_ID_INT32_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_INT64] = { .string_id.idx_plus_one = HCC_STRING_ID_INT64_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_INTPTR] = { .string_id.idx_plus_one = HCC_STRING_ID_INTPTR_T, .aliased_data_type = HCC_DATA_TYPE_VOID },
+	[HCC_TYPEDEF_IDX_HALF] = { .string_id.idx_plus_one = HCC_STRING_ID_HALF, .aliased_data_type = HCC_DATA_TYPE_HALF },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2BOOL] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2BOOL, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2BOOL) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2I8] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2I8, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2I8) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2I16] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2I16, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2I16) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2I32] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2I32, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2I32) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2I64] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2I64, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2I64) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2U8] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2U8, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2U8) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2U16] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2U16, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2U16) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2U32] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2U32, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2U32) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2U64] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2U64, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2U64) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2H] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2H, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2H) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2F] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2F, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2F) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC2D] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC2D, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC2D) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3BOOL] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3BOOL, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3BOOL) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3I8] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3I8, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3I8) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3I16] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3I16, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3I16) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3I32] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3I32, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3I32) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3I64] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3I64, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3I64) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3U8] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3U8, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3U8) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3U16] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3U16, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3U16) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3U32] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3U32, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3U32) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3U64] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3U64, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3U64) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3H] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3H, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3H) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3F] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3F, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3F) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC3D] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC3D, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC3D) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4BOOL] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4BOOL, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4BOOL) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4I8] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4I8, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4I8) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4I16] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4I16, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4I16) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4I32] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4I32, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4I32) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4I64] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4I64, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4I64) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4U8] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4U8, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4U8) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4U16] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4U16, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4U16) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4U32] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4U32, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4U32) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4U64] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4U64, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4U64) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4H] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4H, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4H) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4F] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4F, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4F) },
+	[HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC4D] = { .string_id.idx_plus_one = HCC_STRING_ID_PVEC_START + HCC_VEC4D, .aliased_data_type = HCC_DATA_TYPE_PVECTOR(HCC_VEC4D) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2BOOL] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2BOOL, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2BOOL) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2I8] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2I8, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2I8) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2I16] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2I16, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2I16) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2I32] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2I32, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2I32) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2I64] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2I64, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2I64) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2U8] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2U8, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2U8) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2U16] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2U16, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2U16) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2U32] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2U32, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2U32) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2U64] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2U64, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2U64) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2H] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2H, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2H) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2F] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2F, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2F) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC2D] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC2D, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC2D) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3BOOL] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3BOOL, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3BOOL) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3I8] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3I8, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3I8) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3I16] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3I16, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3I16) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3I32] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3I32, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3I32) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3I64] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3I64, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3I64) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3U8] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3U8, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3U8) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3U16] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3U16, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3U16) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3U32] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3U32, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3U32) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3U64] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3U64, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3U64) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3H] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3H, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3H) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3F] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3F, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3F) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC3D] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC3D, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC3D) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4BOOL] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4BOOL, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4BOOL) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4I8] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4I8, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4I8) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4I16] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4I16, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4I16) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4I32] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4I32, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4I32) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4I64] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4I64, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4I64) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4U8] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4U8, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4U8) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4U16] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4U16, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4U16) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4U32] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4U32, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4U32) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4U64] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4U64, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4U64) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4H] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4H, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4H) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4F] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4F, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4F) },
+	[HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4D] = { .string_id.idx_plus_one = HCC_STRING_ID_VEC_START + HCC_VEC4D, .aliased_data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT2X2F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT2X2F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT2X2F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT2X2D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT2X2D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT2X2D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT2X3F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT2X3F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT2X3F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT2X3D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT2X3D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT2X3D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT2X4F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT2X4F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT2X4F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT2X4D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT2X4D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT2X4D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT3X2F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT3X2F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT3X2F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT3X2D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT3X2D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT3X2D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT3X3F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT3X3F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT3X3F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT3X3D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT3X3D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT3X3D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT3X4F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT3X4F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT3X4F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT3X4D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT3X4D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT3X4D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT4X2F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT4X2F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT4X2F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT4X2D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT4X2D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT4X2D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT4X3F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT4X3F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT4X3F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT4X3D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT4X3D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT4X3D) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT4X4F] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT4X4F, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT4X4F) },
+	[HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT4X4D] = { .string_id.idx_plus_one = HCC_STRING_ID_PMAT_START + HCC_MAT4X4D, .aliased_data_type = HCC_DATA_TYPE_PMATRIX(HCC_MAT4X4D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT2X2F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT2X2F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT2X2F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT2X2D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT2X2D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT2X2D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT2X3F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT2X3F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT2X3F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT2X3D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT2X3D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT2X3D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT2X4F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT2X4F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT2X4F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT2X4D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT2X4D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT2X4D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT3X2F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT3X2F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT3X2F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT3X2D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT3X2D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT3X2D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT3X3F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT3X3F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT3X3F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT3X3D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT3X3D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT3X3D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT3X4F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT3X4F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT3X4F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT3X4D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT3X4D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT3X4D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT4X2F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT4X2F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT4X2F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT4X2D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT4X2D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT4X2D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT4X3F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT4X3F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT4X3F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT4X3D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT4X3D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT4X3D) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT4X4F] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT4X4F, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT4X4F) },
+	[HCC_TYPEDEF_IDX_MAT_START + HCC_MAT4X4D] = { .string_id.idx_plus_one = HCC_STRING_ID_MAT_START + HCC_MAT4X4D, .aliased_data_type = HCC_DATA_TYPE_MATRIX(HCC_MAT4X4D) },
+	[HCC_TYPEDEF_IDX_VERTEX_INPUT] = { .string_id.idx_plus_one = HCC_STRING_ID_HCC_VERTEX_INPUT, .aliased_data_type = HCC_DATA_TYPE_STRUCT(HCC_STRUCT_IDX_VERTEX_INPUT) },
+	[HCC_TYPEDEF_IDX_FRAGMENT_INPUT] = { .string_id.idx_plus_one = HCC_STRING_ID_HCC_FRAGMENT_INPUT, .aliased_data_type = HCC_DATA_TYPE_STRUCT(HCC_STRUCT_IDX_FRAGMENT_INPUT) },
 };
 
 HccIntrinsicStruct hcc_intrinsic_structs[HCC_STRUCT_IDX_INTRINSIC_END] = {
 	[HCC_STRUCT_IDX_VERTEX_INPUT] = {
-		.name = hcc_string_lit("HccVertexInput"),
+		.string_id.idx_plus_one = HCC_STRING_ID_HCC_VERTEX_INPUT,
 		.fields_count = 2,
 		.fields = {
-			[HCC_VERTEX_INPUT_VERTEX_INDEX] = { .data_type = HCC_DATA_TYPE_S32, .name = hcc_string_lit("vertex_idx") },
-			[HCC_VERTEX_INPUT_INSTANCE_INDEX] = { .data_type = HCC_DATA_TYPE_S32, .name = hcc_string_lit("instance_idx") },
+			[HCC_VERTEX_INPUT_VERTEX_INDEX] = { .data_type = HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_INT32), .name = hcc_string_lit("vertex_idx") },
+			[HCC_VERTEX_INPUT_INSTANCE_INDEX] = { .data_type = HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_INT32), .name = hcc_string_lit("instance_idx") },
 		},
 	},
 	[HCC_STRUCT_IDX_FRAGMENT_INPUT] = {
-		.name = hcc_string_lit("HccFragmentInput"),
+		.string_id.idx_plus_one = HCC_STRING_ID_HCC_FRAGMENT_INPUT,
 		.fields_count = 1,
 		.fields = {
-			[HCC_FRAGMENT_INPUT_FRAG_COORD] = { .data_type = HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32), .name = hcc_string_lit("frag_coord") },
+			[HCC_FRAGMENT_INPUT_FRAG_COORD] = { .data_type = HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_VEC_START + HCC_VEC4F), .name = hcc_string_lit("frag_coord") },
+		},
+	},
+	[HCC_STRUCT_IDX_HALF] = {
+		.string_id.idx_plus_one = HCC_STRING_ID_HALF,
+		.fields_count = 1,
+		.fields = {
+			[HCC_FRAGMENT_INPUT_FRAG_COORD] = { .data_type = HCC_DATA_TYPE_UINT16, .name = hcc_string_lit("_bits") },
 		},
 	},
 };
 
 HccIntrinsicFunction hcc_intrinsic_functions[HCC_FUNCTION_IDX_INTRINSIC_END] = {
-	[HCC_FUNCTION_IDX_VEC2] = {
-		.name = "vec2",
-		.return_data_type = HCC_DATA_TYPE_GENERIC_VEC2,
-		.params_count = 2,
-		.params = {
-			{ .identifier_string_id = { HCC_STRING_ID_X }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-			{ .identifier_string_id = { HCC_STRING_ID_Y }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-		},
-	},
-	[HCC_FUNCTION_IDX_VEC3] = {
-		.name = "vec3",
-		.return_data_type = HCC_DATA_TYPE_GENERIC_VEC3,
-		.params_count = 3,
-		.params = {
-			{ .identifier_string_id = { HCC_STRING_ID_X }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-			{ .identifier_string_id = { HCC_STRING_ID_Y }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-			{ .identifier_string_id = { HCC_STRING_ID_Z }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-		},
-	},
-	[HCC_FUNCTION_IDX_VEC4] = {
-		.name = "vec4",
-		.return_data_type = HCC_DATA_TYPE_GENERIC_VEC4,
-		.params_count = 4,
-		.params = {
-			{ .identifier_string_id = { HCC_STRING_ID_X }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-			{ .identifier_string_id = { HCC_STRING_ID_Y }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-			{ .identifier_string_id = { HCC_STRING_ID_Z }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-			{ .identifier_string_id = { HCC_STRING_ID_W }, .data_type = HCC_DATA_TYPE_GENERIC_SCALAR, },
-		},
-	},
+	0
 };
 
 U8 hcc_data_type_basic_type_ranks[HCC_DATA_TYPE_BASIC_COUNT] = {
 	[HCC_DATA_TYPE_BOOL] = 1,
-	[HCC_DATA_TYPE_U8] = 2,
-	[HCC_DATA_TYPE_S8] = 2,
-	[HCC_DATA_TYPE_U16] = 3,
-	[HCC_DATA_TYPE_S16] = 3,
-	[HCC_DATA_TYPE_S32] = 4,
-	[HCC_DATA_TYPE_U32] = 4,
-	[HCC_DATA_TYPE_U64] = 5,
-	[HCC_DATA_TYPE_S64] = 5,
-	[HCC_DATA_TYPE_F16] = 6,
-	[HCC_DATA_TYPE_F32] = 7,
-	[HCC_DATA_TYPE_F64] = 8,
+	[HCC_DATA_TYPE_CHAR] = 2,
+	[HCC_DATA_TYPE_SCHAR] = 2,
+	[HCC_DATA_TYPE_UCHAR] = 2,
+	[HCC_DATA_TYPE_SSHORT] = 3,
+	[HCC_DATA_TYPE_USHORT] = 3,
+	[HCC_DATA_TYPE_SINT] = 4,
+	[HCC_DATA_TYPE_UINT] = 4,
+	[HCC_DATA_TYPE_SLONG] = 5,
+	[HCC_DATA_TYPE_ULONG] = 5,
+	[HCC_DATA_TYPE_SLONGLONG] = 6,
+	[HCC_DATA_TYPE_ULONGLONG] = 6,
+	[HCC_DATA_TYPE_FLOAT] = 7,
+	[HCC_DATA_TYPE_DOUBLE] = 8,
+};
+
+const char* hcc_data_type_basic_type_strings[HCC_DATA_TYPE_BASIC_COUNT] = {
+	[HCC_DATA_TYPE_VOID] = "void",
+	[HCC_DATA_TYPE_BOOL] = "bool",
+	[HCC_DATA_TYPE_CHAR] = "char",
+	[HCC_DATA_TYPE_SCHAR] = "signed char",
+	[HCC_DATA_TYPE_UCHAR] = "unsigned char",
+	[HCC_DATA_TYPE_SSHORT] = "signed short",
+	[HCC_DATA_TYPE_USHORT] = "unsigned short",
+	[HCC_DATA_TYPE_SINT] = "signed int",
+	[HCC_DATA_TYPE_UINT] = "unsigned int",
+	[HCC_DATA_TYPE_SLONG] = "signed long",
+	[HCC_DATA_TYPE_ULONG] = "unsigned long",
+	[HCC_DATA_TYPE_SLONGLONG] = "signed long long",
+	[HCC_DATA_TYPE_ULONGLONG] = "unsigned long long",
+	[HCC_DATA_TYPE_FLOAT] = "float",
+	[HCC_DATA_TYPE_DOUBLE] = "double",
 };
 
 HccString hcc_data_type_string(HccCompiler* c, HccDataType data_type) {
 	HccStringId string_id;
 	bool is_const = HCC_DATA_TYPE_IS_CONST(data_type);
 	data_type = HCC_DATA_TYPE_STRIP_CONST(data_type);
-	if (data_type < HCC_DATA_TYPE_BASIC_END) {
-		string_id.idx_plus_one = HCC_STRING_ID_INTRINSIC_TYPES_START + data_type;
-	} else if (HCC_DATA_TYPE_VEC2_START <= data_type && data_type < HCC_DATA_TYPE_VEC2_END) {
-		string_id.idx_plus_one = HCC_STRING_ID_INTRINSIC_TYPES_START + (HCC_TOKEN_INTRINSIC_TYPE_VEC2 - HCC_TOKEN_INTRINSIC_TYPES_START);
-	} else if (HCC_DATA_TYPE_VEC3_START <= data_type && data_type < HCC_DATA_TYPE_VEC3_END) {
-		string_id.idx_plus_one = HCC_STRING_ID_INTRINSIC_TYPES_START + (HCC_TOKEN_INTRINSIC_TYPE_VEC3 - HCC_TOKEN_INTRINSIC_TYPES_START);
-	} else if (HCC_DATA_TYPE_VEC4_START <= data_type && data_type < HCC_DATA_TYPE_VEC4_END) {
-		string_id.idx_plus_one = HCC_STRING_ID_INTRINSIC_TYPES_START + (HCC_TOKEN_INTRINSIC_TYPE_VEC4 - HCC_TOKEN_INTRINSIC_TYPES_START);
-	} else if (HCC_DATA_TYPE_GENERIC_SCALAR <= data_type && data_type <= HCC_DATA_TYPE_GENERIC_VEC4) {
-		string_id.idx_plus_one = HCC_STRING_ID_GENERIC_SCALAR + (data_type - HCC_DATA_TYPE_GENERIC_SCALAR);
+	if (HCC_DATA_TYPE_IS_BASIC(data_type)) {
+		return hcc_string_c((char*)hcc_data_type_basic_type_strings[data_type]);
 	} else {
 		char buf[1024];
 		switch (data_type & 0xff) {
@@ -3422,7 +3829,7 @@ HccString hcc_data_type_string(HccCompiler* c, HccDataType data_type) {
 				HccString element_string = hcc_data_type_string(c, d->element_data_type);
 				HccConstant constant = hcc_constant_table_get(c, d->size_constant_id);
 				U64 size;
-				HCC_DEBUG_ASSERT(hcc_constant_as_uint(constant, &size), "internal error: array size is not an unsigned integer");
+				HCC_DEBUG_ASSERT(hcc_constant_as_uint(c, constant, &size), "internal error: array size is not an unsigned integer");
 				U32 string_size = snprintf(buf, sizeof(buf), "%.*s[%zu]", (int)element_string.size, element_string.data, size);
 				string_id = hcc_string_table_deduplicate(&c->string_table, buf, string_size);
 				break;
@@ -3466,53 +3873,12 @@ HccString hcc_data_type_string(HccCompiler* c, HccDataType data_type) {
 	return hcc_string_table_get(&c->string_table, string_id);
 }
 
-void hcc_data_type_size_align(HccCompiler* c, HccDataType data_type, Uptr* size_out, Uptr* align_out) {
+void hcc_data_type_size_align(HccCompiler* c, HccDataType data_type, U64* size_out, U64* align_out) {
 	data_type = hcc_typedef_resolve(c, data_type);
 
-	if (data_type < HCC_DATA_TYPE_MATRIX_END) {
-		switch (HCC_DATA_TYPE_SCALAR(data_type)) {
-			case HCC_DATA_TYPE_VOID:
-				*size_out = 0;
-				*align_out = 0;
-				break;
-			case HCC_DATA_TYPE_BOOL:
-			case HCC_DATA_TYPE_U8:
-			case HCC_DATA_TYPE_S8:
-				*size_out = 1;
-				*align_out = 1;
-				break;
-			case HCC_DATA_TYPE_U16:
-			case HCC_DATA_TYPE_S16:
-			case HCC_DATA_TYPE_F16:
-				*size_out = 2;
-				*align_out = 2;
-				break;
-			case HCC_DATA_TYPE_U32:
-			case HCC_DATA_TYPE_S32:
-			case HCC_DATA_TYPE_F32:
-				*size_out = 4;
-				*align_out = 4;
-				break;
-			case HCC_DATA_TYPE_U64:
-			case HCC_DATA_TYPE_S64:
-			case HCC_DATA_TYPE_F64:
-				*size_out = 8;
-				*align_out = 8;
-				break;
-		}
-
-		if (data_type >= HCC_DATA_TYPE_VECTOR_START) {
-			if (data_type < HCC_DATA_TYPE_VECTOR_END) {
-				U32 componments_count = HCC_DATA_TYPE_VECTOR_COMPONENTS(data_type);
-				*size_out *= componments_count;
-				*align_out *= componments_count;
-			} else {
-				U32 rows_count = HCC_DATA_TYPE_MATRX_ROWS(data_type);
-				U32 columns_count = HCC_DATA_TYPE_MATRX_COLUMNS(data_type);
-				*size_out *= rows_count * columns_count;
-				*align_out *= rows_count * columns_count;
-			}
-		}
+	if (HCC_DATA_TYPE_IS_BASIC(data_type)) {
+		*size_out = c->basic_type_size_and_aligns[data_type];
+		*align_out = c->basic_type_size_and_aligns[data_type];
 	} else {
 		switch (data_type & 0xff) {
 			case HCC_DATA_TYPE_STRUCT:
@@ -3526,10 +3892,10 @@ void hcc_data_type_size_align(HccCompiler* c, HccDataType data_type, Uptr* size_
 				HccArrayDataType* d = hcc_array_data_type_get(c, data_type);
 				HccConstant constant = hcc_constant_table_get(c, d->size_constant_id);
 				U64 count;
-				hcc_constant_as_uint(constant, &count);
+				hcc_constant_as_uint(c, constant, &count);
 
-				Uptr size;
-				Uptr align;
+				U64 size;
+				U64 align;
 				hcc_data_type_size_align(c, d->element_data_type, &size, &align);
 
 				*size_out = size * count;
@@ -3540,34 +3906,6 @@ void hcc_data_type_size_align(HccCompiler* c, HccDataType data_type, Uptr* size_
 				HCC_ABORT("unhandled data type '%u'", data_type);
 		}
 	}
-}
-
-HccDataType hcc_data_type_resolve_generic(HccCompiler* c, HccDataType data_type) {
-	switch (data_type) {
-		case HCC_DATA_TYPE_GENERIC_SCALAR:
-			HCC_DEBUG_ASSERT(c->astgen.generic_data_type_state.scalar, "internal error: cannot resolve scalar generic when a scalar type has not been found");
-			return c->astgen.generic_data_type_state.scalar;
-		case HCC_DATA_TYPE_GENERIC_VEC2:
-			HCC_DEBUG_ASSERT(c->astgen.generic_data_type_state.vec2 || c->astgen.generic_data_type_state.scalar, "internal error: cannot resolve vec2 generic when a vec2 or scalar type has not been found");
-			if (c->astgen.generic_data_type_state.vec2) {
-				return c->astgen.generic_data_type_state.vec2;
-			}
-			return HCC_DATA_TYPE_VEC2(c->astgen.generic_data_type_state.scalar);
-		case HCC_DATA_TYPE_GENERIC_VEC3:
-			HCC_DEBUG_ASSERT(c->astgen.generic_data_type_state.vec3 || c->astgen.generic_data_type_state.scalar, "internal error: cannot resolve vec3 generic when a vec3 or scalar type has not been found");
-			if (c->astgen.generic_data_type_state.vec3) {
-				return c->astgen.generic_data_type_state.vec3;
-			}
-			return HCC_DATA_TYPE_VEC3(c->astgen.generic_data_type_state.scalar);
-		case HCC_DATA_TYPE_GENERIC_VEC4:
-			HCC_DEBUG_ASSERT(c->astgen.generic_data_type_state.vec4 || c->astgen.generic_data_type_state.scalar, "internal error: cannot resolve vec4 generic when a vec4 or scalar type has not been found");
-			if (c->astgen.generic_data_type_state.vec4) {
-				return c->astgen.generic_data_type_state.vec4;
-			}
-			return HCC_DATA_TYPE_VEC4(c->astgen.generic_data_type_state.scalar);
-	}
-
-	return data_type;
 }
 
 void hcc_data_type_print_basic(HccCompiler* c, HccDataType data_type, void* data, FILE* f) {
@@ -3583,43 +3921,65 @@ void hcc_data_type_print_basic(HccCompiler* c, HccDataType data_type, void* data
 		case HCC_DATA_TYPE_BOOL:
 			fprintf(f, *(U8*)data ? "true" : "false");
 			break;
-		case HCC_DATA_TYPE_U8: uint = *(U8*)data; goto UINT;
-		case HCC_DATA_TYPE_U16: uint = *(U16*)data; goto UINT;
-		case HCC_DATA_TYPE_U32: uint = *(U32*)data; goto UINT;
-		case HCC_DATA_TYPE_U64: uint = *(U64*)data; goto UINT;
-UINT:
+		case HCC_DATA_TYPE_CHAR:
+		case HCC_DATA_TYPE_SCHAR:
+		case HCC_DATA_TYPE_SSHORT:
+		case HCC_DATA_TYPE_SINT:
+		case HCC_DATA_TYPE_SLONG:
+		case HCC_DATA_TYPE_SLONGLONG:
+			switch (c->basic_type_size_and_aligns[data_type]) {
+				case sizeof(int8_t): uint = *(int8_t*)data; break;
+				case sizeof(int16_t): uint = *(int16_t*)data; break;
+				case sizeof(int32_t): uint = *(int32_t*)data; break;
+				case sizeof(int64_t): uint = *(int64_t*)data; break;
+			}
+			fprintf(f, "%zd", uint);
+			break;
+		case HCC_DATA_TYPE_UCHAR:
+		case HCC_DATA_TYPE_USHORT:
+		case HCC_DATA_TYPE_UINT:
+		case HCC_DATA_TYPE_ULONG:
+		case HCC_DATA_TYPE_ULONGLONG:
+			switch (c->basic_type_size_and_aligns[data_type]) {
+				case sizeof(uint8_t): uint = *(uint8_t*)data; break;
+				case sizeof(uint16_t): uint = *(uint16_t*)data; break;
+				case sizeof(uint32_t): uint = *(uint32_t*)data; break;
+				case sizeof(uint64_t): uint = *(uint64_t*)data; break;
+			}
 			fprintf(f, "%zu", uint);
 			break;
-		case HCC_DATA_TYPE_S8: sint = *(S8*)data; goto SINT;
-		case HCC_DATA_TYPE_S16: sint = *(S16*)data; goto SINT;
-		case HCC_DATA_TYPE_S32: sint = *(S32*)data; goto SINT;
-		case HCC_DATA_TYPE_S64: sint = *(S64*)data; goto SINT;
-SINT:
-			fprintf(f, "%zd", sint);
-			break;
-		case HCC_DATA_TYPE_F16:
-			fprintf(f, "F16 TODO");
-			break;
-		case HCC_DATA_TYPE_F32: float_ = *(F32*)data; goto FLOAT;
-		case HCC_DATA_TYPE_F64: float_ = *(F64*)data; goto FLOAT;
+		case HCC_DATA_TYPE_FLOAT: float_ = *(float*)data; goto FLOAT;
+		case HCC_DATA_TYPE_DOUBLE: float_ = *(double*)data; goto FLOAT;
 FLOAT:
 			fprintf(f, "%f", float_);
 			break;
 	}
 }
 
-HccDataType hcc_data_type_unsigned_to_signed(HccDataType data_type) {
-	HCC_DEBUG_ASSERT(data_type < HCC_DATA_TYPE_VECTOR_END, "data_type must be a basic or vector type");
-	HccDataType scalar_data_type = HCC_DATA_TYPE_SCALAR(data_type);
-	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_U8 <= scalar_data_type && scalar_data_type <= HCC_DATA_TYPE_U64, "scalar_data_type must be a unsigned integer");
-	return data_type + 4;
+HccDataType hcc_data_type_unsigned_to_signed(HccCompiler* c, HccDataType data_type) {
+	if (HCC_DATA_TYPE_IS_BASIC(data_type)) {
+		HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_UINT(c, data_type), "data_type must be a unsigned integer");
+		return data_type + 5;
+	} else if (HCC_DATA_TYPE_IS_VECTOR(data_type)) {
+		HccDataType comp_data_type = hcc_vector_data_type_scalar(c, data_type);
+		HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_UINT(c, data_type), "component data type must be a unsigned integer");
+		return data_type + HCC_DATA_TYPE_INIT(0, 5);
+	} else {
+		HCC_ABORT("data_type must be a basic or vector type");
+	}
 }
 
-HccDataType hcc_data_type_signed_to_unsigned(HccDataType data_type) {
-	HCC_DEBUG_ASSERT(data_type < HCC_DATA_TYPE_VECTOR_END, "data_type must be a basic or vector type");
-	HccDataType scalar_data_type = HCC_DATA_TYPE_SCALAR(data_type);
-	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_S8 <= scalar_data_type && scalar_data_type <= HCC_DATA_TYPE_S64, "scalar_data_type must be a signed integer");
-	return data_type - 4;
+HccDataType hcc_data_type_signed_to_unsigned(HccCompiler* c, HccDataType data_type) {
+	if (HCC_DATA_TYPE_IS_BASIC(data_type)) {
+		HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_SINT(c, data_type), "data_type must be a signed integer");
+		return data_type - 5;
+	} else if (HCC_DATA_TYPE_IS_VECTOR(data_type)) {
+		HccDataType comp_data_type = hcc_vector_data_type_scalar(c, data_type);
+		HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_SINT(c, data_type), "component data type must be a signed integer");
+		return data_type - HCC_DATA_TYPE_INIT(0, 5);
+	} else {
+		HCC_ABORT("data_type must be a basic or vector type");
+	}
 }
 
 bool hcc_data_type_is_condition(HccCompiler* c, HccDataType data_type) {
@@ -3631,33 +3991,21 @@ bool hcc_data_type_is_condition(HccCompiler* c, HccDataType data_type) {
 U32 hcc_data_type_composite_fields_count(HccCompiler* c, HccDataType data_type) {
 	HCC_DEBUG_ASSERT(!HCC_DATA_TYPE_IS_BASIC(data_type), "internal error: expected a composite type but got '%s'", hcc_data_type_string(c, data_type));
 
-	if (HCC_DATA_TYPE_VECTOR_START <= data_type && data_type < HCC_DATA_TYPE_MATRIX_END) {
-		U32 componments_count;
-		if (data_type < HCC_DATA_TYPE_VECTOR_END) {
-			componments_count = HCC_DATA_TYPE_VECTOR_COMPONENTS(data_type);
-		} else {
-			U32 rows_count = HCC_DATA_TYPE_MATRX_ROWS(data_type);
-			U32 columns_count = HCC_DATA_TYPE_MATRX_COLUMNS(data_type);
-			componments_count = rows_count * columns_count;
-		}
-		return  componments_count;
-	} else {
-		switch (data_type & 0xff) {
-			case HCC_DATA_TYPE_ARRAY: {
-				HccArrayDataType* d = hcc_array_data_type_get(c, data_type);
-				HccConstant constant = hcc_constant_table_get(c, d->size_constant_id);
-				U64 count;
-				hcc_constant_as_uint(constant, &count);
-				return count;
-			};
-			case HCC_DATA_TYPE_STRUCT:
-			case HCC_DATA_TYPE_UNION: {
-				HccCompoundDataType* d = hcc_compound_data_type_get(c, data_type);
-				return d->fields_count;
-			};
-			default:
-				HCC_ABORT("unhandled data type '%u'", data_type);
-		}
+	switch (data_type & 0xff) {
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* d = hcc_array_data_type_get(c, data_type);
+			HccConstant constant = hcc_constant_table_get(c, d->size_constant_id);
+			U64 count;
+			hcc_constant_as_uint(c, constant, &count);
+			return count;
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* d = hcc_compound_data_type_get(c, data_type);
+			return d->fields_count;
+		};
+		default:
+			HCC_ABORT("unhandled data type '%u'", data_type);
 	}
 }
 
@@ -3671,6 +4019,110 @@ bool hcc_data_type_is_fragment_state(HccCompiler* c, HccDataType data_type) {
 	return HCC_DATA_TYPE_IS_STRUCT(data_type) && (hcc_compound_data_type_get(c, data_type)->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_IS_FRAGMENT_STATE);
 }
 
+HccDataType hcc_data_type_from_intrinsic_type(HccCompiler* c, HccIntrinsicType intrinsic_type) {
+	if (HCC_INTRINSIC_TYPE_VECTOR_START <= intrinsic_type && intrinsic_type < HCC_INTRINSIC_TYPE_VECTOR_END) {
+		HccVec vec = intrinsic_type - HCC_INTRINSIC_TYPE_VECTOR_START;
+		return HCC_DATA_TYPE_VECTOR(vec);
+	} else if (HCC_INTRINSIC_TYPE_MATRIX_START <= intrinsic_type && intrinsic_type < HCC_INTRINSIC_TYPE_MATRIX_END) {
+		HccMat mat = intrinsic_type - HCC_INTRINSIC_TYPE_MATRIX_START;
+		return HCC_DATA_TYPE_MATRIX(mat);
+	}
+
+	U8 size;
+	switch (intrinsic_type) {
+		case HCC_INTRINSIC_TYPE_VOID: return HCC_DATA_TYPE_VOID;
+		case HCC_INTRINSIC_TYPE_BOOL: return HCC_DATA_TYPE_BOOL;
+		case HCC_INTRINSIC_TYPE_S8: size = sizeof(U8); goto FIND_SIGNED;
+		case HCC_INTRINSIC_TYPE_S16: size = sizeof(U16); goto FIND_SIGNED;
+		case HCC_INTRINSIC_TYPE_S32: size = sizeof(U32); goto FIND_SIGNED;
+		case HCC_INTRINSIC_TYPE_S64: size = sizeof(U64); goto FIND_SIGNED;
+FIND_SIGNED:
+			for (HccDataType dt = HCC_DATA_TYPE_SCHAR; dt <= HCC_DATA_TYPE_SLONGLONG; dt += 1) {
+				if (c->basic_type_size_and_aligns[dt] == size) {
+					return dt;
+				}
+			}
+			break;
+		case HCC_INTRINSIC_TYPE_U8: size = sizeof(U8); goto FIND_UNSIGNED;
+		case HCC_INTRINSIC_TYPE_U16: size = sizeof(U16); goto FIND_UNSIGNED;
+		case HCC_INTRINSIC_TYPE_U32: size = sizeof(U32); goto FIND_UNSIGNED;
+		case HCC_INTRINSIC_TYPE_U64: size = sizeof(U64); goto FIND_UNSIGNED;
+FIND_UNSIGNED:
+			for (HccDataType dt = HCC_DATA_TYPE_UCHAR; dt <= HCC_DATA_TYPE_ULONGLONG; dt += 1) {
+				if (c->basic_type_size_and_aligns[dt] == size) {
+					return dt;
+				}
+			}
+			break;
+		case HCC_INTRINSIC_TYPE_F16: return HCC_DATA_TYPE_STRUCT(HCC_STRUCT_IDX_HALF);
+		case HCC_INTRINSIC_TYPE_F32: return HCC_DATA_TYPE_FLOAT;
+		case HCC_INTRINSIC_TYPE_F64: return HCC_DATA_TYPE_DOUBLE;
+	}
+
+	HCC_ABORT("unhandled intrinsic type '%u'", intrinsic_type);
+}
+
+HccIntrinsicBasicTypeMask hcc_data_type_has_intrinsic_basic_types(HccCompiler* c, HccDataType data_type) {
+	HccIntrinsicBasicTypeMask mask = 0;
+	if (HCC_DATA_TYPE_IS_INTRINSIC_BASIC(data_type)) {
+		HCC_INTRINSIC_BASIC_TYPE_MASK_SET(&mask, hcc_intrinsic_type_from_data_type(c, data_type));
+		return mask;
+	}
+
+	switch (data_type & 0xff) {
+		case HCC_DATA_TYPE_ENUM:
+			HCC_INTRINSIC_BASIC_TYPE_MASK_SET(&mask, hcc_intrinsic_type_from_data_type(c, HCC_DATA_TYPE_SINT));
+			return mask;
+
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(c, data_type);
+			return compound_data_type->has_intrinsic_basic_types;
+		};
+
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* array_data_type = hcc_array_data_type_get(c, data_type);
+			return hcc_data_type_has_intrinsic_basic_types(c, array_data_type->element_data_type);
+		};
+
+		case HCC_DATA_TYPE_TYPEDEF: {
+			HccTypedef* typedef_ = hcc_typedef_get(c, data_type);
+			return hcc_data_type_has_intrinsic_basic_types(c, typedef_->aliased_data_type);
+		};
+
+		default:
+			return 0;
+	}
+}
+
+bool hcc_data_type_is_same_underlaying_type(HccCompiler* c, HccDataType a, HccDataType b) {
+	a = hcc_typedef_resolve(c, a);
+	b = hcc_typedef_resolve(c, b);
+	if (a == b) {
+		return true;
+	}
+
+	if (HCC_DATA_TYPE_IS_INTRINSIC_BASIC(a) && HCC_DATA_TYPE_IS_INTRINSIC_BASIC(b)) {
+		HccIntrinsicType ia = hcc_intrinsic_type_from_data_type(c, a);
+		HccIntrinsicType ib = hcc_intrinsic_type_from_data_type(c, b);
+		return ia == ib;
+	}
+
+	return false;
+}
+
+bool hcc_data_type_is_same_bitwidth_int(HccCompiler* c, HccDataType a, HccDataType b) {
+	a = hcc_typedef_resolve(c, a);
+	b = hcc_typedef_resolve(c, b);
+	if (HCC_DATA_TYPE_IS_INTRINSIC_BASIC(a) && HCC_DATA_TYPE_IS_INTRINSIC_BASIC(b)) {
+		HccIntrinsicType ia = hcc_intrinsic_type_from_data_type(c, a);
+		HccIntrinsicType ib = hcc_intrinsic_type_from_data_type(c, b);
+		return ia == ib || ia + 4 == ib || ia == ib + 4;
+	}
+
+	return false;
+}
+
 U32 hcc_data_type_token_idx(HccCompiler* c, HccDataType data_type) {
 	switch (data_type & 0xff) {
 		case HCC_DATA_TYPE_TYPEDEF:
@@ -3680,22 +4132,213 @@ U32 hcc_data_type_token_idx(HccCompiler* c, HccDataType data_type) {
 	}
 }
 
+HccIntrinsicType hcc_intrinsic_type_from_data_type(HccCompiler* c, HccDataType data_type) {
+	if (HCC_DATA_TYPE_IS_UINT(c, data_type)) {
+		switch (c->basic_type_size_and_aligns[data_type]) {
+			case sizeof(U8): return HCC_INTRINSIC_TYPE_U8;
+			case sizeof(U16): return HCC_INTRINSIC_TYPE_U16;
+			case sizeof(U32): return HCC_INTRINSIC_TYPE_U32;
+			case sizeof(U64): return HCC_INTRINSIC_TYPE_U64;
+		}
+	} else if (HCC_DATA_TYPE_IS_SINT(c, data_type)) {
+		switch (c->basic_type_size_and_aligns[data_type]) {
+			case sizeof(U8): return HCC_INTRINSIC_TYPE_S8;
+			case sizeof(U16): return HCC_INTRINSIC_TYPE_S16;
+			case sizeof(U32): return HCC_INTRINSIC_TYPE_S32;
+			case sizeof(U64): return HCC_INTRINSIC_TYPE_S64;
+		}
+	} else if (HCC_DATA_TYPE_IS_VECTOR(data_type)) {
+		HccVec vec = HCC_DATA_TYPE_VECTOR_VEC(data_type);
+		return HCC_INTRINSIC_TYPE_VECTOR_START + vec;
+	} else if (HCC_DATA_TYPE_IS_MATRIX(data_type)) {
+		HccMat mat = HCC_DATA_TYPE_MATRIX_MAT(data_type);
+		return HCC_INTRINSIC_TYPE_MATRIX_START + mat;
+	} else {
+		switch (data_type) {
+			case HCC_DATA_TYPE_VOID: return HCC_INTRINSIC_TYPE_VOID;
+			case HCC_DATA_TYPE_BOOL: return HCC_INTRINSIC_TYPE_BOOL;
+			case HCC_DATA_TYPE_HALF: return HCC_INTRINSIC_TYPE_F16;
+			case HCC_DATA_TYPE_FLOAT: return HCC_INTRINSIC_TYPE_F32;
+			case HCC_DATA_TYPE_DOUBLE: return HCC_INTRINSIC_TYPE_F64;
+		}
+	}
+
+	HCC_ABORT("unhandled data type '%u'", data_type);
+}
+
+HccDataType hcc_vector_data_type_scalar(HccCompiler* c, HccDataType data_type) {
+	HccVec vec = HCC_DATA_TYPE_VECTOR_VEC(data_type);
+	HccIntrinsicType scalar_intrinsic_type = HCC_INTRINSIC_TYPE_FROM_VEC(vec);
+	return hcc_data_type_from_intrinsic_type(c, scalar_intrinsic_type);
+}
+
+HccDataType hcc_matrix_data_type_scalar(HccCompiler* c, HccDataType data_type) {
+	HccMat mat = HCC_DATA_TYPE_MATRIX_MAT(data_type);
+	HccIntrinsicType scalar_intrinsic_type = HCC_INTRINSIC_TYPE_FROM_MAT(mat);
+	return hcc_data_type_from_intrinsic_type(c, scalar_intrinsic_type);
+}
+
+HccDataType hcc_matrix_data_type_column_vector(HccDataType data_type) {
+	HccMat mat = HCC_DATA_TYPE_MATRIX_MAT(data_type);
+	U32 columns_count_minus_two = mat % 6;
+	HccVec vec = (columns_count_minus_two * 12) + (mat % 2);
+	return HCC_DATA_TYPE_VECTOR(vec);
+}
+
+HccString hcc_intrinsic_basic_type_mask_string(HccIntrinsicBasicTypeMask mask) {
+	static char buf[512];
+	U32 size = 0;
+	while (mask) {
+		HccIntrinsicType intrinsic_type = leastsetbitidx32(mask);
+		const char* str;
+		switch (intrinsic_type) {
+			case HCC_INTRINSIC_TYPE_VOID: str = "void"; break;
+			case HCC_INTRINSIC_TYPE_BOOL: str = "bool"; break;
+			case HCC_INTRINSIC_TYPE_S8: str = "int8_t"; break;
+			case HCC_INTRINSIC_TYPE_S16: str = "int16_t"; break;
+			case HCC_INTRINSIC_TYPE_S32: str = "int32_t"; break;
+			case HCC_INTRINSIC_TYPE_S64: str = "int64_t"; break;
+			case HCC_INTRINSIC_TYPE_U8: str = "uint8_t"; break;
+			case HCC_INTRINSIC_TYPE_U16: str = "uint16_t"; break;
+			case HCC_INTRINSIC_TYPE_U32: str = "uint32_t"; break;
+			case HCC_INTRINSIC_TYPE_U64: str = "uint64_t"; break;
+			case HCC_INTRINSIC_TYPE_F16: str = "half"; break;
+			case HCC_INTRINSIC_TYPE_F32: str = "float"; break;
+			case HCC_INTRINSIC_TYPE_F64: str = "double"; break;
+		}
+
+		size += snprintf(buf + size, sizeof(buf) - size, size ? " %s" : "%s", str);
+		mask &= ~(1 << intrinsic_type);
+	}
+
+	return hcc_string(buf, size);
+}
+
 HccBasicTypeClass hcc_basic_type_class(HccDataType data_type) {
 	switch (data_type) {
 		case HCC_DATA_TYPE_BOOL: return HCC_BASIC_TYPE_CLASS_BOOL;
-		case HCC_DATA_TYPE_U8:
-		case HCC_DATA_TYPE_U16:
-		case HCC_DATA_TYPE_U32:
-		case HCC_DATA_TYPE_U64: return HCC_BASIC_TYPE_CLASS_UINT;
-		case HCC_DATA_TYPE_S8:
-		case HCC_DATA_TYPE_S16:
-		case HCC_DATA_TYPE_S32:
-		case HCC_DATA_TYPE_S64: return HCC_BASIC_TYPE_CLASS_SINT;
-		case HCC_DATA_TYPE_F16:
-		case HCC_DATA_TYPE_F32:
-		case HCC_DATA_TYPE_F64: return HCC_BASIC_TYPE_CLASS_FLOAT;
+		case HCC_DATA_TYPE_CHAR:
+		case HCC_DATA_TYPE_SCHAR:
+		case HCC_DATA_TYPE_SSHORT:
+		case HCC_DATA_TYPE_SINT:
+		case HCC_DATA_TYPE_SLONG:
+		case HCC_DATA_TYPE_SLONGLONG: return HCC_BASIC_TYPE_CLASS_SINT;
+		case HCC_DATA_TYPE_UCHAR:
+		case HCC_DATA_TYPE_USHORT:
+		case HCC_DATA_TYPE_UINT:
+		case HCC_DATA_TYPE_ULONG:
+		case HCC_DATA_TYPE_ULONGLONG: return HCC_BASIC_TYPE_CLASS_UINT;
+		case HCC_DATA_TYPE_FLOAT:
+		case HCC_DATA_TYPE_DOUBLE: return HCC_BASIC_TYPE_CLASS_FLOAT;
 		default: HCC_UNREACHABLE("internal error: expected a basic type");
 	}
+}
+
+HccBasic hcc_basic_from_sint(HccCompiler* c, HccDataType data_type, S64 value) {
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_BASIC(data_type), "data type must be a basic type");
+
+	HccBasic basic;
+	switch (data_type) {
+	case HCC_DATA_TYPE_CHAR:
+	case HCC_DATA_TYPE_SCHAR:
+	case HCC_DATA_TYPE_SSHORT:
+	case HCC_DATA_TYPE_SINT:
+	case HCC_DATA_TYPE_SLONG:
+	case HCC_DATA_TYPE_SLONGLONG:
+		switch (c->basic_type_size_and_aligns[data_type]) {
+		case sizeof(int8_t): basic.s8 = value; break;
+		case sizeof(int16_t): basic.s16 = value; break;
+		case sizeof(int32_t): basic.s32 = value; break;
+		case sizeof(int64_t): basic.s64 = value; break;
+		}
+		break;
+	case HCC_DATA_TYPE_BOOL:
+	case HCC_DATA_TYPE_UCHAR:
+	case HCC_DATA_TYPE_USHORT:
+	case HCC_DATA_TYPE_UINT:
+	case HCC_DATA_TYPE_ULONG:
+	case HCC_DATA_TYPE_ULONGLONG:
+		switch (c->basic_type_size_and_aligns[data_type]) {
+		case sizeof(uint8_t): basic.u8 = value; break;
+		case sizeof(uint16_t): basic.u16 = value; break;
+		case sizeof(uint32_t): basic.u32 = value; break;
+		case sizeof(uint64_t): basic.u64 = value; break;
+		}
+		break;
+	case HCC_DATA_TYPE_FLOAT: basic.f = value; break;
+	case HCC_DATA_TYPE_DOUBLE: basic.d = value; break;
+	}
+
+	return basic;
+}
+
+HccBasic hcc_basic_from_uint(HccCompiler* c, HccDataType data_type, U64 value) {
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_BASIC(data_type), "data type must be a basic type");
+
+	HccBasic basic;
+	switch (data_type) {
+	case HCC_DATA_TYPE_BOOL:
+	case HCC_DATA_TYPE_CHAR:
+	case HCC_DATA_TYPE_SCHAR:
+	case HCC_DATA_TYPE_SSHORT:
+	case HCC_DATA_TYPE_SINT:
+	case HCC_DATA_TYPE_SLONG:
+	case HCC_DATA_TYPE_SLONGLONG:
+	case HCC_DATA_TYPE_UCHAR:
+	case HCC_DATA_TYPE_USHORT:
+	case HCC_DATA_TYPE_UINT:
+	case HCC_DATA_TYPE_ULONG:
+	case HCC_DATA_TYPE_ULONGLONG:
+		switch (c->basic_type_size_and_aligns[data_type]) {
+		case sizeof(uint8_t): basic.u8 = value; break;
+		case sizeof(uint16_t): basic.u16 = value; break;
+		case sizeof(uint32_t): basic.u32 = value; break;
+		case sizeof(uint64_t): basic.u64 = value; break;
+		}
+		break;
+	case HCC_DATA_TYPE_FLOAT: basic.f = value; break;
+	case HCC_DATA_TYPE_DOUBLE: basic.d = value; break;
+	}
+
+	return basic;
+}
+
+HccBasic hcc_basic_from_float(HccCompiler* c, HccDataType data_type, double value) {
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_BASIC(data_type), "data type must be a basic type");
+
+	HccBasic basic;
+	switch (data_type) {
+	case HCC_DATA_TYPE_CHAR:
+	case HCC_DATA_TYPE_SCHAR:
+	case HCC_DATA_TYPE_SSHORT:
+	case HCC_DATA_TYPE_SINT:
+	case HCC_DATA_TYPE_SLONG:
+	case HCC_DATA_TYPE_SLONGLONG:
+		switch (c->basic_type_size_and_aligns[data_type]) {
+		case sizeof(int8_t): basic.s8 = (S8)value; break;
+		case sizeof(int16_t): basic.s16 = (S16)value; break;
+		case sizeof(int32_t): basic.s32 = (S32)value; break;
+		case sizeof(int64_t): basic.s64 = (S64)value; break;
+		}
+		break;
+	case HCC_DATA_TYPE_BOOL:
+	case HCC_DATA_TYPE_UCHAR:
+	case HCC_DATA_TYPE_USHORT:
+	case HCC_DATA_TYPE_UINT:
+	case HCC_DATA_TYPE_ULONG:
+	case HCC_DATA_TYPE_ULONGLONG:
+		switch (c->basic_type_size_and_aligns[data_type]) {
+		case sizeof(uint8_t): basic.u8 = (U8)value; break;
+		case sizeof(uint16_t): basic.u16 = (U16)value; break;
+		case sizeof(uint32_t): basic.u32 = (U32)value; break;
+		case sizeof(uint64_t): basic.u64 = (U64)value; break;
+		}
+		break;
+	case HCC_DATA_TYPE_FLOAT: basic.f = value; break;
+	case HCC_DATA_TYPE_DOUBLE: basic.d = value; break;
+	}
+
+	return basic;
 }
 
 HccArrayDataType* hcc_array_data_type_get(HccCompiler* c, HccDataType data_type) {
@@ -3726,7 +4369,7 @@ HccDataType hcc_typedef_resolve(HccCompiler* c, HccDataType data_type) {
 	while (1) {
 		switch (data_type & 0xff) {
 			case HCC_DATA_TYPE_ENUM:
-				return HCC_DATA_TYPE_S32 | const_mask;
+				return HCC_DATA_TYPE_SINT | const_mask;
 			case HCC_DATA_TYPE_TYPEDEF: {
 				HccTypedef* typedef_ = hcc_typedef_get(c, data_type);
 				data_type = typedef_->aliased_data_type;
@@ -3824,7 +4467,7 @@ void hcc_tokengen_init(HccCompiler* c, HccCompilerSetup* setup) {
 	c->tokengen.token_bag.token_location_indices = hcc_stack_init(U32, setup->tokengen.tokens_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES);
 	c->tokengen.token_bag.token_values = hcc_stack_init(HccTokenValue, setup->tokengen.token_values_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES);
 	c->tokengen.token_locations = hcc_stack_init(HccLocation, setup->tokengen.token_locations_cap, HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES);
-	c->tokengen.location_stack = hcc_stack_init(HccLocation, setup->tokengen.location_stack_cap, HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK);
+	c->tokengen.paused_file_stack = hcc_stack_init(HccPausedFile, setup->tokengen.paused_file_stack_cap, HCC_ALLOC_TAG_TOKENGEN_PAUSED_FILE_STACK);
 	c->tokengen.open_bracket_stack = hcc_stack_init(HccOpenBracket, setup->tokengen.open_bracket_stack_cap, HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK);
 }
 
@@ -3870,7 +4513,7 @@ U32 hcc_tokengen_token_value_add(HccCompiler* c, HccTokenValue value) {
 void hcc_tokengen_count_extra_newlines(HccCompiler* c) {
 	HccLocation* location = &c->tokengen.location;
 	HccString code = location->code_file->code;
-	U32 idx = hcc_stack_count(c->tokengen.location_stack);
+	U32 idx = hcc_stack_count(c->tokengen.paused_file_stack);
 	while (1) {
 		U32 lines_count = 3;
 		while (location->code_end_idx < code.size) {
@@ -3892,7 +4535,7 @@ void hcc_tokengen_count_extra_newlines(HccCompiler* c) {
 		}
 
 		idx -= 1;
-		location = hcc_stack_get(c->tokengen.location_stack, idx);
+		location = &hcc_stack_get(c->tokengen.paused_file_stack, idx)->location;
 		code = location->code_file->code;
 	}
 }
@@ -3945,23 +4588,25 @@ noreturn void hcc_tokengen_bail_error_2_ptr(HccCompiler* c, HccErrorCode error_c
 }
 
 void hcc_tokengen_location_push(HccCompiler* c) {
-	*hcc_stack_push(c->tokengen.location_stack) = c->tokengen.location;
+	HccPausedFile* paused_file = hcc_stack_push(c->tokengen.paused_file_stack);
+	paused_file->location = c->tokengen.location;
+	paused_file->if_span_stack_count = hcc_stack_count(c->pp.if_span_stack);
 }
 
 void hcc_tokengen_location_pop(HccCompiler* c) {
 	c->tokengen.location.code_file->flags |= HCC_CODE_FILE_FLAGS_PARSED_ONCE_OR_MORE;
-	if (hcc_stack_count(c->pp.if_span_stack)) {
+	HccPausedFile* paused_file = hcc_stack_get_last(c->tokengen.paused_file_stack);
+	if (paused_file->if_span_stack_count != hcc_stack_count(c->pp.if_span_stack)) {
 		HccPPIfSpan* if_span = *hcc_stack_get_last(c->pp.if_span_stack);
 		c->tokengen.location = if_span->location;
 		hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_PP_IF_UNTERMINATED, hcc_pp_directive_strings[if_span->directive]);
 	}
 
-	HccLocation* location = hcc_stack_get_last(c->tokengen.location_stack);
-	hcc_change_working_directory_to_same_as_this_file(location->code_file->path_string.data);
-	c->tokengen.location = *location;
-	c->tokengen.code = location->code_file->code.data;
-	c->tokengen.code_size = location->code_file->code.size;
-	hcc_stack_pop(c->tokengen.location_stack);
+	hcc_change_working_directory_to_same_as_this_file(paused_file->location.code_file->path_string.data);
+	c->tokengen.location = paused_file->location;
+	c->tokengen.code = paused_file->location.code_file->code.data;
+	c->tokengen.code_size = paused_file->location.code_file->code.size;
+	hcc_stack_pop(c->tokengen.paused_file_stack);
 }
 
 void hcc_tokengen_location_setup_new_file(HccCompiler* c, HccCodeFile* code_file, bool change_dir) {
@@ -4091,6 +4736,69 @@ HccString hcc_tokengen_parse_ident(HccCompiler* c, HccErrorCode error_code) {
 	return hcc_tokengen_parse_ident_from_string(c, code, error_code);
 }
 
+U32 hcc_tokengen_parse_num_literals(HccCompiler* c, char* num_string, U32 token_size, U32 remaining_size, HccToken* token_mut) {
+	HccToken token = *token_mut;
+	token_size -= 1; // move back onto the character
+	while (token_size < remaining_size) {
+		char ch = num_string[token_size];
+		token_size += 1;
+		switch (ch) {
+			case 'u':
+			case 'U':
+				switch (token) {
+					case HCC_TOKEN_LIT_SINT: token = HCC_TOKEN_LIT_UINT; break;
+					case HCC_TOKEN_LIT_SLONG: token = HCC_TOKEN_LIT_ULONG; break;
+					case HCC_TOKEN_LIT_SLONGLONG: token = HCC_TOKEN_LIT_ULONGLONG; break;
+					case HCC_TOKEN_LIT_UINT:
+					case HCC_TOKEN_LIT_ULONG:
+					case HCC_TOKEN_LIT_ULONGLONG:
+						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_U_SUFFIX_ALREADY_USED);
+						break;
+					case HCC_TOKEN_LIT_FLOAT:
+					case HCC_TOKEN_LIT_DOUBLE:
+						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_U_SUFFIX_ON_FLOAT);
+						break;
+				}
+				break;
+			case 'l':
+			case 'L':
+				switch (token) {
+					case HCC_TOKEN_LIT_FLOAT:
+						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_L_SUFFIX_ON_FLOAT);
+					case HCC_TOKEN_LIT_DOUBLE:
+						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_LONG_DOUBLE_IS_UNSUPPORTED);
+					case HCC_TOKEN_LIT_SINT:
+						token = HCC_TOKEN_LIT_SLONG;
+						break;
+					case HCC_TOKEN_LIT_SLONG:
+						token = HCC_TOKEN_LIT_SLONGLONG;
+						break;
+					case HCC_TOKEN_LIT_UINT:
+						token = HCC_TOKEN_LIT_ULONG;
+						break;
+					case HCC_TOKEN_LIT_ULONG:
+						token = HCC_TOKEN_LIT_ULONGLONG;
+						break;
+				}
+				break;
+			case 'f':
+			case 'F':
+				if (token != HCC_TOKEN_LIT_DOUBLE) {
+					hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_FLOAT_SUFFIX_MUST_FOLLOW_DECIMAL_PLACE);
+				}
+				token = HCC_TOKEN_LIT_FLOAT;
+				break;
+			default:
+				token_size -= 1;
+				goto END;
+		}
+	}
+
+END:
+	*token_mut = token;
+	return token_size;
+}
+
 U32 hcc_tokengen_parse_num(HccCompiler* c, HccToken* token_out) {
 	char* num_string = (char*)&c->tokengen.code[c->tokengen.location.code_end_idx];
 	U32 remaining_size = c->tokengen.code_size - c->tokengen.location.code_end_idx;
@@ -4103,7 +4811,7 @@ U32 hcc_tokengen_parse_num(HccCompiler* c, HccToken* token_out) {
 
 	//
 	// parse the radix prefix if there is a 0x or 0
-	HccToken token = HCC_TOKEN_LIT_S32;
+	HccToken token = HCC_TOKEN_LIT_SINT;
 	uint8_t radix = 10;
 	if (num_string[0] == '0') {
 		switch (num_string[1]) {
@@ -4137,10 +4845,12 @@ U32 hcc_tokengen_parse_num(HccCompiler* c, HccToken* token_out) {
 				}
 				U32 int_digit = digit - '0';
 				switch (token) {
-					case HCC_TOKEN_LIT_U32:
-					case HCC_TOKEN_LIT_U64:
-					case HCC_TOKEN_LIT_S32:
-					case HCC_TOKEN_LIT_S64:
+					case HCC_TOKEN_LIT_SINT:
+					case HCC_TOKEN_LIT_SLONG:
+					case HCC_TOKEN_LIT_SLONGLONG:
+					case HCC_TOKEN_LIT_UINT:
+					case HCC_TOKEN_LIT_ULONG:
+					case HCC_TOKEN_LIT_ULONGLONG:
 						if (
 							!hcc_i64_checked_mul(u64, radix, &u64)        ||
 							!hcc_u64_checked_add(u64, int_digit, &u64)
@@ -4148,8 +4858,8 @@ U32 hcc_tokengen_parse_num(HccCompiler* c, HccToken* token_out) {
 							hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_UINT_OVERFLOW);
 						}
 						break;
-					case HCC_TOKEN_LIT_F32:
-					case HCC_TOKEN_LIT_F64:
+					case HCC_TOKEN_LIT_FLOAT:
+					case HCC_TOKEN_LIT_DOUBLE:
 						f64 += (F64)(int_digit) / pow_10;
 						if (isinf(f64)) {
 							hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_FLOAT_OVERFLOW);
@@ -4161,96 +4871,69 @@ U32 hcc_tokengen_parse_num(HccCompiler* c, HccToken* token_out) {
 			};
 			case 'u':
 			case 'U':
-			{
-				if (token == HCC_TOKEN_LIT_F64 || is_negative) {
-					hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_U_SUFFIX_ON_NON_POSITIVE_INTEGER);
-				}
-				token = HCC_TOKEN_LIT_U32;
-				digit = num_string[token_size];
-				if (digit != 'l' && digit != 'L') {
-					goto NUM_END;
-				}
-				// fallthrough
-			};
 			case 'l':
 			case 'L':
-				switch (token) {
-					case HCC_TOKEN_LIT_F32:
-					case HCC_TOKEN_LIT_F64:
-						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_LONG_DOUBLE_IS_UNSUPPORTED);
-					case HCC_TOKEN_LIT_S32:
-						token = HCC_TOKEN_LIT_S64;
-						break;
-					case HCC_TOKEN_LIT_U32:
-						token = HCC_TOKEN_LIT_U64;
-						break;
-				}
+				token_size = hcc_tokengen_parse_num_literals(c, num_string, token_size, remaining_size, &token);
+				break;
 
-				digit = num_string[token_size];
-				if (digit == 'l' || digit == 'L') {
-					token_size += 1; // ignore LL suffixes
-				}
-				goto NUM_END;
 			case '.':
-				if (token == HCC_TOKEN_LIT_F64) {
+				if (token == HCC_TOKEN_LIT_DOUBLE) {
 					hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_FLOAT_HAS_DOUBLE_FULL_STOP);
 				}
 				if (radix != 10) {
 					hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_FLOAT_MUST_BE_DECIMAL);
 				}
 
-				token = HCC_TOKEN_LIT_F64;
+				token = HCC_TOKEN_LIT_DOUBLE;
 				f64 = (F64)u64;
 				if ((U64)f64 != u64) {
 					hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_FLOAT_OVERFLOW);
 				}
 				break;
+
 			default: {
 				if (radix == 16 && ((digit >= 'a' && digit <= 'f') || (digit >= 'A' && digit <= 'F'))) {
 					U32 int_digit = 10 + (digit >= 'A' ? (digit - 'A') : (digit - 'a'));
-					switch (token) {
-						case HCC_TOKEN_LIT_U32:
-						case HCC_TOKEN_LIT_U64:
-						case HCC_TOKEN_LIT_S32:
-						case HCC_TOKEN_LIT_S64:
-							if (
-								!hcc_i64_checked_mul(u64, radix, &u64)        ||
-								!hcc_u64_checked_add(u64, int_digit, &u64)
-							) {
-								hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_UINT_OVERFLOW);
-							}
-							break;
+					HCC_DEBUG_ASSERT(token != HCC_TOKEN_LIT_FLOAT && token != HCC_TOKEN_LIT_DOUBLE, "internal error: expected to be dealing with integer literals here");
+					if (
+						!hcc_i64_checked_mul(u64, radix, &u64)        ||
+						!hcc_u64_checked_add(u64, int_digit, &u64)
+					) {
+						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_UINT_OVERFLOW);
 					}
+					break;
 				} else if (digit == 'f' || digit == 'F') {
-					if (token != HCC_TOKEN_LIT_F64) {
-						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_FLOAT_SUFFIX_MUST_FOLLOW_DECIMAL_PLACE);
-					}
-					token = HCC_TOKEN_LIT_F32;
-					goto NUM_END;
+					token_size = hcc_tokengen_parse_num_literals(c, num_string, token_size, remaining_size, &token);
 				} else if ((digit >= 'a' && digit <= 'z') || (digit >= 'A' && digit <= 'Z')) {
 					switch (token) {
-						case HCC_TOKEN_LIT_U32:
-						case HCC_TOKEN_LIT_U64:
-						case HCC_TOKEN_LIT_S32:
-						case HCC_TOKEN_LIT_S64:
+						case HCC_TOKEN_LIT_SINT:
+						case HCC_TOKEN_LIT_SLONG:
+						case HCC_TOKEN_LIT_SLONGLONG:
+						case HCC_TOKEN_LIT_UINT:
+						case HCC_TOKEN_LIT_ULONG:
+						case HCC_TOKEN_LIT_ULONGLONG:
 							hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_INVALID_INTEGER_LITERALS);
-						case HCC_TOKEN_LIT_F32:
-						case HCC_TOKEN_LIT_F64:
+						case HCC_TOKEN_LIT_FLOAT:
+						case HCC_TOKEN_LIT_DOUBLE:
 							hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_INVALID_FLOAT_LITERALS);
 					}
 				} else {
 					token_size -= 1;
 					goto NUM_END;
 				}
+				break;
 			};
 		}
 	}
 NUM_END:
 
+	//
+	// apply the negate if it is negative and a signed type
 	if (is_negative) {
 		switch (token) {
-			case HCC_TOKEN_LIT_S32:
-			case HCC_TOKEN_LIT_S64:
+			case HCC_TOKEN_LIT_SINT:
+			case HCC_TOKEN_LIT_SLONG:
+			case HCC_TOKEN_LIT_SLONGLONG:
 			{
 				if (u64 > (U64)S64_MAX + 1) {
 					hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_SINT_OVERFLOW);
@@ -4258,32 +4941,67 @@ NUM_END:
 				s64 = -u64;
 				break;
 			};
-			case HCC_TOKEN_LIT_F32:
-			case HCC_TOKEN_LIT_F64:
+			case HCC_TOKEN_LIT_FLOAT:
+			case HCC_TOKEN_LIT_DOUBLE:
 				f64 = -f64;
 				break;
 		}
 	}
 
+	//
+	// perform literal type upgrades if they exceed their current type
 	switch (token) {
-		case HCC_TOKEN_LIT_U32:
-			if (u64 > U32_MAX) {
-				token = HCC_TOKEN_LIT_U64;
+		case HCC_TOKEN_LIT_UINT:
+			if (u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_UINT]) {
+				break;
 			}
+			token = HCC_TOKEN_LIT_ULONG;
+			// fallthrough
+		case HCC_TOKEN_LIT_ULONG:
+			if (u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_ULONG]) {
+				break;
+			}
+			token = HCC_TOKEN_LIT_ULONGLONG;
 			break;
-		case HCC_TOKEN_LIT_S32:
+		case HCC_TOKEN_LIT_SINT:
 			if (is_negative) {
-				if (s64 > S32_MAX || s64 < S32_MIN) {
-					token = HCC_TOKEN_LIT_S64;
+				if (s64 > (S64)c->basic_type_int_maxes[HCC_DATA_TYPE_SLONG] || s64 < (S64)c->basic_type_int_mins[HCC_DATA_TYPE_SLONG]) {
+					token = HCC_TOKEN_LIT_SLONGLONG;
+				} else if (s64 > (S64)c->basic_type_int_maxes[HCC_DATA_TYPE_SINT] || s64 < (S64)c->basic_type_int_mins[HCC_DATA_TYPE_SINT]) {
+					token = HCC_TOKEN_LIT_SLONG;
 				}
 			} else {
-				if (u64 > S32_MAX) {
-					if (radix != 10 && u64 <= U32_MAX) {
-						token = HCC_TOKEN_LIT_U32;
-					} else if (u64 <= S64_MAX) {
-						token = HCC_TOKEN_LIT_S64;
-					} else if (radix != 10) {
-						token = HCC_TOKEN_LIT_U64;
+				if (u64 > c->basic_type_int_maxes[HCC_DATA_TYPE_SINT]) {
+					if (radix != 10 && u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_UINT]) {
+						token = HCC_TOKEN_LIT_UINT;
+					} else if (u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_ULONG]) {
+						token = HCC_TOKEN_LIT_SLONG;
+					} else if (radix != 10 && u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_ULONG]) {
+						token = HCC_TOKEN_LIT_ULONG;
+					} else if (u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_SLONGLONG]) {
+						token = HCC_TOKEN_LIT_SLONGLONG;
+					} else if (radix != 10 && u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_ULONGLONG]) {
+						token = HCC_TOKEN_LIT_ULONGLONG;
+					} else {
+						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL);
+					}
+				}
+				s64 = u64;
+			}
+			break;
+		case HCC_TOKEN_LIT_SLONG:
+			if (is_negative) {
+				if (s64 > (S64)c->basic_type_int_maxes[HCC_DATA_TYPE_ULONG] || s64 < (S64)c->basic_type_int_mins[HCC_DATA_TYPE_ULONG]) {
+					token = HCC_TOKEN_LIT_SLONGLONG;
+				}
+			} else {
+				if (u64 > c->basic_type_int_maxes[HCC_DATA_TYPE_ULONG]) {
+					if (radix != 10 && u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_ULONG]) {
+						token = HCC_TOKEN_LIT_ULONG;
+					} else if (u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_SLONGLONG]) {
+						token = HCC_TOKEN_LIT_SLONGLONG;
+					} else if (radix != 10 && u64 <= c->basic_type_int_maxes[HCC_DATA_TYPE_ULONGLONG]) {
+						token = HCC_TOKEN_LIT_ULONGLONG;
 					} else {
 						hcc_tokengen_bail_error_1(c, HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL);
 					}
@@ -4293,26 +5011,50 @@ NUM_END:
 			break;
 	}
 
+	//
+	// apply the negate for if it is an unsigned literal
+	if (is_negative) {
+		switch (token) {
+			case HCC_TOKEN_LIT_UINT:
+			case HCC_TOKEN_LIT_ULONG:
+			case HCC_TOKEN_LIT_ULONGLONG:
+			{
+				u64 = -u64;
+				break;
+			};
+		}
+	}
+
 	if (token_out == NULL) {
 		return token_size;
 	}
 
-	U32 u32;
-	S32 s32;
-	F32 f32;
 	HccDataType data_type;
-	void* data;
 	switch (token) {
-		case HCC_TOKEN_LIT_U32: data = &u32; u32 = u64; data_type = HCC_DATA_TYPE_U32; break;
-		case HCC_TOKEN_LIT_U64: data = &u64; data_type = HCC_DATA_TYPE_U64; break;
-		case HCC_TOKEN_LIT_S32: data = &s32; s32 = s64; data_type = HCC_DATA_TYPE_S32; break;
-		case HCC_TOKEN_LIT_S64: data = &s64; data_type = HCC_DATA_TYPE_S64; break;
-		case HCC_TOKEN_LIT_F32: data = &f32; f32 = f64; data_type = HCC_DATA_TYPE_F32; break;
-		case HCC_TOKEN_LIT_F64: data = &f64; data_type = HCC_DATA_TYPE_F64; break;
+		case HCC_TOKEN_LIT_SINT: data_type = HCC_DATA_TYPE_SINT; break;
+		case HCC_TOKEN_LIT_SLONG: data_type = HCC_DATA_TYPE_SLONG; break;
+		case HCC_TOKEN_LIT_SLONGLONG: data_type = HCC_DATA_TYPE_SLONGLONG; break;
+		case HCC_TOKEN_LIT_UINT: data_type = HCC_DATA_TYPE_UINT; break;
+		case HCC_TOKEN_LIT_ULONG: data_type = HCC_DATA_TYPE_ULONG; break;
+		case HCC_TOKEN_LIT_ULONGLONG: data_type = HCC_DATA_TYPE_ULONGLONG; break;
+		case HCC_TOKEN_LIT_FLOAT: data_type = HCC_DATA_TYPE_FLOAT; break;
+		case HCC_TOKEN_LIT_DOUBLE: data_type = HCC_DATA_TYPE_DOUBLE; break;
+	}
+
+	HccBasic basic;
+	switch (token) {
+		case HCC_TOKEN_LIT_SINT:
+		case HCC_TOKEN_LIT_SLONG:
+		case HCC_TOKEN_LIT_SLONGLONG: basic = hcc_basic_from_sint(c, data_type, s64); break;
+		case HCC_TOKEN_LIT_UINT:
+		case HCC_TOKEN_LIT_ULONG:
+		case HCC_TOKEN_LIT_ULONGLONG: basic = hcc_basic_from_uint(c, data_type, u64); break;
+		case HCC_TOKEN_LIT_FLOAT:
+		case HCC_TOKEN_LIT_DOUBLE: basic = hcc_basic_from_float(c, data_type, f64); break;
 	}
 
 	HccTokenValue token_value;
-	token_value.constant_id = hcc_constant_table_deduplicate_basic(c, data_type, data);
+	token_value.constant_id = hcc_constant_table_deduplicate_basic(c, data_type, &basic);
 	hcc_tokengen_token_value_add(c, token_value);
 
 	//
@@ -4555,7 +5297,7 @@ void hcc_tokengen_run(HccCompiler* c, HccTokenBag* dst_token_bag, HccTokenGenRun
 		// if we have reached the end of this file, then return
 		// to the parent file or end the token generation.
 		if (c->tokengen.location.code_end_idx >= c->tokengen.code_size) {
-			if (hcc_stack_count(c->tokengen.location_stack) == 0) {
+			if (hcc_stack_count(c->tokengen.paused_file_stack) == 0) {
 				goto RETURN;
 			}
 
@@ -4937,12 +5679,8 @@ CLOSE_BRACKET:
 					}
 				}
 
-				if (ident_string_id.idx_plus_one < HCC_STRING_ID_INTRINSIC_TYPES_END) {
-					if (ident_string_id.idx_plus_one < HCC_STRING_ID_KEYWORDS_END) {
-						token = HCC_TOKEN_KEYWORDS_START + (ident_string_id.idx_plus_one - HCC_STRING_ID_KEYWORDS_START);
-					} else {
-						token = HCC_TOKEN_INTRINSIC_TYPES_START + (ident_string_id.idx_plus_one - HCC_STRING_ID_INTRINSIC_TYPES_START);
-					}
+				if (HCC_STRING_ID_KEYWORDS_START <= ident_string_id.idx_plus_one && ident_string_id.idx_plus_one < HCC_STRING_ID_KEYWORDS_END) {
+					token = HCC_TOKEN_KEYWORDS_START + (ident_string_id.idx_plus_one - HCC_STRING_ID_KEYWORDS_START);
 				} else {
 					token = HCC_TOKEN_IDENT;
 					HccTokenValue token_value;
@@ -4960,7 +5698,7 @@ CLOSE_BRACKET:
 	}
 
 RETURN: {}
-	if (run_mode == HCC_TOKENGEN_RUN_MODE_CODE && hcc_stack_count(c->tokengen.location_stack) == 0) {
+	if (run_mode == HCC_TOKENGEN_RUN_MODE_CODE && hcc_stack_count(c->tokengen.paused_file_stack) == 0) {
 		hcc_tokengen_token_add(c, HCC_TOKEN_EOF);
 	}
 	c->tokengen.run_mode = old_run_mode;
@@ -4986,13 +5724,16 @@ void hcc_tokengen_print(HccCompiler* c, FILE* f) {
 				string = hcc_string_table_get(&c->string_table, value.string_id);
 				fprintf(f, "%s -> \"%.*s\"\n", hcc_token_strings[token], (int)string.size, string.data);
 				break;
-			case HCC_TOKEN_LIT_U32:
-			case HCC_TOKEN_LIT_U64:
-			case HCC_TOKEN_LIT_S32:
-			case HCC_TOKEN_LIT_S64:
-			case HCC_TOKEN_LIT_F32:
-			case HCC_TOKEN_LIT_F64:
+			case HCC_TOKEN_LIT_SINT:
+			case HCC_TOKEN_LIT_SLONG:
+			case HCC_TOKEN_LIT_SLONGLONG:
+			case HCC_TOKEN_LIT_UINT:
+			case HCC_TOKEN_LIT_ULONG:
+			case HCC_TOKEN_LIT_ULONGLONG:
+			case HCC_TOKEN_LIT_FLOAT:
+			case HCC_TOKEN_LIT_DOUBLE:
 				value = *hcc_stack_get(c->tokengen.token_bag.token_values, token_value_idx);
+				fprintf(f, "%s -> ", hcc_token_strings[token]);
 				hcc_constant_print(c, value.constant_id, stdout);
 				fprintf(f, "\n");
 				token_value_idx += hcc_token_num_values(token);
@@ -5051,31 +5792,6 @@ HccToken hcc_specifier_tokens[HCC_SPECIFIER_COUNT] = {
 	[HCC_SPECIFIER_FRAGMENT] =         HCC_TOKEN_KEYWORD_FRAGMENT,
 };
 
-//
-// TODO: make these intrinsic functions work like the intrinsic typedef and structs.
-// they need to not be declared up front and have a declaration in code form in the standard library.
-void hcc_add_intrinsic_function(HccCompiler* c, U32 function_idx) {
-	HccIntrinsicFunction* intrinsic_function = &hcc_intrinsic_functions[function_idx];
-
-	U32 name_size = strlen(intrinsic_function->name);
-	HccStringId identifier_string_id = hcc_string_table_deduplicate(&c->string_table, intrinsic_function->name, name_size);
-
-	HccDecl* decl_ptr;
-	bool result = hcc_hash_table_find_or_insert(&c->astgen.global_declarations, identifier_string_id.idx_plus_one, &decl_ptr);
-	HCC_ASSERT(!result, "internal error: intrinsic function '%.*s' already declared", name_size, intrinsic_function->name);
-	*decl_ptr = HCC_DECL_INIT(HCC_DECL_FUNCTION, function_idx);
-
-	HccFunction* function = hcc_stack_push(c->astgen.functions);
-	HCC_ZERO_ELMT(function);
-	function->identifier_string_id = identifier_string_id;
-	function->params_count = intrinsic_function->params_count;
-	function->params_start_idx = hcc_stack_count(c->astgen.function_params_and_variables);
-	function->return_data_type = intrinsic_function->return_data_type;
-
-	HccVariable* dst = hcc_stack_push_many(c->astgen.function_params_and_variables, intrinsic_function->params_count);
-	HCC_COPY_ELMT_MANY(dst, intrinsic_function->params, intrinsic_function->params_count);
-}
-
 void hcc_astgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 	HccAstGen* astgen = &c->astgen;
 	U32 compound_data_types_cap = setup->astgen.struct_data_types_cap + setup->astgen.union_data_types_cap;
@@ -5102,6 +5818,7 @@ void hcc_astgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 	hcc_hash_table_init(&astgen->union_declarations, setup->astgen.union_data_types_cap, HCC_ALLOC_TAG_ASTGEN_UNION_DECLARATIONS);
 	hcc_hash_table_init(&astgen->enum_declarations, setup->astgen.enum_data_types_cap, HCC_ALLOC_TAG_ASTGEN_ENUM_DECLARATIONS);
 
+	astgen->curly_initializer.nested = hcc_stack_init(HccAstGenCurlyInitializerNested, setup->astgen.curly_initializer_nested_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS);
 	astgen->curly_initializer.nested_curlys = hcc_stack_init(HccAstGenCurlyInitializerCurly, setup->astgen.curly_initializer_nested_curlys_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS);
 	astgen->curly_initializer.nested_elmts = hcc_stack_init(HccAstGenCurlyInitializerElmt, setup->astgen.curly_initializer_nested_elmts_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS);
 	astgen->curly_initializer.designated_initializers = hcc_stack_init(HccAstGenDesignatorInitializer, setup->astgen.curly_initializer_designator_initializers_cap, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_DESIGNATOR_INITIALIZERS);
@@ -5109,15 +5826,6 @@ void hcc_astgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 
 	astgen->variable_stack_strings = hcc_stack_init(HccStringId, setup->astgen.variable_stack_cap, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS);
 	astgen->variable_stack_var_indices = hcc_stack_init(U32, setup->astgen.variable_stack_cap, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES);
-
-	//
-	// TODO: make these intrinsic functions work like the intrinsic typedef and structs.
-	// they need to not be declared up front and have a declaration in code form in the standard library.
-	{
-		for (U32 function_idx = 0; function_idx <= HCC_FUNCTION_IDX_VEC4; function_idx += 1) {
-			hcc_add_intrinsic_function(c, function_idx);
-		}
-	}
 
 	hcc_stack_resize(c->astgen.typedefs, HCC_TYPEDEF_IDX_USER_START);
 	hcc_stack_resize(c->astgen.compound_data_types, HCC_COMPOUND_DATA_TYPE_IDX_USER_START);
@@ -5187,6 +5895,17 @@ noreturn void hcc_astgen_bail_error_1(HccCompiler* c, HccErrorCode error_code, .
 	va_start(va_args, error_code);
 	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
 	HccLocation* location = hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx);
+	hcc_error_pushv(c, error_code, location, NULL, va_args);
+	va_end(va_args);
+
+	hcc_compiler_bail(c);
+}
+
+noreturn void hcc_astgen_bail_error_1_merge_apply(HccCompiler* c, HccErrorCode error_code, HccLocation* location, ...) {
+	va_list va_args;
+	va_start(va_args, location);
+	U32 token_idx = HCC_MIN(c->astgen.token_read_idx, hcc_stack_count(c->astgen.token_bag.tokens) - 1);
+	hcc_location_merge_apply(location, hcc_token_bag_location_get(c, &c->astgen.token_bag, token_idx));
 	hcc_error_pushv(c, error_code, location, NULL, va_args);
 	va_end(va_args);
 
@@ -5327,85 +6046,24 @@ void hcc_astgen_eval_cast(HccCompiler* c, HccExpr* expr, HccDataType dst_data_ty
 	HccConstantId constant_id = { .idx_plus_one = expr->constant.id };
 	HccConstant constant = hcc_constant_table_get(c, constant_id);
 
-	union {
-		_Bool bool_;
+	HccBasic basic;
+	if (HCC_DATA_TYPE_IS_UINT(c, expr->data_type)) {
 		U64 uint;
-		S8 s8;
-		S16 s16;
-		S32 s32;
-		S64 s64;
-		F32 f32;
-		F64 f64;
-	} dst;
-
-	if (HCC_DATA_TYPE_IS_UINT(expr->data_type)) {
-		U64 uint;
-		hcc_constant_as_uint(constant, &uint);
-
-		switch (dst_data_type) {
-			case HCC_DATA_TYPE_BOOL: dst.bool_ = uint; break;
-			case HCC_DATA_TYPE_U8:
-			case HCC_DATA_TYPE_U16:
-			case HCC_DATA_TYPE_U32:
-			case HCC_DATA_TYPE_U64:
-				dst.uint = uint;
-				break;
-			case HCC_DATA_TYPE_S8: dst.s8 = uint; break;
-			case HCC_DATA_TYPE_S16: dst.s16 = uint; break;
-			case HCC_DATA_TYPE_S32: dst.s32 = uint; break;
-			case HCC_DATA_TYPE_S64: dst.s64 = uint; break;
-			case HCC_DATA_TYPE_F32: dst.f32 = uint; break;
-			case HCC_DATA_TYPE_F64: dst.f64 = uint; break;
-			default:
-				HCC_ABORT("unhandled data type '%u'", dst_data_type);
-		}
-	} else if (HCC_DATA_TYPE_IS_SINT(expr->data_type)) {
+		hcc_constant_as_uint(c, constant, &uint);
+		basic = hcc_basic_from_uint(c, dst_data_type, uint);
+	} else if (HCC_DATA_TYPE_IS_SINT(c, expr->data_type)) {
 		S64 sint;
-		hcc_constant_as_sint(constant, &sint);
-
-		switch (dst_data_type) {
-			case HCC_DATA_TYPE_BOOL: dst.bool_ = sint; break;
-			case HCC_DATA_TYPE_U8:
-			case HCC_DATA_TYPE_U16:
-			case HCC_DATA_TYPE_U32:
-			case HCC_DATA_TYPE_U64:
-				dst.uint = sint;
-				break;
-			case HCC_DATA_TYPE_S8: dst.s8 = sint; break;
-			case HCC_DATA_TYPE_S16: dst.s16 = sint; break;
-			case HCC_DATA_TYPE_S32: dst.s32 = sint; break;
-			case HCC_DATA_TYPE_S64: dst.s64 = sint; break;
-			case HCC_DATA_TYPE_F32: dst.f32 = sint; break;
-			case HCC_DATA_TYPE_F64: dst.f64 = sint; break;
-			default:
-				HCC_ABORT("unhandled data type '%u'", dst_data_type);
-		}
+		hcc_constant_as_sint(c, constant, &sint);
+		basic = hcc_basic_from_sint(c, dst_data_type, sint);
 	} else if (HCC_DATA_TYPE_IS_FLOAT(expr->data_type)) {
 		F64 float_;
-		hcc_constant_as_float(constant, &float_);
-
-		switch (dst_data_type) {
-			case HCC_DATA_TYPE_BOOL: dst.bool_ = (_Bool)float_; break;
-			case HCC_DATA_TYPE_U8:
-			case HCC_DATA_TYPE_U16:
-			case HCC_DATA_TYPE_U32:
-			case HCC_DATA_TYPE_U64:
-				dst.uint = (U64)float_;
-				break;
-			case HCC_DATA_TYPE_S8: dst.s8 = (S8)float_; break;
-			case HCC_DATA_TYPE_S16: dst.s16 = (S16)float_; break;
-			case HCC_DATA_TYPE_S32: dst.s32 = (S32)float_; break;
-			case HCC_DATA_TYPE_S64: dst.s64 = (S64)float_; break;
-			case HCC_DATA_TYPE_F32: dst.f32 = float_; break;
-			case HCC_DATA_TYPE_F64: dst.f64 = float_; break;
-			default:
-				HCC_ABORT("unhandled data type '%u'", dst_data_type);
-		}
+		hcc_constant_as_float(c, constant, &float_);
+		basic = hcc_basic_from_float(c, dst_data_type, float_);
 	} else {
 		HCC_ABORT("unhandled data type '%u'", expr->data_type);
 	}
 
-	constant_id = hcc_constant_table_deduplicate_basic(c, dst_data_type, &dst.uint);
+	constant_id = hcc_constant_table_deduplicate_basic(c, dst_data_type, &basic);
 	expr->constant.id = constant_id.idx_plus_one;
 	expr->data_type = dst_data_type;
 }
@@ -5430,6 +6088,25 @@ HccExpr* hcc_astgen_alloc_expr(HccCompiler* c, HccExprType type) {
 
 HccExpr* hcc_astgen_alloc_expr_many(HccCompiler* c, U32 amount) {
 	return hcc_stack_push_many(c->astgen.exprs, amount);
+}
+
+const char* hcc_type_specifier_string(HccTypeSpecfier specifier) {
+	switch (specifier) {
+		case HCC_TYPE_SPECIFIER_VOID: return "void";
+		case HCC_TYPE_SPECIFIER_BOOL: return "_Bool";
+		case HCC_TYPE_SPECIFIER_CHAR: return "char";
+		case HCC_TYPE_SPECIFIER_SHORT: return "short";
+		case HCC_TYPE_SPECIFIER_INT: return "int";
+		case HCC_TYPE_SPECIFIER_LONG: return "long";
+		case HCC_TYPE_SPECIFIER_LONGLONG: return "long long";
+		case HCC_TYPE_SPECIFIER_FLOAT: return "float";
+		case HCC_TYPE_SPECIFIER_DOUBLE: return "double";
+		case HCC_TYPE_SPECIFIER_UNSIGNED: return "unsigned";
+		case HCC_TYPE_SPECIFIER_SIGNED: return "signed";
+		case HCC_TYPE_SPECIFIER_COMPLEX: return "_Complex";
+		case HCC_TYPE_SPECIFIER_ATOMIC: return "_Atomic";
+		default: return NULL;
+	}
 }
 
 void hcc_astgen_data_type_ensure_is_condition(HccCompiler* c, HccDataType data_type) {
@@ -5477,6 +6154,18 @@ void hcc_astgen_ensure_semicolon(HccCompiler* c) {
 	hcc_astgen_token_next(c);
 }
 
+void hcc_astgen_ensure_not_unsupported_basic_type(HccCompiler* c, U32 num_tokens_behind, HccErrorCode error_code, HccDataType data_type) {
+	HccIntrinsicBasicTypeMask mask = hcc_data_type_has_intrinsic_basic_types(c, data_type) & ~c->spirvgen.available_basic_types;
+	if (mask) {
+		U32 other_token_idx = hcc_data_type_token_idx(c, data_type);
+		HccString data_type_string = hcc_data_type_string(c, data_type);
+		HccString mask_string = hcc_intrinsic_basic_type_mask_string(mask);
+		c->astgen.token_read_idx -= num_tokens_behind;
+		hcc_astgen_error_2_idx(c, error_code, other_token_idx, (int)data_type_string.size, data_type_string.data, (int)mask_string.size, mask_string.data);
+		c->astgen.token_read_idx += num_tokens_behind;
+	}
+}
+
 bool hcc_data_type_check_compatible_assignment(HccCompiler* c, HccDataType target_data_type, HccExpr** source_expr_mut) {
 	HccExpr* source_expr = *source_expr_mut;
 	HccDataType source_data_type = source_expr->data_type;
@@ -5495,49 +6184,6 @@ bool hcc_data_type_check_compatible_assignment(HccCompiler* c, HccDataType targe
 	if (HCC_DATA_TYPE_IS_BASIC(target_data_type) && HCC_DATA_TYPE_IS_BASIC(source_data_type)) {
 		hcc_astgen_generate_implicit_cast(c, target_data_type, source_expr_mut);
 		return true;
-	}
-
-	switch (target_data_type) {
-		case HCC_DATA_TYPE_GENERIC_SCALAR:
-			if (c->astgen.generic_data_type_state.scalar != HCC_DATA_TYPE_VOID && c->astgen.generic_data_type_state.scalar != source_data_type) {
-				return false;
-			}
-			if (
-				source_data_type != HCC_DATA_TYPE_VOID &&
-				HCC_DATA_TYPE_BASIC_START <= source_data_type &&
-				source_data_type < HCC_DATA_TYPE_BASIC_END
-			) {
-				c->astgen.generic_data_type_state.scalar = source_data_type;
-				return true;
-			}
-			break;
-		case HCC_DATA_TYPE_GENERIC_VEC2:
-			if (c->astgen.generic_data_type_state.vec2 != HCC_DATA_TYPE_VOID && c->astgen.generic_data_type_state.vec2 != source_data_type) {
-				return false;
-			}
-			if (HCC_DATA_TYPE_VEC2_START <= source_data_type && source_data_type < HCC_DATA_TYPE_VEC2_END) {
-				c->astgen.generic_data_type_state.vec2 = source_data_type;
-				return true;
-			}
-			break;
-		case HCC_DATA_TYPE_GENERIC_VEC3:
-			if (c->astgen.generic_data_type_state.vec3 != HCC_DATA_TYPE_VOID && c->astgen.generic_data_type_state.vec3 != source_data_type) {
-				return false;
-			}
-			if (HCC_DATA_TYPE_VEC3_START <= source_data_type && source_data_type < HCC_DATA_TYPE_VEC3_END) {
-				c->astgen.generic_data_type_state.vec3 = source_data_type;
-				return true;
-			}
-			break;
-		case HCC_DATA_TYPE_GENERIC_VEC4:
-			if (c->astgen.generic_data_type_state.vec4 != HCC_DATA_TYPE_VOID && c->astgen.generic_data_type_state.vec4 != source_data_type) {
-				return false;
-			}
-			if (HCC_DATA_TYPE_VEC4_START <= source_data_type && source_data_type < HCC_DATA_TYPE_VEC4_END) {
-				c->astgen.generic_data_type_state.vec4 = source_data_type;
-				return true;
-			}
-			break;
 	}
 
 	return false;
@@ -5587,54 +6233,78 @@ bool hcc_data_type_check_compatible_arithmetic(HccCompiler* c, HccExpr** left_ex
 				// promote each operand to an int if it has a lower rank
 				//
 
-				U8 int_rank = hcc_data_type_basic_type_ranks[HCC_DATA_TYPE_S32];
+				U8 int_rank = hcc_data_type_basic_type_ranks[HCC_DATA_TYPE_SINT];
 				if (left_rank < int_rank) {
-					hcc_astgen_generate_implicit_cast(c, HCC_DATA_TYPE_S32, left_expr_mut);
-					left_data_type = HCC_DATA_TYPE_S32;
+					hcc_astgen_generate_implicit_cast(c, HCC_DATA_TYPE_SINT, left_expr_mut);
+					left_data_type = HCC_DATA_TYPE_SINT;
 					left_rank = int_rank;
 				}
 
 				if (right_rank < int_rank) {
-					hcc_astgen_generate_implicit_cast(c, HCC_DATA_TYPE_S32, right_expr_mut);
-					right_data_type = HCC_DATA_TYPE_S32;
+					hcc_astgen_generate_implicit_cast(c, HCC_DATA_TYPE_SINT, right_expr_mut);
+					right_data_type = HCC_DATA_TYPE_SINT;
 					right_rank = int_rank;
 				}
 			}
 
 			if (left_data_type != right_data_type) {
-				bool left_is_unsigned = HCC_DATA_TYPE_IS_UINT(left_data_type);
-				bool right_is_unsigned = HCC_DATA_TYPE_IS_UINT(right_data_type);
-				if (left_is_unsigned || right_is_unsigned) {
+				bool left_is_unsigned = HCC_DATA_TYPE_IS_UINT(c, left_data_type);
+				bool right_is_unsigned = HCC_DATA_TYPE_IS_UINT(c, right_data_type);
+				if (left_is_unsigned == right_is_unsigned) {
 					//
-					// one of the operands is unsigned, convert the other operand
-					// into the unsigned data type if it's rank if less than or
-					// equal to the unsigned's data type rank.
+					// both types are either unsigned or signed,
+					// so cast the type with the lower rank to the higher ranked type.
 					//
 
-					if (!left_is_unsigned && left_rank <= right_rank) {
+					if (left_rank < right_rank) {
 						hcc_astgen_generate_implicit_cast(c, right_data_type, left_expr_mut);
-						return true;
-					} else if (!right_is_unsigned && left_rank >= right_rank) {
-						hcc_astgen_generate_implicit_cast(c, left_data_type, right_expr_mut);
-						return true;
-					}
-				}
-
-				bool left_is_signed = !left_is_unsigned;
-				bool right_is_signed = !right_is_unsigned;
-				if ((left_is_signed || right_is_signed)) {
-					//
-					// one of the operands is signed, convert the other operand
-					// into the signed data type if it's rank if less than or
-					// equal to the signed's data type rank.
-					//
-
-					if (!left_is_signed && left_rank <= right_rank) {
-						hcc_astgen_generate_implicit_cast(c, right_data_type, left_expr_mut);
-					} else if (!right_is_signed && left_rank >= right_rank) {
+					} else {
 						hcc_astgen_generate_implicit_cast(c, left_data_type, right_expr_mut);
 					}
+
+					return true;
 				}
+
+				//
+				// from here one of the operands is unsigned and the other is signed.
+				//
+
+				//
+				// if unsigned operand has a higher or equal rank to the signed type,
+				// then convert the other operand into the unsigned data type.
+				//
+				if (right_is_unsigned && left_rank <= right_rank) {
+					hcc_astgen_generate_implicit_cast(c, right_data_type, left_expr_mut);
+					return true;
+				} else if (left_is_unsigned && left_rank >= right_rank) {
+					hcc_astgen_generate_implicit_cast(c, left_data_type, right_expr_mut);
+					return true;
+				}
+
+				//
+				// check to see if the unsigned type can fit in the other signed type.
+				// if it can, convert it into that.
+				//
+				if (left_is_unsigned && c->basic_type_size_and_aligns[left_data_type] < c->basic_type_size_and_aligns[right_data_type]) {
+					hcc_astgen_generate_implicit_cast(c, right_data_type, left_expr_mut);
+					return true;
+				} else if (right_is_unsigned && c->basic_type_size_and_aligns[right_data_type] < c->basic_type_size_and_aligns[left_data_type]) {
+					hcc_astgen_generate_implicit_cast(c, left_data_type, right_expr_mut);
+					return true;
+				}
+
+				//
+				// all of the other conversion have failed, so convert both expressions to
+				// the unsigned version of the signed data type.
+				//
+				HccDataType unsigned_data_type = hcc_data_type_signed_to_unsigned(c, right_data_type);
+				if (left_is_unsigned) {
+					unsigned_data_type = hcc_data_type_signed_to_unsigned(c, right_data_type);
+				} else {
+					unsigned_data_type = hcc_data_type_signed_to_unsigned(c, left_data_type);
+				}
+				hcc_astgen_generate_implicit_cast(c, unsigned_data_type, left_expr_mut);
+				hcc_astgen_generate_implicit_cast(c, unsigned_data_type, right_expr_mut);
 			}
 		}
 
@@ -5757,18 +6427,24 @@ U32 hcc_astgen_variable_stack_find(HccCompiler* c, HccStringId string_id) {
 	return 0;
 }
 
-HccToken hcc_astgen_curly_initializer_init(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type, HccExpr* first_expr) {
+HccToken hcc_astgen_curly_initializer_start(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type, HccExpr* first_expr) {
 	HccAstGenCurlyInitializer* gen = &c->astgen.curly_initializer;
-	hcc_stack_clear(gen->nested_curlys);
-	hcc_stack_clear(gen->nested_elmts);
 	gen->elmt_data_type = data_type;
 	gen->resolved_elmt_data_type = resolved_data_type;
+
+	if (gen->first_initializer_expr) {
+		HccAstGenCurlyInitializerNested* nested = hcc_stack_push(gen->nested);
+		nested->first_initializer_expr = gen->first_initializer_expr;
+		nested->prev_initializer_expr = gen->prev_initializer_expr;
+		nested->nested_elmts_start_idx = gen->nested_elmts_start_idx;
+	}
 
 	//
 	// start the initializer expression linked list with
 	// a designated initializer to zero the whole initial composite type.
 	gen->first_initializer_expr = first_expr;
 	gen->prev_initializer_expr = first_expr;
+	gen->nested_elmts_start_idx = hcc_stack_count(gen->nested_elmts);
 	HccExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(c);
 	initializer_expr->designated_initializer.value_expr_rel_idx = 0;
 
@@ -5796,7 +6472,7 @@ HccToken hcc_astgen_curly_initializer_open(HccCompiler* c) {
 	return hcc_astgen_token_next(c);
 }
 
-HccToken hcc_astgen_curly_initializer_close(HccCompiler* c) {
+HccToken hcc_astgen_curly_initializer_close(HccCompiler* c, bool is_finished) {
 	HccAstGenCurlyInitializer* gen = &c->astgen.curly_initializer;
 
 	//
@@ -5805,6 +6481,10 @@ HccToken hcc_astgen_curly_initializer_close(HccCompiler* c) {
 	U32 new_elmts_count = hcc_stack_get_last(gen->nested_curlys)->nested_elmts_start_idx - 1;
 	hcc_stack_resize(gen->nested_elmts, new_elmts_count);
 	hcc_stack_pop(gen->nested_curlys);
+
+	if (is_finished) {
+		return 0;
+	}
 
 	HccAstGenCurlyInitializerElmt* nested_elmt = hcc_stack_get_last(gen->nested_elmts);
 	hcc_astgen_curly_initializer_set_composite(c, nested_elmt->data_type, nested_elmt->resolved_data_type);
@@ -5852,7 +6532,7 @@ bool hcc_astgen_curly_initializer_next_elmt(HccCompiler* c, HccDataType resolved
 				gen->elmt_data_type = gen->compound_fields[nested_elmt->elmt_idx].data_type;
 				gen->resolved_elmt_data_type = hcc_typedef_resolve(c, gen->elmt_data_type);
 			}
-			
+
 			if (resolved_target_data_type == gen->resolved_elmt_data_type) {
 				return true;
 			}
@@ -5938,7 +6618,7 @@ HccToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccCompiler* c) 
 				HccConstantId value_constant_id = { .idx_plus_one = expr->constant.id };
 				HccConstant constant = hcc_constant_table_get(c, value_constant_id);
 				U64 elmt_idx;
-				if (!hcc_constant_as_uint(constant, &elmt_idx) || elmt_idx >= gen->elmts_end_idx) {
+				if (!hcc_constant_as_uint(c, constant, &elmt_idx) || elmt_idx >= gen->elmts_end_idx) {
 					hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_ARRAY_INDEX_OUT_OF_BOUNDS, gen->elmts_end_idx);
 				}
 
@@ -6029,7 +6709,7 @@ void hcc_astgen_curly_initializer_set_composite(HccCompiler* c, HccDataType data
 
 		HccConstant constant = hcc_constant_table_get(c, gen->array_data_type->size_constant_id);
 		U64 cap;
-		hcc_constant_as_uint(constant, &cap);
+		hcc_constant_as_uint(c, constant, &cap);
 
 		gen->elmt_data_type = gen->array_data_type->element_data_type;
 		gen->resolved_elmt_data_type = hcc_typedef_resolve(c, gen->elmt_data_type);
@@ -6052,7 +6732,9 @@ void hcc_astgen_curly_initializer_set_composite(HccCompiler* c, HccDataType data
 
 HccExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccCompiler* c) {
 	HccAstGenCurlyInitializer* gen = &c->astgen.curly_initializer;
-	U32 elmt_indices_count = hcc_stack_count(gen->nested_elmts);
+	U32 elmt_indices_start_idx = gen->nested_elmts_start_idx;
+	U32 elmt_indices_end_idx = hcc_stack_count(gen->nested_elmts);
+	U32 elmt_indices_count = elmt_indices_end_idx - elmt_indices_start_idx;
 
 	//
 	// setup the auxillary data
@@ -6065,7 +6747,7 @@ HccExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccCompile
 	// copy the element indices out into the persistant array
 	U64* elmt_indices = hcc_stack_push_many(gen->designated_initializer_elmt_indices, elmt_indices_count);
 	for (U32 idx = 0; idx < elmt_indices_count; idx += 1) {
-		elmt_indices[idx] = hcc_stack_get(gen->nested_elmts, idx)->elmt_idx;
+		elmt_indices[idx] = hcc_stack_get(gen->nested_elmts, elmt_indices_start_idx + idx)->elmt_idx;
 	}
 
 	//
@@ -6090,7 +6772,7 @@ HccExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccCompile
 HccToken hcc_astgen_generate_specifiers(HccCompiler* c) {
 	HccToken token = hcc_astgen_token_peek(c);
 	while (1) {
-		HccAstGenFlags flag = 0;
+		HccSpecifierFlags flag = 0;
 		switch (token) {
 			case HCC_TOKEN_KEYWORD_STATIC:           flag = HCC_SPECIFIER_FLAGS_STATIC;           break;
 			case HCC_TOKEN_KEYWORD_CONST:            flag = HCC_SPECIFIER_FLAGS_CONST;            break;
@@ -6204,7 +6886,7 @@ MAKE_NEW: {}
 			HccConstant constant = hcc_constant_table_get(c, value_constant_id);
 
 			S32 value;
-			if (!hcc_constant_as_sint32(constant, &value)) {
+			if (!hcc_constant_as_sint32(c, constant, &value)) {
 				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_ENUM_VALUE_INVALID_FORMAT);
 			}
 
@@ -6214,8 +6896,8 @@ MAKE_NEW: {}
 
 		//
 		// do not deduplicate when adding this constant to the constant table so we can pass in a debug name for the code generation to use for the enum value debug info
-		S32 v = (S32)next_value;
-		HccConstantId value_constant_id = _hcc_constant_table_deduplicate_end(c, HCC_DATA_TYPE_S32, &v, sizeof(S32), sizeof(S32), enum_value->identifier_string_id);
+		HccBasic v = hcc_basic_from_sint(c, HCC_DATA_TYPE_SINT, next_value);
+		HccConstantId value_constant_id = _hcc_constant_table_deduplicate_end(c, HCC_DATA_TYPE_SINT, &v, sizeof(S32), sizeof(S32), enum_value->identifier_string_id);
 
 		enum_value->value_constant_id = value_constant_id;
 		next_value += 1;
@@ -6263,23 +6945,39 @@ HccDataType hcc_astgen_generate_compound_data_type(HccCompiler* c) {
 		identifier_string_id = hcc_astgen_token_value_next(c).string_id;
 
 		if (c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_INTRINSIC) {
-			HccString identifier_string = hcc_string_table_get(&c->string_table, identifier_string_id);
-
 			if (is_union) {
-				hcc_astgen_error_1(c, HCC_ERROR_CODE_INTRINSIC_NO_UNIONS);
-			} else {
-				U32 i = 0;
-				for (; i < HCC_ARRAY_COUNT(hcc_intrinsic_structs); i += 1) {
-					HccIntrinsicStruct* s = &hcc_intrinsic_structs[i];
-					if (hcc_string_eq(s->name, identifier_string)) {
-						break;
-					}
-				}
-
-				if (i == HCC_ARRAY_COUNT(hcc_intrinsic_structs)) {
-					hcc_astgen_error_1(c, HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT, (int)identifier_string.size, identifier_string.data);
+				if (HCC_STRING_ID_VEC_START <= identifier_string_id.idx_plus_one && identifier_string_id.idx_plus_one < HCC_STRING_ID_VEC_END) {
+					HccVec vec = identifier_string_id.idx_plus_one - HCC_STRING_ID_VEC_START;
+					intrinsic_id = HCC_UNION_IDX_VEC_START + vec + 1;
+				} else if (HCC_STRING_ID_MAT_START <= identifier_string_id.idx_plus_one && identifier_string_id.idx_plus_one < HCC_STRING_ID_MAT_END) {
+					HccMat mat = identifier_string_id.idx_plus_one - HCC_STRING_ID_MAT_START;
+					intrinsic_id = HCC_UNION_IDX_MAT_START + mat + 1;
 				} else {
-					intrinsic_id = i + 1;
+					HccString identifier_string = hcc_string_table_get(&c->string_table, identifier_string_id);
+					hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT, (int)identifier_string.size, identifier_string.data);
+				}
+			} else {
+				if (HCC_STRING_ID_PVEC_START <= identifier_string_id.idx_plus_one && identifier_string_id.idx_plus_one < HCC_STRING_ID_PVEC_END) {
+					HccVec vec = identifier_string_id.idx_plus_one - HCC_STRING_ID_PVEC_START;
+					intrinsic_id = HCC_STRUCT_IDX_PVEC_START + vec + 1;
+				} else if (HCC_STRING_ID_PMAT_START <= identifier_string_id.idx_plus_one && identifier_string_id.idx_plus_one < HCC_STRING_ID_MAT_END) {
+					HccMat mat = identifier_string_id.idx_plus_one - HCC_STRING_ID_PMAT_START;
+					intrinsic_id = HCC_STRUCT_IDX_PMAT_START + mat + 1;
+				} else {
+					U32 i = 0;
+					for (; i < HCC_ARRAY_COUNT(hcc_intrinsic_structs); i += 1) {
+						HccIntrinsicStruct* s = &hcc_intrinsic_structs[i];
+						if (s->string_id.idx_plus_one == identifier_string_id.idx_plus_one) {
+							break;
+						}
+					}
+
+					if (i == HCC_ARRAY_COUNT(hcc_intrinsic_structs)) {
+						HccString identifier_string = hcc_string_table_get(&c->string_table, identifier_string_id);
+						hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT, (int)identifier_string.size, identifier_string.data);
+					} else {
+						intrinsic_id = i + 1;
+					}
 				}
 			}
 
@@ -6405,6 +7103,9 @@ END_FIELDS_COUNT: {}
 		HccCompoundField* compound_field = &fields[field_idx];
 		token = hcc_astgen_generate_specifiers(c);
 
+		//
+		// process the compound field specifiers
+		//
 		{
 			if (c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_STRUCT_FIELD_SPECIFIERS) {
 				HccSpecifier specifier = HCC_LEAST_SET_BIT_IDX_U32(c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_STRUCT_FIELD_SPECIFIERS);
@@ -6439,6 +7140,51 @@ END_FIELDS_COUNT: {}
 			}
 		}
 
+		U64 alignas_align = 0;
+		if (token == HCC_TOKEN_KEYWORD_ALIGNAS) {
+			token = hcc_astgen_token_next(c);
+			if (token != HCC_TOKEN_PARENTHESIS_OPEN) {
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_ALIGNAS);
+			}
+			token = hcc_astgen_token_next(c);
+
+			switch (token) {
+				case HCC_TOKEN_LIT_SINT:
+				case HCC_TOKEN_LIT_UINT:
+				case HCC_TOKEN_LIT_SLONG:
+				case HCC_TOKEN_LIT_ULONG: {
+					token = hcc_astgen_token_next(c);
+					HccConstantId constant_id = hcc_astgen_token_value_next(c).constant_id;
+					HccConstant constant = hcc_constant_table_get(c, constant_id);
+
+					//
+					// skip the associated HccStringId kept around to turn the
+					// literal back into the exact string it was parsed from.
+					hcc_astgen_token_value_next(c);
+					if (!hcc_constant_as_uint(c, constant, &alignas_align)) {
+						hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INVALID_ALIGNAS_INT_CONSTANT);
+					}
+					break;
+				};
+				default: {
+					HccDataType alignas_data_type;
+					if (!hcc_astgen_generate_data_type(c, &alignas_data_type)) {
+						hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INVALID_ALIGNAS_OPERAND);
+					}
+
+					U64 unused_size;
+					hcc_data_type_size_align(c, alignas_data_type, &unused_size, &alignas_align);
+					token = hcc_astgen_token_peek(c);
+					break;
+				};
+			}
+
+			if (token != HCC_TOKEN_PARENTHESIS_CLOSE) {
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_ALIGNAS);
+			}
+			token = hcc_astgen_token_next(c);
+		}
+
 		bool requires_name;
 		switch (token) {
 			case HCC_TOKEN_CURLY_CLOSE:
@@ -6463,21 +7209,30 @@ END_FIELDS_COUNT: {}
 			};
 		}
 
+		HccDataType data_type = hcc_typedef_resolve(c, compound_field->data_type);
+		if (HCC_DATA_TYPE_IS_INTRINSIC_BASIC(data_type)) {
+			HccIntrinsicType intrinsic_type = hcc_intrinsic_type_from_data_type(c, data_type);
+			HCC_INTRINSIC_BASIC_TYPE_MASK_SET(&compound_data_type->has_intrinsic_basic_types, intrinsic_type);
+		} else if (HCC_DATA_TYPE_IS_COMPOUND_TYPE(data_type)) {
+			HccCompoundDataType* field_compound_data_type = hcc_compound_data_type_get(c, data_type);
+			compound_data_type->has_intrinsic_basic_types |= field_compound_data_type->has_intrinsic_basic_types;
+		}
+
 		if ((compound_data_type->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_IS_RASTERIZER_STATE)) {
-			HccDataType data_type = hcc_typedef_resolve(c, compound_field->data_type);
 			if (
-				data_type < HCC_DATA_TYPE_U8 ||
-				data_type >= HCC_DATA_TYPE_MATRIX_END ||
-				HCC_DATA_TYPE_SCALAR(data_type) < HCC_DATA_TYPE_U8
+				!HCC_DATA_TYPE_IS_BASIC(data_type) &&
+				!HCC_DATA_TYPE_IS_VECTOR(data_type) &&
+				!HCC_DATA_TYPE_IS_MATRIX(data_type)
 			) {
 				HccString data_type_name = hcc_data_type_string(c, compound_field->data_type);
 				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_UNSUPPORTED_RASTERIZER_STATE_DATA_TYPE, (int)data_type_name.size, data_type_name.data);
 			}
+
 			if (
 				compound_field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_POSITION &&
-				data_type != HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32)
+				data_type != HCC_DATA_TYPE_VECTOR(HCC_VEC4F)
 			) {
-				HccString expected_data_type_name = hcc_data_type_string(c, HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
+				HccString expected_data_type_name = hcc_data_type_string(c, HCC_DATA_TYPE_VECTOR(HCC_VEC4F));
 				HccString data_type_name = hcc_data_type_string(c, compound_field->data_type);
 				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_POSITION_MUST_BE_VEC4_F32, hcc_token_strings[HCC_TOKEN_KEYWORD_POSITION], (int)expected_data_type_name.size, expected_data_type_name.data, (int)data_type_name.size, data_type_name.data);
 			}
@@ -6486,9 +7241,8 @@ END_FIELDS_COUNT: {}
 		if ((compound_data_type->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_IS_FRAGMENT_STATE)) {
 			HccDataType data_type = hcc_typedef_resolve(c, compound_field->data_type);
 			if (
-				data_type < HCC_DATA_TYPE_U8 ||
-				data_type >= HCC_DATA_TYPE_VECTOR_END ||
-				HCC_DATA_TYPE_SCALAR(data_type) < HCC_DATA_TYPE_U8
+				!HCC_DATA_TYPE_IS_BASIC(data_type) &&
+				!HCC_DATA_TYPE_IS_VECTOR(data_type)
 			) {
 				HccString data_type_name = hcc_data_type_string(c, compound_field->data_type);
 				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_UNSUPPORTED_FRAGMENT_STATE_DATA_TYPE, (int)data_type_name.size, data_type_name.data);
@@ -6518,9 +7272,17 @@ END_FIELDS_COUNT: {}
 
 		//
 		// TODO: in future this will be a platform specific problem
-		Uptr size;
-		Uptr align;
+		U64 size;
+		U64 align;
 		hcc_data_type_size_align(c, compound_field->data_type, &size, &align);
+
+		if (alignas_align) {
+			if (alignas_align < align) {
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_ALIGNAS_REDUCES_ALIGNMENT, alignas_align, align);
+			}
+			align = alignas_align;
+		}
+
 		if (is_union) {
 			if (compound_data_type->size < size) {
 				compound_data_type->largest_sized_field_idx = field_idx;
@@ -6538,91 +7300,278 @@ END:{}
 	hcc_hash_table_clear(&c->astgen.field_name_to_token_idx);
 	hcc_astgen_compound_data_type_validate_field_names(c, data_type, compound_data_type);
 
+	if (!is_union) {
+		compound_data_type->size = HCC_INT_ROUND_UP_ALIGN(compound_data_type->size, compound_data_type->align);
+	}
+
 	if ((compound_data_type->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_IS_RASTERIZER_STATE) && !found_position) {
 		c->astgen.token_read_idx = compound_data_type_token_idx;
 		hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_POSITION_NOT_SPECIFIED, hcc_token_strings[HCC_TOKEN_KEYWORD_POSITION]);
 	}
 
 	if (intrinsic_id) {
-		HccIntrinsicStruct* s = &hcc_intrinsic_structs[intrinsic_id - 1];
-		if (s->fields_count != compound_data_type->fields_count) {
-			c->astgen.token_read_idx = compound_data_type_token_idx;
-			HccString name = hcc_string_table_get(&c->string_table, identifier_string_id);
-			hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT, (int)name.size, name.data, s->fields_count, compound_data_type->fields_count);
-		}
+		intrinsic_id -= 1;
+		if (intrinsic_id < HCC_STRUCT_IDX_INTRINSIC_END) {
+			HccIntrinsicStruct* s = &hcc_intrinsic_structs[intrinsic_id];
+			if (s->fields_count != compound_data_type->fields_count) {
+				c->astgen.token_read_idx = compound_data_type_token_idx;
+				HccString name = hcc_string_table_get(&c->string_table, identifier_string_id);
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT, (int)name.size, name.data, s->fields_count, compound_data_type->fields_count);
+			}
 
-		for (U32 field_idx = 0; field_idx < s->fields_count; field_idx += 1) {
-			HccIntrinsicStructField* isf = &s->fields[field_idx];
-			HccCompoundField* f = &fields[field_idx];
-			HccString identifier_string = hcc_string_table_get(&c->string_table, f->identifier_string_id);
-			if (isf->data_type != f->data_type || !hcc_string_eq(isf->name, identifier_string)) {
-				c->astgen.token_read_idx = f->identifier_token_idx;
-				HccString data_type_name = hcc_data_type_string(c, isf->data_type);
-				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD, (int)data_type_name.size, data_type_name.data, (int)isf->name.size, isf->name.data);
+			for (U32 field_idx = 0; field_idx < s->fields_count; field_idx += 1) {
+				HccIntrinsicStructField* isf = &s->fields[field_idx];
+				HccCompoundField* f = &fields[field_idx];
+				HccString identifier_string = hcc_string_table_get(&c->string_table, f->identifier_string_id);
+				if (isf->data_type != f->data_type || !hcc_string_eq(isf->name, identifier_string)) {
+					c->astgen.token_read_idx = f->identifier_token_idx;
+					HccString data_type_name = hcc_data_type_string(c, isf->data_type);
+					hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD, (int)data_type_name.size, data_type_name.data, (int)isf->name.size, isf->name.data);
+				}
+			}
+		} else if (HCC_STRUCT_IDX_PVEC_START <= intrinsic_id && intrinsic_id < HCC_STRUCT_IDX_PVEC_END) {
+			HccVec vec = intrinsic_id - HCC_STRUCT_IDX_PVEC_START;
+			U32 size = hcc_packed_vec_sizes[vec];
+			U32 align = hcc_packed_vec_aligns[vec];
+			if (compound_data_type->size != size || compound_data_type->align != align) {
+				HccString data_type_name = hcc_string_table_get(&c->string_table, identifier_string_id);
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN, (int)data_type_name.size, data_type_name.data, size, align, compound_data_type->size, compound_data_type->align);
+			}
+		} else if (HCC_UNION_IDX_VEC_START <= intrinsic_id && intrinsic_id < HCC_UNION_IDX_VEC_END) {
+			HccVec vec = intrinsic_id - HCC_UNION_IDX_VEC_START;
+			U32 size_and_align = hcc_vec_size_and_aligns[vec];
+			if (compound_data_type->size != size_and_align || compound_data_type->align != size_and_align) {
+				HccString data_type_name = hcc_string_table_get(&c->string_table, identifier_string_id);
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN, (int)data_type_name.size, data_type_name.data, size_and_align, size_and_align, compound_data_type->size, compound_data_type->align);
+			}
+		} else if (HCC_STRUCT_IDX_PMAT_START <= intrinsic_id && intrinsic_id < HCC_STRUCT_IDX_PMAT_END) {
+			HccMat mat = intrinsic_id - HCC_STRUCT_IDX_PMAT_START;
+			U32 size = hcc_packed_mat_sizes[mat];
+			U32 align = hcc_packed_mat_aligns[mat];
+			if (compound_data_type->size != size || compound_data_type->align != align) {
+				HccString data_type_name = hcc_string_table_get(&c->string_table, identifier_string_id);
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_MATRIX_INVALID_SIZE_AND_ALIGN, (int)data_type_name.size, data_type_name.data, size, align, compound_data_type->size, compound_data_type->align);
+			}
+		} else if (HCC_UNION_IDX_MAT_START <= intrinsic_id && intrinsic_id < HCC_UNION_IDX_MAT_END) {
+			HccMat mat = intrinsic_id - HCC_UNION_IDX_MAT_START;
+			U32 size = hcc_mat_sizes[mat];
+			U32 align = hcc_mat_aligns[mat];
+			if (compound_data_type->size != size || compound_data_type->align != align) {
+				HccString data_type_name = hcc_string_table_get(&c->string_table, identifier_string_id);
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_MATRIX_INVALID_SIZE_AND_ALIGN, (int)data_type_name.size, data_type_name.data, size, align, compound_data_type->size, compound_data_type->align);
 			}
 		}
 	}
 
 	token = hcc_astgen_token_next(c);
-	if (!is_union) {
-		compound_data_type->size = HCC_INT_ROUND_UP_ALIGN(compound_data_type->size, compound_data_type->align);
-	}
 	hcc_astgen_data_type_found(c, data_type);
 	return data_type;
 }
 
+HccToken hcc_astgen_generate_type_specifiers(HccCompiler* c, HccLocation* location, HccTypeSpecfier* type_specifiers_mut) {
+	HccToken token = hcc_astgen_token_peek(c);
+	while (1) {
+		HccTypeSpecfier found_specifier;
+		switch (token) {
+			case HCC_TOKEN_KEYWORD_VOID: found_specifier = HCC_TYPE_SPECIFIER_VOID; break;
+			case HCC_TOKEN_KEYWORD_BOOL: found_specifier = HCC_TYPE_SPECIFIER_BOOL; break;
+			case HCC_TOKEN_KEYWORD_CHAR: found_specifier = HCC_TYPE_SPECIFIER_CHAR; break;
+			case HCC_TOKEN_KEYWORD_SHORT: found_specifier = HCC_TYPE_SPECIFIER_SHORT; break;
+			case HCC_TOKEN_KEYWORD_INT: found_specifier = HCC_TYPE_SPECIFIER_INT; break;
+			case HCC_TOKEN_KEYWORD_LONG: found_specifier = *type_specifiers_mut & HCC_TYPE_SPECIFIER_LONG ? HCC_TYPE_SPECIFIER_LONGLONG : HCC_TYPE_SPECIFIER_LONG; break;
+			case HCC_TOKEN_KEYWORD_FLOAT: found_specifier = HCC_TYPE_SPECIFIER_FLOAT; break;
+			case HCC_TOKEN_KEYWORD_DOUBLE: found_specifier = HCC_TYPE_SPECIFIER_DOUBLE; break;
+			case HCC_TOKEN_KEYWORD_UNSIGNED: found_specifier = HCC_TYPE_SPECIFIER_UNSIGNED; break;
+			case HCC_TOKEN_KEYWORD_SIGNED: found_specifier = HCC_TYPE_SPECIFIER_SIGNED; break;
+			case HCC_TOKEN_KEYWORD_COMPLEX: found_specifier = HCC_TYPE_SPECIFIER_COMPLEX; break;
+			case HCC_TOKEN_KEYWORD_ATOMIC: found_specifier = HCC_TYPE_SPECIFIER_ATOMIC; break;
+			default: return token;
+		}
+
+		if (*type_specifiers_mut & found_specifier) {
+			hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_DUPLICATE_TYPE_SPECIFIER, location, hcc_type_specifier_string(found_specifier));
+		}
+
+		*type_specifiers_mut |= found_specifier;
+		token = hcc_astgen_token_next(c);
+	}
+}
+
 bool hcc_astgen_generate_data_type(HccCompiler* c, HccDataType* data_type_out) {
 	HccToken token = hcc_astgen_token_peek(c);
-	if (HCC_TOKEN_IS_BASIC_TYPE(token)) {
-		*data_type_out = (HccDataType)token;
-		hcc_astgen_token_consume(c, 1);
-		return true;
+
+	HccLocation location = *hcc_token_bag_location_get(c, &c->astgen.token_bag, c->astgen.token_read_idx);
+	HccTypeSpecfier type_specifiers = 0;
+	token = hcc_astgen_generate_type_specifiers(c, &location, &type_specifiers);
+
+	HccDataType data_type = 0;
+	if (!(type_specifiers & HCC_TYPE_SPECIFIER_TYPES)) {
+		switch (token) {
+			case HCC_TOKEN_KEYWORD_STRUCT:
+			case HCC_TOKEN_KEYWORD_UNION: {
+				data_type = hcc_astgen_generate_compound_data_type(c);
+				hcc_astgen_generate_type_specifiers(c, &location, &type_specifiers);
+				break;
+			};
+			case HCC_TOKEN_KEYWORD_ENUM:
+				data_type = hcc_astgen_generate_enum_data_type(c);
+				hcc_astgen_generate_type_specifiers(c, &location, &type_specifiers);
+				break;
+			case HCC_TOKEN_IDENT: {
+				HccDecl decl;
+				HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
+				if (hcc_hash_table_find(&c->astgen.global_declarations, identifier_string_id.idx_plus_one, &decl)) {
+					if (HCC_DECL_IS_DATA_TYPE(decl)) {
+						data_type = decl;
+						hcc_astgen_generate_type_specifiers(c, &location, &type_specifiers);
+						hcc_astgen_token_next(c);
+					}
+				}
+				break;
+			};
+		}
 	}
-	switch (token) {
-		case HCC_TOKEN_INTRINSIC_TYPE_VEC2:
-		case HCC_TOKEN_INTRINSIC_TYPE_VEC3:
-		case HCC_TOKEN_INTRINSIC_TYPE_VEC4:
-			// TODO peek ahead and check for a vector using a different basic type
-			switch (token) {
-				case HCC_TOKEN_INTRINSIC_TYPE_VEC2:
-					*data_type_out = HCC_DATA_TYPE_VEC2(HCC_DATA_TYPE_F32);
-					break;
-				case HCC_TOKEN_INTRINSIC_TYPE_VEC3:
-					*data_type_out = HCC_DATA_TYPE_VEC3(HCC_DATA_TYPE_F32);
-					break;
-				case HCC_TOKEN_INTRINSIC_TYPE_VEC4:
-					*data_type_out = HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32);
-					break;
+
+	switch (data_type & 0xff) {
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION:
+		case HCC_DATA_TYPE_TYPEDEF:
+		case HCC_DATA_TYPE_ENUM:
+			if (type_specifiers & HCC_TYPE_SPECIFIER_ATOMIC) {
+				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_ATOMIC_UNSUPPORTED_AT_THIS_TIME);
 			}
-			hcc_astgen_token_consume(c, 1);
-			return true;
-		case HCC_TOKEN_KEYWORD_STRUCT:
-		case HCC_TOKEN_KEYWORD_UNION:
-			*data_type_out = hcc_astgen_generate_compound_data_type(c);
-			return true;
-		case HCC_TOKEN_KEYWORD_ENUM:
-			*data_type_out = hcc_astgen_generate_enum_data_type(c);
-			return true;
-		case HCC_TOKEN_IDENT: {
-			HccDecl decl;
-			HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
-			if (hcc_hash_table_find(&c->astgen.global_declarations, identifier_string_id.idx_plus_one, &decl)) {
-				if (HCC_DECL_IS_DATA_TYPE(decl)) {
-					*data_type_out = decl;
-					hcc_astgen_token_consume(c, 1);
-					return true;
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED_SIGNED) {
+				hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE, &location);
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_COMPLEX) {
+				hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_COMPLEX_ON_NON_FLOAT_TYPE, &location);
+			}
+
+			break;
+
+		default: {
+			if (type_specifiers == 0) {
+				return false;
+			}
+
+			U32 num_types = onebitscount32((type_specifiers & HCC_TYPE_SPECIFIER_TYPES) & ~HCC_TYPE_SPECIFIER_INT);
+			if (
+				num_types > 1 &&
+				!(num_types == 2 && type_specifiers & HCC_TYPE_SPECIFIER_LONG_DOUBLE)
+			) {
+				hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_MULTIPLE_TYPES_SPECIFIED, &location);
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_FLOAT_TYPES) {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_COMPLEX) {
+					hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_COMPLEX_UNSUPPORTED_AT_THIS_TIME);
+				}
+
+				if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED_SIGNED) {
+					hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE, &location);
+				}
+
+				if ((type_specifiers & HCC_TYPE_SPECIFIER_LONG_DOUBLE) == HCC_TYPE_SPECIFIER_LONG_DOUBLE) {
+					hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_LONG_DOUBLE_IS_UNSUPPORTED, &location);
+				}
+
+				data_type = type_specifiers & HCC_TYPE_SPECIFIER_FLOAT ? HCC_DATA_TYPE_FLOAT : HCC_DATA_TYPE_DOUBLE;
+				break;
+			} else {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_COMPLEX) {
+					hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_COMPLEX_ON_NON_FLOAT_TYPE, &location);
 				}
 			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_VOID) {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED_SIGNED) {
+					hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE, &location);
+				}
+
+				data_type = HCC_DATA_TYPE_VOID;
+				break;
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_BOOL) {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED_SIGNED) {
+					hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE, &location);
+				}
+
+				data_type = HCC_DATA_TYPE_BOOL;
+				break;
+			}
+
+			if ((type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED_SIGNED) == HCC_TYPE_SPECIFIER_UNSIGNED_SIGNED) {
+				hcc_astgen_bail_error_1_merge_apply(c, HCC_ERROR_CODE_UNSIGNED_AND_SIGNED, &location);
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_CHAR) {
+				if (type_specifiers == HCC_TYPE_SPECIFIER_CHAR) {
+					data_type = HCC_DATA_TYPE_CHAR;
+				} else if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED) {
+					data_type = HCC_DATA_TYPE_UCHAR;
+				} else {
+					data_type = HCC_DATA_TYPE_SCHAR;
+				}
+
+				break;
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_SHORT) {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED) {
+					data_type = HCC_DATA_TYPE_USHORT;
+				} else {
+					data_type = HCC_DATA_TYPE_SSHORT;
+				}
+
+				break;
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_LONG) {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED) {
+					data_type = HCC_DATA_TYPE_ULONG;
+				} else {
+					data_type = HCC_DATA_TYPE_SLONG;
+				}
+
+				break;
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_LONGLONG) {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED) {
+					data_type = HCC_DATA_TYPE_ULONGLONG;
+				} else {
+					data_type = HCC_DATA_TYPE_SLONGLONG;
+				}
+
+				break;
+			}
+
+			if (type_specifiers & HCC_TYPE_SPECIFIER_INT) {
+				if (type_specifiers & HCC_TYPE_SPECIFIER_UNSIGNED) {
+					data_type = HCC_DATA_TYPE_UINT;
+				} else {
+					data_type = HCC_DATA_TYPE_SINT;
+				}
+
+				break;
+			}
+
 			break;
 		};
 	}
 
-	return false;
+	*data_type_out = data_type;
+	return true;
 }
 
 HccDataType hcc_astgen_generate_typedef(HccCompiler* c) {
 	HCC_DEBUG_ASSERT(hcc_astgen_token_peek(c) == HCC_TOKEN_KEYWORD_TYPEDEF, "internal error: expected a typedef token");
 	hcc_astgen_token_consume(c, 1);
+
+	HccSpecifierFlags intrinsic_specifier_flags = c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_INTRINSIC;
 
 	HccDataType aliased_data_type;
 	if (!hcc_astgen_generate_data_type(c, &aliased_data_type)) {
@@ -6630,6 +7579,7 @@ HccDataType hcc_astgen_generate_typedef(HccCompiler* c) {
 		hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, hcc_token_strings[token]);
 	}
 
+	c->astgen.specifier_flags |= intrinsic_specifier_flags;
 	return hcc_astgen_generate_typedef_with_data_type(c, aliased_data_type);
 }
 
@@ -6639,30 +7589,34 @@ HccDataType hcc_astgen_generate_typedef_with_data_type(HccCompiler* c, HccDataTy
 		hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_IDENTIFIER_TYPEDEF, hcc_token_strings[token]);
 	}
 	HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
-	HccString identifier_string = hcc_string_table_get(&c->string_table, identifier_string_id);
 
 	hcc_astgen_validate_specifiers(c, HCC_SPECIFIER_FLAGS_ALL_NON_TYPEDEF_SPECIFIERS, HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_TYPEDEF);
 
 	U32 intrinsic_id = 0;
 	if (c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_INTRINSIC) {
 		U32 i = 0;
+		HccIntrinsicTypedef* it;
 		for (; i < HCC_ARRAY_COUNT(hcc_intrinsic_typedefs); i += 1) {
-			HccIntrinsicTypedef* it = &hcc_intrinsic_typedefs[i];
-			if (hcc_string_eq(it->name, identifier_string)) {
+			it = &hcc_intrinsic_typedefs[i];
+			if (it->string_id.idx_plus_one == identifier_string_id.idx_plus_one) {
 				break;
 			}
 		}
 
 		if (i == HCC_ARRAY_COUNT(hcc_intrinsic_typedefs)) {
+			HccString identifier_string = hcc_string_table_get(&c->string_table, identifier_string_id);
 			hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_TYPEDEF, (int)identifier_string.size, identifier_string.data);
 		}
 		intrinsic_id = i + 1;
 
-		if (
-			!HCC_DATA_TYPE_IS_STRUCT(aliased_data_type) ||
-			identifier_string_id.idx_plus_one != hcc_compound_data_type_get(c, aliased_data_type)->identifier_string_id.idx_plus_one
-		) {
-			hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF, (int)identifier_string.size, identifier_string.data, (int)identifier_string.size, identifier_string.data);
+		if (it->aliased_data_type != HCC_DATA_TYPE_VOID && it->aliased_data_type != aliased_data_type) {
+			HccString identifier_string = hcc_string_table_get(&c->string_table, identifier_string_id);
+			HccString found_data_type_name = hcc_data_type_string(c, aliased_data_type);
+			HccString data_type_name = hcc_data_type_string(c, it->aliased_data_type);
+			hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF,
+				(int)data_type_name.size, data_type_name.data, (int)identifier_string.size, identifier_string.data,
+				(int)found_data_type_name.size, found_data_type_name.data, (int)identifier_string.size, identifier_string.data
+			);
 		}
 
 		c->astgen.specifier_flags &= ~HCC_SPECIFIER_FLAGS_INTRINSIC;
@@ -6705,6 +7659,10 @@ HccDataType hcc_astgen_generate_typedef_with_data_type(HccCompiler* c, HccDataTy
 
 void hcc_astgen_generate_implicit_cast(HccCompiler* c, HccDataType dst_data_type, HccExpr** expr_mut) {
 	HccExpr* expr = *expr_mut;
+	if (hcc_typedef_resolve(c, expr->data_type) == hcc_typedef_resolve(c, dst_data_type)) {
+		return;
+	}
+
 	if (expr->type == HCC_EXPR_TYPE_CONSTANT) {
 		hcc_astgen_eval_cast(c, expr, dst_data_type);
 		return;
@@ -6728,9 +7686,9 @@ HccExpr* hcc_astgen_generate_unary_op(HccCompiler* c, HccExpr* inner_expr, HccUn
 	if (unary_op != HCC_UNARY_OP_LOGICAL_NOT) {
 		if (HCC_DATA_TYPE_IS_INT(resolved_data_type)) {
 			U8 rank = hcc_data_type_basic_type_ranks[resolved_data_type];
-			U8 int_rank = hcc_data_type_basic_type_ranks[HCC_DATA_TYPE_S32];
+			U8 int_rank = hcc_data_type_basic_type_ranks[HCC_DATA_TYPE_SINT];
 			if (rank < int_rank) {
-				hcc_astgen_generate_implicit_cast(c, HCC_DATA_TYPE_S32, &inner_expr);
+				hcc_astgen_generate_implicit_cast(c, HCC_DATA_TYPE_SINT, &inner_expr);
 			}
 		}
 	}
@@ -6747,12 +7705,14 @@ HccExpr* hcc_astgen_generate_unary_expr(HccCompiler* c) {
 	switch (token) {
 		case HCC_TOKEN_KEYWORD_TRUE:
 		case HCC_TOKEN_KEYWORD_FALSE:
-		case HCC_TOKEN_LIT_U32:
-		case HCC_TOKEN_LIT_U64:
-		case HCC_TOKEN_LIT_S32:
-		case HCC_TOKEN_LIT_S64:
-		case HCC_TOKEN_LIT_F32:
-		case HCC_TOKEN_LIT_F64: {
+		case HCC_TOKEN_LIT_SINT:
+		case HCC_TOKEN_LIT_SLONG:
+		case HCC_TOKEN_LIT_SLONGLONG:
+		case HCC_TOKEN_LIT_UINT:
+		case HCC_TOKEN_LIT_ULONG:
+		case HCC_TOKEN_LIT_ULONGLONG:
+		case HCC_TOKEN_LIT_FLOAT:
+		case HCC_TOKEN_LIT_DOUBLE: {
 			HccDataType data_type;
 			HccConstantId constant_id;
 			switch (token) {
@@ -6764,12 +7724,14 @@ HccExpr* hcc_astgen_generate_unary_expr(HccCompiler* c) {
 					data_type = HCC_DATA_TYPE_BOOL;
 					constant_id = c->basic_type_zero_constant_ids[HCC_DATA_TYPE_BOOL];
 					break;
-				case HCC_TOKEN_LIT_U32: data_type = HCC_DATA_TYPE_U32; break;
-				case HCC_TOKEN_LIT_U64: data_type = HCC_DATA_TYPE_U64; break;
-				case HCC_TOKEN_LIT_S32: data_type = HCC_DATA_TYPE_S32; break;
-				case HCC_TOKEN_LIT_S64: data_type = HCC_DATA_TYPE_S64; break;
-				case HCC_TOKEN_LIT_F32: data_type = HCC_DATA_TYPE_F32; break;
-				case HCC_TOKEN_LIT_F64: data_type = HCC_DATA_TYPE_F64; break;
+				case HCC_TOKEN_LIT_SINT: data_type = HCC_DATA_TYPE_SINT; break;
+				case HCC_TOKEN_LIT_SLONG: data_type = HCC_DATA_TYPE_SLONG; break;
+				case HCC_TOKEN_LIT_SLONGLONG: data_type = HCC_DATA_TYPE_SLONGLONG; break;
+				case HCC_TOKEN_LIT_UINT: data_type = HCC_DATA_TYPE_UINT; break;
+				case HCC_TOKEN_LIT_ULONG: data_type = HCC_DATA_TYPE_ULONG; break;
+				case HCC_TOKEN_LIT_ULONGLONG: data_type = HCC_DATA_TYPE_ULONGLONG; break;
+				case HCC_TOKEN_LIT_FLOAT: data_type = HCC_DATA_TYPE_FLOAT; break;
+				case HCC_TOKEN_LIT_DOUBLE: data_type = HCC_DATA_TYPE_DOUBLE; break;
 			}
 			if (data_type != HCC_DATA_TYPE_BOOL) {
 				constant_id = hcc_astgen_token_value_next(c).constant_id;
@@ -6819,7 +7781,7 @@ HccExpr* hcc_astgen_generate_unary_expr(HccCompiler* c) {
 					HccExpr* expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_CONSTANT);
 					HccEnumValue* enum_value = hcc_enum_value_get(c, decl);
 					expr->constant.id = enum_value->value_constant_id.idx_plus_one;
-					expr->data_type = HCC_DATA_TYPE_S32;
+					expr->data_type = HCC_DATA_TYPE_SINT;
 					return expr;
 				} else if (HCC_DECL_IS_GLOBAL_VARIABLE(decl)) {
 					HccExpr* expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_GLOBAL_VARIABLE);
@@ -6830,7 +7792,7 @@ HccExpr* hcc_astgen_generate_unary_expr(HccCompiler* c) {
 					hcc_astgen_static_variable_usage_found(c, decl);
 					return expr;
 				} else {
-					HCC_UNREACHABLE("unhandle decl type here %u", decl);
+					HCC_UNREACHABLE("unhandled decl type here %u", decl);
 				}
 			}
 
@@ -6868,14 +7830,19 @@ UNARY:
 					return hcc_astgen_generate_unary_expr(c);
 				} else {
 					HccExpr* right_expr = hcc_astgen_generate_expr(c, 2);
-					if (expr->data_type != right_expr->data_type) {
+					if (hcc_typedef_resolve(c, expr->data_type) != hcc_typedef_resolve(c, right_expr->data_type)) {
 						HccDataType resolved_cast_data_type = hcc_typedef_resolve(c, expr->data_type);
 						HccDataType resolved_castee_data_type = hcc_typedef_resolve(c, right_expr->data_type);
 
-						if (resolved_cast_data_type >= HCC_DATA_TYPE_VECTOR_END || resolved_castee_data_type >= HCC_DATA_TYPE_VECTOR_END) {
+						if (resolved_cast_data_type >= HCC_DATA_TYPE_BASIC_END || resolved_castee_data_type >= HCC_DATA_TYPE_BASIC_END) {
 							HccString target_data_type_name = hcc_data_type_string(c, expr->data_type);
 							HccString source_data_type_name = hcc_data_type_string(c, right_expr->data_type);
 							hcc_astgen_error_1(c, HCC_ERROR_CODE_INVALID_CAST, (int)source_data_type_name.size, source_data_type_name.data, (int)target_data_type_name.size, target_data_type_name.data);
+						}
+
+						if (right_expr->type == HCC_EXPR_TYPE_CONSTANT) {
+							hcc_astgen_eval_cast(c, right_expr, expr->data_type);
+							return right_expr;
 						}
 
 						HccExpr* cast_expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_CAST);
@@ -6914,14 +7881,19 @@ UNARY:
 				variable_expr->next_expr_rel_idx = 0;
 			}
 
-			token = hcc_astgen_curly_initializer_init(c, assign_data_type, resolved_assign_data_type, variable_expr);
+			U32 nested_curlys_start_idx = hcc_stack_count(gen->nested_curlys);
+			token = hcc_astgen_curly_initializer_start(c, assign_data_type, resolved_assign_data_type, variable_expr);
 
 			while (1) {
 				if (token == HCC_TOKEN_CURLY_OPEN) {
+					//
+					// we have just found a another curly initializer, so nest down into the next element type
+					//
 					hcc_astgen_curly_initializer_next_elmt(c, HCC_DATA_TYPE_VOID);
 					token = hcc_astgen_curly_initializer_open(c);
 					continue;
 				}
+
 				if (token == HCC_TOKEN_FULL_STOP || token == HCC_TOKEN_SQUARE_OPEN) {
 					token = hcc_astgen_curly_initializer_next_elmt_with_designator(c);
 					if (token == HCC_TOKEN_CURLY_OPEN) {
@@ -6950,9 +7922,9 @@ UNARY:
 				while (1) {
 					bool found_one = false;
 					if (token == HCC_TOKEN_CURLY_CLOSE) {
-						if (hcc_stack_count(gen->nested_curlys) > 1) {
-							token = hcc_astgen_curly_initializer_close(c);
-						} else {
+						bool is_finished = hcc_stack_count(gen->nested_curlys) == nested_curlys_start_idx + 1;
+						token = hcc_astgen_curly_initializer_close(c, is_finished);
+						if (is_finished) {
 							goto CURLY_INITIALIZER_FINISH;
 						}
 						found_one = true;
@@ -6973,8 +7945,22 @@ UNARY:
 			}
 CURLY_INITIALIZER_FINISH: {}
 			token = hcc_astgen_token_next(c);
-
 			curly_initializer_expr->curly_initializer.first_expr_rel_idx = gen->first_initializer_expr - curly_initializer_expr;
+
+			//
+			// if we have nested into another curly initializer expression
+			// then restore the parent curly initializers state in the HccAstGenCurlyInitializer structure.
+			if (nested_curlys_start_idx) {
+				HccAstGenCurlyInitializerElmt* nested_elmt = hcc_stack_get_last(gen->nested_elmts);
+				hcc_astgen_curly_initializer_set_composite(c, nested_elmt->data_type, nested_elmt->resolved_data_type);
+
+				HccAstGenCurlyInitializerNested* nested = hcc_stack_get_last(gen->nested);
+				gen->prev_initializer_expr = nested->prev_initializer_expr;
+				gen->first_initializer_expr = nested->first_initializer_expr;
+				gen->nested_elmts_start_idx = nested->nested_elmts_start_idx;
+				hcc_stack_pop(gen->nested);
+			}
+
 			return curly_initializer_expr;
 		};
 		case HCC_TOKEN_KEYWORD_SIZEOF:
@@ -6997,43 +7983,29 @@ CURLY_INITIALIZER_FINISH: {}
 				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_SIZEALIGNOF_TYPE_OPERAND_NOT_WRAPPED, hcc_token_strings[token]);
 			}
 
-			Uptr size;
-			Uptr align;
+			U64 size;
+			U64 align;
 			hcc_data_type_size_align(c, expr->data_type, &size, &align);
 
-			U32 TODO_int_64_support_plz = is_sizeof ? size : align;
+			// TODO the actual type of sizeof must be a size_t aka uintptr_t
+			HccBasic TODO_intptr_support_plz = hcc_basic_from_uint(c, HCC_DATA_TYPE_UINT, is_sizeof ? size : align);
 
 			expr->type = HCC_EXPR_TYPE_CONSTANT;
-			expr->constant.id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U32, &TODO_int_64_support_plz).idx_plus_one;
-			expr->data_type = HCC_DATA_TYPE_U32;
+			expr->constant.id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_UINT, &TODO_intptr_support_plz).idx_plus_one;
+			expr->data_type = HCC_DATA_TYPE_UINT;
 			return expr;
 		};
 
-		case HCC_DATA_TYPE_VOID:
-		case HCC_DATA_TYPE_BOOL:
-		case HCC_DATA_TYPE_U8:
-		case HCC_DATA_TYPE_U16:
-		case HCC_DATA_TYPE_U32:
-		case HCC_DATA_TYPE_U64:
-		case HCC_DATA_TYPE_S8:
-		case HCC_DATA_TYPE_S16:
-		case HCC_DATA_TYPE_S32:
-		case HCC_DATA_TYPE_S64:
-		case HCC_DATA_TYPE_F16:
-		case HCC_DATA_TYPE_F32:
-		case HCC_DATA_TYPE_F64:
-		case HCC_TOKEN_INTRINSIC_TYPE_VEC2:
-		case HCC_TOKEN_INTRINSIC_TYPE_VEC3:
-		case HCC_TOKEN_INTRINSIC_TYPE_VEC4:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT2X2:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT2X3:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT2X4:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT3X2:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT3X3:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT3X4:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT4X2:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT4X3:
-		case HCC_TOKEN_INTRINSIC_TYPE_MAT4X4:
+		case HCC_TOKEN_KEYWORD_VOID:
+		case HCC_TOKEN_KEYWORD_BOOL:
+		case HCC_TOKEN_KEYWORD_CHAR:
+		case HCC_TOKEN_KEYWORD_SHORT:
+		case HCC_TOKEN_KEYWORD_INT:
+		case HCC_TOKEN_KEYWORD_LONG:
+		case HCC_TOKEN_KEYWORD_FLOAT:
+		case HCC_TOKEN_KEYWORD_DOUBLE:
+		case HCC_TOKEN_KEYWORD_UNSIGNED:
+		case HCC_TOKEN_KEYWORD_SIGNED:
 		case HCC_TOKEN_KEYWORD_STRUCT:
 		case HCC_TOKEN_KEYWORD_UNION:
 		default: {
@@ -7270,7 +8242,6 @@ END_ARG_COUNT: {}
 	U32 arg_idx = 0;
 	token = hcc_astgen_token_peek(c);
 	HccVariable* params_array = hcc_stack_get(c->astgen.function_params_and_variables, function->params_start_idx);
-	c->astgen.generic_data_type_state = (HccGenericDataTypeState){0};
 	while (1) {
 		HccExpr* arg_expr = hcc_astgen_generate_expr(c, 0);
 		HccVariable* param = &params_array[arg_idx];
@@ -7297,7 +8268,6 @@ END_ARG_COUNT: {}
 	hcc_astgen_ensure_function_args_count(c, function, arg_idx);
 
 	HccDataType return_data_type = hcc_stack_get(c->astgen.functions, function_idx)->return_data_type;
-	return_data_type = hcc_data_type_resolve_generic(c, return_data_type);
 
 	function_expr->function.idx = function_idx;
 
@@ -7393,6 +8363,7 @@ HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence) {
 	U32 callee_token_idx = c->astgen.token_read_idx;
 	HccExpr* left_expr = hcc_astgen_generate_unary_expr(c);
 	if (left_expr->type == HCC_EXPR_TYPE_DATA_TYPE) {
+		hcc_astgen_ensure_not_unsupported_basic_type(c, 1, HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_EXPR, left_expr->data_type);
 		return left_expr;
 	}
 
@@ -7407,6 +8378,7 @@ HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence) {
 		}
 		hcc_astgen_token_next(c);
 		HccDataType resolved_left_expr_data_type = hcc_typedef_resolve(c, left_expr->data_type);
+		hcc_astgen_ensure_not_unsupported_basic_type(c, 1, HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_EXPR, left_expr->data_type);
 
 		if (binary_op_type == HCC_EXPR_TYPE_CALL) {
 			if (left_expr->type != HCC_EXPR_TYPE_FUNCTION) { // TODO add function pointer support
@@ -7435,6 +8407,7 @@ HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence) {
 			left_expr = hcc_astgen_generate_unary_op(c, left_expr, unary_op, operator_token);
 		} else {
 			HccExpr* right_expr = hcc_astgen_generate_expr(c, precedence);
+			hcc_astgen_ensure_not_unsupported_basic_type(c, 1, HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_EXPR, right_expr->data_type);
 
 			U32 other_token_idx = -1;
 			if (is_assignment) {
@@ -7504,14 +8477,14 @@ HccDataType hcc_astgen_generate_variable_decl_array(HccCompiler* c, HccDataType 
 	}
 
 	HccExpr* size_expr = hcc_astgen_generate_expr(c, 0);
-	if (size_expr->type != HCC_EXPR_TYPE_CONSTANT || size_expr->data_type < HCC_DATA_TYPE_U8 || size_expr->data_type > HCC_DATA_TYPE_S64) {
+	if (size_expr->type != HCC_EXPR_TYPE_CONSTANT || !HCC_DATA_TYPE_IS_INT(size_expr->data_type)) {
 		hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_ARRAY_SIZE);
 	}
 
 	HccConstantId size_constant_id = { .idx_plus_one = size_expr->constant.id };
 	HccConstant constant = hcc_constant_table_get(c, size_constant_id);
 	U64 size;
-	if (!hcc_constant_as_uint(constant, &size)) {
+	if (!hcc_constant_as_uint(c, constant, &size)) {
 		hcc_astgen_error_1(c, HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_NEGATIVE);
 	}
 	if (size == 0) {
@@ -7531,9 +8504,14 @@ HccDataType hcc_astgen_generate_variable_decl_array(HccCompiler* c, HccDataType 
 	return data_type;
 }
 
-U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccStringId identifier_string_id, HccDataType* data_type_mut, HccExpr** init_expr_out) {
+U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccDataType* data_type_mut, HccExpr** init_expr_out) {
 	HccToken token = hcc_astgen_token_peek(c);
+	HCC_DEBUG_ASSERT(token == HCC_TOKEN_IDENT, "internal error: expected '%s' at the start of generating a function", hcc_token_strings[HCC_TOKEN_IDENT]);
+	HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
 
+	hcc_astgen_ensure_not_unsupported_basic_type(c, 1, HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_VARIABLE, *data_type_mut);
+
+	token = hcc_astgen_token_next(c);
 	if (c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_VARIABLE_SPECIFIERS) {
 		HccSpecifier specifier = HCC_LEAST_SET_BIT_IDX_U32(c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_VARIABLE_SPECIFIERS);
 		HccToken token = hcc_specifier_tokens[specifier];
@@ -7618,11 +8596,7 @@ HccExpr* hcc_astgen_generate_variable_decl_expr(HccCompiler* c, HccDataType data
 	HccExpr* init_expr = NULL;
 	HccToken token = hcc_astgen_token_peek(c);
 
-	HCC_DEBUG_ASSERT(token == HCC_TOKEN_IDENT, "internal error: expected an identifier for a variable declaration");
-	HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
-	token = hcc_astgen_token_next(c);
-
-	U32 variable_idx = hcc_astgen_generate_variable_decl(c, false, identifier_string_id, &data_type, &init_expr);
+	U32 variable_idx = hcc_astgen_generate_variable_decl(c, false, &data_type, &init_expr);
 	if (init_expr) {
 		HccExpr* left_expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_LOCAL_VARIABLE);
 		left_expr->variable.idx = variable_idx;
@@ -7651,7 +8625,7 @@ HccExpr* hcc_astgen_generate_stmt(HccCompiler* c) {
 
 			stmt_block->is_stmt_block_entry = true;
 			stmt_block->stmt_block.variables_count = 0;
-			HccExpr* prev_stmt_block = stmt_block;
+			HccExpr* prev_stmt_block = c->astgen.stmt_block;
 			c->astgen.stmt_block = stmt_block;
 
 			token = hcc_astgen_token_next(c);
@@ -7734,10 +8708,7 @@ HccExpr* hcc_astgen_generate_stmt(HccCompiler* c) {
 				token = hcc_astgen_token_next(c);
 
 				cond_expr = hcc_astgen_generate_expr(c, 0);
-				if (
-					cond_expr->data_type < HCC_DATA_TYPE_U8 ||
-					cond_expr->data_type > HCC_DATA_TYPE_S64
-				) {
+				if (!HCC_DATA_TYPE_IS_INT(cond_expr->data_type)) {
 					HccString data_type_name = hcc_data_type_string(c, cond_expr->data_type);
 					hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INVALID_SWITCH_CONDITION_TYPE, (int)data_type_name.size, data_type_name.data);
 				}
@@ -7975,14 +8946,16 @@ HccExpr* hcc_astgen_generate_stmt(HccCompiler* c) {
 	}
 }
 
-void hcc_astgen_generate_function(HccCompiler* c, HccStringId identifier_string_id, HccDataType return_data_type, U32 data_type_token_idx) {
+void hcc_astgen_generate_function(HccCompiler* c, HccDataType return_data_type, U32 data_type_token_idx) {
 	U32 function_idx = hcc_stack_count(c->astgen.functions);
 	HccFunction* function = hcc_stack_push(c->astgen.functions);
 	HccToken token = hcc_astgen_token_peek(c);
-	HCC_DEBUG_ASSERT(token == HCC_TOKEN_PARENTHESIS_OPEN, "internal error: expected '%s' at the start of generating a function", hcc_token_strings[HCC_TOKEN_PARENTHESIS_OPEN]);
-	U32 identifier_token_idx = c->astgen.token_read_idx - 1;
+	HCC_DEBUG_ASSERT(token == HCC_TOKEN_IDENT, "internal error: expected '%s' at the start of generating a function", hcc_token_strings[HCC_TOKEN_IDENT]);
+	HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
+	U32 identifier_token_idx = c->astgen.token_read_idx;
 	U32 params_token_idx = c->astgen.token_read_idx;
 	function->identifier_token_idx = identifier_token_idx;
+	token = hcc_astgen_token_next(c);
 
 	{
 		if (c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_FUNCTION_SPECIFIERS) {
@@ -8054,6 +9027,8 @@ void hcc_astgen_generate_function(HccCompiler* c, HccStringId identifier_string_
 				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, hcc_token_strings[token]);
 			}
 			hcc_astgen_generate_specifiers(c);
+
+			hcc_astgen_ensure_not_unsupported_basic_type(c, 1, HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_PARAM, param->data_type);
 
 			if (c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_FUNCTION_PARAM_SPECIFIERS) {
 				HccSpecifier specifier = HCC_LEAST_SET_BIT_IDX_U32(c->astgen.specifier_flags & HCC_SPECIFIER_FLAGS_ALL_NON_FUNCTION_PARAM_SPECIFIERS);
@@ -8203,13 +9178,11 @@ void hcc_astgen_generate(HccCompiler* c) {
 					token = hcc_astgen_generate_specifiers(c);
 					bool ensure_semi_colon = true;
 					if (token == HCC_TOKEN_IDENT) {
-						HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
-						token = hcc_astgen_token_next(c);
-						if (token == HCC_TOKEN_PARENTHESIS_OPEN) {
-							hcc_astgen_generate_function(c, identifier_string_id, data_type, data_type_token_idx);
+						if (hcc_astgen_token_peek_ahead(c, 1) == HCC_TOKEN_PARENTHESIS_OPEN) {
+							hcc_astgen_generate_function(c, data_type, data_type_token_idx);
 							ensure_semi_colon = false;
 						} else {
-							hcc_astgen_generate_variable_decl(c, true, identifier_string_id, &data_type, NULL);
+							hcc_astgen_generate_variable_decl(c, true, &data_type, NULL);
 						}
 					} else if (token == HCC_TOKEN_KEYWORD_TYPEDEF) {
 						hcc_astgen_generate_typedef_with_data_type(c, data_type);
@@ -8435,28 +9408,35 @@ BINARY:
 				U64* elmt_indices = hcc_stack_get(c->astgen.curly_initializer.designated_initializer_elmt_indices, di->elmt_indices_start_idx);
 				fprintf(f, "%.*s", indent + 1, indent_chars);
 				HccDataType data_type = expr->data_type;
-				for (U32 idx = 0; idx < di->elmt_indices_count; idx += 1) {
-					data_type = hcc_typedef_resolve(c, data_type);
-					U64 entry_idx = elmt_indices[idx];
-					if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
-						HccArrayDataType* array_data_type = hcc_array_data_type_get(c, data_type);
-						fprintf(f, "[%zu]", entry_idx);
-						data_type = array_data_type->element_data_type;
-					} else if (HCC_DATA_TYPE_IS_COMPOUND_TYPE(data_type)) {
-						HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(c, data_type);
-						HccCompoundField* field = hcc_stack_get(c->astgen.compound_fields, compound_data_type->fields_start_idx + entry_idx);
-						if (field->identifier_string_id.idx_plus_one) {
-							HccString identifier_string = hcc_string_table_get(&c->string_table, field->identifier_string_id);
-							fprintf(f, ".%.*s", (int)identifier_string.size, identifier_string.data);
+				if (di->elmt_indices_count) {
+					for (U32 idx = 0; idx < di->elmt_indices_count; idx += 1) {
+						data_type = hcc_typedef_resolve(c, data_type);
+						U64 entry_idx = elmt_indices[idx];
+						if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
+							HccArrayDataType* array_data_type = hcc_array_data_type_get(c, data_type);
+							fprintf(f, "[%zu]", entry_idx);
+							data_type = array_data_type->element_data_type;
+						} else if (HCC_DATA_TYPE_IS_COMPOUND_TYPE(data_type)) {
+							HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(c, data_type);
+							HccCompoundField* field = hcc_stack_get(c->astgen.compound_fields, compound_data_type->fields_start_idx + entry_idx);
+							if (field->identifier_string_id.idx_plus_one) {
+								HccString identifier_string = hcc_string_table_get(&c->string_table, field->identifier_string_id);
+								fprintf(f, ".%.*s", (int)identifier_string.size, identifier_string.data);
+							}
+							data_type = field->data_type;
 						}
-						data_type = field->data_type;
 					}
+				} else {
+				fprintf(f, "...");
 				}
 				fprintf(f, " = ");
 
 				if (initializer_expr->designated_initializer.value_expr_rel_idx) {
 					HccExpr* value_expr = initializer_expr - initializer_expr->designated_initializer.value_expr_rel_idx;
-					hcc_astgen_print_expr(c, value_expr, 0, f);
+					if (value_expr->type == HCC_EXPR_TYPE_CURLY_INITIALIZER) {
+						fprintf(f, "\n");
+					}
+					hcc_astgen_print_expr(c, value_expr, value_expr->type == HCC_EXPR_TYPE_CURLY_INITIALIZER ? indent + 2 : 0, f);
 				} else {
 					fprintf(f, "<ZERO>\n");
 				}
@@ -8531,7 +9511,7 @@ BINARY:
 			break;
 		};
 		default:
-			HCC_ABORT("unhandle expr type %u\n", expr->type);
+			HCC_ABORT("unhandled expr type %u\n", expr->type);
 	}
 	fprintf(f, "\n");
 }
@@ -8551,7 +9531,7 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 			HccConstant constant = hcc_constant_table_get(c, value->value_constant_id);
 
 			S64 v;
-			HCC_DEBUG_ASSERT(hcc_constant_as_sint(constant, &v), "internal error: expected to be a signed int");
+			HCC_DEBUG_ASSERT(hcc_constant_as_sint(c, constant, &v), "internal error: expected to be a signed int");
 			fprintf(f, "\t%.*s = %ld\n", (int)identifier.size, identifier.data, v);
 		}
 		fprintf(f, "}\n");
@@ -8590,7 +9570,7 @@ void hcc_astgen_print(HccCompiler* c, FILE* f) {
 		HccConstant constant = hcc_constant_table_get(c, d->size_constant_id);
 
 		U64 count;
-		HCC_DEBUG_ASSERT(hcc_constant_as_uint(constant, &count), "internal error: expected to be a unsigned int");
+		HCC_DEBUG_ASSERT(hcc_constant_as_uint(c, constant, &count), "internal error: expected to be a unsigned int");
 
 		fprintf(f, "ARRAY(#%u): %.*s[%zu]\n", array_type_idx, (int)data_type_name.size, data_type_name.data, count);
 	}
@@ -8806,25 +9786,14 @@ void hcc_irgen_generate_convert_to_bool(HccCompiler* c, HccIROperand cond_operan
 	HccIRFunction* ir_function = hcc_irgen_current_function(c);
 	HccDataType cond_data_type = hcc_typedef_resolve(c, hcc_irgen_operand_data_type(c, ir_function, cond_operand));
 	HCC_DEBUG_ASSERT(
-		!HCC_DATA_TYPE_IS_STRUCT(cond_data_type) && !HCC_DATA_TYPE_IS_MATRIX(cond_data_type),
-		"a condition expression must be a non-structure & non-matrix type"
+		!HCC_DATA_TYPE_IS_COMPOSITE_TYPE(cond_data_type),
+		"a condition expression must be a non-composite type"
 	);
 
 	HccIROperand* operands = hcc_irgen_add_operands_many(c, 3);
 	hcc_irgen_add_instruction(c, HCC_IR_OP_CODE_BINARY_OP(NOT_EQUAL), operands, 3);
 
-	HccDataType new_cond_data_type;
-	if (cond_data_type >= HCC_DATA_TYPE_VEC4_START) {
-		new_cond_data_type = HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_BOOL);
-	} else if (cond_data_type >= HCC_DATA_TYPE_VEC3_START) {
-		new_cond_data_type = HCC_DATA_TYPE_VEC3(HCC_DATA_TYPE_BOOL);
-	} else if (cond_data_type >= HCC_DATA_TYPE_VEC2_START) {
-		new_cond_data_type = HCC_DATA_TYPE_VEC2(HCC_DATA_TYPE_BOOL);
-	} else {
-		new_cond_data_type = HCC_DATA_TYPE_BOOL;
-	}
-
-	U16 return_value_idx = hcc_irgen_add_value(c, new_cond_data_type);
+	U16 return_value_idx = hcc_irgen_add_value(c, HCC_DATA_TYPE_BOOL);
 	operands[0] = HCC_IR_OPERAND_VALUE_INIT(return_value_idx);
 	operands[1] = cond_operand;
 	operands[2] = HCC_IR_OPERAND_CONSTANT_INIT(hcc_constant_table_deduplicate_zero(c, cond_data_type).idx_plus_one);
@@ -8873,9 +9842,9 @@ void hcc_irgen_generate_store(HccCompiler* c, HccIROperand dst_operand, HccIROpe
 	hcc_irgen_add_instruction(c, HCC_IR_OP_CODE_STORE, operands, 2);
 }
 
-void hcc_irgen_generate_bitcast(HccCompiler* c, HccDataType dst_data_type, HccIROperand src_operand) {
+void hcc_irgen_generate_bitcast(HccCompiler* c, HccDataType dst_data_type, HccIROperand src_operand, bool is_ptr) {
 	HccIROperand* operands = hcc_irgen_add_operands_many(c, 3);
-	hcc_irgen_add_instruction(c, HCC_IR_OP_CODE_BITCAST, operands, 3);
+	hcc_irgen_add_instruction(c, is_ptr ? HCC_IR_OP_CODE_BITCAST_PTR : HCC_IR_OP_CODE_BITCAST, operands, 3);
 
 	U16 return_value_idx = hcc_irgen_add_value(c, dst_data_type);
 	operands[0] = HCC_IR_OPERAND_VALUE_INIT(return_value_idx);
@@ -8889,7 +9858,7 @@ void hcc_irgen_generate_bitcast_union_field(HccCompiler* c, HccDataType union_da
 	HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(c, union_data_type);
 	HccCompoundField* field = hcc_stack_get(c->astgen.compound_fields, compound_data_type->fields_start_idx + field_idx);
 
-	hcc_irgen_generate_bitcast(c, field->data_type, src_operand);
+	hcc_irgen_generate_bitcast(c, field->data_type, src_operand, true);
 }
 
 HccIROperand* hcc_irgen_generate_access_chain_start(HccCompiler* c, U32 count) {
@@ -8927,20 +9896,22 @@ void hcc_irgen_generate_access_chain_instruction(HccCompiler* c, HccExpr* expr, 
 		case HCC_EXPR_TYPE_FIELD_ACCESS: {
 			HccExpr* left_expr = expr - expr->binary.left_expr_rel_idx;
 			U32 child_count = count + 1;
-			if (HCC_DATA_TYPE_IS_UNION(left_expr->data_type)) {
+			HccDataType resolved_left_expr_data_type = hcc_typedef_resolve(c, left_expr->data_type);
+			if (HCC_DATA_TYPE_IS_UNION(resolved_left_expr_data_type)) {
 				child_count = 0;
 			}
 			hcc_irgen_generate_access_chain_instruction(c, left_expr, child_count);
 			S32 field_idx = expr->binary.right_expr_rel_idx;
 
-			if (HCC_DATA_TYPE_IS_UNION(left_expr->data_type)) {
+			if (HCC_DATA_TYPE_IS_UNION(resolved_left_expr_data_type)) {
 				hcc_irgen_generate_access_chain_end(c, left_expr->data_type);
 				hcc_irgen_generate_bitcast_union_field(c, left_expr->data_type, field_idx, c->irgen.last_operand);
 				if (count != 0) {
 					hcc_irgen_generate_access_chain_start(c, count);
 				}
 			} else {
-				HccConstantId constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_S32, &field_idx);
+				HccBasic basic = hcc_basic_from_sint(c, HCC_DATA_TYPE_SINT, field_idx);
+				HccConstantId constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SINT, &basic);
 				*hcc_stack_get_back(c->irgen.operands, count) = HCC_IR_OPERAND_CONSTANT_INIT(constant_id.idx_plus_one);
 			}
 			break;
@@ -9010,7 +9981,7 @@ void hcc_irgen_generate_instructions(HccCompiler* c, HccExpr* expr) {
 UNARY:
 		{
 			HccExpr* unary_expr = expr - expr->unary.expr_rel_idx;
-			if (op_code == HCC_IR_OP_CODE_UNARY_OP(LOGICAL_NOT) && HCC_DATA_TYPE_SCALAR(unary_expr->data_type) != HCC_DATA_TYPE_BOOL) {
+			if (op_code == HCC_IR_OP_CODE_UNARY_OP(LOGICAL_NOT) && unary_expr->data_type != HCC_DATA_TYPE_BOOL) {
 				hcc_irgen_generate_condition_expr(c, unary_expr);
 			} else {
 				hcc_irgen_generate_instructions(c, unary_expr);
@@ -9593,9 +10564,8 @@ UNARY:
 								operand_idx = 3;
 							}
 						} else {
-							U32 TODO_int_64_support_plz = entry_idx;
-
-							HccConstantId entry_constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U32, &TODO_int_64_support_plz);
+							HccBasic TODO_int_64_support_plz = hcc_basic_from_uint(c, HCC_DATA_TYPE_UINT, entry_idx);
+							HccConstantId entry_constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_UINT, &TODO_int_64_support_plz);
 							operands[operand_idx] = HCC_IR_OPERAND_CONSTANT_INIT(entry_constant_id.idx_plus_one);
 							operand_idx += 1;
 						}
@@ -9639,7 +10609,16 @@ UNARY:
 			HccExpr* unary_expr = expr - expr->unary.expr_rel_idx;
 			hcc_irgen_generate_instructions(c, unary_expr);
 
-			HccBasicTypeClass dst_type_class = hcc_basic_type_class(HCC_DATA_TYPE_SCALAR(expr->data_type));
+			if (hcc_data_type_is_same_underlaying_type(c, expr->data_type, unary_expr->data_type)) {
+				break;
+			}
+
+			if (hcc_data_type_is_same_bitwidth_int(c, expr->data_type, unary_expr->data_type)) {
+				hcc_irgen_generate_bitcast(c, expr->data_type, c->irgen.last_operand, false);
+				break;
+			}
+
+			HccBasicTypeClass dst_type_class = hcc_basic_type_class(expr->data_type);
 			if (dst_type_class == HCC_BASIC_TYPE_CLASS_BOOL) {
 				hcc_irgen_generate_convert_to_bool(c, c->irgen.last_operand);
 			} else {
@@ -9794,7 +10773,7 @@ UNARY:
 			break;
 		};
 		default:
-			HCC_ABORT("unhandle expr type %u\n", expr->type);
+			HCC_ABORT("unhandled expr type %u\n", expr->type);
 	}
 }
 
@@ -10084,6 +11063,17 @@ BINARY_OP:
 						fprintf(f, "\n");
 						break;
 					};
+					case HCC_IR_OP_CODE_BITCAST_PTR: {
+						HccIROperand* operands = hcc_stack_get(c->irgen.operands, ir_function->operands_start_idx + (U32)instruction->operands_start_idx);
+						fprintf(f, "\t\t");
+						hcc_irgen_print_operand(c, operands[0], f);
+						fprintf(f, " = OP_BITCAST_PTR: ");
+						hcc_irgen_print_operand(c, operands[1], f);
+						fprintf(f, ", ");
+						hcc_irgen_print_operand(c, operands[2], f);
+						fprintf(f, "\n");
+						break;
+					};
 					case HCC_IR_OP_CODE_UNREACHABLE: {
 						fprintf(f, "\t\tOP_UNREACHABLE:\n");
 						break;
@@ -10302,10 +11292,10 @@ U32 hcc_spirv_type_table_deduplicate_variable(HccCompiler* c, HccDataType data_t
 	entry->kind = kind;
 	switch (kind) {
 		case HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE_POINTER_INPUT:
-			entry->spirv_id = c->spirvgen.pointer_type_inputs_base_id + data_type;
+			entry->spirv_id = hcc_spirvgen_pointer_type_input_id(c, data_type);
 			break;
 		case HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE_POINTER_OUTPUT:
-			entry->spirv_id = c->spirvgen.pointer_type_outputs_base_id + data_type;
+			entry->spirv_id = hcc_spirvgen_pointer_type_output_id(c, data_type);
 			break;
 		default:
 			entry->spirv_id = c->spirvgen.next_id;
@@ -10329,6 +11319,16 @@ void hcc_spirvgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 	// zero is an invalid spirv id so start on 1
 	c->spirvgen.next_id = 1;
 
+	c->spirvgen.available_basic_types = 0xffff;
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_U8);
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_S8);
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_U16);
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_S16);
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_F16);
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_U64);
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_S64);
+	HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(&c->spirvgen.available_basic_types, HCC_INTRINSIC_TYPE_F64);
+
 	c->spirvgen.out_capabilities = hcc_stack_init(U32, setup->spirvgen.out_capabilities_cap, HCC_ALLOC_TAG_SPIRVGEN_OUT_CAPABILITIES);
 	c->spirvgen.out_entry_points = hcc_stack_init(U32, setup->spirvgen.out_entry_points_cap, HCC_ALLOC_TAG_SPIRVGEN_OUT_ENTRY_POINTS);
 	c->spirvgen.out_debug_info = hcc_stack_init(U32, setup->spirvgen.out_debug_info_cap, HCC_ALLOC_TAG_SPIRVGEN_OUT_DEBUG_INFO);
@@ -10339,32 +11339,25 @@ void hcc_spirvgen_init(HccCompiler* c, HccCompilerSetup* setup) {
 
 U32 hcc_spirvgen_resolve_type_id(HccCompiler* c, HccDataType data_type) {
 	data_type = hcc_typedef_resolve(c, data_type);
-	if (data_type < HCC_DATA_TYPE_MATRIX_END) {
-		return data_type + 1;
+	U32 spirv_id;
+	if (HCC_DATA_TYPE_IS_INTRINSIC(data_type)) {
+		HccIntrinsicType intrinsic_type = hcc_intrinsic_type_from_data_type(c, data_type);
+		spirv_id = HCC_SPIRV_ID_FROM_INTRINSIC_TYPE(intrinsic_type);
 	} else {
 		switch (data_type & 0xff) {
 			case HCC_DATA_TYPE_STRUCT:
 			case HCC_DATA_TYPE_UNION:
-				return c->spirvgen.compound_type_base_id + HCC_DATA_TYPE_IDX(data_type);
+				spirv_id = c->spirvgen.compound_type_base_id + HCC_DATA_TYPE_IDX(data_type);
+				break;
 			case HCC_DATA_TYPE_ARRAY:
-				return c->spirvgen.array_type_base_id + HCC_DATA_TYPE_IDX(data_type);
+				spirv_id = c->spirvgen.array_type_base_id + HCC_DATA_TYPE_IDX(data_type);
+				break;
 			default:
 				HCC_ABORT("unhandled data type '%u'", data_type);
 		}
 	}
-}
 
-void hcc_spirvgen_instr_start(HccCompiler* c, HccSpirvOp op) {
-	HCC_DEBUG_ASSERT(c->spirvgen.instr_op == HCC_SPIRV_OP_NO_OP, "internal error: hcc_spirvgen_instr_end has not be called before a new instruction was started");
-	c->spirvgen.instr_op = op;
-	c->spirvgen.instr_operands_count = 0;
-}
-
-void hcc_spirvgen_instr_add_operand(HccCompiler* c, U32 word) {
-	HCC_DEBUG_ASSERT(c->spirvgen.instr_op != HCC_SPIRV_OP_NO_OP, "internal error: hcc_spirvgen_instr_start has not been called when making an instruction");
-	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(c->spirvgen.instr_operands_count, HCC_SPIRV_INSTR_OPERANDS_CAP);
-	c->spirvgen.instr_operands[c->spirvgen.instr_operands_count] = word;
-	c->spirvgen.instr_operands_count += 1;
+	return spirv_id;
 }
 
 U32 hcc_spirvgen_convert_operand(HccCompiler* c, HccIROperand ir_operand) {
@@ -10379,6 +11372,37 @@ U32 hcc_spirvgen_convert_operand(HccCompiler* c, HccIROperand ir_operand) {
 		case HCC_IR_OPERAND_FUNCTION: return c->spirvgen.function_base_spirv_id + HCC_IR_OPERAND_FUNCTION_IDX(ir_operand) - HCC_FUNCTION_IDX_USER_START;
 		default: return hcc_spirvgen_resolve_type_id(c, ir_operand);
 	}
+}
+
+U32 hcc_spirvgen_pointer_type_input_id(HccCompiler* c, HccDataType data_type) {
+	U32 data_type_spirv_id = hcc_spirvgen_resolve_type_id(c, data_type);
+	HCC_DEBUG_ASSERT(HCC_SPIRV_ID_IS_INTRINSIC_TYPE(data_type_spirv_id), "spirv pointer type output can only be for basic, vector and matrix types");
+
+	return c->spirvgen.pointer_type_inputs_base_id + data_type_spirv_id;
+}
+
+U32 hcc_spirvgen_pointer_type_output_id(HccCompiler* c, HccDataType data_type) {
+	U32 data_type_spirv_id = hcc_spirvgen_resolve_type_id(c, data_type);
+	HCC_DEBUG_ASSERT(HCC_SPIRV_ID_IS_INTRINSIC_TYPE(data_type_spirv_id), "spirv pointer type output can only be for basic, vector and matrix types");
+
+	return c->spirvgen.pointer_type_outputs_base_id + data_type_spirv_id;
+}
+
+bool hcc_spirvgen_basic_type_is_supported(HccCompiler* c, HccIntrinsicType intrinsic_type) {
+	return HCC_INTRINSIC_BASIC_TYPE_MASK_IS_SET(c->spirvgen.available_basic_types, intrinsic_type);
+}
+
+void hcc_spirvgen_instr_start(HccCompiler* c, HccSpirvOp op) {
+	HCC_DEBUG_ASSERT(c->spirvgen.instr_op == HCC_SPIRV_OP_NO_OP, "internal error: hcc_spirvgen_instr_end has not be called before a new instruction was started");
+	c->spirvgen.instr_op = op;
+	c->spirvgen.instr_operands_count = 0;
+}
+
+void hcc_spirvgen_instr_add_operand(HccCompiler* c, U32 word) {
+	HCC_DEBUG_ASSERT(c->spirvgen.instr_op != HCC_SPIRV_OP_NO_OP, "internal error: hcc_spirvgen_instr_start has not been called when making an instruction");
+	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(c->spirvgen.instr_operands_count, HCC_SPIRV_INSTR_OPERANDS_CAP);
+	c->spirvgen.instr_operands[c->spirvgen.instr_operands_count] = word;
+	c->spirvgen.instr_operands_count += 1;
 }
 
 void hcc_spirvgen_instr_add_converted_operand(HccCompiler* c, HccIROperand ir_operand) {
@@ -10428,6 +11452,7 @@ void hcc_spirvgen_instr_end(HccCompiler* c) {
 		case HCC_SPIRV_OP_TYPE_INT:
 		case HCC_SPIRV_OP_TYPE_FLOAT:
 		case HCC_SPIRV_OP_TYPE_VECTOR:
+		case HCC_SPIRV_OP_TYPE_MATRIX:
 		case HCC_SPIRV_OP_TYPE_ARRAY:
 		case HCC_SPIRV_OP_TYPE_STRUCT:
 		case HCC_SPIRV_OP_TYPE_POINTER:
@@ -10548,11 +11573,11 @@ U32 hcc_spirvgen_generate_variable_type(HccCompiler* c, HccDataType data_type, H
 		switch (type_kind) {
 			case HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE_POINTER_INPUT:
 				storage_class = HCC_SPIRV_STORAGE_CLASS_INPUT;
-				type_id = c->spirvgen.pointer_type_inputs_base_id + data_type;
+				type_id = hcc_spirvgen_pointer_type_input_id(c, data_type);
 				break;
 			case HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE_POINTER_OUTPUT:
 				storage_class = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
-				type_id = c->spirvgen.pointer_type_outputs_base_id + data_type;
+				type_id = hcc_spirvgen_pointer_type_output_id(c, data_type);
 				break;
 			case HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE:
 				storage_class = HCC_SPIRV_STORAGE_CLASS_FUNCTION;
@@ -10646,7 +11671,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 			break;
 		case HCC_FUNCTION_SHADER_STAGE_NONE:
 			break;
-		default: HCC_ABORT("unhandle shader stage");
+		default: HCC_ABORT("unhandled shader stage");
 	}
 
 	U32 function_type_id = hcc_spirvgen_generate_function_type(c, function);
@@ -10681,7 +11706,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 			{
 				vertex_index_spirv_id = c->spirvgen.next_id;
 				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-				hcc_spirvgen_instr_add_operand(c, c->spirvgen.pointer_type_inputs_base_id + HCC_DATA_TYPE_S32);
+				hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_pointer_type_input_id(c, HCC_DATA_TYPE_INT32));
 				hcc_spirvgen_instr_add_result_operand(c);
 				hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_INPUT);
 				hcc_spirvgen_instr_end(c);
@@ -10696,7 +11721,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 			{
 				instance_index_spirv_id = c->spirvgen.next_id;
 				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-				hcc_spirvgen_instr_add_operand(c, c->spirvgen.pointer_type_inputs_base_id + HCC_DATA_TYPE_S32);
+				hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_pointer_type_input_id(c, HCC_DATA_TYPE_INT32));
 				hcc_spirvgen_instr_add_result_operand(c);
 				hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_INPUT);
 				hcc_spirvgen_instr_end(c);
@@ -10711,7 +11736,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 			{
 				position_spirv_id = c->spirvgen.next_id;
 				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-				hcc_spirvgen_instr_add_operand(c, c->spirvgen.pointer_type_outputs_base_id + HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
+				hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_pointer_type_output_id(c, HCC_DATA_TYPE_VECTOR(HCC_VEC4F)));
 				hcc_spirvgen_instr_add_result_operand(c);
 				hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_OUTPUT);
 				hcc_spirvgen_instr_end(c);
@@ -10731,7 +11756,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 
 				U32 variable_spirv_id = c->spirvgen.next_id;
 				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-				hcc_spirvgen_instr_add_operand(c, c->spirvgen.pointer_type_outputs_base_id + field_data_type);
+				hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_pointer_type_output_id(c, field_data_type));
 				hcc_spirvgen_instr_add_operand(c, variable_spirv_id);
 				hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_OUTPUT);
 				hcc_spirvgen_instr_end(c);
@@ -10774,7 +11799,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 			{
 				frag_coord_spirv_id = c->spirvgen.next_id;
 				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-				hcc_spirvgen_instr_add_operand(c, c->spirvgen.pointer_type_inputs_base_id + HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32));
+				hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_pointer_type_input_id(c, HCC_DATA_TYPE_VECTOR(HCC_VEC4F)));
 				hcc_spirvgen_instr_add_result_operand(c);
 				hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_INPUT);
 				hcc_spirvgen_instr_end(c);
@@ -10794,7 +11819,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 
 				U32 variable_spirv_id = c->spirvgen.next_id;
 				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-				hcc_spirvgen_instr_add_operand(c, c->spirvgen.pointer_type_outputs_base_id + field_data_type);
+				hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_pointer_type_output_id(c, field_data_type));
 				hcc_spirvgen_instr_add_operand(c, variable_spirv_id);
 				hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_OUTPUT);
 				hcc_spirvgen_instr_end(c);
@@ -10817,7 +11842,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 
 				U32 variable_spirv_id = c->spirvgen.next_id;
 				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_VARIABLE);
-				hcc_spirvgen_instr_add_operand(c, c->spirvgen.pointer_type_inputs_base_id + field_data_type);
+				hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_pointer_type_input_id(c, field_data_type));
 				hcc_spirvgen_instr_add_operand(c, variable_spirv_id);
 				hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_STORAGE_CLASS_INPUT);
 				hcc_spirvgen_instr_end(c);
@@ -10865,7 +11890,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 			break;
 		case HCC_FUNCTION_SHADER_STAGE_NONE:
 			break;
-		default: HCC_ABORT("unhandle shader stage");
+		default: HCC_ABORT("unhandled shader stage");
 	}
 
 	c->spirvgen.basic_block_base_spirv_id = c->spirvgen.next_id;
@@ -10982,11 +12007,11 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 						case HCC_FUNCTION_SHADER_STAGE_VERTEX: {
 							switch (HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24(operands[1])) {
 								case HCC_VERTEX_INPUT_VERTEX_INDEX:
-									data_type = HCC_DATA_TYPE_S32;
+									data_type = HCC_DATA_TYPE_INT32;
 									src_operand_spirv_id = vertex_index_spirv_id;
 									break;
 								case HCC_VERTEX_INPUT_INSTANCE_INDEX:
-									data_type = HCC_DATA_TYPE_S32;
+									data_type = HCC_DATA_TYPE_INT32;
 									src_operand_spirv_id = instance_index_spirv_id;
 									break;
 							}
@@ -10996,7 +12021,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 						case HCC_FUNCTION_SHADER_STAGE_FRAGMENT: {
 							switch (HCC_IR_OPERAND_CONSTANT_IMMEDIATE_U24(operands[1])) {
 								case HCC_FRAGMENT_INPUT_FRAG_COORD:
-									data_type = HCC_DATA_TYPE_VEC4(HCC_DATA_TYPE_F32);
+									data_type = HCC_DATA_TYPE_VECTOR(HCC_VEC4F);
 									src_operand_spirv_id = frag_coord_spirv_id;
 									break;
 							}
@@ -11053,7 +12078,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 				case HCC_IR_OP_CODE_FUNCTION_RETURN: {
 					switch (function->shader_stage) {
 						case HCC_FUNCTION_SHADER_STAGE_VERTEX: {
-							HccDataType data_type = hcc_irgen_operand_data_type(c, ir_function, operands[0]); 
+							HccDataType data_type = hcc_irgen_operand_data_type(c, ir_function, operands[0]);
 							data_type = hcc_typedef_resolve(c, data_type);
 
 							U32 var_spirv_id = hcc_spirvgen_convert_operand(c, operands[0]);
@@ -11073,7 +12098,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 							break;
 						};
 						case HCC_FUNCTION_SHADER_STAGE_FRAGMENT: {
-							HccDataType data_type = hcc_irgen_operand_data_type(c, ir_function, operands[0]); 
+							HccDataType data_type = hcc_irgen_operand_data_type(c, ir_function, operands[0]);
 							data_type = hcc_typedef_resolve(c, data_type);
 
 							U32 var_spirv_id = hcc_spirvgen_convert_operand(c, operands[0]);
@@ -11139,8 +12164,7 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 					HccBinaryOp binary_op = instruction->op_code - HCC_IR_OP_CODE_BINARY_OP_START;
 					HccDataType resolved_data_type = hcc_irgen_operand_data_type(c, ir_function, operands[1]);
 					resolved_data_type = hcc_typedef_resolve(c, resolved_data_type);
-					HccBasicTypeClass type_class = hcc_basic_type_class(HCC_DATA_TYPE_SCALAR(resolved_data_type));
-					printf("binary_op = %u, type_class = %u\n", binary_op, type_class);
+					HccBasicTypeClass type_class = hcc_basic_type_class(resolved_data_type);
 					HccSpirvOp spirv_op = hcc_spirv_binary_ops[binary_op][type_class];
 					HCC_DEBUG_ASSERT(spirv_op != HCC_SPIRV_OP_NO_OP, "internal error: invalid configuration for a binary op");
 
@@ -11159,8 +12183,8 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 					U32 return_value_idx = HCC_IR_OPERAND_VALUE_IDX(operands[0]);
 					HccIRValue* return_value = hcc_stack_get(c->irgen.values, ir_function->values_start_idx + return_value_idx);
 
-					HccDataType scalar_data_type = HCC_DATA_TYPE_SCALAR(hcc_irgen_operand_data_type(c, ir_function, operands[1]));
-					HccBasicTypeClass type_class = hcc_basic_type_class(scalar_data_type);
+					HccDataType data_type = hcc_irgen_operand_data_type(c, ir_function, operands[1]);
+					HccBasicTypeClass type_class = hcc_basic_type_class(data_type);
 
 					HccUnaryOp unary_op = instruction->op_code - HCC_IR_OP_CODE_UNARY_OP_START;
 					HccSpirvOp spirv_op = hcc_spirv_unary_ops[unary_op][type_class];
@@ -11194,26 +12218,22 @@ void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx) {
 					for (U32 idx = 2; idx < instruction->operands_count; idx += 2) {
 						HccConstant constant = hcc_constant_table_get(c, HCC_IR_OPERAND_CONSTANT_ID(operands[idx + 0]));
 
-						U32 word;
-						switch (constant.data_type) {
-							case HCC_DATA_TYPE_U8:
-							case HCC_DATA_TYPE_S8: word = *(U8*)constant.data; goto SWITCH_SINGLE_WORD_LITERAL;
-							case HCC_DATA_TYPE_U16:
-							case HCC_DATA_TYPE_S16: word = *(U16*)constant.data; goto SWITCH_SINGLE_WORD_LITERAL;
-							case HCC_DATA_TYPE_U32:
-							case HCC_DATA_TYPE_S32: word = *(U32*)constant.data; goto SWITCH_SINGLE_WORD_LITERAL;
-SWITCH_SINGLE_WORD_LITERAL:
-								hcc_spirvgen_instr_add_operand(c, word);
+						switch (c->basic_type_size_and_aligns[constant.data_type]) {
+							case sizeof(U8):
+								hcc_spirvgen_instr_add_operand(c, *(U8*)constant.data);
 								break;
-							case HCC_DATA_TYPE_U64:
-							case HCC_DATA_TYPE_S64:
-								word = ((U32*)constant.data)[0];
-								hcc_spirvgen_instr_add_operand(c, word);
-								word = ((U32*)constant.data)[1];
-								hcc_spirvgen_instr_add_operand(c, word);
+							case sizeof(U16):
+								hcc_spirvgen_instr_add_operand(c, *(U16*)constant.data);
+								break;
+							case sizeof(U32):
+								hcc_spirvgen_instr_add_operand(c, *(U32*)constant.data);
+								break;
+							case sizeof(U64):
+								hcc_spirvgen_instr_add_operand(c, ((U32*)constant.data)[0]);
+								hcc_spirvgen_instr_add_operand(c, ((U32*)constant.data)[1]);
 								break;
 							default:
-								HCC_UNREACHABLE("internal error: unhandle data type %u", constant.data_type);
+								HCC_UNREACHABLE("internal error: unhandled data type %u", constant.data_type);
 						}
 
 						hcc_spirvgen_instr_add_converted_operand(c, operands[idx + 1]);
@@ -11226,8 +12246,8 @@ SWITCH_SINGLE_WORD_LITERAL:
 					HccDataType src_type = hcc_irgen_operand_data_type(c, ir_function, operands[2]);
 					dst_type = hcc_typedef_resolve(c, dst_type);
 					src_type = hcc_typedef_resolve(c, src_type);
-					HccBasicTypeClass dst_type_class = hcc_basic_type_class(HCC_DATA_TYPE_SCALAR(dst_type));
-					HccBasicTypeClass src_type_class = hcc_basic_type_class(HCC_DATA_TYPE_SCALAR(src_type));
+					HccBasicTypeClass dst_type_class = hcc_basic_type_class(dst_type);
+					HccBasicTypeClass src_type_class = hcc_basic_type_class(src_type);
 
 					U32 result_spirv_operand = hcc_spirvgen_convert_operand(c, operands[0]);
 					U32 src_spirv_operand = hcc_spirvgen_convert_operand(c, operands[2]);
@@ -11249,7 +12269,7 @@ SWITCH_SINGLE_WORD_LITERAL:
 									hcc_spirvgen_generate_convert(c, HCC_SPIRV_OP_U_CONVERT, result_spirv_operand, dst_type, src_spirv_operand);
 									break;
 								case HCC_BASIC_TYPE_CLASS_SINT: {
-									HccDataType signed_dst_type = hcc_data_type_unsigned_to_signed(dst_type);
+									HccDataType signed_dst_type = hcc_data_type_unsigned_to_signed(c, dst_type);
 									if (signed_dst_type != src_type) {
 										hcc_spirvgen_generate_convert(c, HCC_SPIRV_OP_S_CONVERT, c->spirvgen.next_id, signed_dst_type, src_spirv_operand);
 										src_spirv_operand = c->spirvgen.next_id;
@@ -11274,7 +12294,7 @@ SWITCH_SINGLE_WORD_LITERAL:
 									break;
 								};
 								case HCC_BASIC_TYPE_CLASS_UINT: {
-									HccDataType unsigned_dst_type = hcc_data_type_signed_to_unsigned(dst_type);
+									HccDataType unsigned_dst_type = hcc_data_type_signed_to_unsigned(c, dst_type);
 									if (unsigned_dst_type != src_type) {
 										hcc_spirvgen_generate_convert(c, HCC_SPIRV_OP_U_CONVERT, c->spirvgen.next_id, unsigned_dst_type, src_spirv_operand);
 										src_spirv_operand = c->spirvgen.next_id;
@@ -11323,6 +12343,15 @@ SWITCH_SINGLE_WORD_LITERAL:
 					break;
 				};
 				case HCC_IR_OP_CODE_BITCAST: {
+					U32 type_spirv_id = hcc_spirvgen_resolve_type_id(c, operands[1]);
+					hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_BITCAST);
+					hcc_spirvgen_instr_add_operand(c, type_spirv_id);
+					hcc_spirvgen_instr_add_converted_operand(c, operands[0]);
+					hcc_spirvgen_instr_add_converted_operand(c, operands[2]);
+					hcc_spirvgen_instr_end(c);
+					break;
+				};
+				case HCC_IR_OP_CODE_BITCAST_PTR: {
 					U32 type_spirv_id = hcc_spirvgen_generate_variable_type(c, operands[1], HCC_SPIRV_TYPE_KIND_FUNCTION_VARIABLE);
 					hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_BITCAST);
 					hcc_spirvgen_instr_add_operand(c, type_spirv_id);
@@ -11394,32 +12423,24 @@ SWITCH_SINGLE_WORD_LITERAL:
 	hcc_spirvgen_instr_end(c);
 }
 
-void hcc_spirvgen_generate_basic_types(HccCompiler* c) {
+void hcc_spirvgen_generate_intrinsic_types(HccCompiler* c) {
+	//
+	// HCC_INTRINSIC_TYPE_VOID
 	hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_TYPE_VOID);
 	hcc_spirvgen_instr_add_result_operand(c);
 	hcc_spirvgen_instr_end(c);
 
+	//
+	// HCC_INTRINSIC_TYPE_BOOL
 	hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_TYPE_BOOL);
 	hcc_spirvgen_instr_add_result_operand(c);
 	hcc_spirvgen_instr_end(c);
 
+	//
+	// HCC_INTRINSIC_TYPE_S8 - HCC_INTRINSIC_TYPE_S64
 	for (U32 i = 3; i < 7; i += 1) {
-		HccDataType data_type = c->spirvgen.next_id - 1;
-		if (!(c->available_basic_types & (1 << data_type))) {
-			c->spirvgen.next_id += 1;
-			continue;
-		}
-
-		hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_TYPE_INT);
-		hcc_spirvgen_instr_add_result_operand(c);
-		hcc_spirvgen_instr_add_operand(c, 1 << i);
-		hcc_spirvgen_instr_add_operand(c, 0);
-		hcc_spirvgen_instr_end(c);
-	}
-
-	for (U32 i = 3; i < 7; i += 1) {
-		HccDataType data_type = c->spirvgen.next_id - 1;
-		if (!(c->available_basic_types & (1 << data_type))) {
+		HccIntrinsicType intrinsic_type = HCC_INTRINSIC_TYPE_S8 + i - 3;
+		if (!hcc_spirvgen_basic_type_is_supported(c, intrinsic_type)) {
 			c->spirvgen.next_id += 1;
 			continue;
 		}
@@ -11431,9 +12452,29 @@ void hcc_spirvgen_generate_basic_types(HccCompiler* c) {
 		hcc_spirvgen_instr_end(c);
 	}
 
+	//
+	// HCC_INTRINSIC_TYPE_U8 - HCC_INTRINSIC_TYPE_U64
+	for (U32 i = 3; i < 7; i += 1) {
+		HccDataType data_type = c->spirvgen.next_id - 1;
+		HccIntrinsicType intrinsic_type = HCC_INTRINSIC_TYPE_U8 + i - 3;
+		if (!hcc_spirvgen_basic_type_is_supported(c, intrinsic_type)) {
+			c->spirvgen.next_id += 1;
+			continue;
+		}
+
+		hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_TYPE_INT);
+		hcc_spirvgen_instr_add_result_operand(c);
+		hcc_spirvgen_instr_add_operand(c, 1 << i);
+		hcc_spirvgen_instr_add_operand(c, 0);
+		hcc_spirvgen_instr_end(c);
+	}
+
+	//
+	// HCC_INTRINSIC_TYPE_F16 - HCC_INTRINSIC_TYPE_F64
 	for (U32 i = 4; i < 7; i += 1) {
 		HccDataType data_type = c->spirvgen.next_id - 1;
-		if (!(c->available_basic_types & (1 << data_type))) {
+		HccIntrinsicType intrinsic_type = HCC_INTRINSIC_TYPE_F16 + i - 4;
+		if (!hcc_spirvgen_basic_type_is_supported(c, intrinsic_type)) {
 			c->spirvgen.next_id += 1;
 			continue;
 		}
@@ -11444,38 +12485,51 @@ void hcc_spirvgen_generate_basic_types(HccCompiler* c) {
 		hcc_spirvgen_instr_end(c);
 	}
 
-	U32 basic_type_padding = HCC_DATA_TYPE_VEC2_START - HCC_DATA_TYPE_BASIC_END;
-	for (U32 i = 0; i < basic_type_padding; i += 1) {
-		c->spirvgen.next_id += 1;
-	}
-
-	for (U32 j = 2; j < 5; j += 1) {
-		c->spirvgen.next_id += 1; // skip HCC_DATA_TYPE_VOID
-		for (U32 i = HCC_DATA_TYPE_BOOL; i < HCC_DATA_TYPE_BASIC_END; i += 1) {
-			HccDataType data_type = c->spirvgen.next_id - 1;
-			HccDataType scalar_data_type = HCC_DATA_TYPE_SCALAR(data_type);
-			if (!(c->available_basic_types & (1 << scalar_data_type))) {
+	//
+	// HCC_INTRINSIC_TYPE_VECTOR_START - HCC_INTRINSIC_TYPE_VECTOR_END
+	for (U32 num_comps = 2; num_comps < 5; num_comps += 1) {
+		for (HccIntrinsicType scalar_intrinsic_type = HCC_INTRINSIC_TYPE_BOOL; scalar_intrinsic_type < HCC_INTRINSIC_TYPE_VECTOR_START; scalar_intrinsic_type += 1) {
+			if (!hcc_spirvgen_basic_type_is_supported(c, scalar_intrinsic_type)) {
 				c->spirvgen.next_id += 1;
 				continue;
 			}
 
 			hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_TYPE_VECTOR);
 			hcc_spirvgen_instr_add_result_operand(c);
-			hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_resolve_type_id(c, i));
-			hcc_spirvgen_instr_add_operand(c, j);
+			hcc_spirvgen_instr_add_operand(c, HCC_SPIRV_ID_FROM_INTRINSIC_TYPE(scalar_intrinsic_type));
+			hcc_spirvgen_instr_add_operand(c, num_comps);
 			hcc_spirvgen_instr_end(c);
 		}
+	}
 
-		for (U32 i = 0; i < basic_type_padding; i += 1) {
-			c->spirvgen.next_id += 1;
+	//
+	// HCC_INTRINSIC_TYPE_MATRIX_START - HCC_INTRINSIC_TYPE_MATRIX_END
+	for (U32 columns_count = 2; columns_count < 5; columns_count += 1) {
+		for (U32 rows_count = 2; rows_count < 5; rows_count += 1) {
+			for (HccIntrinsicType scalar_intrinsic_type = HCC_INTRINSIC_TYPE_F32; scalar_intrinsic_type <= HCC_INTRINSIC_TYPE_F64; scalar_intrinsic_type += 1) {
+				if (!hcc_spirvgen_basic_type_is_supported(c, scalar_intrinsic_type)) {
+					c->spirvgen.next_id += 1;
+					continue;
+				}
+
+				HccVec column_vec = ((rows_count - 2) * 12) + scalar_intrinsic_type - 1;
+				HccDataType column_vector_data_type = HCC_DATA_TYPE_VECTOR(column_vec);
+				U32 column_vector_spirv_id = hcc_spirvgen_resolve_type_id(c, column_vector_data_type);
+
+				hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_TYPE_MATRIX);
+				hcc_spirvgen_instr_add_result_operand(c);
+				hcc_spirvgen_instr_add_operand(c, column_vector_spirv_id);
+				hcc_spirvgen_instr_add_operand(c, columns_count);
+				hcc_spirvgen_instr_end(c);
+			}
 		}
 	}
 
 	c->spirvgen.pointer_type_inputs_base_id = c->spirvgen.next_id;
-	c->spirvgen.next_id += HCC_DATA_TYPE_MATRIX_END;
+	c->spirvgen.next_id += HCC_INTRINSIC_TYPE_COUNT;
 
 	c->spirvgen.pointer_type_outputs_base_id = c->spirvgen.next_id;
-	c->spirvgen.next_id += HCC_DATA_TYPE_MATRIX_END;
+	c->spirvgen.next_id += HCC_INTRINSIC_TYPE_COUNT;
 }
 
 void hcc_spirvgen_generate_basic_type_constants(HccCompiler* c) {
@@ -11486,9 +12540,17 @@ void hcc_spirvgen_generate_basic_type_constants(HccCompiler* c) {
 			continue;
 		}
 
+		U32 data_type_spirv_id = hcc_spirvgen_resolve_type_id(c, entry->data_type);
+		if (
+			HCC_SPIRV_ID_IS_INTRINSIC_TYPE(data_type_spirv_id) &&
+			!hcc_spirvgen_basic_type_is_supported(c, HCC_SPIRV_ID_TO_INTRINSIC_TYPE(data_type_spirv_id))
+		) {
+			continue;
+		}
+
 		if (entry->size == 0) {
 			hcc_spirvgen_instr_start(c, HCC_SPIRV_OP_CONSTANT_NULL);
-			hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_resolve_type_id(c, entry->data_type));
+			hcc_spirvgen_instr_add_operand(c, data_type_spirv_id);
 			hcc_spirvgen_instr_add_operand(c, c->spirvgen.constant_base_id + idx);
 			hcc_spirvgen_instr_end(c);
 		} else if (entry->data_type == HCC_DATA_TYPE_BOOL) {
@@ -11502,17 +12564,16 @@ void hcc_spirvgen_generate_basic_type_constants(HccCompiler* c) {
 			hcc_spirvgen_instr_add_operand(c, hcc_spirvgen_resolve_type_id(c, entry->data_type));
 			hcc_spirvgen_instr_add_operand(c, c->spirvgen.constant_base_id + idx);
 
-			U32* data = HCC_PTR_ADD(constant_table->data, entry->start_idx);
-			switch (entry->data_type) {
-				case HCC_DATA_TYPE_U64:
-				case HCC_DATA_TYPE_S64:
-				case HCC_DATA_TYPE_F64:
-					hcc_spirvgen_instr_add_operand(c, data[0]);
-					hcc_spirvgen_instr_add_operand(c, data[1]);
+			void* data = HCC_PTR_ADD(constant_table->data, entry->start_idx);
+			switch (c->basic_type_size_and_aligns[entry->data_type]) {
+				case sizeof(U64):
+					// TODO: big endian might need a manual swap here?
+					hcc_spirvgen_instr_add_operand(c, ((U32*)data)[0]);
+					hcc_spirvgen_instr_add_operand(c, ((U32*)data)[1]);
 					break;
-				default:
-					hcc_spirvgen_instr_add_operand(c, data[0]);
-					break;
+				case sizeof(U32): hcc_spirvgen_instr_add_operand(c, *(U32*)data); break;
+				case sizeof(U16): hcc_spirvgen_instr_add_operand(c, *(U16*)data); break;
+				case sizeof(U8): hcc_spirvgen_instr_add_operand(c, *(U8*)data); break;
 			}
 
 			hcc_spirvgen_instr_end(c);
@@ -11571,7 +12632,8 @@ U32 hcc_spirvgen_generate_access_chain_single_field(HccCompiler* c, U32 base_spi
 	hcc_spirvgen_instr_add_operand(c, data_type_spirv_id);
 	hcc_spirvgen_instr_add_result_operand(c);
 	hcc_spirvgen_instr_add_operand(c, base_spirv_id);
-	HccConstantId constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U32, &field_idx);
+	HccBasic basic = hcc_basic_from_uint(c, HCC_DATA_TYPE_UINT, field_idx);
+	HccConstantId constant_id = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_UINT, &basic);
 	hcc_spirvgen_instr_add_operand(c, c->spirvgen.constant_base_id + constant_id.idx_plus_one - 1);
 	hcc_spirvgen_instr_end(c);
 	return spirv_id;
@@ -11629,13 +12691,14 @@ void hcc_spirvgen_generate_intrinsic_input_variable(HccCompiler* c, U32 intrinsi
 }
 
 void hcc_spirvgen_generate(HccCompiler* c) {
-	hcc_spirvgen_generate_basic_types(c);
+	hcc_spirvgen_generate_intrinsic_types(c);
 
 	//
 	// make sure we have constants for rasterizer state field indices
 	// when we make access chains to them.
-	for (U32 idx = 0; idx < 16; idx += 1) {
-		hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U32, &idx);
+	for (U32 field_idx = 0; field_idx < 16; field_idx += 1) {
+		HccBasic basic = hcc_basic_from_uint(c, HCC_DATA_TYPE_UINT, field_idx);
+		hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_UINT, (HccBasic*)&field_idx);
 	}
 
 	// generates the basic type constant before we make the array types (that use the constants)
@@ -11652,6 +12715,16 @@ void hcc_spirvgen_generate(HccCompiler* c) {
 
 		for (U32 i = 0; i < hcc_stack_count(c->astgen.ordered_data_types); i += 1) {
 			HccDataType data_type = c->astgen.ordered_data_types[i];
+			if (data_type == HCC_DATA_TYPE_HALF && !hcc_spirvgen_basic_type_is_supported(c, HCC_INTRINSIC_TYPE_U16)) {
+				// skip emitting the userland structure when U16 support is not available
+				continue;
+			}
+
+			if (hcc_data_type_has_intrinsic_basic_types(c, data_type) & ~c->spirvgen.available_basic_types) {
+				// skip emitting the data types when they contain intrinsic basic data types that are not supported
+				continue;
+			}
+
 			switch (data_type & 0xff) {
 				case HCC_DATA_TYPE_STRUCT:
 				case HCC_DATA_TYPE_UNION: {
@@ -11779,17 +12852,17 @@ void hcc_constant_table_init(HccCompiler* c, uint32_t data_cap, uint32_t entries
 	c->constant_table.entries_cap = entries_cap;
 }
 
-HccConstantId hcc_constant_table_deduplicate_basic(HccCompiler* c, HccDataType data_type, void* data) {
+HccConstantId hcc_constant_table_deduplicate_basic(HccCompiler* c, HccDataType data_type, HccBasic* basic) {
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_BASIC(data_type), "internal error: expected a basic type but got '%s'", hcc_data_type_string(c, data_type));
 	HCC_DEBUG_ASSERT(c->constant_table.fields_cap == 0, "internal error: starting to deduplicate a constant before ending another");
 
-	Uptr size;
-	Uptr align;
+	U64 size;
+	U64 align;
 	hcc_data_type_size_align(c, data_type, &size, &align);
 
 	c->constant_table.data_write_ptr = NULL;
 	HccStringId debug_string_id = {0};
-	return _hcc_constant_table_deduplicate_end(c, data_type, data, size, align, debug_string_id);
+	return _hcc_constant_table_deduplicate_end(c, data_type, basic, size, align, debug_string_id);
 }
 
 void hcc_constant_table_deduplicate_composite_start(HccCompiler* c, HccDataType data_type) {
@@ -11827,7 +12900,7 @@ HccConstantId hcc_constant_table_deduplicate_zero(HccCompiler* c, HccDataType da
 		// basic type's need to store their zero data into the consant table. this is so that
 		// when the spirv code is generated it will generate OpConstant instructions for the consants instead of OpConstantNull.
 		// this will allow them to be used as indices in OpAccessChain.
-		U64 zero = 0;
+		HccBasic zero = {0};
 		return hcc_constant_table_deduplicate_basic(c, data_type, &zero);
 	} else {
 		HCC_DEBUG_ASSERT(c->constant_table.fields_cap == 0, "internal error: starting to deduplicate a constant before ending another");
@@ -11896,122 +12969,105 @@ void hcc_constant_print(HccCompiler* c, HccConstantId constant_id, FILE* f) {
 
 	if (constant.data_type < HCC_DATA_TYPE_BASIC_END) {
 		hcc_data_type_print_basic(c, constant.data_type, constant.data, f);
-	} else if (HCC_DATA_TYPE_VECTOR_START <= constant.data_type && constant.data_type < HCC_DATA_TYPE_MATRIX_END) {
-		U32 componments_count;
-		if (constant.data_type < HCC_DATA_TYPE_VECTOR_END) {
-			componments_count = HCC_DATA_TYPE_VECTOR_COMPONENTS(constant.data_type);
-			fprintf(f, "Vec%u(", componments_count);
-		} else {
-			U32 rows_count = HCC_DATA_TYPE_MATRX_ROWS(constant.data_type);
-			U32 columns_count = HCC_DATA_TYPE_MATRX_COLUMNS(constant.data_type);
-			componments_count = rows_count * columns_count;
-			fprintf(f, "Mat%u%u(", rows_count, columns_count);
-		}
-
-		HccConstantId* constants = constant.data;
-		for (U32 i = 0; i < componments_count; i += 1) {
-			hcc_constant_print(c, constants[i], f);
-			fprintf(f, i + 1 < componments_count ? ", " : ")");
-		}
 	} else {
-		HCC_ABORT("unhandle type '%u'", constant.data_type);
+		HCC_ABORT("unhandled type '%u'", constant.data_type);
 	}
 }
 
-bool hcc_constant_as_uint(HccConstant constant, U64* out) {
-	S64 signed_value = 0;
+bool hcc_constant_as_uint(HccCompiler* c, HccConstant constant, U64* out) {
+	if (!HCC_DATA_TYPE_IS_BASIC(constant.data_type)) {
+		return false;
+	}
+
+	switch (c->basic_type_size_and_aligns[constant.data_type]) {
+		case sizeof(U8): *out = *(U8*)constant.data; break;
+		case sizeof(U16): *out = *(U16*)constant.data; break;
+		case sizeof(U32): *out = *(U32*)constant.data; break;
+		case sizeof(U64): *out = *(U64*)constant.data; break;
+	}
+
+	if (HCC_DATA_TYPE_IS_SINT(c, constant.data_type)) {
+		if ((S64)*out < 0) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool hcc_constant_as_sint(HccCompiler* c, HccConstant constant, S64* out) {
+	if (!HCC_DATA_TYPE_IS_BASIC(constant.data_type)) {
+		return false;
+	}
+
+	switch (c->basic_type_size_and_aligns[constant.data_type]) {
+		case sizeof(U8): *out = *(U8*)constant.data; break;
+		case sizeof(U16): *out = *(U16*)constant.data; break;
+		case sizeof(U32): *out = *(U32*)constant.data; break;
+		case sizeof(U64): *out = *(U64*)constant.data; break;
+	}
+
+	if (
+		HCC_DATA_TYPE_IS_UINT(c, constant.data_type) &&
+		c->basic_type_size_and_aligns[constant.data_type] == sizeof(U64)
+	) {
+		if ((U64)*out > INT64_MAX) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool hcc_constant_as_sint32(HccCompiler* c, HccConstant constant, S32* out) {
+	if (!HCC_DATA_TYPE_IS_BASIC(constant.data_type)) {
+		return false;
+	}
+
+	S64 value;
+	switch (c->basic_type_size_and_aligns[constant.data_type]) {
+		case sizeof(U8): value = *(S8*)constant.data; break;
+		case sizeof(U16): value = *(S16*)constant.data; break;
+		case sizeof(U32): value = *(S32*)constant.data; break;
+		case sizeof(U64): value = *(S64*)constant.data; break;
+	}
+
+	if (value < INT32_MIN || value > INT32_MAX) {
+		return false;
+	}
+
+	*out = value;
+	return true;
+}
+
+bool hcc_constant_as_float(HccCompiler* c, HccConstant constant, F64* out) {
+	if (!HCC_DATA_TYPE_IS_BASIC(constant.data_type)) {
+		return false;
+	}
+
 	switch (constant.data_type) {
-		case HCC_DATA_TYPE_U8: *out = *(U8*)constant.data; break;
-		case HCC_DATA_TYPE_U16: *out = *(U16*)constant.data; break;
-		case HCC_DATA_TYPE_U32: *out = *(U32*)constant.data; break;
-		case HCC_DATA_TYPE_U64: *out = *(U64*)constant.data; break;
-		case HCC_DATA_TYPE_S8:
-			signed_value = *(S8*)constant.data;
-			goto SIGNED_VALUE;
-		case HCC_DATA_TYPE_S16:
-			signed_value = *(S16*)constant.data;
-			goto SIGNED_VALUE;
-		case HCC_DATA_TYPE_S32:
-			signed_value = *(S32*)constant.data;
-			goto SIGNED_VALUE;
-		case HCC_DATA_TYPE_S64:
-			signed_value = *(S64*)constant.data;
-SIGNED_VALUE:
-			if (signed_value < 0) {
-				return false;
+		case HCC_DATA_TYPE_FLOAT: *out = *(F32*)constant.data; return true;
+		case HCC_DATA_TYPE_DOUBLE: *out = *(F64*)constant.data; return true;
+		default:
+			if (HCC_DATA_TYPE_IS_UINT(c, constant.data_type)) {
+				switch (c->basic_type_size_and_aligns[constant.data_type]) {
+					case sizeof(U8): *out = *(U8*)constant.data; return true;
+					case sizeof(U16): *out = *(U16*)constant.data; return true;
+					case sizeof(U32): *out = *(U32*)constant.data; return true;
+					case sizeof(U64): *out = *(U64*)constant.data; return true;
+				}
+			} else if (HCC_DATA_TYPE_IS_SINT(c, constant.data_type)) {
+				switch (c->basic_type_size_and_aligns[constant.data_type]) {
+					case sizeof(U8): *out = *(S8*)constant.data; return true;
+					case sizeof(U16): *out = *(S16*)constant.data; return true;
+					case sizeof(U32): *out = *(S32*)constant.data; return true;
+					case sizeof(U64): *out = *(S64*)constant.data; return true;
+				}
 			}
-			*out = signed_value;
 			break;
-		default:
-			return false;
 	}
 
-	return true;
-}
-
-bool hcc_constant_as_sint(HccConstant constant, S64* out) {
-	switch (constant.data_type) {
-		case HCC_DATA_TYPE_U8: *out = *(U8*)constant.data; break;
-		case HCC_DATA_TYPE_U16: *out = *(U16*)constant.data; break;
-		case HCC_DATA_TYPE_U32: *out = *(U32*)constant.data; break;
-		case HCC_DATA_TYPE_S8: *out = *(S8*)constant.data; break;
-		case HCC_DATA_TYPE_S16: *out = *(S16*)constant.data; break;
-		case HCC_DATA_TYPE_S32: *out = *(S32*)constant.data; break;
-		case HCC_DATA_TYPE_S64: *out = *(S64*)constant.data; break;
-		default:
-			return false;
-	}
-
-	return true;
-}
-
-bool hcc_constant_as_sint32(HccConstant constant, S32* out) {
-	U64 unsigned_value;
-	S64 signed_value;
-	switch (constant.data_type) {
-		case HCC_DATA_TYPE_U8: unsigned_value = *(U8*)constant.data; goto UNSIGNED_VALUE;
-		case HCC_DATA_TYPE_U16: unsigned_value = *(U16*)constant.data; goto UNSIGNED_VALUE;
-		case HCC_DATA_TYPE_U32: unsigned_value = *(U32*)constant.data; goto UNSIGNED_VALUE;
-		case HCC_DATA_TYPE_U64:
-			unsigned_value = *(U64*)constant.data;
-UNSIGNED_VALUE: {}
-			if (unsigned_value > S32_MAX) {
-				return false;
-			}
-			*out = unsigned_value;
-			return true;
-		case HCC_DATA_TYPE_S8: signed_value = *(S8*)constant.data; goto SIGNED_VALUE;
-		case HCC_DATA_TYPE_S16: signed_value = *(S16*)constant.data; goto SIGNED_VALUE;
-		case HCC_DATA_TYPE_S32: signed_value = *(S32*)constant.data; goto SIGNED_VALUE;
-		case HCC_DATA_TYPE_S64:
-			signed_value = *(S64*)constant.data;
-SIGNED_VALUE: {}
-			if (signed_value < S32_MIN || signed_value > S32_MAX) {
-				return false;
-			}
-			*out = signed_value;
-			return true;
-		default:
-			return false;
-	}
-}
-
-bool hcc_constant_as_float(HccConstant constant, F64* out) {
-	switch (constant.data_type) {
-		case HCC_DATA_TYPE_U8: *out = *(U8*)constant.data; break;
-		case HCC_DATA_TYPE_U16: *out = *(U16*)constant.data; break;
-		case HCC_DATA_TYPE_U32: *out = *(U32*)constant.data; break;
-		case HCC_DATA_TYPE_S8: *out = *(S8*)constant.data; break;
-		case HCC_DATA_TYPE_S16: *out = *(S16*)constant.data; break;
-		case HCC_DATA_TYPE_S32: *out = *(S32*)constant.data; break;
-		case HCC_DATA_TYPE_S64: *out = *(S64*)constant.data; break;
-		case HCC_DATA_TYPE_F32: *out = *(F32*)constant.data; break;
-		case HCC_DATA_TYPE_F64: *out = *(F64*)constant.data; break;
-		default:
-			return false;
-	}
-
-	return true;
+	return false;
 }
 
 // ===========================================
@@ -12037,7 +13093,7 @@ void hcc_string_table_init(HccStringTable* string_table, U32 data_cap, U32 entri
 	string_table->entries_cap = entries_cap;
 }
 
-HccStringId hcc_string_table_deduplicate(HccStringTable* string_table, char* string, U32 string_size) {
+HccStringId hcc_string_table_deduplicate(HccStringTable* string_table, const char* string, U32 string_size) {
 	//
 	// TODO: make this a hash table look up
 	for (U32 entry_idx = 0; entry_idx < string_table->entries_count; entry_idx += 1) {
@@ -12091,15 +13147,127 @@ HccString hcc_string_table_get_or_empty(HccStringTable* string_table, HccStringI
 }
 
 char* hcc_string_intrinsic_param_names[HCC_STRING_ID_INTRINSIC_PARAM_NAMES_END] = {
-	[HCC_STRING_ID_GENERIC_SCALAR] = "GScalar",
-	[HCC_STRING_ID_GENERIC_VEC2] = "GVec2",
-	[HCC_STRING_ID_GENERIC_VEC3] = "GVec3",
-	[HCC_STRING_ID_GENERIC_VEC4] = "GVec4",
-	[HCC_STRING_ID_SCALAR] = "scalar",
-	[HCC_STRING_ID_X] = "x",
-	[HCC_STRING_ID_Y] = "y",
-	[HCC_STRING_ID_Z] = "z",
-	[HCC_STRING_ID_W] = "w",
+	[HCC_STRING_ID_UINT8_T] = "uint8_t",
+	[HCC_STRING_ID_UINT16_T] = "uint16_t",
+	[HCC_STRING_ID_UINT32_T] = "uint32_t",
+	[HCC_STRING_ID_UINT64_T] = "uint64_t",
+	[HCC_STRING_ID_UINTPTR_T] = "uintptr_t",
+	[HCC_STRING_ID_INT8_T] = "int8_t",
+	[HCC_STRING_ID_INT16_T] = "int16_t",
+	[HCC_STRING_ID_INT32_T] = "int32_t",
+	[HCC_STRING_ID_INT64_T] = "int64_t",
+	[HCC_STRING_ID_INTPTR_T] = "intptr_t",
+	[HCC_STRING_ID_HCC_VERTEX_INPUT] = "HccVertexInput",
+	[HCC_STRING_ID_HCC_FRAGMENT_INPUT] = "HccFragmentInput",
+	[HCC_STRING_ID_HALF] = "half",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2BOOL] = "pvec2bool",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2U8] = "pvec2u8",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2U16] = "pvec2u16",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2U32] = "pvec2u32",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2U64] = "pvec2u64",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2I8] = "pvec2i8",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2I16] = "pvec2i16",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2I32] = "pvec2i32",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2I64] = "pvec2i64",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2H] = "pvec2h",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2F] = "pvec2f",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC2D] = "pvec2d",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3BOOL] = "pvec3bool",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3U8] = "pvec3u8",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3U16] = "pvec3u16",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3U32] = "pvec3u32",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3U64] = "pvec3u64",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3I8] = "pvec3i8",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3I16] = "pvec3i16",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3I32] = "pvec3i32",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3I64] = "pvec3i64",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3H] = "pvec3h",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3F] = "pvec3f",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC3D] = "pvec3d",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4BOOL] = "pvec4bool",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4U8] = "pvec4u8",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4U16] = "pvec4u16",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4U32] = "pvec4u32",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4U64] = "pvec4u64",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4I8] = "pvec4i8",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4I16] = "pvec4i16",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4I32] = "pvec4i32",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4I64] = "pvec4i64",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4H] = "pvec4h",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4F] = "pvec4f",
+	[HCC_STRING_ID_PVEC_START + HCC_VEC4D] = "pvec4d",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2BOOL] = "vec2bool",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2U8] = "vec2u8",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2U16] = "vec2u16",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2U32] = "vec2u32",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2U64] = "vec2u64",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2I8] = "vec2i8",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2I16] = "vec2i16",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2I32] = "vec2i32",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2I64] = "vec2i64",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2H] = "vec2h",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2F] = "vec2f",
+	[HCC_STRING_ID_VEC_START + HCC_VEC2D] = "vec2d",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3BOOL] = "vec3bool",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3U8] = "vec3u8",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3U16] = "vec3u16",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3U32] = "vec3u32",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3U64] = "vec3u64",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3I8] = "vec3i8",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3I16] = "vec3i16",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3I32] = "vec3i32",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3I64] = "vec3i64",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3H] = "vec3h",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3F] = "vec3f",
+	[HCC_STRING_ID_VEC_START + HCC_VEC3D] = "vec3d",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4BOOL] = "vec4bool",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4U8] = "vec4u8",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4U16] = "vec4u16",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4U32] = "vec4u32",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4U64] = "vec4u64",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4I8] = "vec4i8",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4I16] = "vec4i16",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4I32] = "vec4i32",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4I64] = "vec4i64",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4H] = "vec4h",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4F] = "vec4f",
+	[HCC_STRING_ID_VEC_START + HCC_VEC4D] = "vec4d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT2X2F] = "pmat2x2f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT2X2D] = "pmat2x2d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT2X3F] = "pmat2x3f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT2X3D] = "pmat2x3d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT2X4F] = "pmat2x4f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT2X4D] = "pmat2x4d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT3X2F] = "pmat3x2f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT3X2D] = "pmat3x2d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT3X3F] = "pmat3x3f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT3X3D] = "pmat3x3d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT3X4F] = "pmat3x4f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT3X4D] = "pmat3x4d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT4X2F] = "pmat4x2f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT4X2D] = "pmat4x2d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT4X3F] = "pmat4x3f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT4X3D] = "pmat4x3d",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT4X4F] = "pmat4x4f",
+	[HCC_STRING_ID_PMAT_START + HCC_MAT4X4D] = "pmat4x4d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT2X2F] = "mat2x2f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT2X2D] = "mat2x2d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT2X3F] = "mat2x3f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT2X3D] = "mat2x3d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT2X4F] = "mat2x4f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT2X4D] = "mat2x4d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT3X2F] = "mat3x2f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT3X2D] = "mat3x2d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT3X3F] = "mat3x3f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT3X3D] = "mat3x3d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT3X4F] = "mat3x4f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT3X4D] = "mat3x4d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT4X2F] = "mat4x2f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT4X2D] = "mat4x2d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT4X3F] = "mat4x3f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT4X3D] = "mat4x3d",
+	[HCC_STRING_ID_MAT_START + HCC_MAT4X4F] = "mat4x4f",
+	[HCC_STRING_ID_MAT_START + HCC_MAT4X4D] = "mat4x4d",
 };
 
 // ===========================================
@@ -12125,7 +13293,7 @@ HccCompilerSetup hcc_compiler_setup_default = {
 		.tokens_cap = 64 * 1024,
 		.token_values_cap = 64 * 1024,
 		.token_locations_cap = 64 * 1024,
-		.location_stack_cap = 64 * 1024,
+		.paused_file_stack_cap = 64 * 1024,
 		.open_bracket_stack_cap = 64 * 1024,
 	},
 	.astgen = {
@@ -12145,6 +13313,7 @@ HccCompilerSetup hcc_compiler_setup_default = {
 		.enum_values_cap = 64 * 1024,
 		.ordered_data_types_cap = 64 * 1024,
 		.compound_type_find_fields_cap = 64 * 1024,
+		.curly_initializer_nested_cap = 64 * 1024,
 		.curly_initializer_nested_curlys_cap = 64 * 1024,
 		.curly_initializer_nested_elmts_cap = 64 * 1024,
 		.curly_initializer_designator_initializers_cap = 64 * 1024,
@@ -12179,7 +13348,7 @@ HccCompilerSetup hcc_compiler_setup_default = {
 	.code_file_pp_if_spans_cap = 64 * 1024,
 };
 
-void hcc_string_table_intrinsic_add(HccCompiler* c, U32 expected_string_id, char* string) {
+void hcc_string_table_intrinsic_add(HccCompiler* c, U32 expected_string_id, const char* string) {
 	HccStringId id = hcc_string_table_deduplicate(&c->string_table, string, strlen(string));
 	HCC_DEBUG_ASSERT(id.idx_plus_one == expected_string_id, "intrinsic string id for '%s' does not match! expected '%u' but got '%u'", string, expected_string_id, id.idx_plus_one);
 }
@@ -12192,89 +13361,59 @@ bool hcc_compiler_init(HccCompiler* c, HccCompilerSetup* setup) {
 	c->code_file_lines_cap = setup->code_file_lines_cap;
 	c->code_file_pp_if_spans_cap = setup->code_file_pp_if_spans_cap;
 	hcc_options_set_enabled(c, HCC_OPTION_PRINT_COLOR);
+	c->arch = HCC_ARCH_X86_64;
+	c->os = HCC_OS_LINUX;
+
+	switch (c->arch) {
+		case HCC_ARCH_X86_64:
+			switch (c->os) {
+				case HCC_OS_LINUX:
+					c->basic_type_size_and_aligns = hcc_basic_type_size_and_aligns_x86_64_linux;
+					c->basic_type_int_mins = hcc_basic_type_int_mins_x86_64_linux;
+					c->basic_type_int_maxes = hcc_basic_type_int_maxes_x86_64_linux;
+					break;
+				default: HCC_ABORT("internal error: unhandled OS for the X86_64 architecture");
+			}
+			break;
+		default: HCC_ABORT("internal error: unhandled architecture");
+	}
 
 	c->message_sys.elmts = hcc_stack_init(HccMessage, setup->messages_cap, HCC_ALLOC_TAG_MESSAGES);
+	c->message_sys.locations = hcc_stack_init(HccLocation, setup->messages_cap * 2, HCC_ALLOC_TAG_MESSAGES);
 	c->message_sys.strings = hcc_stack_init(char, setup->message_strings_cap, HCC_ALLOC_TAG_MESSAGE_STRINGS);
 	c->string_buffer = hcc_stack_init(char, setup->string_buffer_cap, HCC_ALLOC_TAG_STRING_BUFFER);
 	c->include_paths = hcc_stack_init(HccString, setup->include_paths_cap, HCC_ALLOC_TAG_INCLUDE_PATHS);
 	c->code_files = hcc_stack_init(HccCodeFile, setup->code_files_cap, HCC_ALLOC_TAG_CODE_FILES);
 	hcc_hash_table_init(&c->path_to_code_file_id_map, setup->code_files_cap, HCC_ALLOC_TAG_PATH_TO_CODE_FILE_ID_MAP);
 
-	c->available_basic_types = 0xffff;
-	c->available_basic_types &= ~( // remove support for these types for now, this is because they require SPIR-V capaibilities/vulkan features
-		(1 << HCC_DATA_TYPE_U8)  |
-		(1 << HCC_DATA_TYPE_S8)  |
-		(1 << HCC_DATA_TYPE_U16) |
-		(1 << HCC_DATA_TYPE_S16) |
-		(1 << HCC_DATA_TYPE_F16) |
-		(1 << HCC_DATA_TYPE_U64) |
-		(1 << HCC_DATA_TYPE_S64) |
-		(1 << HCC_DATA_TYPE_F64)
-	);
-
 	hcc_constant_table_init(c, setup->string_table_data_cap, setup->string_table_entries_cap);
 	{
 		for (HccDataType data_type = HCC_DATA_TYPE_BOOL; data_type < HCC_DATA_TYPE_BASIC_COUNT; data_type += 1) {
-			if (!(c->available_basic_types & (1 << data_type))) {
-				continue;
-			}
 			c->basic_type_zero_constant_ids[data_type] = hcc_constant_table_deduplicate_zero(c, data_type);
 		}
 
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_BOOL)) {
-			U8 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_BOOL] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_BOOL, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_U8)) {
-			U8 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_U8] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U8, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_U16)) {
-			U16 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_U16] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U16, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_U32)) {
-			U32 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_U32] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U32, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_U64)) {
-			U64 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_U64] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_U64, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_S8)) {
-			S8 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_S8] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_S8, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_S16)) {
-			S16 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_S16] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_S16, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_S32)) {
-			S32 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_S32] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_S32, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_S64)) {
-			S64 one = 1;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_S64] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_S64, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_F32)) {
-			F32 one = 1.f;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_F32] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_F32, &one);
-		}
-
-		if (c->available_basic_types & (1 << HCC_DATA_TYPE_F64)) {
-			F64 one = 1.f;
-			c->basic_type_one_constant_ids[HCC_DATA_TYPE_F64] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_F64, &one);
-		}
+		HccBasic one;
+		one.u8 = 1;
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_BOOL] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_BOOL, &one);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_CHAR] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_CHAR, &one);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_SCHAR] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SCHAR, &one);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_UCHAR] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_UCHAR, &one);
+		one = hcc_basic_from_sint(c, HCC_DATA_TYPE_SSHORT, 1);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_SSHORT] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SSHORT, &one);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_USHORT] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_USHORT, &one);
+		one = hcc_basic_from_sint(c, HCC_DATA_TYPE_SINT, 1);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_SINT] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SINT, &one);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_UINT] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_UINT, &one);
+		one = hcc_basic_from_sint(c, HCC_DATA_TYPE_SLONG, 1);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_SLONG] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SLONG, &one);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_ULONG] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_ULONG, &one);
+		one = hcc_basic_from_sint(c, HCC_DATA_TYPE_SLONGLONG, 1);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_SLONGLONG] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_SLONGLONG, &one);
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_ULONGLONG] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_ULONGLONG, &one);
+		one.f = 1.f;
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_FLOAT] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_FLOAT, &one);
+		one.d = 1.f;
+		c->basic_type_one_constant_ids[HCC_DATA_TYPE_DOUBLE] = hcc_constant_table_deduplicate_basic(c, HCC_DATA_TYPE_DOUBLE, &one);
 	}
 
 	hcc_string_table_init(&c->string_table, setup->string_table_data_cap, setup->string_table_entries_cap);
@@ -12287,12 +13426,6 @@ bool hcc_compiler_init(HccCompiler* c, HccCompilerSetup* setup) {
 		for (HccToken t = HCC_TOKEN_KEYWORDS_START; t < HCC_TOKEN_KEYWORDS_END; t += 1) {
 			char* string = hcc_token_strings[t];
 			U32 expected_string_id = HCC_STRING_ID_KEYWORDS_START + (t - HCC_TOKEN_KEYWORDS_START);
-			hcc_string_table_intrinsic_add(c, expected_string_id, string);
-		}
-
-		for (HccToken t = HCC_TOKEN_INTRINSIC_TYPES_START; t < HCC_TOKEN_INTRINSIC_TYPES_END; t += 1) {
-			char* string = hcc_token_strings[t];
-			U32 expected_string_id = HCC_STRING_ID_INTRINSIC_TYPES_START + (t - HCC_TOKEN_INTRINSIC_TYPES_START);
 			hcc_string_table_intrinsic_add(c, expected_string_id, string);
 		}
 

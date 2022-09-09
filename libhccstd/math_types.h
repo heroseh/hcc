@@ -6,6 +6,14 @@
 
 #ifndef _HCC_STD_MATH_TYPES_H_
 #define _HCC_STD_MATH_TYPES_H_
+#include "../libc-gpu/stdbool.h"
+#include "../libc-gpu/stdint.h"
+
+#ifdef __HCC_GPU__
+#define HCC_INTRINSIC __hcc_intrinsic
+#else
+#define HCC_INTRINSIC
+#endif
 // ===========================================
 //
 //
@@ -29,7 +37,7 @@
 //
 // ===========================================
 
-typedef struct half { uint16_t _bits; } half;
+HCC_INTRINSIC typedef struct half { uint16_t _bits; } half;
 #define ZEROH ((half){ _bits = 0; })
 #define INFINITYH ((half){ _bits = 0x7c00; })
 #define NEGINFINITYH ((half){ _bits = 0xfc00; })
@@ -47,81 +55,81 @@ typedef struct half { uint16_t _bits; } half;
 // they should only be used to transport vectors between CPU and GPU if the native alignment adds too much padding
 //
 
-typedef struct pvec2bool { bool     x; bool     y; } pvec2bool;
-typedef struct pvec2h    { half     x; half     y; } pvec2h;
-typedef struct pvec2f    { float    x; float    y; } pvec2f;
-typedef struct pvec2d    { double   x; double   y; } pvec2d;
-typedef struct pvec2i8   { int8_t   x; int8_t   y; } pvec2i8;
-typedef struct pvec2i16  { int16_t  x; int16_t  y; } pvec2i16;
-typedef struct pvec2i32  { int32_t  x; int32_t  y; } pvec2i32;
-typedef struct pvec2i64  { int64_t  x; int64_t  y; } pvec2i64;
-typedef struct pvec2u8   { uint8_t  x; uint8_t  y; } pvec2u8;
-typedef struct pvec2u16  { uint16_t x; uint16_t y; } pvec2u16;
-typedef struct pvec2u32  { uint32_t x; uint32_t y; } pvec2u32;
-typedef struct pvec2u64  { uint64_t x; uint64_t y; } pvec2u64;
+HCC_INTRINSIC typedef struct pvec2bool { bool     x; bool     y; } pvec2bool;
+HCC_INTRINSIC typedef struct pvec2h    { half     x; half     y; } pvec2h;
+HCC_INTRINSIC typedef struct pvec2f    { float    x; float    y; } pvec2f;
+HCC_INTRINSIC typedef struct pvec2d    { double   x; double   y; } pvec2d;
+HCC_INTRINSIC typedef struct pvec2i8   { int8_t   x; int8_t   y; } pvec2i8;
+HCC_INTRINSIC typedef struct pvec2i16  { int16_t  x; int16_t  y; } pvec2i16;
+HCC_INTRINSIC typedef struct pvec2i32  { int32_t  x; int32_t  y; } pvec2i32;
+HCC_INTRINSIC typedef struct pvec2i64  { int64_t  x; int64_t  y; } pvec2i64;
+HCC_INTRINSIC typedef struct pvec2u8   { uint8_t  x; uint8_t  y; } pvec2u8;
+HCC_INTRINSIC typedef struct pvec2u16  { uint16_t x; uint16_t y; } pvec2u16;
+HCC_INTRINSIC typedef struct pvec2u32  { uint32_t x; uint32_t y; } pvec2u32;
+HCC_INTRINSIC typedef struct pvec2u64  { uint64_t x; uint64_t y; } pvec2u64;
 
-typedef struct pvec3bool { bool     x; bool     y; bool     z; } pvec3bool;
-typedef struct pvec3h    { half     x; half     y; half     z; } pvec3h;
-typedef struct pvec3f    { float    x; float    y; float    z; } pvec3f;
-typedef struct pvec3d    { double   x; double   y; double   z; } pvec3d;
-typedef struct pvec3i8   { int8_t   x; int8_t   y; int8_t   z; } pvec3i8;
-typedef struct pvec3i16  { int16_t  x; int16_t  y; int16_t  z; } pvec3i16;
-typedef struct pvec3i32  { int32_t  x; int32_t  y; int32_t  z; } pvec3i32;
-typedef struct pvec3i64  { int64_t  x; int64_t  y; int64_t  z; } pvec3i64;
-typedef struct pvec3u8   { uint8_t  x; uint8_t  y; uint8_t  z; } pvec3u8;
-typedef struct pvec3u16  { uint16_t x; uint16_t y; uint16_t z; } pvec3u16;
-typedef struct pvec3u32  { uint32_t x; uint32_t y; uint32_t z; } pvec3u32;
-typedef struct pvec3u64  { uint64_t x; uint64_t y; uint64_t z; } pvec3u64;
+HCC_INTRINSIC typedef struct pvec3bool { bool     x; bool     y; bool     z; } pvec3bool;
+HCC_INTRINSIC typedef struct pvec3h    { half     x; half     y; half     z; } pvec3h;
+HCC_INTRINSIC typedef struct pvec3f    { float    x; float    y; float    z; } pvec3f;
+HCC_INTRINSIC typedef struct pvec3d    { double   x; double   y; double   z; } pvec3d;
+HCC_INTRINSIC typedef struct pvec3i8   { int8_t   x; int8_t   y; int8_t   z; } pvec3i8;
+HCC_INTRINSIC typedef struct pvec3i16  { int16_t  x; int16_t  y; int16_t  z; } pvec3i16;
+HCC_INTRINSIC typedef struct pvec3i32  { int32_t  x; int32_t  y; int32_t  z; } pvec3i32;
+HCC_INTRINSIC typedef struct pvec3i64  { int64_t  x; int64_t  y; int64_t  z; } pvec3i64;
+HCC_INTRINSIC typedef struct pvec3u8   { uint8_t  x; uint8_t  y; uint8_t  z; } pvec3u8;
+HCC_INTRINSIC typedef struct pvec3u16  { uint16_t x; uint16_t y; uint16_t z; } pvec3u16;
+HCC_INTRINSIC typedef struct pvec3u32  { uint32_t x; uint32_t y; uint32_t z; } pvec3u32;
+HCC_INTRINSIC typedef struct pvec3u64  { uint64_t x; uint64_t y; uint64_t z; } pvec3u64;
 
-typedef struct pvec4bool { bool     x; bool     y; bool     z; bool     w; } pvec4bool;
-typedef struct pvec4h    { half     x; half     y; half     z; half     w; } pvec4h;
-typedef struct pvec4f    { float    x; float    y; float    z; float    w; } pvec4f;
-typedef struct pvec4d    { double   x; double   y; double   z; double   w; } pvec4d;
-typedef struct pvec4i8   { int8_t   x; int8_t   y; int8_t   z; int8_t   w; } pvec4i8;
-typedef struct pvec4i16  { int16_t  x; int16_t  y; int16_t  z; int16_t  w; } pvec4i16;
-typedef struct pvec4i32  { int32_t  x; int32_t  y; int32_t  z; int32_t  w; } pvec4i32;
-typedef struct pvec4i64  { int64_t  x; int64_t  y; int64_t  z; int64_t  w; } pvec4i64;
-typedef struct pvec4u8   { uint8_t  x; uint8_t  y; uint8_t  z; uint8_t  w; } pvec4u8;
-typedef struct pvec4u16  { uint16_t x; uint16_t y; uint16_t z; uint16_t w; } pvec4u16;
-typedef struct pvec4u32  { uint32_t x; uint32_t y; uint32_t z; uint32_t w; } pvec4u32;
-typedef struct pvec4u64  { uint64_t x; uint64_t y; uint64_t z; uint64_t w; } pvec4u64;
+HCC_INTRINSIC typedef struct pvec4bool { bool     x; bool     y; bool     z; bool     w; } pvec4bool;
+HCC_INTRINSIC typedef struct pvec4h    { half     x; half     y; half     z; half     w; } pvec4h;
+HCC_INTRINSIC typedef struct pvec4f    { float    x; float    y; float    z; float    w; } pvec4f;
+HCC_INTRINSIC typedef struct pvec4d    { double   x; double   y; double   z; double   w; } pvec4d;
+HCC_INTRINSIC typedef struct pvec4i8   { int8_t   x; int8_t   y; int8_t   z; int8_t   w; } pvec4i8;
+HCC_INTRINSIC typedef struct pvec4i16  { int16_t  x; int16_t  y; int16_t  z; int16_t  w; } pvec4i16;
+HCC_INTRINSIC typedef struct pvec4i32  { int32_t  x; int32_t  y; int32_t  z; int32_t  w; } pvec4i32;
+HCC_INTRINSIC typedef struct pvec4i64  { int64_t  x; int64_t  y; int64_t  z; int64_t  w; } pvec4i64;
+HCC_INTRINSIC typedef struct pvec4u8   { uint8_t  x; uint8_t  y; uint8_t  z; uint8_t  w; } pvec4u8;
+HCC_INTRINSIC typedef struct pvec4u16  { uint16_t x; uint16_t y; uint16_t z; uint16_t w; } pvec4u16;
+HCC_INTRINSIC typedef struct pvec4u32  { uint32_t x; uint32_t y; uint32_t z; uint32_t w; } pvec4u32;
+HCC_INTRINSIC typedef struct pvec4u64  { uint64_t x; uint64_t y; uint64_t z; uint64_t w; } pvec4u64;
 
 //
 // initializes a new _packed_ vector with 2, 3 or 4 components of any of the following types:
 //	bool, half, float, double, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, or int64_t
-#define pv2h   (x, y)       ((pvec2h   ){ { x, y } })
-#define pv2f   (x, y)       ((pvec2f   ){ { x, y } })
-#define pv2d   (x, y)       ((pvec2d   ){ { x, y } })
-#define pv2i8  (x, y)       ((pvec2i8  ){ { x, y } })
-#define pv2i16 (x, y)       ((pvec2i16 ){ { x, y } })
-#define pv2i32 (x, y)       ((pvec2i32 ){ { x, y } })
-#define pv2i64 (x, y)       ((pvec2i64 ){ { x, y } })
-#define pv2u8  (x, y)       ((pvec2u8  ){ { x, y } })
-#define pv2u16 (x, y)       ((pvec2u16 ){ { x, y } })
-#define pv2u32 (x, y)       ((pvec2u32 ){ { x, y } })
-#define pv2u64 (x, y)       ((pvec2u64 ){ { x, y } })
-#define pv3h   (x, y, z)    ((pvec3h   ){ { x, y, z } })
-#define pv3f   (x, y, z)    ((pvec3f   ){ { x, y, z } })
-#define pv3d   (x, y, z)    ((pvec3d   ){ { x, y, z } })
-#define pv3i8  (x, y, z)    ((pvec3i8  ){ { x, y, z } })
-#define pv3i16 (x, y, z)    ((pvec3i16 ){ { x, y, z } })
-#define pv3i32 (x, y, z)    ((pvec3i32 ){ { x, y, z } })
-#define pv3i64 (x, y, z)    ((pvec3i64 ){ { x, y, z } })
-#define pv3u8  (x, y, z)    ((pvec3u8  ){ { x, y, z } })
-#define pv3u16 (x, y, z)    ((pvec3u16 ){ { x, y, z } })
-#define pv3u32 (x, y, z)    ((pvec3u32 ){ { x, y, z } })
-#define pv3u64 (x, y, z)    ((pvec3u64 ){ { x, y, z } })
-#define pv4h   (x, y, z, w) ((pvec4h   ){ { x, y, z, w } })
-#define pv4f   (x, y, z, w) ((pvec4f   ){ { x, y, z, w } })
-#define pv4d   (x, y, z, w) ((pvec4d   ){ { x, y, z, w } })
-#define pv4i8  (x, y, z, w) ((pvec4i8  ){ { x, y, z, w } })
-#define pv4i16 (x, y, z, w) ((pvec4i16 ){ { x, y, z, w } })
-#define pv4i32 (x, y, z, w) ((pvec4i32 ){ { x, y, z, w } })
-#define pv4i64 (x, y, z, w) ((pvec4i64 ){ { x, y, z, w } })
-#define pv4u8  (x, y, z, w) ((pvec4u8  ){ { x, y, z, w } })
-#define pv4u16 (x, y, z, w) ((pvec4u16 ){ { x, y, z, w } })
-#define pv4u32 (x, y, z, w) ((pvec4u32 ){ { x, y, z, w } })
-#define pv4u64 (x, y, z, w) ((pvec4u64 ){ { x, y, z, w } })
+#define pv2h(x, y) ((pvec2h){ { x, y } })
+#define pv2f(x, y) ((pvec2f){ { x, y } })
+#define pv2d(x, y) ((pvec2d){ { x, y } })
+#define pv2i8(x, y) ((pvec2i8){ { x, y } })
+#define pv2i16(x, y) ((pvec2i16){ { x, y } })
+#define pv2i32(x, y) ((pvec2i32){ { x, y } })
+#define pv2i64(x, y) ((pvec2i64){ { x, y } })
+#define pv2u8(x, y) ((pvec2u8){ { x, y } })
+#define pv2u16(x, y) ((pvec2u16){ { x, y } })
+#define pv2u32(x, y) ((pvec2u32){ { x, y } })
+#define pv2u64(x, y) ((pvec2u64){ { x, y } })
+#define pv3h(x, y, z) ((pvec3h){ { x, y, z } })
+#define pv3f(x, y, z) ((pvec3f){ { x, y, z } })
+#define pv3d(x, y, z) ((pvec3d){ { x, y, z } })
+#define pv3i8(x, y, z) ((pvec3i8){ { x, y, z } })
+#define pv3i16(x, y, z) ((pvec3i16){ { x, y, z } })
+#define pv3i32(x, y, z) ((pvec3i32){ { x, y, z } })
+#define pv3i64(x, y, z) ((pvec3i64){ { x, y, z } })
+#define pv3u8(x, y, z) ((pvec3u8){ { x, y, z } })
+#define pv3u16(x, y, z) ((pvec3u16){ { x, y, z } })
+#define pv3u32(x, y, z) ((pvec3u32){ { x, y, z } })
+#define pv3u64(x, y, z) ((pvec3u64){ { x, y, z } })
+#define pv4h(x, y, z, w) ((pvec4h){ { x, y, z, w } })
+#define pv4f(x, y, z, w) ((pvec4f){ { x, y, z, w } })
+#define pv4d(x, y, z, w) ((pvec4d){ { x, y, z, w } })
+#define pv4i8(x, y, z, w) ((pvec4i8){ { x, y, z, w } })
+#define pv4i16(x, y, z, w) ((pvec4i16){ { x, y, z, w } })
+#define pv4i32(x, y, z, w) ((pvec4i32){ { x, y, z, w } })
+#define pv4i64(x, y, z, w) ((pvec4i64){ { x, y, z, w } })
+#define pv4u8(x, y, z, w) ((pvec4u8){ { x, y, z, w } })
+#define pv4u16(x, y, z, w) ((pvec4u16){ { x, y, z, w } })
+#define pv4u32(x, y, z, w) ((pvec4u32){ { x, y, z, w } })
+#define pv4u64(x, y, z, w) ((pvec4u64){ { x, y, z, w } })
 
 // ===========================================
 //
@@ -136,44 +144,44 @@ typedef struct pvec4u64  { uint64_t x; uint64_t y; uint64_t z; uint64_t w; } pve
 // the vec3 is rounded up to the size and align of a vec4 due to hardware limitations
 //
 
-typedef union vec2bool vec2bool;
-typedef union vec2h    vec2h;
-typedef union vec2f    vec2f;
-typedef union vec2d    vec2d;
-typedef union vec2i8   vec2i8;
-typedef union vec2i16  vec2i16;
-typedef union vec2i32  vec2i32;
-typedef union vec2i64  vec2i64;
-typedef union vec2u8   vec2u8;
-typedef union vec2u16  vec2u16;
-typedef union vec2u32  vec2u32;
-typedef union vec2u64  vec2u64;
+HCC_INTRINSIC typedef union vec2bool vec2bool;
+HCC_INTRINSIC typedef union vec2h    vec2h;
+HCC_INTRINSIC typedef union vec2f    vec2f;
+HCC_INTRINSIC typedef union vec2d    vec2d;
+HCC_INTRINSIC typedef union vec2i8   vec2i8;
+HCC_INTRINSIC typedef union vec2i16  vec2i16;
+HCC_INTRINSIC typedef union vec2i32  vec2i32;
+HCC_INTRINSIC typedef union vec2i64  vec2i64;
+HCC_INTRINSIC typedef union vec2u8   vec2u8;
+HCC_INTRINSIC typedef union vec2u16  vec2u16;
+HCC_INTRINSIC typedef union vec2u32  vec2u32;
+HCC_INTRINSIC typedef union vec2u64  vec2u64;
 
-typedef union vec3bool vec3bool;
-typedef union vec3h    vec3h;
-typedef union vec3f    vec3f;
-typedef union vec3d    vec3d;
-typedef union vec3i8   vec3i8;
-typedef union vec3i16  vec3i16;
-typedef union vec3i32  vec3i32;
-typedef union vec3i64  vec3i64;
-typedef union vec3u8   vec3u8;
-typedef union vec3u16  vec3u16;
-typedef union vec3u32  vec3u32;
-typedef union vec3u64  vec3u64;
+HCC_INTRINSIC typedef union vec3bool vec3bool;
+HCC_INTRINSIC typedef union vec3h    vec3h;
+HCC_INTRINSIC typedef union vec3f    vec3f;
+HCC_INTRINSIC typedef union vec3d    vec3d;
+HCC_INTRINSIC typedef union vec3i8   vec3i8;
+HCC_INTRINSIC typedef union vec3i16  vec3i16;
+HCC_INTRINSIC typedef union vec3i32  vec3i32;
+HCC_INTRINSIC typedef union vec3i64  vec3i64;
+HCC_INTRINSIC typedef union vec3u8   vec3u8;
+HCC_INTRINSIC typedef union vec3u16  vec3u16;
+HCC_INTRINSIC typedef union vec3u32  vec3u32;
+HCC_INTRINSIC typedef union vec3u64  vec3u64;
 
-typedef union vec4bool vec4bool;
-typedef union vec4h    vec4h;
-typedef union vec4f    vec4f;
-typedef union vec4d    vec4d;
-typedef union vec4i8   vec4i8;
-typedef union vec4i16  vec4i16;
-typedef union vec4i32  vec4i32;
-typedef union vec4i64  vec4i64;
-typedef union vec4u8   vec4u8;
-typedef union vec4u16  vec4u16;
-typedef union vec4u32  vec4u32;
-typedef union vec4u64  vec4u64;
+HCC_INTRINSIC typedef union vec4bool vec4bool;
+HCC_INTRINSIC typedef union vec4h    vec4h;
+HCC_INTRINSIC typedef union vec4f    vec4f;
+HCC_INTRINSIC typedef union vec4d    vec4d;
+HCC_INTRINSIC typedef union vec4i8   vec4i8;
+HCC_INTRINSIC typedef union vec4i16  vec4i16;
+HCC_INTRINSIC typedef union vec4i32  vec4i32;
+HCC_INTRINSIC typedef union vec4i64  vec4i64;
+HCC_INTRINSIC typedef union vec4u8   vec4u8;
+HCC_INTRINSIC typedef union vec4u16  vec4u16;
+HCC_INTRINSIC typedef union vec4u32  vec4u32;
+HCC_INTRINSIC typedef union vec4u64  vec4u64;
 
 HCC_INTRINSIC union vec2bool {
 	_Alignas(2)
@@ -539,39 +547,39 @@ HCC_INTRINSIC union vec4u64 {
 //
 // initializes a new vector with 2, 3 or 4 components of any of the following types:
 //	bool, half, float, double, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, or int64_t
-#define v2h   (x, y)       ((vec2h   ){ { x, y } })
-#define v2f   (x, y)       ((vec2f   ){ { x, y } })
-#define v2d   (x, y)       ((vec2d   ){ { x, y } })
-#define v2i8  (x, y)       ((vec2i8  ){ { x, y } })
-#define v2i16 (x, y)       ((vec2i16 ){ { x, y } })
-#define v2i32 (x, y)       ((vec2i32 ){ { x, y } })
-#define v2i64 (x, y)       ((vec2i64 ){ { x, y } })
-#define v2u8  (x, y)       ((vec2u8  ){ { x, y } })
-#define v2u16 (x, y)       ((vec2u16 ){ { x, y } })
-#define v2u32 (x, y)       ((vec2u32 ){ { x, y } })
-#define v2u64 (x, y)       ((vec2u64 ){ { x, y } })
-#define v3h   (x, y, z)    ((vec3h   ){ { x, y, z } })
-#define v3f   (x, y, z)    ((vec3f   ){ { x, y, z } })
-#define v3d   (x, y, z)    ((vec3d   ){ { x, y, z } })
-#define v3i8  (x, y, z)    ((vec3i8  ){ { x, y, z } })
-#define v3i16 (x, y, z)    ((vec3i16 ){ { x, y, z } })
-#define v3i32 (x, y, z)    ((vec3i32 ){ { x, y, z } })
-#define v3i64 (x, y, z)    ((vec3i64 ){ { x, y, z } })
-#define v3u8  (x, y, z)    ((vec3u8  ){ { x, y, z } })
-#define v3u16 (x, y, z)    ((vec3u16 ){ { x, y, z } })
-#define v3u32 (x, y, z)    ((vec3u32 ){ { x, y, z } })
-#define v3u64 (x, y, z)    ((vec3u64 ){ { x, y, z } })
-#define v4h   (x, y, z, w) ((vec4h   ){ { x, y, z, w } })
-#define v4f   (x, y, z, w) ((vec4f   ){ { x, y, z, w } })
-#define v4d   (x, y, z, w) ((vec4d   ){ { x, y, z, w } })
-#define v4i8  (x, y, z, w) ((vec4i8  ){ { x, y, z, w } })
-#define v4i16 (x, y, z, w) ((vec4i16 ){ { x, y, z, w } })
-#define v4i32 (x, y, z, w) ((vec4i32 ){ { x, y, z, w } })
-#define v4i64 (x, y, z, w) ((vec4i64 ){ { x, y, z, w } })
-#define v4u8  (x, y, z, w) ((vec4u8  ){ { x, y, z, w } })
-#define v4u16 (x, y, z, w) ((vec4u16 ){ { x, y, z, w } })
-#define v4u32 (x, y, z, w) ((vec4u32 ){ { x, y, z, w } })
-#define v4u64 (x, y, z, w) ((vec4u64 ){ { x, y, z, w } })
+#define v2h(x, y) ((vec2h){ { x, y } })
+#define v2f(x, y) ((vec2f){ { x, y } })
+#define v2d(x, y) ((vec2d){ { x, y } })
+#define v2i8(x, y) ((vec2i8){ { x, y } })
+#define v2i16(x, y) ((vec2i16){ { x, y } })
+#define v2i32(x, y) ((vec2i32){ { x, y } })
+#define v2i64(x, y) ((vec2i64){ { x, y } })
+#define v2u8(x, y) ((vec2u8){ { x, y } })
+#define v2u16(x, y) ((vec2u16){ { x, y } })
+#define v2u32(x, y) ((vec2u32){ { x, y } })
+#define v2u64(x, y) ((vec2u64){ { x, y } })
+#define v3h(x, y, z) ((vec3h){ { x, y, z } })
+#define v3f(x, y, z) ((vec3f){ { x, y, z } })
+#define v3d(x, y, z) ((vec3d){ { x, y, z } })
+#define v3i8(x, y, z) ((vec3i8){ { x, y, z } })
+#define v3i16(x, y, z) ((vec3i16){ { x, y, z } })
+#define v3i32(x, y, z) ((vec3i32){ { x, y, z } })
+#define v3i64(x, y, z) ((vec3i64){ { x, y, z } })
+#define v3u8(x, y, z) ((vec3u8){ { x, y, z } })
+#define v3u16(x, y, z) ((vec3u16){ { x, y, z } })
+#define v3u32(x, y, z) ((vec3u32){ { x, y, z } })
+#define v3u64(x, y, z) ((vec3u64){ { x, y, z } })
+#define v4h(x, y, z, w) ((vec4h){ { x, y, z, w } })
+#define v4f(x, y, z, w) ((vec4f){ { x, y, z, w } })
+#define v4d(x, y, z, w) ((vec4d){ { x, y, z, w } })
+#define v4i8(x, y, z, w) ((vec4i8){ { x, y, z, w } })
+#define v4i16(x, y, z, w) ((vec4i16){ { x, y, z, w } })
+#define v4i32(x, y, z, w) ((vec4i32){ { x, y, z, w } })
+#define v4i64(x, y, z, w) ((vec4i64){ { x, y, z, w } })
+#define v4u8(x, y, z, w) ((vec4u8){ { x, y, z, w } })
+#define v4u16(x, y, z, w) ((vec4u16){ { x, y, z, w } })
+#define v4u32(x, y, z, w) ((vec4u32){ { x, y, z, w } })
+#define v4u64(x, y, z, w) ((vec4u64){ { x, y, z, w } })
 
 #define ZEROV2H    ((vec2h   ){0})
 #define ZEROV2F    ((vec2f   ){0})
@@ -645,24 +653,24 @@ HCC_INTRINSIC union vec4u64 {
 //
 // ===========================================
 
-HCC_INTRINSIC typedef union pmat2x2f { float    cols[2][2]; pvec2f vcols[2]; float    scalars[4 ]; } pmat2x2f;
-HCC_INTRINSIC typedef union pmat2x2d { double   cols[2][2]; pvec2d vcols[2]; double   scalars[4 ]; } pmat2x2d;
-HCC_INTRINSIC typedef union pmat2x3f { float    cols[2][3]; pvec2f vcols[2]; float    scalars[6 ]; } pmat2x3f;
-HCC_INTRINSIC typedef union pmat2x3d { double   cols[2][3]; pvec2d vcols[2]; double   scalars[6 ]; } pmat2x3d;
-HCC_INTRINSIC typedef union pmat2x4f { float    cols[2][4]; pvec2f vcols[2]; float    scalars[8 ]; } pmat2x4f;
-HCC_INTRINSIC typedef union pmat2x4d { double   cols[2][4]; pvec2d vcols[2]; double   scalars[8 ]; } pmat2x4d;
-HCC_INTRINSIC typedef union pmat3x2f { float    cols[3][2]; pvec3f vcols[3]; float    scalars[6 ]; } pmat3x2f;
-HCC_INTRINSIC typedef union pmat3x2d { double   cols[3][2]; pvec3d vcols[3]; double   scalars[6 ]; } pmat3x2d;
-HCC_INTRINSIC typedef union pmat3x3f { float    cols[3][3]; pvec3f vcols[3]; float    scalars[9 ]; } pmat3x3f;
-HCC_INTRINSIC typedef union pmat3x3d { double   cols[3][3]; pvec3d vcols[3]; double   scalars[9 ]; } pmat3x3d;
-HCC_INTRINSIC typedef union pmat3x4f { float    cols[3][4]; pvec3f vcols[3]; float    scalars[12]; } pmat3x4f;
-HCC_INTRINSIC typedef union pmat3x4d { double   cols[3][4]; pvec3d vcols[3]; double   scalars[12]; } pmat3x4d;
-HCC_INTRINSIC typedef union pmat4x2f { float    cols[4][2]; pvec4f vcols[4]; float    scalars[8 ]; } pmat4x2f;
-HCC_INTRINSIC typedef union pmat4x2d { double   cols[4][2]; pvec4d vcols[4]; double   scalars[8 ]; } pmat4x2d;
-HCC_INTRINSIC typedef union pmat4x3f { float    cols[4][3]; pvec4f vcols[4]; float    scalars[12]; } pmat4x3f;
-HCC_INTRINSIC typedef union pmat4x3d { double   cols[4][3]; pvec4d vcols[4]; double   scalars[12]; } pmat4x3d;
-HCC_INTRINSIC typedef union pmat4x4f { float    cols[4][4]; pvec4f vcols[4]; float    scalars[16]; } pmat4x4f;
-HCC_INTRINSIC typedef union pmat4x4d { double   cols[4][4]; pvec4d vcols[4]; double   scalars[16]; } pmat4x4d;
+HCC_INTRINSIC typedef struct pmat2x2f { float    scalars[4 ]; } pmat2x2f;
+HCC_INTRINSIC typedef struct pmat2x2d { double   scalars[4 ]; } pmat2x2d;
+HCC_INTRINSIC typedef struct pmat2x3f { float    scalars[6 ]; } pmat2x3f;
+HCC_INTRINSIC typedef struct pmat2x3d { double   scalars[6 ]; } pmat2x3d;
+HCC_INTRINSIC typedef struct pmat2x4f { float    scalars[8 ]; } pmat2x4f;
+HCC_INTRINSIC typedef struct pmat2x4d { double   scalars[8 ]; } pmat2x4d;
+HCC_INTRINSIC typedef struct pmat3x2f { float    scalars[6 ]; } pmat3x2f;
+HCC_INTRINSIC typedef struct pmat3x2d { double   scalars[6 ]; } pmat3x2d;
+HCC_INTRINSIC typedef struct pmat3x3f { float    scalars[9 ]; } pmat3x3f;
+HCC_INTRINSIC typedef struct pmat3x3d { double   scalars[9 ]; } pmat3x3d;
+HCC_INTRINSIC typedef struct pmat3x4f { float    scalars[12]; } pmat3x4f;
+HCC_INTRINSIC typedef struct pmat3x4d { double   scalars[12]; } pmat3x4d;
+HCC_INTRINSIC typedef struct pmat4x2f { float    scalars[8 ]; } pmat4x2f;
+HCC_INTRINSIC typedef struct pmat4x2d { double   scalars[8 ]; } pmat4x2d;
+HCC_INTRINSIC typedef struct pmat4x3f { float    scalars[12]; } pmat4x3f;
+HCC_INTRINSIC typedef struct pmat4x3d { double   scalars[12]; } pmat4x3d;
+HCC_INTRINSIC typedef struct pmat4x4f { float    scalars[16]; } pmat4x4f;
+HCC_INTRINSIC typedef struct pmat4x4d { double   scalars[16]; } pmat4x4d;
 
 // ===========================================
 //

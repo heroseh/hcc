@@ -80,7 +80,7 @@ enum {
 	HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATION_INDICES,
 	HCC_ALLOC_TAG_TOKENGEN_TOKEN_VALUES,
 	HCC_ALLOC_TAG_TOKENGEN_TOKEN_LOCATIONS,
-	HCC_ALLOC_TAG_TOKENGEN_LOCATION_STACK,
+	HCC_ALLOC_TAG_TOKENGEN_PAUSED_FILE_STACK,
 	HCC_ALLOC_TAG_TOKENGEN_OPEN_BRACKET_STACK,
 
 	HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES,
@@ -304,6 +304,23 @@ static inline bool hcc_ascii_is_a_to_f(U32 byte) {
 //
 // ===========================================
 
+typedef U8 HccArch;
+enum {
+	HCC_ARCH_X86_64,
+
+	HCC_ARCH_COUNT,
+};
+
+typedef U8 HccOS;
+enum {
+	HCC_OS_LINUX,
+	HCC_OS_WINDOWS,
+
+	HCC_OS_COUNT,
+};
+
+U32 onebitscount32(U32 bits);
+U32 leastsetbitidx32(U32 bits);
 void hcc_get_last_system_error_string(char* buf_out, U32 buf_out_size);
 bool hcc_file_exist(char* path);
 bool hcc_change_working_directory(char* path);
@@ -559,7 +576,9 @@ enum {
 	HCC_ERROR_CODE_MAX_SINT_OVERFLOW,
 	HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL,
 	HCC_ERROR_CODE_MAX_FLOAT_OVERFLOW,
-	HCC_ERROR_CODE_U_SUFFIX_ON_NON_POSITIVE_INTEGER,
+	HCC_ERROR_CODE_U_SUFFIX_ALREADY_USED,
+	HCC_ERROR_CODE_U_SUFFIX_ON_FLOAT,
+	HCC_ERROR_CODE_L_SUFFIX_ON_FLOAT,
 	HCC_ERROR_CODE_LONG_DOUBLE_IS_UNSUPPORTED,
 	HCC_ERROR_CODE_FLOAT_HAS_DOUBLE_FULL_STOP,
 	HCC_ERROR_CODE_FLOAT_MUST_BE_DECIMAL,
@@ -595,8 +614,8 @@ enum {
 	HCC_ERROR_CODE_ENUM_VALUE_INVALID_FORMAT,
 	HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR_WITH_EXPLICIT_VALUE,
 	HCC_ERROR_CODE_ENUM_VALUE_INVALID_TERMINATOR,
-	HCC_ERROR_CODE_INTRINSIC_NO_UNIONS,
 	HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_STRUCT,
+	HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_UNION,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT,
 	HCC_ERROR_CODE_NOT_AVAILABLE_FOR_UNION,
@@ -607,13 +626,27 @@ enum {
 	HCC_ERROR_CODE_COMPOUND_FIELD_MISSING_NAME,
 	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT,
 	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD,
+	HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN,
+	HCC_ERROR_CODE_INTRINSIC_MATRIX_INVALID_SIZE_AND_ALIGN,
 	HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER,
 	HCC_ERROR_CODE_POSITION_ALREADY_SPECIFIED,
+	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_ALIGNAS,
+	HCC_ERROR_CODE_INVALID_ALIGNAS_INT_CONSTANT,
+	HCC_ERROR_CODE_INVALID_ALIGNAS_OPERAND,
+	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_ALIGNAS,
+	HCC_ERROR_CODE_ALIGNAS_REDUCES_ALIGNMENT,
 	HCC_ERROR_CODE_UNSUPPORTED_RASTERIZER_STATE_DATA_TYPE,
 	HCC_ERROR_CODE_UNSUPPORTED_FRAGMENT_STATE_DATA_TYPE,
 	HCC_ERROR_CODE_POSITION_MUST_BE_VEC4_F32,
 	HCC_ERROR_CODE_POSITION_NOT_SPECIFIED,
 	HCC_ERROR_CODE_EXPECTED_TYPE_NAME,
+	HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE,
+	HCC_ERROR_CODE_COMPLEX_ON_NON_FLOAT_TYPE,
+	HCC_ERROR_CODE_MULTIPLE_TYPES_SPECIFIED,
+	HCC_ERROR_CODE_COMPLEX_UNSUPPORTED_AT_THIS_TIME,
+	HCC_ERROR_CODE_UNSIGNED_AND_SIGNED,
+	HCC_ERROR_CODE_ATOMIC_UNSUPPORTED_AT_THIS_TIME,
+	HCC_ERROR_CODE_DUPLICATE_TYPE_SPECIFIER,
 	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_TYPEDEF,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_TYPEDEF,
 	HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_TYPEDEF,
@@ -658,6 +691,9 @@ enum {
 	HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER,
 	HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED,
 	HCC_ERROR_CODE_UNUSED_SPECIFIER,
+	HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_VARIABLE,
+	HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_PARAM,
+	HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_EXPR,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_DECL,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_PARAM,
@@ -747,9 +783,10 @@ struct HccMessage {
 
 typedef struct HccMessageSys HccMessageSys;
 struct HccMessageSys {
-	HccStack(HccMessage) elmts;
-	HccStack(char)       strings;
-	HccMessageType       used_type_flags;
+	HccStack(HccMessage)  elmts;
+	HccStack(HccLocation) locations;
+	HccStack(char)        strings;
+	HccMessageType        used_type_flags;
 };
 
 const char* hcc_message_type_lang_strings[HCC_LANG_COUNT][HCC_MESSAGE_TYPE_COUNT];
@@ -817,97 +854,91 @@ enum {
 #define HCC_DATA_TYPE_BASIC_START HCC_DATA_TYPE_VOID
 	HCC_DATA_TYPE_VOID,
 	HCC_DATA_TYPE_BOOL,
-	HCC_DATA_TYPE_U8,
-	HCC_DATA_TYPE_U16,
-	HCC_DATA_TYPE_U32,
-	HCC_DATA_TYPE_U64,
-	HCC_DATA_TYPE_S8,
-	HCC_DATA_TYPE_S16,
-	HCC_DATA_TYPE_S32,
-	HCC_DATA_TYPE_S64,
-	HCC_DATA_TYPE_F16,
-	HCC_DATA_TYPE_F32,
-	HCC_DATA_TYPE_F64,
-#define HCC_DATA_TYPE_BASIC_END (HCC_DATA_TYPE_F64 + 1)
+	HCC_DATA_TYPE_CHAR,
+	HCC_DATA_TYPE_SCHAR,
+	HCC_DATA_TYPE_SSHORT,
+	HCC_DATA_TYPE_SINT,
+	HCC_DATA_TYPE_SLONG,
+	HCC_DATA_TYPE_SLONGLONG,
+	HCC_DATA_TYPE_UCHAR,
+	HCC_DATA_TYPE_USHORT,
+	HCC_DATA_TYPE_UINT,
+	HCC_DATA_TYPE_ULONG,
+	HCC_DATA_TYPE_ULONGLONG,
+	HCC_DATA_TYPE_FLOAT,
+	HCC_DATA_TYPE_DOUBLE,
+#define HCC_DATA_TYPE_BASIC_END (HCC_DATA_TYPE_DOUBLE + 1)
 #define HCC_DATA_TYPE_BASIC_COUNT (HCC_DATA_TYPE_BASIC_END - HCC_DATA_TYPE_BASIC_START)
 
-#define HCC_DATA_TYPE_VECTOR_START HCC_DATA_TYPE_VEC2_START
-	HCC_DATA_TYPE_VEC2_START = 16,
-#define HCC_DATA_TYPE_VEC2_END HCC_DATA_TYPE_VEC3_START
-	HCC_DATA_TYPE_VEC3_START = HCC_DATA_TYPE_VEC2_START + HCC_DATA_TYPE_VEC2_START,
-#define HCC_DATA_TYPE_VEC3_END HCC_DATA_TYPE_VEC4_START
-	HCC_DATA_TYPE_VEC4_START = HCC_DATA_TYPE_VEC3_START + HCC_DATA_TYPE_VEC2_START,
-#define HCC_DATA_TYPE_VEC4_END HCC_DATA_TYPE_MAT2x2_START
-#define HCC_DATA_TYPE_VECTOR_END HCC_DATA_TYPE_MAT2x2_START
-#define HCC_DATA_TYPE_MATRIX_START HCC_DATA_TYPE_MAT2x2_START
-	HCC_DATA_TYPE_MAT2x2_START = HCC_DATA_TYPE_VEC4_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT2x3_START = HCC_DATA_TYPE_MAT2x2_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT2x4_START = HCC_DATA_TYPE_MAT2x3_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT3x2_START = HCC_DATA_TYPE_MAT2x4_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT3x3_START = HCC_DATA_TYPE_MAT3x2_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT3x4_START = HCC_DATA_TYPE_MAT3x3_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT4x2_START = HCC_DATA_TYPE_MAT3x4_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT4x3_START = HCC_DATA_TYPE_MAT4x2_START + HCC_DATA_TYPE_VEC2_START,
-	HCC_DATA_TYPE_MAT4x4_START = HCC_DATA_TYPE_MAT4x3_START + HCC_DATA_TYPE_VEC2_START,
-#define HCC_DATA_TYPE_MATRIX_END HCC_DATA_TYPE_STRUCT
-	HCC_DATA_TYPE_ENUM = HCC_DATA_TYPE_MAT4x4_START + HCC_DATA_TYPE_VEC2_START,
+	HCC_DATA_TYPE_ENUM,
 	HCC_DATA_TYPE_STRUCT,
 	HCC_DATA_TYPE_UNION,
 	HCC_DATA_TYPE_ARRAY,
 	HCC_DATA_TYPE_TYPEDEF,
 
-#define HCC_DATA_TYPE_GENERIC_START HCC_DATA_TYPE_GENERIC_SCALAR
-	HCC_DATA_TYPE_GENERIC_SCALAR,
-	HCC_DATA_TYPE_GENERIC_VEC2,
-	HCC_DATA_TYPE_GENERIC_VEC3,
-	HCC_DATA_TYPE_GENERIC_VEC4,
-#define HCC_DATA_TYPE_GENERIC_END (HCC_DATA_TYPE_GENERIC_VEC4 + 1)
-
 	HCC_DATA_TYPE_COUNT,
 };
 
-#define HCC_DATA_TYPE_SCALAR(type)                ((type) & (HCC_DATA_TYPE_VEC2_START - 1))
 #define HCC_DATA_TYPE_IS_BASIC(type)              ((type) < HCC_DATA_TYPE_BASIC_END)
 #define HCC_DATA_TYPE_IS_NON_VOID_BASIC(type)     ((type) > HCC_DATA_TYPE_VOID && (type) < HCC_DATA_TYPE_BASIC_END)
-#define HCC_DATA_TYPE_IS_INT(type)                ((type) >= HCC_DATA_TYPE_U8 && (type) <= HCC_DATA_TYPE_S64)
-#define HCC_DATA_TYPE_IS_UINT(type)               ((type) >= HCC_DATA_TYPE_U8 && (type) <= HCC_DATA_TYPE_U64)
-#define HCC_DATA_TYPE_IS_SINT(type)               ((type) >= HCC_DATA_TYPE_S8 && (type) <= HCC_DATA_TYPE_S64)
-#define HCC_DATA_TYPE_IS_FLOAT(type)              ((type) >= HCC_DATA_TYPE_F16 && (type) <= HCC_DATA_TYPE_F64)
-#define HCC_DATA_TYPE_IS_VECTOR(type)             ((type) >= HCC_DATA_TYPE_VECTOR_START && (type) < HCC_DATA_TYPE_VECTOR_END)
-#define HCC_DATA_TYPE_IS_MATRIX(type)             ((type) >= HCC_DATA_TYPE_MATRIX_START && (type) < HCC_DATA_TYPE_MATRIX_END)
-#define HCC_DATA_TYPE_IS_STRUCT(type)             (((type) & 0xff) == HCC_DATA_TYPE_STRUCT)
-#define HCC_DATA_TYPE_IS_UNION(type)              (((type) & 0xff) == HCC_DATA_TYPE_UNION)
-#define HCC_DATA_TYPE_IS_COMPOUND_TYPE(type)      (HCC_DATA_TYPE_IS_STRUCT(type) || HCC_DATA_TYPE_IS_UNION(type))
-#define HCC_DATA_TYPE_IS_ARRAY(type)              (((type) & 0xff) == HCC_DATA_TYPE_ARRAY)
-#define HCC_DATA_TYPE_IS_COMPOSITE_TYPE(type)     (HCC_DATA_TYPE_IS_STRUCT(type) || HCC_DATA_TYPE_IS_UNION(type) || HCC_DATA_TYPE_IS_ARRAY(type) || HCC_DATA_TYPE_IS_VECTOR(type) || HCC_DATA_TYPE_IS_MATRIX(type))
-#define HCC_DATA_TYPE_IS_TYPEDEF(type)            (((type) & 0xff) == HCC_DATA_TYPE_TYPEDEF)
-#define HCC_DATA_TYPE_IS_ENUM_TYPE(type)          (((type) & 0xff) == HCC_DATA_TYPE_ENUM)
-#define HCC_DATA_TYPE_IS_GENERIC(type)            ((type) >= HCC_DATA_TYPE_GENERIC_START && (type) < HCC_DATA_TYPE_GENERIC_END)
-#define HCC_DATA_TYPE_VECTOR_COMPONENTS(type)     (((type) / HCC_DATA_TYPE_VEC2_START) + 1)
-#define HCC_DATA_TYPE_MATRX_COLUMNS(type)         (((type) + 32) / 48)
-#define HCC_DATA_TYPE_MATRX_ROWS(type)            ((((((type) - 64) / 16) + 1) & 3) + 2)
-#define HCC_DATA_TYPE_INIT(type, idx)             (((idx) << 8) | (type))
-#define HCC_DATA_TYPE_IS_CONST(type)              (!!((type) & HCC_DATA_TYPE_CONST_MASK))
-#define HCC_DATA_TYPE_IDX(type)                   (((type) & HCC_DATA_TYPE_IDX_MASK) >> 8)
-#define HCC_DATA_TYPE_CONST(type)                 ((type) | HCC_DATA_TYPE_CONST_MASK)
-#define HCC_DATA_TYPE_STRIP_CONST(type)           ((type) & ~HCC_DATA_TYPE_CONST_MASK)
-#define HCC_DATA_TYPE_CONST_MASK                  0x80000000
-#define HCC_DATA_TYPE_IDX_MASK                    0x7fffff00
+#define HCC_DATA_TYPE_IS_INT(type)                ((type) >= HCC_DATA_TYPE_CHAR && (type) <= HCC_DATA_TYPE_ULONGLONG)
+#define HCC_DATA_TYPE_IS_SINT(c, type)            ( \
+		((type) >= HCC_DATA_TYPE_SCHAR && (type) <= HCC_DATA_TYPE_SLONGLONG) || \
+		((type) == HCC_DATA_TYPE_CHAR && !(c->flags & HCC_COMPILER_FLAGS_CHAR_IS_UNSIGNED)) \
+	)
 
-//
-// 'basic_type' must be HCC_DATA_TYPE_IS_BASIC(basic_type) == true
-#define HCC_DATA_TYPE_VEC2(basic_type)   (HCC_DATA_TYPE_VEC2_START + (basic_type))
-#define HCC_DATA_TYPE_VEC3(basic_type)   (HCC_DATA_TYPE_VEC3_START + (basic_type))
-#define HCC_DATA_TYPE_VEC4(basic_type)   (HCC_DATA_TYPE_VEC4_START + (basic_type))
-#define HCC_DATA_TYPE_MAT2x2(basic_type) (HCC_DATA_TYPE_MAT2x2_START + (basic_type))
-#define HCC_DATA_TYPE_MAT2x3(basic_type) (HCC_DATA_TYPE_MAT2x3_START + (basic_type))
-#define HCC_DATA_TYPE_MAT2x4(basic_type) (HCC_DATA_TYPE_MAT2x4_START + (basic_type))
-#define HCC_DATA_TYPE_MAT3x2(basic_type) (HCC_DATA_TYPE_MAT3x2_START + (basic_type))
-#define HCC_DATA_TYPE_MAT3x3(basic_type) (HCC_DATA_TYPE_MAT3x3_START + (basic_type))
-#define HCC_DATA_TYPE_MAT3x4(basic_type) (HCC_DATA_TYPE_MAT3x4_START + (basic_type))
-#define HCC_DATA_TYPE_MAT4x2(basic_type) (HCC_DATA_TYPE_MAT4x2_START + (basic_type))
-#define HCC_DATA_TYPE_MAT4x3(basic_type) (HCC_DATA_TYPE_MAT4x3_START + (basic_type))
-#define HCC_DATA_TYPE_MAT4x4(basic_type) (HCC_DATA_TYPE_MAT4x4_START + (basic_type))
+#define HCC_DATA_TYPE_IS_UINT(c, type)            ( \
+		((type) >= HCC_DATA_TYPE_UCHAR && (type) <= HCC_DATA_TYPE_ULONGLONG) || \
+		((type) == HCC_DATA_TYPE_CHAR && (c->flags & HCC_COMPILER_FLAGS_CHAR_IS_UNSIGNED)) \
+	)
+
+#define HCC_DATA_TYPE_IS_FLOAT(type)         ((type) >= HCC_DATA_TYPE_FLOAT && (type) <= HCC_DATA_TYPE_DOUBLE)
+#define HCC_DATA_TYPE_IS_STRUCT(type)        (((type) & 0xff) == HCC_DATA_TYPE_STRUCT)
+#define HCC_DATA_TYPE_IS_UNION(type)         (((type) & 0xff) == HCC_DATA_TYPE_UNION)
+#define HCC_DATA_TYPE_IS_COMPOUND_TYPE(type) (HCC_DATA_TYPE_IS_STRUCT(type) || HCC_DATA_TYPE_IS_UNION(type))
+#define HCC_DATA_TYPE_IS_ARRAY(type)         (((type) & 0xff) == HCC_DATA_TYPE_ARRAY)
+#define HCC_DATA_TYPE_IS_COMPOSITE_TYPE(type)(HCC_DATA_TYPE_IS_STRUCT(type) || HCC_DATA_TYPE_IS_UNION(type) || HCC_DATA_TYPE_IS_ARRAY(type))
+#define HCC_DATA_TYPE_IS_PVECTOR(type)       (HCC_DATA_TYPE_IS_STRUCT(type) && HCC_STRUCT_IDX_PVEC_START <= HCC_DATA_TYPE_IDX(type) && HCC_DATA_TYPE_IDX(type) < HCC_STRUCT_IDX_PVEC_END)
+#define HCC_DATA_TYPE_IS_VECTOR(type)        (HCC_DATA_TYPE_IS_UNION(type) && HCC_UNION_IDX_VEC_START <= HCC_DATA_TYPE_IDX(type) && HCC_DATA_TYPE_IDX(type) < HCC_UNION_IDX_VEC_END)
+#define HCC_DATA_TYPE_IS_PMATRIX(type)       (HCC_DATA_TYPE_IS_STRUCT(type) && HCC_STRUCT_IDX_PMAT_START <= HCC_DATA_TYPE_IDX(type) && HCC_DATA_TYPE_IDX(type) < HCC_STRUCT_IDX_PMAT_END)
+#define HCC_DATA_TYPE_IS_MATRIX(type)        (HCC_DATA_TYPE_IS_UNION(type) && HCC_UNION_IDX_MAT_START <= HCC_DATA_TYPE_IDX(type) && HCC_DATA_TYPE_IDX(type) < HCC_UNION_IDX_MAT_END)
+#define HCC_DATA_TYPE_IS_INTRINSIC(type)     (HCC_DATA_TYPE_IS_BASIC(type) || HCC_DATA_TYPE_IS_VECTOR(type) || HCC_DATA_TYPE_IS_MATRIX(type) || (type) == HCC_DATA_TYPE_HALF)
+#define HCC_DATA_TYPE_IS_INTRINSIC_BASIC(type)(HCC_DATA_TYPE_IS_BASIC(type) || (type) == HCC_DATA_TYPE_HALF)
+#define HCC_DATA_TYPE_IS_TYPEDEF(type)       (((type) & 0xff) == HCC_DATA_TYPE_TYPEDEF)
+#define HCC_DATA_TYPE_IS_ENUM_TYPE(type)     (((type) & 0xff) == HCC_DATA_TYPE_ENUM)
+#define HCC_DATA_TYPE_IS_GENERIC(type)       ((type) >= HCC_DATA_TYPE_GENERIC_START && (type) < HCC_DATA_TYPE_GENERIC_END)
+#define HCC_DATA_TYPE_INIT(type, idx)        (((idx) << 8) | (type))
+#define HCC_DATA_TYPE_IS_CONST(type)         (!!((type) & HCC_DATA_TYPE_CONST_MASK))
+#define HCC_DATA_TYPE_IDX(type)              (((type) & HCC_DATA_TYPE_IDX_MASK) >> 8)
+#define HCC_DATA_TYPE_CONST(type)            ((type) | HCC_DATA_TYPE_CONST_MASK)
+#define HCC_DATA_TYPE_STRIP_CONST(type)      ((type) & ~HCC_DATA_TYPE_CONST_MASK)
+#define HCC_DATA_TYPE_ENUM(idx)              HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_ENUM, idx)
+#define HCC_DATA_TYPE_STRUCT(idx)            HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_STRUCT, idx)
+#define HCC_DATA_TYPE_UNION(idx)             HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_UNION, idx)
+#define HCC_DATA_TYPE_ARRAY(idx)             HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_ARRAY, idx)
+#define HCC_DATA_TYPE_TYPEDEF(idx)           HCC_DATA_TYPE_INIT(HCC_DATA_TYPE_TYPEDEF, idx)
+#define HCC_DATA_TYPE_PVECTOR(vec)           (HCC_DATA_TYPE_STRUCT | ((HCC_STRUCT_IDX_PVEC_START + (vec)) << 8))
+#define HCC_DATA_TYPE_VECTOR(vec)            (HCC_DATA_TYPE_UNION | ((HCC_UNION_IDX_VEC_START + (vec)) << 8))
+#define HCC_DATA_TYPE_PMATRIX(vec)           (HCC_DATA_TYPE_STRUCT | ((HCC_STRUCT_IDX_PMAT_START + (vec)) << 8))
+#define HCC_DATA_TYPE_MATRIX(vec)            (HCC_DATA_TYPE_UNION | ((HCC_UNION_IDX_MAT_START + (vec)) << 8))
+#define HCC_DATA_TYPE_PVECTOR_VEC(type)      (HCC_DATA_TYPE_IDX(type) - HCC_STRUCT_IDX_PVEC_START)
+#define HCC_DATA_TYPE_VECTOR_VEC(type)       (HCC_DATA_TYPE_IDX(type) - HCC_UNION_IDX_VEC_START)
+#define HCC_DATA_TYPE_PMATRIX_MAT(type)      (HCC_DATA_TYPE_IDX(type) - HCC_STRUCT_IDX_PMAT_START)
+#define HCC_DATA_TYPE_MATRIX_MAT(type)       (HCC_DATA_TYPE_IDX(type) - HCC_UNION_IDX_MAT_START)
+#define HCC_DATA_TYPE_UINT8                  HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_UINT8)
+#define HCC_DATA_TYPE_UINT16                 HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_UINT16)
+#define HCC_DATA_TYPE_UINT32                 HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_UINT32)
+#define HCC_DATA_TYPE_UINT64                 HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_UINT64)
+#define HCC_DATA_TYPE_UINTPTR                HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_UINTPTR)
+#define HCC_DATA_TYPE_INT8                   HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_INT8)
+#define HCC_DATA_TYPE_INT16                  HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_INT16)
+#define HCC_DATA_TYPE_INT32                  HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_INT32)
+#define HCC_DATA_TYPE_INT64                  HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_INT64)
+#define HCC_DATA_TYPE_INTPTR                 HCC_DATA_TYPE_TYPEDEF(HCC_TYPEDEF_IDX_INTPTR)
+#define HCC_DATA_TYPE_HALF                   HCC_DATA_TYPE_STRUCT(HCC_STRUCT_IDX_HALF)
+#define HCC_DATA_TYPE_CONST_MASK             0x80000000
+#define HCC_DATA_TYPE_IDX_MASK               0x7fffff00
+#define HCC_DATA_TYPE_USE_USERLAND_VECTOR_OR_MATRIX UINT32_MAX
 
 typedef U8 HccBasicTypeClass;
 enum {
@@ -919,6 +950,119 @@ enum {
 
 	HCC_BASIC_TYPE_CLASS_COUNT,
 };
+
+typedef union HccBasic HccBasic;
+union HccBasic {
+	int8_t   s8;
+	int16_t  s16;
+	int32_t  s32;
+	int64_t  s64;
+	uint8_t  u8;
+	uint16_t u16;
+	uint32_t u32;
+	uint64_t u64;
+	float    f;
+	double   d;
+};
+
+typedef U8 HccVec;
+enum {
+	HCC_VEC2BOOL,
+	HCC_VEC2I8,
+	HCC_VEC2I16,
+	HCC_VEC2I32,
+	HCC_VEC2I64,
+	HCC_VEC2U8,
+	HCC_VEC2U16,
+	HCC_VEC2U32,
+	HCC_VEC2U64,
+	HCC_VEC2H,
+	HCC_VEC2F,
+	HCC_VEC2D,
+	HCC_VEC3BOOL,
+	HCC_VEC3I8,
+	HCC_VEC3I16,
+	HCC_VEC3I32,
+	HCC_VEC3I64,
+	HCC_VEC3U8,
+	HCC_VEC3U16,
+	HCC_VEC3U32,
+	HCC_VEC3U64,
+	HCC_VEC3H,
+	HCC_VEC3F,
+	HCC_VEC3D,
+	HCC_VEC4BOOL,
+	HCC_VEC4I8,
+	HCC_VEC4I16,
+	HCC_VEC4I32,
+	HCC_VEC4I64,
+	HCC_VEC4U8,
+	HCC_VEC4U16,
+	HCC_VEC4U32,
+	HCC_VEC4U64,
+	HCC_VEC4H,
+	HCC_VEC4F,
+	HCC_VEC4D,
+
+	HCC_VEC_COUNT,
+};
+
+typedef U8 HccMat;
+enum {
+	HCC_MAT2X2F,
+	HCC_MAT2X2D,
+	HCC_MAT2X3F,
+	HCC_MAT2X3D,
+	HCC_MAT2X4F,
+	HCC_MAT2X4D,
+	HCC_MAT3X2F,
+	HCC_MAT3X2D,
+	HCC_MAT3X3F,
+	HCC_MAT3X3D,
+	HCC_MAT3X4F,
+	HCC_MAT3X4D,
+	HCC_MAT4X2F,
+	HCC_MAT4X2D,
+	HCC_MAT4X3F,
+	HCC_MAT4X3D,
+	HCC_MAT4X4F,
+	HCC_MAT4X4D,
+
+	HCC_MAT_COUNT,
+};
+
+typedef U8 HccIntrinsicType;
+enum {
+	HCC_INTRINSIC_TYPE_VOID,
+	HCC_INTRINSIC_TYPE_BOOL,
+	HCC_INTRINSIC_TYPE_S8,
+	HCC_INTRINSIC_TYPE_S16,
+	HCC_INTRINSIC_TYPE_S32,
+	HCC_INTRINSIC_TYPE_S64,
+	HCC_INTRINSIC_TYPE_U8,
+	HCC_INTRINSIC_TYPE_U16,
+	HCC_INTRINSIC_TYPE_U32,
+	HCC_INTRINSIC_TYPE_U64,
+	HCC_INTRINSIC_TYPE_F16,
+	HCC_INTRINSIC_TYPE_F32,
+	HCC_INTRINSIC_TYPE_F64,
+
+	HCC_INTRINSIC_TYPE_VECTOR_START,
+#define HCC_INTRINSIC_TYPE_VECTOR_END HCC_INTRINSIC_TYPE_MATRIX_START
+	HCC_INTRINSIC_TYPE_MATRIX_START = HCC_INTRINSIC_TYPE_VECTOR_START + HCC_VEC_COUNT,
+#define HCC_INTRINSIC_TYPE_MATRIX_END HCC_INTRINSIC_TYPE_COUNT
+
+	HCC_INTRINSIC_TYPE_COUNT = HCC_INTRINSIC_TYPE_MATRIX_START + HCC_MAT_COUNT,
+};
+static_assert(HCC_VEC2BOOL == HCC_INTRINSIC_TYPE_BOOL - 1 && HCC_VEC2U64 == HCC_INTRINSIC_TYPE_U64 - 1, "hey you changed the order :(");
+
+#define HCC_INTRINSIC_TYPE_FROM_VEC(vec) (HCC_INTRINSIC_TYPE_BOOL + (vec) % 12)
+#define HCC_INTRINSIC_TYPE_FROM_MAT(mat) (HCC_INTRINSIC_TYPE_F32 + (mat) % 2)
+
+typedef U16 HccIntrinsicBasicTypeMask;
+#define HCC_INTRINSIC_BASIC_TYPE_MASK_SET(ptr, intrinsic_type) (*(ptr)) |= (1 << (intrinsic_type))
+#define HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(ptr, intrinsic_type) (*(ptr)) &= ~(1 << (intrinsic_type))
+#define HCC_INTRINSIC_BASIC_TYPE_MASK_IS_SET(v, intrinsic_type) ((bool)((v) & (1 << (intrinsic_type))))
 
 typedef struct HccArrayDataType HccArrayDataType;
 struct HccArrayDataType {
@@ -935,14 +1079,15 @@ enum {
 
 typedef struct HccCompoundDataType HccCompoundDataType;
 struct HccCompoundDataType {
-	Uptr                     size;
-	Uptr                     align;
-	U32                      identifier_token_idx;
-	HccStringId              identifier_string_id;
-	U32                      fields_start_idx;
-	U16                      fields_count;
-	U16                      largest_sized_field_idx;
-	HccCompoundDataTypeFlags flags;
+	U64                       size;
+	U64                       align;
+	U32                       identifier_token_idx;
+	HccStringId               identifier_string_id;
+	U32                       fields_start_idx;
+	U16                       fields_count;
+	U16                       largest_sized_field_idx;
+	HccIntrinsicBasicTypeMask has_intrinsic_basic_types;
+	HccCompoundDataTypeFlags  flags;
 };
 
 typedef U16 HccRasterizerStateFieldKind;
@@ -1046,7 +1191,31 @@ struct HccFunction {
 };
 
 enum {
-	HCC_TYPEDEF_IDX_VERTEX_INPUT,
+	HCC_TYPEDEF_IDX_UINT8,
+	HCC_TYPEDEF_IDX_UINT16,
+	HCC_TYPEDEF_IDX_UINT32,
+	HCC_TYPEDEF_IDX_UINT64,
+	HCC_TYPEDEF_IDX_UINTPTR,
+	HCC_TYPEDEF_IDX_INT8,
+	HCC_TYPEDEF_IDX_INT16,
+	HCC_TYPEDEF_IDX_INT32,
+	HCC_TYPEDEF_IDX_INT64,
+	HCC_TYPEDEF_IDX_INTPTR,
+	HCC_TYPEDEF_IDX_HALF,
+
+	HCC_TYPEDEF_IDX_PVEC_START,
+#define HCC_TYPEDEF_IDX_PVEC_END HCC_TYPEDEF_IDX_VEC_START
+
+	HCC_TYPEDEF_IDX_VEC_START = HCC_TYPEDEF_IDX_PVEC_START + HCC_VEC_COUNT,
+#define HCC_TYPEDEF_IDX_VEC_END HCC_TYPEDEF_IDX_PMAT_START
+
+	HCC_TYPEDEF_IDX_PMAT_START = HCC_TYPEDEF_IDX_VEC_START + HCC_VEC_COUNT,
+#define HCC_TYPEDEF_IDX_PMAT_END HCC_TYPEDEF_IDX_MAT_START
+
+	HCC_TYPEDEF_IDX_MAT_START = HCC_TYPEDEF_IDX_PMAT_START + HCC_MAT_COUNT,
+#define HCC_TYPEDEF_IDX_MAT_END (HCC_TYPEDEF_IDX_MAT_START + HCC_MAT_COUNT)
+
+	HCC_TYPEDEF_IDX_VERTEX_INPUT = HCC_TYPEDEF_IDX_MAT_END,
 	HCC_TYPEDEF_IDX_FRAGMENT_INPUT,
 
 #define HCC_TYPEDEF_IDX_INTRINSIC_END HCC_TYPEDEF_IDX_USER_START
@@ -1056,15 +1225,27 @@ enum {
 enum {
 	HCC_STRUCT_IDX_VERTEX_INPUT,
 	HCC_STRUCT_IDX_FRAGMENT_INPUT,
+	HCC_STRUCT_IDX_HALF,
 
-#define HCC_STRUCT_IDX_INTRINSIC_END HCC_COMPOUND_DATA_TYPE_IDX_USER_START
-	HCC_COMPOUND_DATA_TYPE_IDX_USER_START,
+#define HCC_STRUCT_IDX_INTRINSIC_END HCC_STRUCT_IDX_PVEC_START
+
+	HCC_STRUCT_IDX_PVEC_START,
+#define HCC_STRUCT_IDX_PVEC_END HCC_UNION_IDX_VEC_START
+
+	HCC_UNION_IDX_VEC_START = HCC_STRUCT_IDX_PVEC_START + HCC_VEC_COUNT,
+#define HCC_UNION_IDX_VEC_END HCC_STRUCT_IDX_PMAT_START
+
+	HCC_STRUCT_IDX_PMAT_START = HCC_UNION_IDX_VEC_START + HCC_VEC_COUNT,
+#define HCC_STRUCT_IDX_PMAT_END HCC_UNION_IDX_MAT_START
+
+	HCC_UNION_IDX_MAT_START = HCC_STRUCT_IDX_PMAT_START + HCC_MAT_COUNT,
+#define HCC_UNION_IDX_MAT_END HCC_COMPOUND_DATA_TYPE_IDX_USER_START
+
+	HCC_COMPOUND_DATA_TYPE_IDX_USER_START = HCC_UNION_IDX_MAT_START + HCC_MAT_COUNT,
 };
 
 enum {
-	HCC_FUNCTION_IDX_VEC2,
-	HCC_FUNCTION_IDX_VEC3,
-	HCC_FUNCTION_IDX_VEC4,
+	HCC_FUNCTION_IDX_PLACEHOLDER,
 
 #define HCC_FUNCTION_IDX_INTRINSIC_END HCC_FUNCTION_IDX_USER_START
 	HCC_FUNCTION_IDX_USER_START,
@@ -1081,7 +1262,8 @@ enum {
 
 typedef struct HccIntrinsicTypedef HccIntrinsicTypedef;
 struct HccIntrinsicTypedef {
-	HccString name;
+	HccStringId string_id;
+	HccDataType aliased_data_type;
 };
 
 typedef struct HccIntrinsicStructField HccIntrinsicStructField;
@@ -1092,43 +1274,68 @@ struct HccIntrinsicStructField {
 
 typedef struct HccIntrinsicStruct HccIntrinsicStruct;
 struct HccIntrinsicStruct {
-	HccString name;
+	HccStringId string_id;
 	U32 fields_count;
 	HccIntrinsicStructField fields[16];
 };
 
 typedef struct HccIntrinsicFunction HccIntrinsicFunction;
 struct HccIntrinsicFunction {
-	char* name;
+	HccStringId string_id;
 	HccDataType return_data_type;
 	U32 params_count;
 	HccVariable params[16];
 };
 
+extern U8 hcc_basic_type_size_and_aligns_x86_64_linux[HCC_DATA_TYPE_BASIC_COUNT];
+extern U64 hcc_basic_type_int_mins_x86_64_linux[HCC_DATA_TYPE_BASIC_COUNT];
+extern U64 hcc_basic_type_int_maxes_x86_64_linux[HCC_DATA_TYPE_BASIC_COUNT];
+
+extern U8 hcc_packed_vec_sizes[HCC_VEC_COUNT];
+extern U8 hcc_packed_vec_aligns[HCC_VEC_COUNT];
+extern U8 hcc_vec_size_and_aligns[HCC_VEC_COUNT];
+extern U8 hcc_packed_mat_sizes[HCC_MAT_COUNT];
+extern U8 hcc_packed_mat_aligns[HCC_MAT_COUNT];
+extern U8 hcc_mat_sizes[HCC_MAT_COUNT];
+extern U8 hcc_mat_aligns[HCC_MAT_COUNT];
 extern char* hcc_function_shader_stage_strings[HCC_FUNCTION_SHADER_STAGE_COUNT];
 extern HccIntrinsicTypedef hcc_intrinsic_typedefs[HCC_TYPEDEF_IDX_INTRINSIC_END];
 extern HccIntrinsicStruct hcc_intrinsic_structs[HCC_STRUCT_IDX_INTRINSIC_END];
 extern HccIntrinsicFunction hcc_intrinsic_functions[HCC_FUNCTION_IDX_INTRINSIC_END];
 extern U8 hcc_data_type_basic_type_ranks[HCC_DATA_TYPE_BASIC_COUNT];
+extern const char* hcc_data_type_basic_type_strings[HCC_DATA_TYPE_BASIC_COUNT];
 
 enum {
 	HCC_INTRINSIC_FUNCTION_IDX_USER_START,
 };
 
 HccString hcc_data_type_string(HccCompiler* c, HccDataType data_type);
-void hcc_data_type_size_align(HccCompiler* c, HccDataType data_type, Uptr* size_out, Uptr* align_out);
-HccDataType hcc_data_type_resolve_generic(HccCompiler* c, HccDataType data_type);
+void hcc_data_type_size_align(HccCompiler* c, HccDataType data_type, U64* size_out, U64* align_out);
 void hcc_data_type_print_basic(HccCompiler* c, HccDataType data_type, void* data, FILE* f);
-HccDataType hcc_data_type_unsigned_to_signed(HccDataType data_type);
-HccDataType hcc_data_type_signed_to_unsigned(HccDataType data_type);
+HccDataType hcc_data_type_unsigned_to_signed(HccCompiler* c, HccDataType data_type);
+HccDataType hcc_data_type_signed_to_unsigned(HccCompiler* c, HccDataType data_type);
 bool hcc_data_type_is_condition(HccCompiler* c, HccDataType data_type);
 U32 hcc_data_type_composite_fields_count(HccCompiler* c, HccDataType data_type);
 bool hcc_data_type_is_rasterizer_state(HccCompiler* c, HccDataType data_type);
 bool hcc_data_type_is_fragment_state(HccCompiler* c, HccDataType data_type);
+HccDataType hcc_data_type_from_intrinsic_type(HccCompiler* c, HccIntrinsicType intrinsic_type);
+HccIntrinsicBasicTypeMask hcc_data_type_has_intrinsic_basic_types(HccCompiler* c, HccDataType data_type);
+bool hcc_data_type_is_same_underlaying_type(HccCompiler* c, HccDataType a, HccDataType b);
+bool hcc_data_type_is_same_bitwidth_int(HccCompiler* c, HccDataType a, HccDataType b);
 
 U32 hcc_data_type_token_idx(HccCompiler* c, HccDataType data_type);
 
+HccIntrinsicType hcc_intrinsic_type_from_data_type(HccCompiler* c, HccDataType data_type);
+HccDataType hcc_vector_data_type_scalar(HccCompiler* c, HccDataType data_type);
+HccDataType hcc_matrix_data_type_scalar(HccCompiler* c, HccDataType data_type);
+HccDataType hcc_matrix_data_type_column_vector(HccDataType data_type);
+
+HccString hcc_intrinsic_basic_type_mask_string(HccIntrinsicBasicTypeMask mask);
+
 HccBasicTypeClass hcc_basic_type_class(HccDataType data_type);
+HccBasic hcc_basic_from_sint(HccCompiler* c, HccDataType data_type, S64 value);
+HccBasic hcc_basic_from_uint(HccCompiler* c, HccDataType data_type, U64 value);
+HccBasic hcc_basic_from_float(HccCompiler* c, HccDataType data_type, double value);
 
 HccArrayDataType* hcc_array_data_type_get(HccCompiler* c, HccDataType data_type);
 HccEnumDataType* hcc_enum_data_type_get(HccCompiler* c, HccDataType data_type);
@@ -1194,30 +1401,6 @@ enum {
 
 typedef U8 HccToken;
 enum {
-#define HCC_TOKEN_INTRINSIC_TYPES_START HCC_DATA_TYPE_BASIC_START
-	//
-	// INFO:
-	// HCC_DATA_TYPE_BASIC_START - HCC_DATA_TYPE_BASIC_END are used as HccToken too!
-	//
-#define HCC_TOKEN_INTRINSIC_TYPE_VECTORS_START HCC_TOKEN_INTRINSIC_TYPE_VEC2
-	HCC_TOKEN_INTRINSIC_TYPE_VEC2 = HCC_DATA_TYPE_BASIC_END,
-	HCC_TOKEN_INTRINSIC_TYPE_VEC3,
-	HCC_TOKEN_INTRINSIC_TYPE_VEC4,
-#define HCC_TOKEN_INTRINSIC_TYPE_VECTORS_END HCC_TOKEN_INTRINSIC_TYPE_MAT2X2
-#define HCC_TOKEN_INTRINSIC_TYPE_MATRICES_START HCC_TOKEN_INTRINSIC_TYPE_MAT2X2
-	HCC_TOKEN_INTRINSIC_TYPE_MAT2X2,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT2X3,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT2X4,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT3X2,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT3X3,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT3X4,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT4X2,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT4X3,
-	HCC_TOKEN_INTRINSIC_TYPE_MAT4X4,
-#define HCC_TOKEN_INTRINSIC_TYPE_MATRICES_END HCC_TOKEN_EOF
-#define HCC_TOKEN_INTRINSIC_TYPES_END HCC_TOKEN_EOF
-#define HCC_TOKEN_INTRINSIC_TYPES_COUNT (HCC_TOKEN_INTRINSIC_TYPES_END - HCC_TOKEN_INTRINSIC_TYPES_START)
-
 	HCC_TOKEN_EOF,
 	HCC_TOKEN_IDENT,
 	HCC_TOKEN_STRING,
@@ -1287,19 +1470,33 @@ enum {
 	HCC_TOKEN_INCREMENT,
 	HCC_TOKEN_DECREMENT,
 
-#define HCC_TOKEN_LIT_NUMBERS_START HCC_TOKEN_LIT_U32
-	HCC_TOKEN_LIT_U32,
-	HCC_TOKEN_LIT_U64,
-	HCC_TOKEN_LIT_S32,
-	HCC_TOKEN_LIT_S64,
-	HCC_TOKEN_LIT_F32,
-	HCC_TOKEN_LIT_F64,
-#define HCC_TOKEN_LIT_NUMBERS_END (HCC_TOKEN_LIT_F64 + 1)
+#define HCC_TOKEN_LIT_NUMBERS_START HCC_TOKEN_LIT_UINT
+	HCC_TOKEN_LIT_UINT,
+	HCC_TOKEN_LIT_ULONG,
+	HCC_TOKEN_LIT_ULONGLONG,
+	HCC_TOKEN_LIT_SINT,
+	HCC_TOKEN_LIT_SLONG,
+	HCC_TOKEN_LIT_SLONGLONG,
+	HCC_TOKEN_LIT_FLOAT,
+	HCC_TOKEN_LIT_DOUBLE,
+#define HCC_TOKEN_LIT_NUMBERS_END (HCC_TOKEN_LIT_DOUBLE + 1)
 
 	//
 	// keywords
 	//
-#define HCC_TOKEN_KEYWORDS_START HCC_TOKEN_KEYWORD_RETURN
+#define HCC_TOKEN_KEYWORDS_START HCC_TOKEN_KEYWORD_VOID
+	HCC_TOKEN_KEYWORD_VOID,
+	HCC_TOKEN_KEYWORD_BOOL,
+	HCC_TOKEN_KEYWORD_CHAR,
+	HCC_TOKEN_KEYWORD_SHORT,
+	HCC_TOKEN_KEYWORD_INT,
+	HCC_TOKEN_KEYWORD_LONG,
+	HCC_TOKEN_KEYWORD_FLOAT,
+	HCC_TOKEN_KEYWORD_DOUBLE,
+	HCC_TOKEN_KEYWORD_UNSIGNED,
+	HCC_TOKEN_KEYWORD_SIGNED,
+	HCC_TOKEN_KEYWORD_COMPLEX,
+	HCC_TOKEN_KEYWORD_ATOMIC,
 	HCC_TOKEN_KEYWORD_RETURN,
 	HCC_TOKEN_KEYWORD_IF,
 	HCC_TOKEN_KEYWORD_ELSE,
@@ -1356,8 +1553,6 @@ enum {
 
 	HCC_TOKEN_COUNT,
 };
-
-#define HCC_TOKEN_IS_BASIC_TYPE(token) ((token) < HCC_DATA_TYPE_BASIC_END)
 
 typedef union HccTokenValue HccTokenValue;
 union HccTokenValue {
@@ -1421,6 +1616,9 @@ enum {
 	HCC_PP_PREDEFINED_MACRO___COUNTER__,
 	HCC_PP_PREDEFINED_MACRO___HCC__,
 	HCC_PP_PREDEFINED_MACRO___HCC_GPU__,
+	HCC_PP_PREDEFINED_MACRO___HCC_X86_64__,
+	HCC_PP_PREDEFINED_MACRO___HCC_LINUX__,
+	HCC_PP_PREDEFINED_MACRO___HCC_WINDOWS__,
 
 	HCC_PP_PREDEFINED_MACRO_COUNT,
 };
@@ -1585,12 +1783,18 @@ enum {
 	HCC_TOKENGEN_RUN_MODE_PP_CONCAT,
 };
 
+typedef struct HccPausedFile HccPausedFile;
+struct HccPausedFile {
+	U32         if_span_stack_count;
+	HccLocation location;
+};
+
 typedef struct HccTokenGen HccTokenGen;
 struct HccTokenGen {
 	HccTokenGenRunMode       run_mode;
 	HccTokenBag              token_bag;
 	HccTokenBag*             dst_token_bag;
-	HccStack(HccLocation)    location_stack;
+	HccStack(HccPausedFile)  paused_file_stack;
 	HccStack(HccOpenBracket) open_bracket_stack;
 	HccStack(HccLocation)    token_locations;
 
@@ -1616,7 +1820,7 @@ struct HccTokenGenSetup {
 	U32 tokens_cap;
 	U32 token_values_cap;
 	U32 token_locations_cap;
-	U32 location_stack_cap;
+	U32 paused_file_stack_cap;
 	U32 open_bracket_stack_cap;
 };
 
@@ -1680,12 +1884,6 @@ typedef U8 HccExprType;
 enum {
 	HCC_EXPR_TYPE_NONE,
 
-	//
-	// binary ops
-	HCC_EXPR_TYPE_BINARY_OP_START,
-#define HCC_EXPR_TYPE_BINARY_OP(OP) (HCC_EXPR_TYPE_BINARY_OP_START + HCC_BINARY_OP_##OP)
-	HCC_EXPR_TYPE_BINARY_OP_END = HCC_EXPR_TYPE_BINARY_OP_START + HCC_BINARY_OP_COUNT,
-
 	HCC_EXPR_TYPE_CALL,
 	HCC_EXPR_TYPE_ARRAY_SUBSCRIPT,
 	HCC_EXPR_TYPE_CURLY_INITIALIZER,
@@ -1709,102 +1907,111 @@ enum {
 	HCC_EXPR_TYPE_STMT_BREAK,
 	HCC_EXPR_TYPE_STMT_CONTINUE,
 
+	HCC_EXPR_TYPE_STMT_RETURN,
+	HCC_EXPR_TYPE_STMT_BLOCK,
+
+	//
+	// binary ops
+	HCC_EXPR_TYPE_BINARY_OP_START,
+#define HCC_EXPR_TYPE_BINARY_OP(OP) (HCC_EXPR_TYPE_BINARY_OP_START + HCC_BINARY_OP_##OP)
+	HCC_EXPR_TYPE_BINARY_OP_END = HCC_EXPR_TYPE_BINARY_OP_START + HCC_BINARY_OP_COUNT,
+
 	//
 	// unary ops
 	HCC_EXPR_TYPE_UNARY_OP_START,
 #define HCC_EXPR_TYPE_UNARY_OP(OP) (HCC_EXPR_TYPE_UNARY_OP_START + HCC_UNARY_OP_##OP)
 	HCC_EXPR_TYPE_UNARY_OP_END = HCC_EXPR_TYPE_UNARY_OP_START + HCC_UNARY_OP_COUNT,
-
-	HCC_EXPR_TYPE_STMT_RETURN,
-	HCC_EXPR_TYPE_STMT_BLOCK,
 };
 
 typedef struct HccExpr HccExpr;
 struct HccExpr {
 	union {
+		//
+		// shared header
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
 		};
+
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 idx: 25;
+			U32 idx;
 		} function;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 expr_rel_idx: 25;
+			U32 expr_rel_idx;
 		} unary;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
 			U32 is_assignment: 1;
-			U32 left_expr_rel_idx: 11;
-			U32 right_expr_rel_idx: 13;
+			U32 left_expr_rel_idx: 24;
+			U32 right_expr_rel_idx;
 		} binary;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 id: 25;
+			U32 id;
 		} constant;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
 			U32 has_return_stmt: 1;
-			U32 stmts_count: 11;
-			U32 first_expr_rel_idx: 6;
-			U32 variables_count: 6;
+			U32 first_expr_rel_idx: 12;
+			U32 variables_count: 12;
+			U32 stmts_count;
 		} stmt_block;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 first_expr_rel_idx: 25;
+			U32 first_expr_rel_idx;
 		} curly_initializer;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 value_expr_rel_idx: 25;
+			U32 value_expr_rel_idx;
 			// alt_next_expr_rel_idx is the designated_initializer_idx into HccAstGenCurlyInitializer.designated_initializers
 		} designated_initializer;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 cond_expr_rel_idx: 12;
-			U32 true_stmt_rel_idx: 13;
+			U32 cond_expr_rel_idx: 25;
+			U32 true_stmt_rel_idx;
 		} if_;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 cond_expr_rel_idx: 12;
-			U32 block_expr_rel_idx: 13;
+			U32 cond_expr_rel_idx: 25;
+			U32 block_expr_rel_idx;
 			// alt_next_expr_rel_idx is the default_case_expr_rel_idx
 		} switch_;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 cond_expr_rel_idx: 12;
-			U32 loop_stmt_rel_idx: 13;
+			U32 cond_expr_rel_idx: 25;
+			U32 loop_stmt_rel_idx;
 		} while_;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 init_expr_rel_idx: 5;
-			U32 cond_expr_rel_idx: 6;
-			U32 inc_expr_rel_idx: 7;
-			U32 loop_stmt_rel_idx: 7;
+			U32 init_expr_rel_idx: 12;
+			U32 cond_expr_rel_idx: 13;
+			U32 inc_expr_rel_idx: 16;
+			U32 loop_stmt_rel_idx: 16;
 		} for_;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 idx: 25;
+			U32 idx;
 		} variable;
 		struct {
 			U32 type: 6; // HccExprType
 			U32 is_stmt_block_entry: 1;
-			U32 cond_expr_rel_idx: 6;
-			U32 true_expr_rel_idx: 9;
-			U32 false_expr_rel_idx: 10;
+			U32 false_expr_rel_idx: 25;
+			U32 cond_expr_rel_idx: 13;
+			U32 true_expr_rel_idx: 19;
 		} ternary;
 	};
 
@@ -1826,15 +2033,7 @@ struct HccExpr {
 	};
 };
 
-static_assert(sizeof(HccExpr) == sizeof(U64), "HccExpr must be 8 bytes");
-
-typedef struct HccGenericDataTypeState HccGenericDataTypeState;
-struct HccGenericDataTypeState {
-	HccDataType scalar;
-	HccDataType vec2;
-	HccDataType vec3;
-	HccDataType vec4;
-};
+static_assert(sizeof(HccExpr) == 12, "HccExpr must be 12 bytes");
 
 typedef struct HccSwitchState HccSwitchState;
 struct HccSwitchState {
@@ -1872,6 +2071,13 @@ struct HccAstGenDesignatorInitializer {
 	U32 elmt_indices_count;
 };
 
+typedef struct HccAstGenCurlyInitializerNested HccAstGenCurlyInitializerNested;
+struct HccAstGenCurlyInitializerNested {
+	HccExpr* prev_initializer_expr;
+	HccExpr* first_initializer_expr;
+	U32      nested_elmts_start_idx;
+};
+
 typedef struct HccAstGenCurlyInitializer HccAstGenCurlyInitializer;
 struct HccAstGenCurlyInitializer {
 	union {
@@ -1886,6 +2092,11 @@ struct HccAstGenCurlyInitializer {
 	U64 elmts_end_idx;
 
 	//
+	// a stack to keep track the nested curly initializer expressions.
+	// these can happen in variable declaration or for compound literals.
+	HccStack(HccAstGenCurlyInitializerNested) nested;
+
+	//
 	// a stack to keep track of when we open a new set of curly braces
 	// and how to return back to the parent pair of curly braces
 	HccStack(HccAstGenCurlyInitializerCurly) nested_curlys;
@@ -1897,6 +2108,7 @@ struct HccAstGenCurlyInitializer {
 
 	HccExpr* prev_initializer_expr;
 	HccExpr* first_initializer_expr;
+	U32      nested_elmts_start_idx;
 
 	//
 	// each HCC_EXPR_TYPE_DESIGNATED_INITIALIZER node will reference
@@ -1970,14 +2182,42 @@ enum {
 	HCC_SPECIFIER_FLAGS_ALL_NON_TYPEDEF_SPECIFIERS =       HCC_SPECIFIER_FLAGS_ALL & ~HCC_SPECIFIER_FLAGS_ALL_TYPEDEF_SPECIFIER,
 };
 
-typedef U16 HccAstGenFlags;
+typedef U16 HccTypeSpecfier;
 enum {
-	HCC_ASTGEN_NONE = 0x0,
+	HCC_TYPE_SPECIFIER_VOID =     0x1,
+	HCC_TYPE_SPECIFIER_BOOL =     0x2,
+	HCC_TYPE_SPECIFIER_CHAR =     0x4,
+	HCC_TYPE_SPECIFIER_SHORT =    0x8,
+	HCC_TYPE_SPECIFIER_INT =      0x10,
+	HCC_TYPE_SPECIFIER_LONG =     0x20,
+	HCC_TYPE_SPECIFIER_LONGLONG = 0x40,
+	HCC_TYPE_SPECIFIER_FLOAT =    0x80,
+	HCC_TYPE_SPECIFIER_DOUBLE =   0x100,
+	HCC_TYPE_SPECIFIER_UNSIGNED = 0x200,
+	HCC_TYPE_SPECIFIER_SIGNED =   0x400,
+	HCC_TYPE_SPECIFIER_COMPLEX =  0x800,
+	HCC_TYPE_SPECIFIER_ATOMIC =   0x1000,
+
+	HCC_TYPE_SPECIFIER_TYPES =
+		HCC_TYPE_SPECIFIER_VOID  |
+		HCC_TYPE_SPECIFIER_BOOL  |
+		HCC_TYPE_SPECIFIER_CHAR  |
+		HCC_TYPE_SPECIFIER_SHORT |
+		HCC_TYPE_SPECIFIER_INT   |
+		HCC_TYPE_SPECIFIER_LONG  |
+		HCC_TYPE_SPECIFIER_FLOAT |
+		HCC_TYPE_SPECIFIER_DOUBLE,
+
+	HCC_TYPE_SPECIFIER_FLOAT_TYPES =
+		HCC_TYPE_SPECIFIER_FLOAT |
+		HCC_TYPE_SPECIFIER_DOUBLE,
+
+	HCC_TYPE_SPECIFIER_LONG_DOUBLE = HCC_TYPE_SPECIFIER_LONG | HCC_TYPE_SPECIFIER_DOUBLE,
+	HCC_TYPE_SPECIFIER_UNSIGNED_SIGNED = HCC_TYPE_SPECIFIER_UNSIGNED | HCC_TYPE_SPECIFIER_SIGNED,
 };
 
 typedef struct HccAstGen HccAstGen;
 struct HccAstGen {
-	HccAstGenFlags flags;
 	HccSpecifierFlags specifier_flags;
 
 	HccTokenBag token_bag;
@@ -2014,8 +2254,6 @@ struct HccAstGen {
 	HccSwitchState switch_state;
 	bool is_in_loop;
 
-	HccGenericDataTypeState generic_data_type_state;
-
 	HccStack(HccStringId) variable_stack_strings;
 	HccStack(U32)         variable_stack_var_indices;
 	U32                   next_var_idx;
@@ -2041,6 +2279,7 @@ struct HccAstGenSetup {
 	U32 enum_values_cap;
 	U32 ordered_data_types_cap;
 	U32 compound_type_find_fields_cap;
+	U32 curly_initializer_nested_cap;
 	U32 curly_initializer_nested_curlys_cap;
 	U32 curly_initializer_nested_elmts_cap;
 	U32 curly_initializer_designator_initializers_cap;
@@ -2059,6 +2298,7 @@ void hcc_astgen_warn_1(HccCompiler* c, HccWarnCode warn_code, ...);
 void hcc_astgen_warn_2_idx(HccCompiler* c, HccWarnCode warn_code, U32 other_token_idx, ...);
 void hcc_astgen_warn_2_ptr(HccCompiler* c, HccWarnCode warn_code, HccLocation* other_location, ...);
 noreturn void hcc_astgen_bail_error_1(HccCompiler* c, HccErrorCode error_code, ...);
+noreturn void hcc_astgen_bail_error_1_merge_apply(HccCompiler* c, HccErrorCode error_code, HccLocation* location, ...);
 noreturn void hcc_astgen_bail_error_2_idx(HccCompiler* c, HccErrorCode error_code, U32 other_token_idx, ...);
 noreturn void hcc_astgen_bail_error_2_ptr(HccCompiler* c, HccErrorCode error_code, HccLocation* other_location, ...);
 
@@ -2081,10 +2321,12 @@ bool hcc_stmt_has_return(HccExpr* stmt);
 HccExpr* hcc_astgen_alloc_expr(HccCompiler* c, HccExprType type);
 HccExpr* hcc_astgen_alloc_expr_many(HccCompiler* c, U32 amount);
 
+const char* hcc_type_specifier_string(HccTypeSpecfier specifier);
 void hcc_astgen_data_type_ensure_is_condition(HccCompiler* c, HccDataType data_type);
 void hcc_astgen_compound_data_type_validate_field_names(HccCompiler* c, HccDataType outer_data_type, HccCompoundDataType* compound_data_type);
 void hcc_astgen_validate_specifiers(HccCompiler* c, HccSpecifierFlags non_specifiers, HccErrorCode invalid_specifier_error_code);
 void hcc_astgen_ensure_semicolon(HccCompiler* c);
+void hcc_astgen_ensure_not_unsupported_basic_type(HccCompiler* c, U32 num_tokens_behind, HccErrorCode error_code, HccDataType data_type);
 bool hcc_data_type_check_compatible_assignment(HccCompiler* c, HccDataType target_data_type, HccExpr** source_expr_mut);
 void hcc_data_type_ensure_compatible_assignment(HccCompiler* c, U32 other_token_idx, HccDataType target_data_type, HccExpr** source_expr_mut);
 bool hcc_data_type_check_compatible_arithmetic(HccCompiler* c, HccExpr** left_expr_mut, HccExpr** right_expr_mut);
@@ -2100,9 +2342,9 @@ void hcc_astgen_variable_stack_close(HccCompiler* c);
 U32 hcc_astgen_variable_stack_add(HccCompiler* c, HccStringId string_id);
 U32 hcc_astgen_variable_stack_find(HccCompiler* c, HccStringId string_id);
 
-HccToken hcc_astgen_curly_initializer_init(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type, HccExpr* first_expr);
+HccToken hcc_astgen_curly_initializer_start(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type, HccExpr* first_expr);
 HccToken hcc_astgen_curly_initializer_open(HccCompiler* c);
-HccToken hcc_astgen_curly_initializer_close(HccCompiler* c);
+HccToken hcc_astgen_curly_initializer_close(HccCompiler* c, bool is_finished);
 bool hcc_astgen_curly_initializer_next_elmt(HccCompiler* c, HccDataType resolved_target_data_type);
 HccToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccCompiler* c);
 void hcc_astgen_curly_initializer_nested_elmt_push(HccCompiler* c, HccDataType data_type, HccDataType resolved_data_type);
@@ -2114,6 +2356,7 @@ HccExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccCompile
 HccToken hcc_astgen_generate_specifiers(HccCompiler* c);
 HccDataType hcc_astgen_generate_enum_data_type(HccCompiler* c);
 HccDataType hcc_astgen_generate_compound_data_type(HccCompiler* c);
+HccToken hcc_astgen_generate_type_specifiers(HccCompiler* c, HccLocation* location, HccTypeSpecfier* type_specifiers_mut);
 bool hcc_astgen_generate_data_type(HccCompiler* c, HccDataType* type_out);
 HccDataType hcc_astgen_generate_typedef(HccCompiler* c);
 HccDataType hcc_astgen_generate_typedef_with_data_type(HccCompiler* c, HccDataType aliased_data_type);
@@ -2128,10 +2371,10 @@ HccExpr* hcc_astgen_generate_ternary_expr(HccCompiler* c, HccExpr* cond_expr);
 HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence);
 HccExpr* hcc_astgen_generate_cond_expr(HccCompiler* c);
 HccDataType hcc_astgen_generate_variable_decl_array(HccCompiler* c, HccDataType element_data_type);
-U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccStringId identifier_string_id, HccDataType* data_type_mut, HccExpr** init_expr_out);
+U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccDataType* data_type_mut, HccExpr** init_expr_out);
 HccExpr* hcc_astgen_generate_variable_decl_expr(HccCompiler* c, HccDataType data_type);
 HccExpr* hcc_astgen_generate_stmt(HccCompiler* c);
-void hcc_astgen_generate_function(HccCompiler* c, HccStringId identifier_string_id, HccDataType return_data_type, U32 data_type_token_idx);
+void hcc_astgen_generate_function(HccCompiler* c, HccDataType return_data_type, U32 data_type_token_idx);
 void hcc_astgen_generate(HccCompiler* c);
 
 void hcc_astgen_print_expr(HccCompiler* c, HccExpr* expr, U32 indent, FILE* f);
@@ -2167,6 +2410,7 @@ enum {
 
 	HCC_IR_OP_CODE_CONVERT,
 	HCC_IR_OP_CODE_BITCAST,
+	HCC_IR_OP_CODE_BITCAST_PTR,
 
 	HCC_IR_OP_CODE_COMPOSITE_INIT,
 	HCC_IR_OP_CODE_ACCESS_CHAIN,
@@ -2307,7 +2551,7 @@ void hcc_irgen_generate_condition_expr(HccCompiler* c, HccExpr* cond_expr);
 void hcc_irgen_generate_case_instructions(HccCompiler* c, HccExpr* first_stmt);
 void hcc_irgen_generate_load(HccCompiler* c, HccDataType data_type, HccIROperand src_operand);
 void hcc_irgen_generate_store(HccCompiler* c, HccIROperand dst_operand, HccIROperand src_operand);
-void hcc_irgen_generate_bitcast(HccCompiler* c, HccDataType dst_data_type, HccIROperand src_operand);
+void hcc_irgen_generate_bitcast(HccCompiler* c, HccDataType dst_data_type, HccIROperand src_operand, bool is_ptr);
 void hcc_irgen_generate_bitcast_union_field(HccCompiler* c, HccDataType union_data_type, U32 field_idx, HccIROperand src_operand);
 HccIROperand* hcc_irgen_generate_access_chain_start(HccCompiler* c, U32 count);
 void hcc_irgen_generate_access_chain_end(HccCompiler* c, HccDataType data_type);
@@ -2341,6 +2585,7 @@ enum {
 	HCC_SPIRV_OP_TYPE_INT = 21,
 	HCC_SPIRV_OP_TYPE_FLOAT = 22,
 	HCC_SPIRV_OP_TYPE_VECTOR = 23,
+	HCC_SPIRV_OP_TYPE_MATRIX = 24,
 	HCC_SPIRV_OP_TYPE_ARRAY = 28,
 	HCC_SPIRV_OP_TYPE_STRUCT = 30,
 	HCC_SPIRV_OP_TYPE_POINTER = 32,
@@ -2503,6 +2748,10 @@ enum {
 
 #define HCC_SPIRV_INSTR_OPERANDS_CAP 24
 
+#define HCC_SPIRV_ID_FROM_INTRINSIC_TYPE(intrinsic_type) (intrinsic_type + 1)
+#define HCC_SPIRV_ID_TO_INTRINSIC_TYPE(intrinsic_type) (intrinsic_type - 1)
+#define HCC_SPIRV_ID_IS_INTRINSIC_TYPE(id) ((id) && (id) - 1 >= HCC_INTRINSIC_TYPE_BOOL && (id) - 1 < HCC_INTRINSIC_TYPE_COUNT)
+
 typedef U8 HccSpirvTypeKind;
 enum {
 	HCC_SPIRV_TYPE_KIND_FUNCTION,
@@ -2544,6 +2793,7 @@ struct HccSpirvGen {
 	U64 pointer_type_outputs_made_bitset[4];
 	U32 compound_type_base_id;
 	U32 array_type_base_id;
+	HccIntrinsicBasicTypeMask available_basic_types;
 
 	U32 value_base_id;
 	U32 constant_base_id;
@@ -2577,6 +2827,9 @@ void hcc_spirvgen_init(HccCompiler* c, HccCompilerSetup* setup);
 
 U32 hcc_spirvgen_resolve_type_id(HccCompiler* c, HccDataType data_type);
 U32 hcc_spirvgen_convert_operand(HccCompiler* c, HccIROperand ir_operand);
+U32 hcc_spirvgen_pointer_type_input_id(HccCompiler* c, HccDataType data_type);
+U32 hcc_spirvgen_pointer_type_output_id(HccCompiler* c, HccDataType data_type);
+bool hcc_spirvgen_basic_type_is_supported(HccCompiler* c, HccIntrinsicType intrinsic_type);
 
 void hcc_spirvgen_instr_start(HccCompiler* c, HccSpirvOp op);
 void hcc_spirvgen_instr_add_operand(HccCompiler* c, U32 word);
@@ -2593,7 +2846,7 @@ void hcc_spirvgen_generate_select(HccCompiler* c, U32 result_spirv_operand, HccD
 void hcc_spirvgen_generate_convert(HccCompiler* c, HccSpirvOp spirv_convert_op, U32 result_spirv_operand, HccDataType dst_type, U32 value_spirv_operand);
 void hcc_spirvgen_generate_entry_point_used_global_variable_spirv_ids(HccCompiler* c, HccFunction* function);
 void hcc_spirvgen_generate_function(HccCompiler* c, U32 function_idx);
-void hcc_spirvgen_generate_basic_types(HccCompiler* c);
+void hcc_spirvgen_generate_intrinsic_types(HccCompiler* c);
 void hcc_spirvgen_generate_basic_type_constants(HccCompiler* c);
 void hcc_spirvgen_generate_non_basic_type_constants(HccCompiler* c);
 void hcc_spirvgen_generate_load(HccCompiler* c, U32 type_spirv_id, U32 result_id, U32 src_spirv_id);
@@ -2645,7 +2898,7 @@ struct HccConstantTable {
 };
 
 void hcc_constant_table_init(HccCompiler* c, uint32_t data_cap, uint32_t entries_cap);
-HccConstantId hcc_constant_table_deduplicate_basic(HccCompiler* c, HccDataType data_type, void* data);
+HccConstantId hcc_constant_table_deduplicate_basic(HccCompiler* c, HccDataType data_type, HccBasic* basic);
 void hcc_constant_table_deduplicate_composite_start(HccCompiler* c, HccDataType data_type);
 void hcc_constant_table_deduplicate_composite_add(HccCompiler* c, HccConstantId constant_id);
 HccConstantId hcc_constant_table_deduplicate_composite_end(HccCompiler* c);
@@ -2653,10 +2906,10 @@ HccConstantId hcc_constant_table_deduplicate_zero(HccCompiler* c, HccDataType da
 HccConstantId _hcc_constant_table_deduplicate_end(HccCompiler* c, HccDataType data_type, void* data, U32 data_size, U32 data_align, HccStringId debug_string_id);
 HccConstant hcc_constant_table_get(HccCompiler* c, HccConstantId id);
 void hcc_constant_print(HccCompiler* c, HccConstantId constant_id, FILE* f);
-bool hcc_constant_as_uint(HccConstant constant, U64* out);
-bool hcc_constant_as_sint(HccConstant constant, S64* out);
-bool hcc_constant_as_sint32(HccConstant constant, S32* out);
-bool hcc_constant_as_float(HccConstant constant, F64* out);
+bool hcc_constant_as_uint(HccCompiler* c, HccConstant constant, U64* out);
+bool hcc_constant_as_sint(HccCompiler* c, HccConstant constant, S64* out);
+bool hcc_constant_as_sint32(HccCompiler* c, HccConstant constant, S32* out);
+bool hcc_constant_as_float(HccCompiler* c, HccConstant constant, F64* out);
 
 // ===========================================
 //
@@ -2685,25 +2938,39 @@ struct HccStringTable {
 enum {
 	HCC_STRING_ID_NULL = 0,
 
-#define HCC_STRING_ID_INTRINSIC_PARAM_NAMES_START HCC_STRING_ID_GENERIC_SCALAR
-	HCC_STRING_ID_GENERIC_SCALAR,
-	HCC_STRING_ID_GENERIC_VEC2,
-	HCC_STRING_ID_GENERIC_VEC3,
-	HCC_STRING_ID_GENERIC_VEC4,
-	HCC_STRING_ID_SCALAR,
-	HCC_STRING_ID_X,
-	HCC_STRING_ID_Y,
-	HCC_STRING_ID_Z,
-	HCC_STRING_ID_W,
+#define HCC_STRING_ID_INTRINSIC_PARAM_NAMES_START HCC_STRING_ID_UINT8_T
+	HCC_STRING_ID_UINT8_T,
+	HCC_STRING_ID_UINT16_T,
+	HCC_STRING_ID_UINT32_T,
+	HCC_STRING_ID_UINT64_T,
+	HCC_STRING_ID_UINTPTR_T,
+	HCC_STRING_ID_INT8_T,
+	HCC_STRING_ID_INT16_T,
+	HCC_STRING_ID_INT32_T,
+	HCC_STRING_ID_INT64_T,
+	HCC_STRING_ID_INTPTR_T,
+	HCC_STRING_ID_HCC_VERTEX_INPUT,
+	HCC_STRING_ID_HCC_FRAGMENT_INPUT,
+	HCC_STRING_ID_HALF,
+
+	HCC_STRING_ID_PVEC_START,
+#define HCC_STRING_ID_PVEC_END (HCC_STRING_ID_PVEC_START + HCC_VEC_COUNT)
+
+	HCC_STRING_ID_VEC_START = HCC_STRING_ID_PVEC_END,
+#define HCC_STRING_ID_VEC_END (HCC_STRING_ID_VEC_START + HCC_VEC_COUNT)
+
+	HCC_STRING_ID_PMAT_START = HCC_STRING_ID_VEC_END,
+#define HCC_STRING_ID_PMAT_END (HCC_STRING_ID_PMAT_START + HCC_MAT_COUNT)
+
+	HCC_STRING_ID_MAT_START = HCC_STRING_ID_PMAT_END,
+#define HCC_STRING_ID_MAT_END (HCC_STRING_ID_MAT_START + HCC_MAT_COUNT)
+
 #define HCC_STRING_ID_INTRINSIC_PARAM_NAMES_END HCC_STRING_ID_KEYWORDS_START
 
-	HCC_STRING_ID_KEYWORDS_START,
+	HCC_STRING_ID_KEYWORDS_START = HCC_STRING_ID_MAT_END,
 #define HCC_STRING_ID_KEYWORDS_END (HCC_STRING_ID_KEYWORDS_START + HCC_TOKEN_KEYWORDS_COUNT)
 
-	HCC_STRING_ID_INTRINSIC_TYPES_START = HCC_STRING_ID_KEYWORDS_END,
-#define HCC_STRING_ID_INTRINSIC_TYPES_END (HCC_STRING_ID_INTRINSIC_TYPES_START + HCC_TOKEN_INTRINSIC_TYPES_COUNT)
-
-	HCC_STRING_ID_PREDEFINED_MACROS_START = HCC_STRING_ID_INTRINSIC_TYPES_END,
+	HCC_STRING_ID_PREDEFINED_MACROS_START = HCC_STRING_ID_KEYWORDS_END,
 #define HCC_STRING_ID_PREDEFINED_MACROS_END (HCC_STRING_ID_PREDEFINED_MACROS_START + HCC_PP_PREDEFINED_MACRO_COUNT)
 
 	HCC_STRING_ID_ONCE = HCC_STRING_ID_PREDEFINED_MACROS_END,
@@ -2716,7 +2983,7 @@ extern char* hcc_string_intrinsic_param_names[HCC_STRING_ID_INTRINSIC_PARAM_NAME
 void hcc_string_table_init(HccStringTable* string_table, U32 data_cap, U32 entries_cap);
 #define hcc_string_table_deduplicate_lit(string_table, string_lit) hcc_string_table_deduplicate(string_table, string_lit, sizeof(string_lit) - 1)
 #define hcc_string_table_deduplicate_c_string(string_table, c_string) hcc_string_table_deduplicate(string_table, c_string, strlen(c_string))
-HccStringId hcc_string_table_deduplicate(HccStringTable* string_table, char* string, U32 string_size);
+HccStringId hcc_string_table_deduplicate(HccStringTable* string_table, const char* string, U32 string_size);
 HccString hcc_string_table_get(HccStringTable* string_table, HccStringId id);
 HccString hcc_string_table_get_or_empty(HccStringTable* string_table, HccStringId id);
 
@@ -2754,10 +3021,13 @@ typedef U32 HccCompilerFlags;
 enum {
 	HCC_COMPILER_FLAGS_NONE = 0x0,
 	HCC_COMPILER_FLAGS_SET_LONG_JMP = 0x1,
+	HCC_COMPILER_FLAGS_CHAR_IS_UNSIGNED = 0x2,
 };
 
 struct HccCompiler {
 	HccCompilerFlags      flags;
+	HccArch               arch;
+	HccOS                 os;
 	HccCompilerStage      stage;
 	HccAllocTag           allocation_failure_alloc_tag;
 	HccAllocTag           collection_is_full_alloc_tag;
@@ -2765,6 +3035,9 @@ struct HccCompiler {
 
 	HccStringTable        string_table;
 	HccConstantTable      constant_table;
+	U8*                   basic_type_size_and_aligns; // [HCC_DATA_TYPE_BASIC_COUNT]
+	U64*                  basic_type_int_mins; // [HCC_DATA_TYPE_BASIC_COUNT]
+	U64*                  basic_type_int_maxes; // [HCC_DATA_TYPE_BASIC_COUNT]
 	HccConstantId         basic_type_zero_constant_ids[HCC_DATA_TYPE_BASIC_COUNT];
 	HccConstantId         basic_type_one_constant_ids[HCC_DATA_TYPE_BASIC_COUNT];
 	HccOptions            options;
@@ -2782,7 +3055,6 @@ struct HccCompiler {
 	HccAstGen             astgen;
 	HccIRGen              irgen;
 	HccSpirvGen           spirvgen;
-	U16                   available_basic_types;
 };
 
 typedef struct HccCompilerSetup HccCompilerSetup;
