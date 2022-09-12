@@ -1469,6 +1469,7 @@ enum {
 	HCC_BINARY_OP_LOGICAL_OR,
 
 	HCC_BINARY_OP_TERNARY,
+	HCC_BINARY_OP_COMMA,
 
 	HCC_BINARY_OP_COUNT,
 };
@@ -2463,7 +2464,9 @@ HccExpr* hcc_astgen_generate_call_expr(HccCompiler* c, HccExpr* function_expr);
 HccExpr* hcc_astgen_generate_array_subscript_expr(HccCompiler* c, HccExpr* array_expr);
 HccExpr* hcc_astgen_generate_field_access_expr(HccCompiler* c, HccExpr* left_expr);
 HccExpr* hcc_astgen_generate_ternary_expr(HccCompiler* c, HccExpr* cond_expr);
+HccExpr* hcc_astgen_generate_expr_(HccCompiler* c, U32 min_precedence, bool no_comma_operator);
 HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence);
+HccExpr* hcc_astgen_generate_expr_no_comma_operator(HccCompiler* c, U32 min_precedence);
 HccExpr* hcc_astgen_generate_cond_expr(HccCompiler* c);
 HccDataType hcc_astgen_generate_variable_decl_array(HccCompiler* c, HccDataType element_data_type);
 U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccDataType* data_type_mut, HccExpr** init_expr_out);

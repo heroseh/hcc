@@ -167,6 +167,9 @@ HCC_DEFINE_FRAGMENT_STATE(
 	(Vec4, color)
 );
 
+U32 g_multiple, g_var;
+U32 g_multiple_ass = 1, g_var_ign = 2;
+
 typedef S32 signed_int;
 typedef struct Named { S32 i[1]; } named_wrapped_signed_int;
 typedef struct { F32 i[2]; } wrapped_float2;
@@ -330,9 +333,12 @@ fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput inpu
 	red = isinf(INFINITY);
 	red = isnan(NAN);
 
+	U32 multiple, var;
+	U32 multiple_ass = 1, var_ign = 2;
+
 	BillboardFragment frag;
-	//frag.color = state.tri_idx ? state.flat_color : state.color;
-	frag.color = v4f(red, 0.f, 0.f, 1.f);
+	frag.color = state.tri_idx ? state.flat_color : state.color;
+	//frag.color = v4f(red, 0.f, 0.f, 1.f);
 	return frag;
 }
 

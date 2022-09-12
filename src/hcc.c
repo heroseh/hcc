@@ -1222,6 +1222,7 @@ void hcc_pp_eval_binary_op(HccCompiler* c, U32* token_idx_mut, HccBinaryOp* bina
 		case HCC_TOKEN_LOGICAL_AND:           *binary_op_type_out = HCC_BINARY_OP_LOGICAL_AND;           *precedence_out = 11; break;
 		case HCC_TOKEN_LOGICAL_OR:            *binary_op_type_out = HCC_BINARY_OP_LOGICAL_OR;            *precedence_out = 12; break;
 		case HCC_TOKEN_QUESTION_MARK:         *binary_op_type_out = HCC_BINARY_OP_TERNARY;               *precedence_out = 13; break;
+		case HCC_TOKEN_COMMA:                 *binary_op_type_out = HCC_BINARY_OP_COMMA;                 *precedence_out = 15; break;
 
 		case HCC_TOKEN_PARENTHESIS_CLOSE:
 		case HCC_TOKEN_COLON:
@@ -7303,7 +7304,7 @@ MAKE_NEW: {}
 		if (has_explicit_value) {
 			token = hcc_astgen_token_next(c);
 
-			HccExpr* expr = hcc_astgen_generate_expr(c, 0);
+			HccExpr* expr = hcc_astgen_generate_expr_no_comma_operator(c, 0);
 			if (expr->type != HCC_EXPR_TYPE_CONSTANT || !HCC_DATA_TYPE_IS_INT(expr->data_type)) {
 				hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_ENUM_VALUE_INVALID_FORMAT);
 			}
@@ -8337,7 +8338,7 @@ UNARY:
 					hcc_astgen_warn_1(c, HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR);
 				}
 
-				HccExpr* value_expr = hcc_astgen_generate_expr(c, 0);
+				HccExpr* value_expr = hcc_astgen_generate_expr_no_comma_operator(c, 0);
 				HccDataType resolved_value_data_type = hcc_typedef_resolve_and_keep_const(c, value_expr->data_type);
 				bool emit_elmt_initializer = hcc_astgen_curly_initializer_next_elmt(c, resolved_value_data_type);
 				if (emit_elmt_initializer) {
@@ -8608,6 +8609,11 @@ void hcc_astgen_generate_binary_op(HccCompiler* c, HccExprType* binary_op_type_o
 			*precedence_out = 14;
 			*is_assignment_out = true;
 			break;
+		case HCC_TOKEN_COMMA:
+			*binary_op_type_out = HCC_EXPR_TYPE_BINARY_OP(COMMA);
+			*precedence_out = 15;
+			*is_assignment_out = true;
+			break;
 		default:
 			*binary_op_type_out = HCC_EXPR_TYPE_NONE;
 			*precedence_out = 0;
@@ -8690,7 +8696,7 @@ END_ARG_COUNT: {}
 	token = hcc_astgen_token_peek(c);
 	HccVariable* params_array = hcc_stack_get(c->astgen.function_params_and_variables, function->params_start_idx);
 	while (1) {
-		HccExpr* arg_expr = hcc_astgen_generate_expr(c, 0);
+		HccExpr* arg_expr = hcc_astgen_generate_expr_no_comma_operator(c, 0);
 		HccVariable* param = &params_array[arg_idx];
 		HccDataType param_data_type = HCC_DATA_TYPE_STRIP_CONST(param->data_type);
 		hcc_data_type_ensure_compatible_assignment(c, param->identifier_token_idx, param_data_type, &arg_expr);
@@ -8806,7 +8812,7 @@ HccExpr* hcc_astgen_generate_ternary_expr(HccCompiler* c, HccExpr* cond_expr) {
 	return expr;
 }
 
-HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence) {
+HccExpr* hcc_astgen_generate_expr_(HccCompiler* c, U32 min_precedence, bool no_comma_operator) {
 	U32 callee_token_idx = c->astgen.token_read_idx;
 	HccExpr* left_expr = hcc_astgen_generate_unary_expr(c);
 	if (left_expr->type == HCC_EXPR_TYPE_DATA_TYPE) {
@@ -8819,6 +8825,10 @@ HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence) {
 		U32 precedence;
 		bool is_assignment;
 		HccToken operator_token = hcc_astgen_token_peek(c);
+		if (no_comma_operator && operator_token == HCC_TOKEN_COMMA) {
+			return left_expr;
+		}
+
 		hcc_astgen_generate_binary_op(c, &binary_op_type, &precedence, &is_assignment);
 		if (binary_op_type == HCC_EXPR_TYPE_NONE || (min_precedence && min_precedence <= precedence)) {
 			return left_expr;
@@ -8903,6 +8913,14 @@ HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence) {
 	}
 }
 
+HccExpr* hcc_astgen_generate_expr(HccCompiler* c, U32 min_precedence) {
+	return hcc_astgen_generate_expr_(c, min_precedence, false);
+}
+
+HccExpr* hcc_astgen_generate_expr_no_comma_operator(HccCompiler* c, U32 min_precedence) {
+	return hcc_astgen_generate_expr_(c, min_precedence, true);
+}
+
 HccExpr* hcc_astgen_generate_cond_expr(HccCompiler* c) {
 	HccToken token = hcc_astgen_token_peek(c);
 	if (token != HCC_TOKEN_PARENTHESIS_OPEN) {
@@ -8957,7 +8975,7 @@ HccDataType hcc_astgen_generate_variable_decl_array(HccCompiler* c, HccDataType 
 
 U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccDataType* data_type_mut, HccExpr** init_expr_out) {
 	HccToken token = hcc_astgen_token_peek(c);
-	HCC_DEBUG_ASSERT(token == HCC_TOKEN_IDENT, "internal error: expected '%s' at the start of generating a function", hcc_token_strings[HCC_TOKEN_IDENT]);
+	HCC_DEBUG_ASSERT(token == HCC_TOKEN_IDENT, "internal error: expected '%s' at the start of generating a variable", hcc_token_strings[HCC_TOKEN_IDENT]);
 	HccStringId identifier_string_id = hcc_astgen_token_value_next(c).string_id;
 
 	hcc_astgen_ensure_not_unsupported_basic_type(c, 1, HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED_IN_VARIABLE, *data_type_mut);
@@ -9010,15 +9028,12 @@ U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccDataTyp
 	switch (token) {
 		case HCC_TOKEN_SEMICOLON:
 			if (init_expr_out) *init_expr_out = NULL;
-			if (variable->is_static) {
-				variable->initializer_constant_id = hcc_constant_table_deduplicate_zero(c, variable->data_type);
-			}
 			break;
 		case HCC_TOKEN_EQUAL: {
 			hcc_astgen_token_next(c);
 
 			c->astgen.assign_data_type = variable->data_type;
-			HccExpr* init_expr = hcc_astgen_generate_expr(c, 0);
+			HccExpr* init_expr = hcc_astgen_generate_expr_no_comma_operator(c, 0);
 			U32 other_token_idx = -1;
 			HccDataType variable_data_type = HCC_DATA_TYPE_STRIP_CONST(variable->data_type);
 			hcc_data_type_ensure_compatible_assignment(c, other_token_idx, variable_data_type, &init_expr);
@@ -9035,8 +9050,13 @@ U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccDataTyp
 			}
 			break;
 		};
+		case HCC_TOKEN_COMMA: break;
 		default:
 			hcc_astgen_bail_error_1(c, HCC_ERROR_CODE_INVALID_VARIABLE_DECL_TERMINATOR);
+	}
+
+	if (variable->is_static && variable->initializer_constant_id.idx_plus_one == 0) {
+		variable->initializer_constant_id = hcc_constant_table_deduplicate_zero(c, variable->data_type);
 	}
 
 	c->astgen.specifier_flags &= ~HCC_SPECIFIER_FLAGS_ALL_VARIABLE_SPECIFIERS;
@@ -9044,23 +9064,41 @@ U32 hcc_astgen_generate_variable_decl(HccCompiler* c, bool is_global, HccDataTyp
 }
 
 HccExpr* hcc_astgen_generate_variable_decl_expr(HccCompiler* c, HccDataType data_type) {
+	HccExpr* prev_expr = NULL;
 	HccExpr* init_expr = NULL;
 	HccToken token = hcc_astgen_token_peek(c);
 
-	U32 variable_idx = hcc_astgen_generate_variable_decl(c, false, &data_type, &init_expr);
-	if (init_expr) {
-		HccExpr* left_expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_LOCAL_VARIABLE);
-		left_expr->variable.idx = variable_idx;
-		left_expr->data_type = data_type;
+	while (1) {
+		U32 variable_idx = hcc_astgen_generate_variable_decl(c, false, &data_type, &init_expr);
+		if (init_expr) {
+			HccExpr* left_expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_LOCAL_VARIABLE);
+			left_expr->variable.idx = variable_idx;
+			left_expr->data_type = data_type;
 
-		HccExpr* stmt = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_BINARY_OP(ASSIGN));
-		stmt->binary.is_assignment = true;
-		stmt->binary.left_expr_rel_idx = stmt - left_expr;
-		stmt->binary.right_expr_rel_idx = stmt - init_expr;
-		return stmt;
+			HccExpr* stmt = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_BINARY_OP(ASSIGN));
+			stmt->binary.is_assignment = true;
+			stmt->binary.left_expr_rel_idx = stmt - left_expr;
+			stmt->binary.right_expr_rel_idx = stmt - init_expr;
+
+			if (prev_expr) {
+				HccExpr* expr = hcc_astgen_alloc_expr(c, HCC_EXPR_TYPE_BINARY_OP(COMMA));
+				expr->binary.is_assignment = false;
+				expr->binary.left_expr_rel_idx = expr - prev_expr;
+				expr->binary.right_expr_rel_idx = expr - stmt;
+				prev_expr = expr;
+			} else {
+				prev_expr = stmt;
+			}
+		}
+
+		token = hcc_astgen_token_peek(c);
+		if (token != HCC_TOKEN_COMMA) {
+			break;
+		}
+		token = hcc_astgen_token_next(c);
 	}
 
-	return NULL;
+	return prev_expr;
 }
 
 HccExpr* hcc_astgen_generate_stmt(HccCompiler* c) {
@@ -9810,7 +9848,14 @@ void hcc_astgen_generate(HccCompiler* c) {
 							hcc_astgen_generate_function(c, data_type, data_type_token_idx);
 							ensure_semi_colon = false;
 						} else {
-							hcc_astgen_generate_variable_decl(c, true, &data_type, NULL);
+							while (1) {
+								hcc_astgen_generate_variable_decl(c, true, &data_type, NULL);
+								token = hcc_astgen_token_peek(c);
+								if (token != HCC_TOKEN_COMMA) {
+									break;
+								}
+								token = hcc_astgen_token_next(c);
+							}
 						}
 					} else if (token == HCC_TOKEN_KEYWORD_TYPEDEF) {
 						hcc_astgen_generate_typedef_with_data_type(c, data_type);
@@ -10010,6 +10055,7 @@ UNARY:
 		case HCC_EXPR_TYPE_BINARY_OP(GREATER_THAN_OR_EQUAL): expr_name = "GREATER_THAN_OR_EQUAL"; goto BINARY;
 		case HCC_EXPR_TYPE_BINARY_OP(LOGICAL_AND): expr_name = "LOGICAL_AND"; goto BINARY;
 		case HCC_EXPR_TYPE_BINARY_OP(LOGICAL_OR): expr_name = "LOGICAL_OR"; goto BINARY;
+		case HCC_EXPR_TYPE_BINARY_OP(COMMA): expr_name = "COMMA"; goto BINARY;
 		case HCC_EXPR_TYPE_CALL: expr_name = "CALL"; goto BINARY;
 		case HCC_EXPR_TYPE_ARRAY_SUBSCRIPT: expr_name = "ARRAY_SUBSCRIPT"; goto BINARY;
 BINARY:
@@ -11027,6 +11073,13 @@ UNARY:
 			phi_operands[4] = success_basic_block_operand;
 
 			c->irgen.last_operand = phi_operands[0];
+			break;
+		};
+		case HCC_EXPR_TYPE_BINARY_OP(COMMA): {
+			HccExpr* left_expr = expr - expr->binary.left_expr_rel_idx;
+			HccExpr* right_expr = expr - expr->binary.right_expr_rel_idx;
+			hcc_irgen_generate_condition_expr(c, left_expr);
+			hcc_irgen_generate_condition_expr(c, right_expr);
 			break;
 		};
 		case HCC_EXPR_TYPE_CALL: {
