@@ -5,14 +5,20 @@
 #error "this header is designed to only be used for the hcc compiler when targeting GPU"
 #endif
 
-#define isinf(v) __hcc_inf
-#define isnan(v) __hcc_nan
+#define INFINITY (1.f / 0.f)
+#define NAN (0.f / 0.f)
+
+HCC_INTRINSIC bool __hcc_isinf(__hcc_generic_float v);
+HCC_INTRINSIC bool __hcc_isnan(__hcc_generic_float v);
+
+#define isinf(v) __hcc_isinf(v)
+#define isnan(v) __hcc_isnan(v)
 
 HCC_INTRINSIC float fmodf(float a, float b);
 HCC_INTRINSIC double fmod(double a, double b);
 
-HCC_INTRINSIC float copysignf(float v, float sign);
-HCC_INTRINSIC double copysign(double v, double sign);
+static inline float copysignf(float v, float sign) { return v * (sign < 0.f ? -1.f : 1.f); }
+static inline double copysign(double v, double sign) { return v * (sign < 0.0 ? -1.0 : 1.0); }
 
 HCC_INTRINSIC float fabsf(float v);
 HCC_INTRINSIC double fabs(double v);

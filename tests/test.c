@@ -1,5 +1,6 @@
 
 #include "../libhccstd/core.h"
+#include "../libc-gpu/math.h"
 
 typedef _Bool Bool;
 typedef uint32_t U32;
@@ -324,9 +325,14 @@ fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput inpu
 	AddOp add_op = { 2, 2 };
 	red = add_op_u32(add_op) == 4 && inlined_add_u32(1, 1) == 2;
 
-	Vec4 v = v4f(1.f, 0.f, 0.f, 1.f);
+	red = copysignf(2.f, -1.f) <= -2.f;
+	red = sinf((float)state.tri_idx) <= 1.f;
+	red = isinf(INFINITY);
+	red = isnan(NAN);
+
 	BillboardFragment frag;
-	frag.color = state.tri_idx ? state.flat_color : state.color;
+	//frag.color = state.tri_idx ? state.flat_color : state.color;
+	frag.color = v4f(red, 0.f, 0.f, 1.f);
 	return frag;
 }
 
