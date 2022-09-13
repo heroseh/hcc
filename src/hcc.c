@@ -2457,7 +2457,7 @@ void hcc_pp_copy_expand_range(HccCompiler* c, HccPPExpand* expand, HccTokenBag* 
 		//
 		*hcc_stack_push(dst_bag->tokens) = token;
 
-		U32 mask = (flags & HCC_PP_EXPAND_FLAGS_IS_ARGS | HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS) ? HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK : 0;
+		U32 mask = (flags & (HCC_PP_EXPAND_FLAGS_IS_ARGS | HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS)) ? HCC_PP_TOKEN_IS_PREEXPANDED_MACRO_ARG_MASK : 0;
 		*hcc_stack_push(dst_bag->token_location_indices) = location_idx | mask;
 
 		expand->cursor.token_idx += 1;

@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
 	HccCompiler compiler = {0};
 	hcc_compiler_init(&compiler, &compiler_setup);
 
-	if (!hcc_compiler_compile(&compiler, "tests/test.c")) {
+	if (!hcc_compiler_compile(&compiler, "tests/demonstrate_really_dumb_very_annoying_no_good_preprocessor_feature.c")) {
 		if (compiler.allocation_failure_alloc_tag != HCC_ALLOC_TAG_NONE) {
 			printf("failed to allocate '%s'\n", hcc_alloc_tag_strings[compiler.allocation_failure_alloc_tag]);
 		}
