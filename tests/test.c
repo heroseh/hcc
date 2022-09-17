@@ -1,14 +1,63 @@
 
-#include "../libhccstd/core.h"
+#if 1
+
 #include "../libc-gpu/math.h"
+#include "../libhccstd/core.h"
+#include "../libhccstd/math.h"
+
+HCC_DEFINE_RASTERIZER_STATE(
+	BillboardRasterizerState,
+	(POSITION, vec4f32, position),
+	(INTERP,   vec4f32, color),
+	(INTERP,   vec2f32, snorm)
+);
+
+vertex BillboardRasterizerState billboard_shader_vertex(const HccVertexInput input) {
+	BillboardRasterizerState state;
+	vec2f32 unorm = v2f32(input.vertex_idx & 1, input.vertex_idx / 2);
+	vec2f32 snorm = subsv2f32(mulsv2f32(unorm, 2.f), 1.f);
+	state.position = v4f32(snorm.x, snorm.y, 0.25f, 1.f);
+	state.color = v4f32(unorm.x, unorm.y, 0.f, 1.f);
+	state.snorm = snorm;
+	return state;
+}
+
+HCC_DEFINE_FRAGMENT_STATE(
+	BillboardFragment,
+	(vec4f32, color)
+);
+
+float circle_distance(vec2f32 pt, float radius) {
+	return lenv2f32(pt) - radius;
+}
+
+fragment BillboardFragment billboard_shader_fragment(
+	const HccFragmentInput input,
+	const BillboardRasterizerState state
+) {
+	float distance = circle_distance(state.snorm, 0.75f);
+
+	BillboardFragment frag;
+	frag.color = distance < 0.f ? state.color : ZEROV4F32;
+	return frag;
+}
+
+
+
+#else
+
+#include "../libc-gpu/math.h"
+#include "../libhccstd/core.h"
+#include "../libhccstd/math.h"
+
 
 typedef _Bool Bool;
 typedef uint32_t U32;
 typedef int32_t S32;
 typedef float F32;
-typedef vec2f Vec2;
-typedef vec3f Vec3;
-typedef vec4f Vec4;
+typedef vec2f32 Vec2;
+typedef vec3f32 Vec3;
+typedef vec4f32 Vec4;
 
 // C = A /+*
 
@@ -32,7 +81,7 @@ typedef vec4f Vec4;
 
 #define M_SUPER(A, B, C, D) (M_NEG(M_NEG(M_ADD(A) * M_SUB(M_ADD(B)))) + M_ADD(C) + M_SUB(D))
 
-#define TEST(A, B, ...) v4f(M_SUB(M_SUPER(A, B, A, B)), M_ADD(M_SUB(M_SUPER(1 + __VA_ARGS__, __VA_ARGS__ + 1))), __VA_ARGS__)
+#define TEST(A, B, ...) v4f32(M_SUB(M_SUPER(A, B, A, B)), M_ADD(M_SUB(M_SUPER(1 + __VA_ARGS__, __VA_ARGS__ + 1))), __VA_ARGS__)
 
 #define G(H) H
 #define A(D) G(D) + D
@@ -92,32 +141,21 @@ HCC_DEFINE_RASTERIZER_STATE(
 	BillboardRasterizerState,
 	(POSITION, Vec4, position),
 	(INTERP,   Vec4, color),
-	(NOINTERP, Vec4, flat_color),
-	(NOINTERP, U32,  tri_idx)
+	(NOINTERP, Vec4, flat_color)
 );
 
 vertex BillboardRasterizerState billboard_shader_vertex(const HccVertexInput input) {
-	Vec4 vertices[6] = {
-		v4f(-1.f, -1.f, 0.25f, 1.f),
-		v4f( 1.f, -1.f, 0.25f, 1.f),
-		v4f( 1.f,  1.f, 0.25f, 1.f),
-
-		v4f( 1.f,  1.f, 0.25f, 1.f),
-		v4f(-1.f,  1.f, 0.25f, 1.f),
-		v4f(-1.f, -1.f, 0.25f, 1.f),
-	};
-
-	Vec4 colors[3] = {
-		v4f(1.f, 0.f, 0.f, 1.f),
-		v4f(0.f, 1.f, 0.f, 1.f),
-		v4f(0.f, 0.f, 1.f, 1.f),
+	Vec4 colors[4] = {
+		v4f32(1.f, 0.f, 0.f, 1.f),
+		v4f32(0.f, 1.f, 0.f, 1.f),
+		v4f32(0.f, 0.f, 1.f, 1.f),
+		v4f32(0.f, 1.f, 1.f, 1.f),
 	};
 
 	BillboardRasterizerState state;
-	state.position = vertices[input.vertex_idx];
-	state.color = colors[input.vertex_idx % 3];
-	state.flat_color = v4f(1.f, 0.f, 1.f, 1.f);
-	state.tri_idx = input.vertex_idx / 3;
+	state.position = v4f32((input.vertex_idx & 1) * 2.f - 1.f, (input.vertex_idx / 2) * 2.f - 1.f, 0.25f, 1.f);
+	state.color = colors[input.vertex_idx];
+	state.flat_color = v4f32(1.f, 0.f, 1.f, 1.f);
 	return state;
 }
 
@@ -315,10 +353,10 @@ fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput inpu
 
 	green = uint == 1;
 
-	Vec4 vec = v4f(1.f, 0.f, 0.f, 1.f);
+	Vec4 vec = v4f32(1.f, 0.f, 0.f, 1.f);
 	red = vec.x == 1.f;
 
-	vec.xy = v2f(0.f, 1.f);
+	vec.xy = v2f32(0.f, 1.f);
 	blue = vec.r == 0.f && vec.g == 1.f;
 
 	float t = ZERO_POINT_FIVE + TEST2(ZERO_POINT_FIVE);
@@ -329,16 +367,17 @@ fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput inpu
 	red = add_op_u32(add_op) == 4 && inlined_add_u32(1, 1) == 2;
 
 	red = copysignf(2.f, -1.f) <= -2.f;
-	red = sinf((float)state.tri_idx) <= 1.f;
 	red = isinf(INFINITY);
 	red = isnan(NAN);
 
 	U32 multiple, var;
 	U32 multiple_ass = 1, var_ign = 2;
 
+	vec4f32 color = sqrtv4f32(v4f32(0.5f, 0.5f, 0.5f, 0.5f));
+
 	BillboardFragment frag;
-	frag.color = state.tri_idx ? state.flat_color : state.color;
-	//frag.color = v4f(red, 0.f, 0.f, 1.f);
+	frag.color = state.color;
 	return frag;
 }
 
+#endif

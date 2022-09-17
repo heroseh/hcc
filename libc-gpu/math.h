@@ -1,12 +1,11 @@
 #ifndef	_MATH_H
 #define	_MATH_H 1
 
-#ifndef __HCC_GPU__
-#error "this header is designed to only be used for the hcc compiler when targeting GPU"
-#endif
+#include "stdbool.h"
 
 #define INFINITY (1.f / 0.f)
 #define NAN (0.f / 0.f)
+#define M_PI 3.14159265358979323846
 
 HCC_INTRINSIC bool __hcc_isinf(__hcc_generic_float v);
 HCC_INTRINSIC bool __hcc_isnan(__hcc_generic_float v);
@@ -74,8 +73,11 @@ HCC_INTRINSIC double atanh(double v);
 HCC_INTRINSIC float atan2f(float y, float x);
 HCC_INTRINSIC double atan2(double y, double x);
 
-HCC_INTRINSIC float fmaf(float v);
-HCC_INTRINSIC double fma(double v);
+HCC_INTRINSIC float fmaf(float x, float y, float z);
+HCC_INTRINSIC double fma(double x, double y, double z);
+
+HCC_INTRINSIC float sqrtf(float v);
+HCC_INTRINSIC double sqrt(double v);
 
 HCC_INTRINSIC float powf(float v);
 HCC_INTRINSIC double pow(double v);

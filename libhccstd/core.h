@@ -173,7 +173,7 @@ HCC_INTRINSIC struct HccVertexInput {
 
 HCC_INTRINSIC typedef struct HccFragmentInput HccFragmentInput;
 HCC_INTRINSIC struct HccFragmentInput {
-	vec4f frag_coord;
+	vec4f32 frag_coord;
 };
 
 #endif // _HCC_STD_CORE_H_
