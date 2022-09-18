@@ -15562,7 +15562,7 @@ void hcc_spirvgen_generate_intrinsic_function(HccCompiler* c, HccFunction* calle
 				break;
 
 			default:
-				HCC_ABORT("internal error: unhandled intrinsic function idx '%u' in spirvgen", function_idx);
+				HCC_ABORT("internal error: unhandled intrinsic function idx '%s' in spirvgen", hcc_intrinsic_function_strings[function_idx]);
 		}
 	}
 }
