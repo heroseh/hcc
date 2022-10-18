@@ -90,134 +90,134 @@ HCC_INTRINSIC half f64tof16(double v) {
 
 //
 // returns a vector that is vector 'v' reflected against surface 'normal'
-HCC_INTRINSIC vec2f16 reflectv2f16(vec2f16 v, vec2f16 normal) {
-	half dot_2 = mulf16(dotv2f16(normal, v), f32tof16(2.f));
-	return subv2f16(v, mulv2f16(normal, dot_2));
+HCC_INTRINSIC f16x2 reflectf16x2(f16x2 v, f16x2 normal) {
+	half dot_2 = mulf16(dotf16x2(normal, v), f32tof16(2.f));
+	return subf16x2(v, mulf16x2(normal, dot_2));
 }
-HCC_INTRINSIC vec2f32 reflectv2f32(vec2f32 v, vec2f32 normal) {
-	float dot_2 = dotv2f32(normal, v) * 2.0;
-	return subv2f32(v, mulv2f32(normal, dot_2));
+HCC_INTRINSIC f32x2 reflectf32x2(f32x2 v, f32x2 normal) {
+	float dot_2 = dotf32x2(normal, v) * 2.0;
+	return subf32x2(v, mulf32x2(normal, dot_2));
 }
-HCC_INTRINSIC vec2f64 reflectv2f64(vec2f64 v, vec2f64 normal) {
-	double dot_2 = dotv2f64(normal, v) * 2.0;
-	return subv2f64(v, mulv2f64(normal, dot_2));
+HCC_INTRINSIC f64x2 reflectf64x2(f64x2 v, f64x2 normal) {
+	double dot_2 = dotf64x2(normal, v) * 2.0;
+	return subf64x2(v, mulf64x2(normal, dot_2));
 }
-HCC_INTRINSIC vec3f16 reflectv3f16(vec3f16 v, vec3f16 normal) {
-	half dot_2 = mulf16(dotv3f16(normal, v), f32tof16(2.f));
-	return subv3f16(v, mulv3f16(normal, dot_2));
+HCC_INTRINSIC f16x3 reflectf16x3(f16x3 v, f16x3 normal) {
+	half dot_2 = mulf16(dotf16x3(normal, v), f32tof16(2.f));
+	return subf16x3(v, mulf16x3(normal, dot_2));
 }
-HCC_INTRINSIC vec3f32 reflectv3f32(vec3f32 v, vec3f32 normal) {
-	float dot_2 = dotv3f32(normal, v) * 2.0;
-	return subv3f32(v, mulv3f32(normal, dot_2));
+HCC_INTRINSIC f32x3 reflectf32x3(f32x3 v, f32x3 normal) {
+	float dot_2 = dotf32x3(normal, v) * 2.0;
+	return subf32x3(v, mulf32x3(normal, dot_2));
 }
-HCC_INTRINSIC vec3f64 reflectv3f64(vec3f64 v, vec3f64 normal) {
-	double dot_2 = dotv3f64(normal, v) * 2.0;
-	return subv3f64(v, mulv3f64(normal, dot_2));
+HCC_INTRINSIC f64x3 reflectf64x3(f64x3 v, f64x3 normal) {
+	double dot_2 = dotf64x3(normal, v) * 2.0;
+	return subf64x3(v, mulf64x3(normal, dot_2));
 }
-HCC_INTRINSIC vec4f16 reflectv4f16(vec4f16 v, vec4f16 normal) {
-	half dot_2 = mulf16(dotv4f16(normal, v), f32tof16(2.f));
-	return subv4f16(v, mulv4f16(normal, dot_2));
+HCC_INTRINSIC f16x4 reflectf16x4(f16x4 v, f16x4 normal) {
+	half dot_2 = mulf16(dotf16x4(normal, v), f32tof16(2.f));
+	return subf16x4(v, mulf16x4(normal, dot_2));
 }
-HCC_INTRINSIC vec4f32 reflectv4f32(vec4f32 v, vec4f32 normal) {
-	float dot_2 = dotv4f32(normal, v) * 2.0;
-	return subv4f32(v, mulv4f32(normal, dot_2));
+HCC_INTRINSIC f32x4 reflectf32x4(f32x4 v, f32x4 normal) {
+	float dot_2 = dotf32x4(normal, v) * 2.0;
+	return subf32x4(v, mulf32x4(normal, dot_2));
 }
-HCC_INTRINSIC vec4f64 reflectv4f64(vec4f64 v, vec4f64 normal) {
-	double dot_2 = dotv4f64(normal, v) * 2.0;
-	return subv4f64(v, mulv4f64(normal, dot_2));
+HCC_INTRINSIC f64x4 reflectf64x4(f64x4 v, f64x4 normal) {
+	double dot_2 = dotf64x4(normal, v) * 2.0;
+	return subf64x4(v, mulf64x4(normal, dot_2));
 }
 
 //
 // returns the refraction vector for vector 'v' against surface 'normal' with the ratio 'eta'
-HCC_INTRINSIC vec2f16 refractv2f16(vec2f16 v, vec2f16 normal, float eta) {
-	float dot = dotv2f16(normal, v);
+HCC_INTRINSIC f16x2 refractf16x2(f16x2 v, f16x2 normal, float eta) {
+	float dot = dotf16x2(normal, v);
 	float inv_dot_sq = subf16(1.0, mulf16(dot, dot));
 	float eta_sq = mulf16(eta, eta);
 	float k = subf16(1.f, mulf16(eta_sq, inv_dot_sq);
 	if (ltf16(k, 0.0)) {
-		return ZEROV2F16;
+		return ZEROf16x2;
 	}
-	return subv2f16(mulsv2f16(v, eta), mulsv2f16(normal, ((addf16(mulf16(eta, dotv2f16(normal, v)), sqrtf(k))))));
+	return subf16x2(mulsf16x2(v, eta), mulsf16x2(normal, ((addf16(mulf16(eta, dotf16x2(normal, v)), sqrtf(k))))));
 }
-HCC_INTRINSIC vec2f32 refractv2f32(vec2f32 v, vec2f32 normal, float eta) {
-	float dot = dotv2f32(normal, v);
+HCC_INTRINSIC f32x2 refractf32x2(f32x2 v, f32x2 normal, float eta) {
+	float dot = dotf32x2(normal, v);
 	float inv_dot_sq = 1.0 - dot * dot;
 	float eta_sq = eta * eta;
 	float k = 1.0 - eta_sq * inv_dot_sq;
 	if (k < 0.0) {
-		return ZEROV2F32;
+		return ZEROf32x2;
 	}
-	return subv2f32(mulsv2f32(v, eta), mulsv2f32(normal, ((eta * dotv2f32(normal, v) + sqrtf(k)))));
+	return subf32x2(mulsf32x2(v, eta), mulsf32x2(normal, ((eta * dotf32x2(normal, v) + sqrtf(k)))));
 }
-HCC_INTRINSIC vec2f64 refractv2f64(vec2f64 v, vec2f64 normal, float eta) {
-	float dot = dotv2f64(normal, v);
+HCC_INTRINSIC f64x2 refractf64x2(f64x2 v, f64x2 normal, float eta) {
+	float dot = dotf64x2(normal, v);
 	float inv_dot_sq = 1.0 - dot * dot;
 	float eta_sq = eta * eta;
 	float k = 1.0 - eta_sq * inv_dot_sq;
 	if (k < 0.0) {
-		return ZEROV2F64;
+		return ZEROf64x2;
 	}
-	return subv2f64(mulsv2f64(v, eta), mulsv2f64(normal, ((eta * dotv2f64(normal, v) + sqrtf(k)))));
+	return subf64x2(mulsf64x2(v, eta), mulsf64x2(normal, ((eta * dotf64x2(normal, v) + sqrtf(k)))));
 }
-HCC_INTRINSIC vec3f16 refractv3f16(vec3f16 v, vec3f16 normal, float eta) {
-	float dot = dotv3f16(normal, v);
+HCC_INTRINSIC f16x3 refractf16x3(f16x3 v, f16x3 normal, float eta) {
+	float dot = dotf16x3(normal, v);
 	float inv_dot_sq = subf16(1.0, mulf16(dot, dot));
 	float eta_sq = mulf16(eta, eta);
 	float k = subf16(1.f, mulf16(eta_sq, inv_dot_sq);
 	if (ltf16(k, 0.0)) {
-		return ZEROV3F16;
+		return ZEROf16x3;
 	}
-	return subv3f16(mulsv3f16(v, eta), mulsv3f16(normal, ((addf16(mulf16(eta, dotv3f16(normal, v)), sqrtf(k))))));
+	return subf16x3(mulsf16x3(v, eta), mulsf16x3(normal, ((addf16(mulf16(eta, dotf16x3(normal, v)), sqrtf(k))))));
 }
-HCC_INTRINSIC vec3f32 refractv3f32(vec3f32 v, vec3f32 normal, float eta) {
-	float dot = dotv3f32(normal, v);
+HCC_INTRINSIC f32x3 refractf32x3(f32x3 v, f32x3 normal, float eta) {
+	float dot = dotf32x3(normal, v);
 	float inv_dot_sq = 1.0 - dot * dot;
 	float eta_sq = eta * eta;
 	float k = 1.0 - eta_sq * inv_dot_sq;
 	if (k < 0.0) {
-		return ZEROV3F32;
+		return ZEROf32x3;
 	}
-	return subv3f32(mulsv3f32(v, eta), mulsv3f32(normal, ((eta * dotv3f32(normal, v) + sqrtf(k)))));
+	return subf32x3(mulsf32x3(v, eta), mulsf32x3(normal, ((eta * dotf32x3(normal, v) + sqrtf(k)))));
 }
-HCC_INTRINSIC vec3f64 refractv3f64(vec3f64 v, vec3f64 normal, float eta) {
-	float dot = dotv3f64(normal, v);
+HCC_INTRINSIC f64x3 refractf64x3(f64x3 v, f64x3 normal, float eta) {
+	float dot = dotf64x3(normal, v);
 	float inv_dot_sq = 1.0 - dot * dot;
 	float eta_sq = eta * eta;
 	float k = 1.0 - eta_sq * inv_dot_sq;
 	if (k < 0.0) {
-		return ZEROV3F64;
+		return ZEROf64x3;
 	}
-	return subv3f64(mulsv3f64(v, eta), mulsv3f64(normal, ((eta * dotv3f64(normal, v) + sqrtf(k)))));
+	return subf64x3(mulsf64x3(v, eta), mulsf64x3(normal, ((eta * dotf64x3(normal, v) + sqrtf(k)))));
 }
-HCC_INTRINSIC vec4f16 refractv4f16(vec4f16 v, vec4f16 normal, float eta) {
-	float dot = dotv4f16(normal, v);
+HCC_INTRINSIC f16x4 refractf16x4(f16x4 v, f16x4 normal, float eta) {
+	float dot = dotf16x4(normal, v);
 	float inv_dot_sq = subf16(1.0, mulf16(dot, dot));
 	float eta_sq = mulf16(eta, eta);
 	float k = subf16(1.f, mulf16(eta_sq, inv_dot_sq);
 	if (ltf16(k, 0.0)) {
-		return ZEROV4F16;
+		return ZEROf16x4;
 	}
-	return subv4f16(mulsv4f16(v, eta), mulsv4f16(normal, ((addf16(mulf16(eta, dotv4f16(normal, v)), sqrtf(k))))));
+	return subf16x4(mulsf16x4(v, eta), mulsf16x4(normal, ((addf16(mulf16(eta, dotf16x4(normal, v)), sqrtf(k))))));
 }
-HCC_INTRINSIC vec4f32 refractv4f32(vec4f32 v, vec4f32 normal, float eta) {
-	float dot = dotv4f32(normal, v);
+HCC_INTRINSIC f32x4 refractf32x4(f32x4 v, f32x4 normal, float eta) {
+	float dot = dotf32x4(normal, v);
 	float inv_dot_sq = 1.0 - dot * dot;
 	float eta_sq = eta * eta;
 	float k = 1.0 - eta_sq * inv_dot_sq;
 	if (k < 0.0) {
-		return ZEROV4F32;
+		return ZEROf32x4;
 	}
-	return subv4f32(mulsv4f32(v, eta), mulsv4f32(normal, ((eta * dotv4f32(normal, v) + sqrtf(k)))));
+	return subf32x4(mulsf32x4(v, eta), mulsf32x4(normal, ((eta * dotf32x4(normal, v) + sqrtf(k)))));
 }
-HCC_INTRINSIC vec4f64 refractv4f64(vec4f64 v, vec4f64 normal, float eta) {
-	float dot = dotv4f64(normal, v);
+HCC_INTRINSIC f64x4 refractf64x4(f64x4 v, f64x4 normal, float eta) {
+	float dot = dotf64x4(normal, v);
 	float inv_dot_sq = 1.0 - dot * dot;
 	float eta_sq = eta * eta;
 	float k = 1.0 - eta_sq * inv_dot_sq;
 	if (k < 0.0) {
-		return ZEROV4F64;
+		return ZEROf64x4;
 	}
-	return subv4f64(mulsv4f64(v, eta), mulsv4f64(normal, ((eta * dotv4f64(normal, v) + sqrtf(k)))));
+	return subf64x4(mulsf64x4(v, eta), mulsf64x4(normal, ((eta * dotf64x4(normal, v) + sqrtf(k)))));
 }
 
 HCC_INTRINSIC uint32_t packf16x2v2f32(vec2f32 v) {
@@ -547,30 +547,21 @@ HCC_INTRINSIC mat44f64 mulm44m44f64(mat44f64 a, mat44f64 b) {
 
 //
 // returns a matrix that is a result of multipling matrix 'm' with scalar 's'
-HCC_INTRINSIC mat22f32 mulsm22f32(mat22f32 m, float s) {
+HCC_INTRINSIC f32x2x2 mulsm22f32(f32x2x2 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[1][0] *= s;
 	m.cols[1][1] *= s;
 	return m;
 }
-HCC_INTRINSIC mat22f64 mulsm22f64(mat22f64 m, double s) {
+HCC_INTRINSIC f64x2x2 mulsm22f64(f64x2x2 m, double s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[1][0] *= s;
 	m.cols[1][1] *= s;
 	return m;
 }
-HCC_INTRINSIC mat23f32 mulsm23f32(mat23f32 m, float s) {
-	m.cols[0][0] *= s;
-	m.cols[0][1] *= s;
-	m.cols[0][2] *= s;
-	m.cols[1][0] *= s;
-	m.cols[1][1] *= s;
-	m.cols[1][2] *= s;
-	return m;
-}
-HCC_INTRINSIC mat23f64 mulsm23f64(mat23f64 m, double s) {
+HCC_INTRINSIC f32x2x3 mulsm23f32(f32x2x3 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -579,18 +570,16 @@ HCC_INTRINSIC mat23f64 mulsm23f64(mat23f64 m, double s) {
 	m.cols[1][2] *= s;
 	return m;
 }
-HCC_INTRINSIC mat24f32 mulsm24f32(mat24f32 m, float s) {
+HCC_INTRINSIC f64x2x3 mulsm23f64(f64x2x3 m, double s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
-	m.cols[0][3] *= s;
 	m.cols[1][0] *= s;
 	m.cols[1][1] *= s;
 	m.cols[1][2] *= s;
-	m.cols[1][3] *= s;
 	return m;
 }
-HCC_INTRINSIC mat24f64 mulsm24f64(mat24f64 m, double s) {
+HCC_INTRINSIC f32x2x4 mulsm24f32(f32x2x4 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -601,7 +590,18 @@ HCC_INTRINSIC mat24f64 mulsm24f64(mat24f64 m, double s) {
 	m.cols[1][3] *= s;
 	return m;
 }
-HCC_INTRINSIC mat32f32 mulsm32f32(mat32f32 m, float s) {
+HCC_INTRINSIC f64x2x4 mulsm24f64(f64x2x4 m, double s) {
+	m.cols[0][0] *= s;
+	m.cols[0][1] *= s;
+	m.cols[0][2] *= s;
+	m.cols[0][3] *= s;
+	m.cols[1][0] *= s;
+	m.cols[1][1] *= s;
+	m.cols[1][2] *= s;
+	m.cols[1][3] *= s;
+	return m;
+}
+HCC_INTRINSIC f32x3x2 mulsm32f32(f32x3x2 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[1][0] *= s;
@@ -610,7 +610,7 @@ HCC_INTRINSIC mat32f32 mulsm32f32(mat32f32 m, float s) {
 	m.cols[2][1] *= s;
 	return m;
 }
-HCC_INTRINSIC mat32f64 mulsm32f64(mat32f64 m, double s) {
+HCC_INTRINSIC f64x3x2 mulsm32f64(f64x3x2 m, double s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[1][0] *= s;
@@ -619,7 +619,7 @@ HCC_INTRINSIC mat32f64 mulsm32f64(mat32f64 m, double s) {
 	m.cols[2][1] *= s;
 	return m;
 }
-HCC_INTRINSIC mat33f32 mulsm33f32(mat33f32 m, float s) {
+HCC_INTRINSIC f32x3x3 mulsm33f32(f32x3x3 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -631,7 +631,7 @@ HCC_INTRINSIC mat33f32 mulsm33f32(mat33f32 m, float s) {
 	m.cols[2][2] *= s;
 	return m;
 }
-HCC_INTRINSIC mat33f64 mulsm33f64(mat33f64 m, double s) {
+HCC_INTRINSIC f64x3x3 mulsm33f64(f64x3x3 m, double s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -643,22 +643,7 @@ HCC_INTRINSIC mat33f64 mulsm33f64(mat33f64 m, double s) {
 	m.cols[2][2] *= s;
 	return m;
 }
-HCC_INTRINSIC mat34f32 mulsm34f32(mat34f32 m, float s) {
-	m.cols[0][0] *= s;
-	m.cols[0][1] *= s;
-	m.cols[0][2] *= s;
-	m.cols[0][3] *= s;
-	m.cols[1][0] *= s;
-	m.cols[1][1] *= s;
-	m.cols[1][2] *= s;
-	m.cols[1][3] *= s;
-	m.cols[2][0] *= s;
-	m.cols[2][1] *= s;
-	m.cols[2][2] *= s;
-	m.cols[2][3] *= s;
-	return m;
-}
-HCC_INTRINSIC mat34f64 mulsm34f64(mat34f64 m, double s) {
+HCC_INTRINSIC f32x3x4 mulsm34f32(f32x3x4 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -673,7 +658,22 @@ HCC_INTRINSIC mat34f64 mulsm34f64(mat34f64 m, double s) {
 	m.cols[2][3] *= s;
 	return m;
 }
-HCC_INTRINSIC mat42f32 mulsm42f32(mat42f32 m, float s) {
+HCC_INTRINSIC f64x3x4 mulsm34f64(f64x3x4 m, double s) {
+	m.cols[0][0] *= s;
+	m.cols[0][1] *= s;
+	m.cols[0][2] *= s;
+	m.cols[0][3] *= s;
+	m.cols[1][0] *= s;
+	m.cols[1][1] *= s;
+	m.cols[1][2] *= s;
+	m.cols[1][3] *= s;
+	m.cols[2][0] *= s;
+	m.cols[2][1] *= s;
+	m.cols[2][2] *= s;
+	m.cols[2][3] *= s;
+	return m;
+}
+HCC_INTRINSIC f32x4x2 mulsm42f32(f32x4x2 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[1][0] *= s;
@@ -684,7 +684,7 @@ HCC_INTRINSIC mat42f32 mulsm42f32(mat42f32 m, float s) {
 	m.cols[3][1] *= s;
 	return m;
 }
-HCC_INTRINSIC mat42f64 mulsm42f64(mat42f64 m, double s) {
+HCC_INTRINSIC f64x4x2 mulsm42f64(f64x4x2 m, double s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[1][0] *= s;
@@ -695,7 +695,7 @@ HCC_INTRINSIC mat42f64 mulsm42f64(mat42f64 m, double s) {
 	m.cols[3][1] *= s;
 	return m;
 }
-HCC_INTRINSIC mat43f32 mulsm43f32(mat43f32 m, float s) {
+HCC_INTRINSIC f32x4x3 mulsm43f32(f32x4x3 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -710,7 +710,7 @@ HCC_INTRINSIC mat43f32 mulsm43f32(mat43f32 m, float s) {
 	m.cols[3][2] *= s;
 	return m;
 }
-HCC_INTRINSIC mat43f64 mulsm43f64(mat43f64 m, double s) {
+HCC_INTRINSIC f64x4x3 mulsm43f64(f64x4x3 m, double s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -725,7 +725,7 @@ HCC_INTRINSIC mat43f64 mulsm43f64(mat43f64 m, double s) {
 	m.cols[3][2] *= s;
 	return m;
 }
-HCC_INTRINSIC mat44f32 mulsm44f32(mat44f32 m, float s) {
+HCC_INTRINSIC f32x4x4 mulsm44f32(f32x4x4 m, float s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -744,7 +744,7 @@ HCC_INTRINSIC mat44f32 mulsm44f32(mat44f32 m, float s) {
 	m.cols[3][3] *= s;
 	return m;
 }
-HCC_INTRINSIC mat44f64 mulsm44f64(mat44f64 m, double s) {
+HCC_INTRINSIC f64x4x4 mulsm44f64(f64x4x4 m, double s) {
 	m.cols[0][0] *= s;
 	m.cols[0][1] *= s;
 	m.cols[0][2] *= s;
@@ -1498,13 +1498,13 @@ HCC_INTRINSIC mat44f64 outerproductv4v4f64(vec4f64 c, vec4f64 r) {
 
 //
 // returns the determinant of matrix 'm'
-HCC_INTRINSIC float determinantm22f32(mat22f32 m) {
+HCC_INTRINSIC float determinantm22f32(f32x2x2 m) {
 	return m.cols[0][0] * m.cols[1][1] - m.cols[1][0] * m.cols[0][1];
 }
-HCC_INTRINSIC double determinantm22f64(mat22f64 m) {
+HCC_INTRINSIC double determinantm22f64(f64x2x2 m) {
 	return m.cols[0][0] * m.cols[1][1] - m.cols[1][0] * m.cols[0][1];
 }
-HCC_INTRINSIC float determinantm33f32(mat33f32 m) {
+HCC_INTRINSIC float determinantm33f32(f32x3x3 m) {
 	float s[3];
 	s[0] = (m.cols[1][1] * m.cols[2][2]) - (m.cols[2][1] * m.cols[1][2]);
 	s[1] = (m.cols[1][0] * m.cols[2][2]) - (m.cols[1][2] * m.cols[2][0]);
@@ -1512,7 +1512,7 @@ HCC_INTRINSIC float determinantm33f32(mat33f32 m) {
 	float det = s[0] - s[1] + s[2];
 	return det;
 }
-HCC_INTRINSIC double determinantm33f64(mat33f64 m) {
+HCC_INTRINSIC double determinantm33f64(f64x3x3 m) {
 	double s[3];
 	s[0] = (m.cols[1][1] * m.cols[2][2]) - (m.cols[2][1] * m.cols[1][2]);
 	s[1] = (m.cols[1][0] * m.cols[2][2]) - (m.cols[1][2] * m.cols[2][0]);
@@ -1520,7 +1520,7 @@ HCC_INTRINSIC double determinantm33f64(mat33f64 m) {
 	double det = s[0] - s[1] + s[2];
 	return det;
 }
-HCC_INTRINSIC float determinantm44f32(mat44f32 m) {
+HCC_INTRINSIC float determinantm44f32(f32x4x4 m) {
 	float s[6];
 	float c[6];
 
@@ -1541,7 +1541,7 @@ HCC_INTRINSIC float determinantm44f32(mat44f32 m) {
 	float det = s[0]*c[5]-s[1]*c[4]+s[2]*c[3]+s[3]*c[2]-s[4]*c[1]+s[5]*c[0];
 	return det;
 }
-HCC_INTRINSIC double determinantm44f64(mat44f64 m) {
+HCC_INTRINSIC double determinantm44f64(f64x4x4 m) {
 	double s[6];
 	double c[6];
 
@@ -1565,9 +1565,9 @@ HCC_INTRINSIC double determinantm44f64(mat44f64 m) {
 
 //
 // returns the inverse of matrix 'm'
-HCC_INTRINSIC mat22f32 inversem22f32(mat22f32 m) {
+HCC_INTRINSIC f32x2x2 inversem22f32(f32x2x2 m) {
 	float inv_det = 1.0 / determinantm22f32(m);
-	mat22f32 ret;
+	f32x2x2 ret;
 	ret.cols[0][0] = m.cols[1][1] * inv_det;
 	ret.cols[0][1] = -m.cols[0][1] * inv_det;
 	
@@ -1575,9 +1575,9 @@ HCC_INTRINSIC mat22f32 inversem22f32(mat22f32 m) {
 	ret.cols[1][1] = m.cols[0][0] * inv_det;
 	return ret;
 }
-HCC_INTRINSIC mat22f64 inversem22f64(mat22f64 m) {
+HCC_INTRINSIC f64x2x2 inversem22f64(f64x2x2 m) {
 	double inv_det = 1.0 / determinantm22f64(m);
-	mat22f64 ret;
+	f64x2x2 ret;
 	ret.cols[0][0] = m.cols[1][1] * inv_det;
 	ret.cols[0][1] = -m.cols[0][1] * inv_det;
 	
@@ -1585,14 +1585,14 @@ HCC_INTRINSIC mat22f64 inversem22f64(mat22f64 m) {
 	ret.cols[1][1] = m.cols[0][0] * inv_det;
 	return ret;
 }
-HCC_INTRINSIC mat33f32 inversem33f32(mat33f32 m) {
+HCC_INTRINSIC f32x3x3 inversem33f32(f32x3x3 m) {
 	float s[3];
 	s[0] = (m.cols[1][1] * m.cols[2][2]) - (m.cols[2][1] * m.cols[1][2]);
 	s[1] = (m.cols[1][0] * m.cols[2][2]) - (m.cols[1][2] * m.cols[2][0]);
 	s[2] = (m.cols[1][0] * m.cols[2][1]) - (m.cols[1][1] * m.cols[2][0]);
 	float det = s[0] - s[1] + s[2];
 	float inv_det = 1.0 / det;
-	mat33f32 ret;
+	f32x3x3 ret;
 	ret.cols[0][0] = s[0] * inv_det;
 	ret.cols[0][1] = (m.cols[0][2] * m.cols[2][1] - m.cols[0][1] * m.cols[2][2]) * inv_det;
 	ret.cols[0][2] = (m.cols[0][1] * m.cols[1][2] - m.cols[0][2] * m.cols[1][1]) * inv_det;
@@ -1606,14 +1606,14 @@ HCC_INTRINSIC mat33f32 inversem33f32(mat33f32 m) {
 	ret.cols[2][2] = (m.cols[0][0] * m.cols[1][1] - m.cols[1][0] * m.cols[0][1]) * inv_det;
 	return ret;
 }
-HCC_INTRINSIC mat33f64 inversem33f64(mat33f64 m) {
+HCC_INTRINSIC f64x3x3 inversem33f64(f64x3x3 m) {
 	double s[3];
 	s[0] = (m.cols[1][1] * m.cols[2][2]) - (m.cols[2][1] * m.cols[1][2]);
 	s[1] = (m.cols[1][0] * m.cols[2][2]) - (m.cols[1][2] * m.cols[2][0]);
 	s[2] = (m.cols[1][0] * m.cols[2][1]) - (m.cols[1][1] * m.cols[2][0]);
 	double det = s[0] - s[1] + s[2];
 	double inv_det = 1.0 / det;
-	mat33f64 ret;
+	f64x3x3 ret;
 	ret.cols[0][0] = s[0] * inv_det;
 	ret.cols[0][1] = (m.cols[0][2] * m.cols[2][1] - m.cols[0][1] * m.cols[2][2]) * inv_det;
 	ret.cols[0][2] = (m.cols[0][1] * m.cols[1][2] - m.cols[0][2] * m.cols[1][1]) * inv_det;
@@ -1627,7 +1627,7 @@ HCC_INTRINSIC mat33f64 inversem33f64(mat33f64 m) {
 	ret.cols[2][2] = (m.cols[0][0] * m.cols[1][1] - m.cols[1][0] * m.cols[0][1]) * inv_det;
 	return ret;
 }
-HCC_INTRINSIC mat44f32 inversem44f32(mat44f32 m) {
+HCC_INTRINSIC f32x4x4 inversem44f32(f32x4x4 m) {
 	float s[6];
 	float c[6];
 
@@ -1647,7 +1647,7 @@ HCC_INTRINSIC mat44f32 inversem44f32(mat44f32 m) {
 
 	float det = s[0]*c[5]-s[1]*c[4]+s[2]*c[3]+s[3]*c[2]-s[4]*c[1]+s[5]*c[0];
 	float inv_det = 1.0 / det;
-	mat44f32 ret;
+	f32x4x4 ret;
 	ret.cols[0][0] = ( m.cols[1][1] * c[5] - m.cols[1][2] * c[4] + m.cols[1][3] * c[3]) * inv_det;
 	ret.cols[0][1] = (-m.cols[0][1] * c[5] + m.cols[0][2] * c[4] - m.cols[0][3] * c[3]) * inv_det;
 	ret.cols[0][2] = ( m.cols[3][1] * s[5] - m.cols[3][2] * s[4] + m.cols[3][3] * s[3]) * inv_det;
@@ -1669,7 +1669,7 @@ HCC_INTRINSIC mat44f32 inversem44f32(mat44f32 m) {
 	ret.cols[3][3] = ( m.cols[2][0] * s[3] - m.cols[2][1] * s[1] + m.cols[2][2] * s[0]) * inv_det;
 	return ret;
 }
-HCC_INTRINSIC mat44f64 inversem44f64(mat44f64 m) {
+HCC_INTRINSIC f64x4x4 inversem44f64(f64x4x4 m) {
 	double s[6];
 	double c[6];
 
@@ -1689,7 +1689,7 @@ HCC_INTRINSIC mat44f64 inversem44f64(mat44f64 m) {
 
 	double det = s[0]*c[5]-s[1]*c[4]+s[2]*c[3]+s[3]*c[2]-s[4]*c[1]+s[5]*c[0];
 	double inv_det = 1.0 / det;
-	mat44f64 ret;
+	f64x4x4 ret;
 	ret.cols[0][0] = ( m.cols[1][1] * c[5] - m.cols[1][2] * c[4] + m.cols[1][3] * c[3]) * inv_det;
 	ret.cols[0][1] = (-m.cols[0][1] * c[5] + m.cols[0][2] * c[4] - m.cols[0][3] * c[3]) * inv_det;
 	ret.cols[0][2] = ( m.cols[3][1] * s[5] - m.cols[3][2] * s[4] + m.cols[3][3] * s[3]) * inv_det;

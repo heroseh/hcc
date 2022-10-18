@@ -1,55 +1,7 @@
 
-#if 1
-
 #include "../libc-gpu/math.h"
 #include "../libhccstd/core.h"
 #include "../libhccstd/math.h"
-
-HCC_DEFINE_RASTERIZER_STATE(
-	BillboardRasterizerState,
-	(POSITION, vec4f32, position),
-	(INTERP,   vec4f32, color),
-	(INTERP,   vec2f32, snorm)
-);
-
-vertex BillboardRasterizerState billboard_shader_vertex(const HccVertexInput input) {
-	BillboardRasterizerState state;
-	vec2f32 unorm = v2f32(input.vertex_idx & 1, input.vertex_idx / 2);
-	vec2f32 snorm = subsv2f32(mulsv2f32(unorm, 2.f), 1.f);
-	state.position = v4f32(snorm.x, snorm.y, 0.25f, 1.f);
-	state.color = v4f32(unorm.x, unorm.y, 0.f, 1.f);
-	state.snorm = snorm;
-	return state;
-}
-
-HCC_DEFINE_FRAGMENT_STATE(
-	BillboardFragment,
-	(vec4f32, color)
-);
-
-float circle_distance(vec2f32 pt, float radius) {
-	return lenv2f32(pt) - radius;
-}
-
-fragment BillboardFragment billboard_shader_fragment(
-	const HccFragmentInput input,
-	const BillboardRasterizerState state
-) {
-	float distance = circle_distance(state.snorm, 0.75f);
-
-	BillboardFragment frag;
-	frag.color = distance < 0.f ? state.color : ZEROV4F32;
-	return frag;
-}
-
-
-
-#else
-
-#include "../libc-gpu/math.h"
-#include "../libhccstd/core.h"
-#include "../libhccstd/math.h"
-
 
 typedef _Bool Bool;
 typedef uint32_t U32;
@@ -380,4 +332,3 @@ fragment BillboardFragment billboard_shader_fragment(const HccFragmentInput inpu
 	return frag;
 }
 
-#endif

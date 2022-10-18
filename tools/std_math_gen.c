@@ -237,10 +237,10 @@ enum DataType {
 	DATA_TYPE_HALF,
 	DATA_TYPE_FLOAT,
 	DATA_TYPE_DOUBLE,
-	DATA_TYPE_I8,
-	DATA_TYPE_I16,
-	DATA_TYPE_I32,
-	DATA_TYPE_I64,
+	DATA_TYPE_S8,
+	DATA_TYPE_S16,
+	DATA_TYPE_S32,
+	DATA_TYPE_S64,
 	DATA_TYPE_U8,
 	DATA_TYPE_U16,
 	DATA_TYPE_U32,
@@ -950,28 +950,16 @@ const char* vector_fn_docs[VECTOR_FN_COUNT] = {
 	[VECTOR_FN_INVLERP] = "return a vector where each component is the result of appling 'invlerp' to that component in 'start', 'end' and 't'",
 };
 
-static const char* vector_identifiers[] = {
-	[VECTOR_2] = "vec2",
-	[VECTOR_3] = "vec3",
-	[VECTOR_4] = "vec4",
-};
-
-static const char* vector_identifiers_cap[] = {
-	[VECTOR_2] = "VEC2",
-	[VECTOR_3] = "VEC3",
-	[VECTOR_4] = "VEC4",
-};
-
 static const char* vector_suffixes[] = {
-	[VECTOR_2] = "v2",
-	[VECTOR_3] = "v3",
-	[VECTOR_4] = "v4",
+	[VECTOR_2] = "x2",
+	[VECTOR_3] = "x3",
+	[VECTOR_4] = "x4",
 };
 
 static const char* vector_suffixes_cap[] = {
-	[VECTOR_2] = "V2",
-	[VECTOR_3] = "V3",
-	[VECTOR_4] = "V4",
+	[VECTOR_2] = "X2",
+	[VECTOR_3] = "X3",
+	[VECTOR_4] = "X4",
 };
 
 static unsigned vector_comps[] = {
@@ -986,40 +974,28 @@ static unsigned vector_align_comps[] = {
 	[VECTOR_4] = 4,
 };
 
-static const char* matrix_identifiers[] = {
-	[MATRIX_2x2] = "mat22",
-	[MATRIX_2x3] = "mat23",
-	[MATRIX_2x4] = "mat24",
-	[MATRIX_3x2] = "mat32",
-	[MATRIX_3x3] = "mat33",
-	[MATRIX_3x4] = "mat34",
-	[MATRIX_4x2] = "mat42",
-	[MATRIX_4x3] = "mat43",
-	[MATRIX_4x4] = "mat44",
-};
-
 static const char* matrix_suffixes[] = {
-	[MATRIX_2x2] = "m22",
-	[MATRIX_2x3] = "m23",
-	[MATRIX_2x4] = "m24",
-	[MATRIX_3x2] = "m32",
-	[MATRIX_3x3] = "m33",
-	[MATRIX_3x4] = "m34",
-	[MATRIX_4x2] = "m42",
-	[MATRIX_4x3] = "m43",
-	[MATRIX_4x4] = "m44",
+	[MATRIX_2x2] = "x2x2",
+	[MATRIX_2x3] = "x2x3",
+	[MATRIX_2x4] = "x2x4",
+	[MATRIX_3x2] = "x3x2",
+	[MATRIX_3x3] = "x3x3",
+	[MATRIX_3x4] = "x3x4",
+	[MATRIX_4x2] = "x4x2",
+	[MATRIX_4x3] = "x4x3",
+	[MATRIX_4x4] = "x4x4",
 };
 
 static const char* matrix_suffixes_cap[] = {
-	[MATRIX_2x2] = "M22",
-	[MATRIX_2x3] = "M23",
-	[MATRIX_2x4] = "M24",
-	[MATRIX_3x2] = "M32",
-	[MATRIX_3x3] = "M33",
-	[MATRIX_3x4] = "M34",
-	[MATRIX_4x2] = "M42",
-	[MATRIX_4x3] = "M43",
-	[MATRIX_4x4] = "M44",
+	[MATRIX_2x2] = "X2X2",
+	[MATRIX_2x3] = "X2X3",
+	[MATRIX_2x4] = "X2X4",
+	[MATRIX_3x2] = "X3X2",
+	[MATRIX_3x3] = "X3X3",
+	[MATRIX_3x4] = "X3X4",
+	[MATRIX_4x2] = "X4X2",
+	[MATRIX_4x3] = "X4X3",
+	[MATRIX_4x4] = "X4X4",
 };
 
 static unsigned matrix_columns_count[] = {
@@ -1051,10 +1027,10 @@ static DataTypeClass data_type_classes[] = {
 	[DATA_TYPE_HALF] = DATA_TYPE_CLASS_FLOAT,
 	[DATA_TYPE_FLOAT] = DATA_TYPE_CLASS_FLOAT,
 	[DATA_TYPE_DOUBLE] = DATA_TYPE_CLASS_FLOAT,
-	[DATA_TYPE_I8] = DATA_TYPE_CLASS_INT,
-	[DATA_TYPE_I16] = DATA_TYPE_CLASS_INT,
-	[DATA_TYPE_I32] = DATA_TYPE_CLASS_INT,
-	[DATA_TYPE_I64] = DATA_TYPE_CLASS_INT,
+	[DATA_TYPE_S8] = DATA_TYPE_CLASS_INT,
+	[DATA_TYPE_S16] = DATA_TYPE_CLASS_INT,
+	[DATA_TYPE_S32] = DATA_TYPE_CLASS_INT,
+	[DATA_TYPE_S64] = DATA_TYPE_CLASS_INT,
 	[DATA_TYPE_U8] = DATA_TYPE_CLASS_UINT,
 	[DATA_TYPE_U16] = DATA_TYPE_CLASS_UINT,
 	[DATA_TYPE_U32] = DATA_TYPE_CLASS_UINT,
@@ -1066,10 +1042,10 @@ static const char* data_type_identifiers[] = {
 	[DATA_TYPE_HALF] = "half",
 	[DATA_TYPE_FLOAT] = "float",
 	[DATA_TYPE_DOUBLE] = "double",
-	[DATA_TYPE_I8] = "int8_t",
-	[DATA_TYPE_I16] = "int16_t",
-	[DATA_TYPE_I32] = "int32_t",
-	[DATA_TYPE_I64] = "int64_t",
+	[DATA_TYPE_S8] = "int8_t",
+	[DATA_TYPE_S16] = "int16_t",
+	[DATA_TYPE_S32] = "int32_t",
+	[DATA_TYPE_S64] = "int64_t",
 	[DATA_TYPE_U8] = "uint8_t",
 	[DATA_TYPE_U16] = "uint16_t",
 	[DATA_TYPE_U32] = "uint32_t",
@@ -1081,10 +1057,10 @@ static const char* data_type_suffixes[] = {
 	[DATA_TYPE_HALF] = "f16",
 	[DATA_TYPE_FLOAT] = "f32",
 	[DATA_TYPE_DOUBLE] = "f64",
-	[DATA_TYPE_I8] = "i8",
-	[DATA_TYPE_I16] = "i16",
-	[DATA_TYPE_I32] = "i32",
-	[DATA_TYPE_I64] = "i64",
+	[DATA_TYPE_S8] = "s8",
+	[DATA_TYPE_S16] = "s16",
+	[DATA_TYPE_S32] = "s32",
+	[DATA_TYPE_S64] = "s64",
 	[DATA_TYPE_U8] = "u8",
 	[DATA_TYPE_U16] = "u16",
 	[DATA_TYPE_U32] = "u32",
@@ -1096,10 +1072,10 @@ static const char* data_type_suffixes_cap[] = {
 	[DATA_TYPE_HALF] = "F16",
 	[DATA_TYPE_FLOAT] = "F32",
 	[DATA_TYPE_DOUBLE] = "F64",
-	[DATA_TYPE_I8] = "I8",
-	[DATA_TYPE_I16] = "I16",
-	[DATA_TYPE_I32] = "I32",
-	[DATA_TYPE_I64] = "I64",
+	[DATA_TYPE_S8] = "S8",
+	[DATA_TYPE_S16] = "S16",
+	[DATA_TYPE_S32] = "S32",
+	[DATA_TYPE_S64] = "S64",
 	[DATA_TYPE_U8] = "U8",
 	[DATA_TYPE_U16] = "U16",
 	[DATA_TYPE_U32] = "U32",
@@ -1111,10 +1087,10 @@ static unsigned data_type_sizes[] = {
 	[DATA_TYPE_HALF] = 2,
 	[DATA_TYPE_FLOAT] = 4,
 	[DATA_TYPE_DOUBLE] = 8,
-	[DATA_TYPE_I8] = 1,
-	[DATA_TYPE_I16] = 2,
-	[DATA_TYPE_I32] = 4,
-	[DATA_TYPE_I64] = 8,
+	[DATA_TYPE_S8] = 1,
+	[DATA_TYPE_S16] = 2,
+	[DATA_TYPE_S32] = 4,
+	[DATA_TYPE_S64] = 8,
 	[DATA_TYPE_U8] = 1,
 	[DATA_TYPE_U16] = 2,
 	[DATA_TYPE_U32] = 4,
@@ -1365,10 +1341,10 @@ void print_entry(const char* string) {
 				break;
 			case 'm':
 				switch (ctx.data_type) {
-					case DATA_TYPE_I8: fprintf(ctx.f,"0x80"); break;
-					case DATA_TYPE_I16: fprintf(ctx.f,"0x8000"); break;
-					case DATA_TYPE_I32: fprintf(ctx.f,"0x800000"); break;
-					case DATA_TYPE_I64: fprintf(ctx.f,"0x80000000"); break;
+					case DATA_TYPE_S8: fprintf(ctx.f,"0x80"); break;
+					case DATA_TYPE_S16: fprintf(ctx.f,"0x8000"); break;
+					case DATA_TYPE_S32: fprintf(ctx.f,"0x800000"); break;
+					case DATA_TYPE_S64: fprintf(ctx.f,"0x80000000"); break;
 					default: break;
 				}
 				break;
@@ -1381,67 +1357,44 @@ void print_entry(const char* string) {
 					fprintf(ctx.f,"%u", vector_align_comps[ctx.vector] * data_type_sizes[ctx.data_type]);
 					break;
 				case 'b':
-					fprintf(ctx.f,"%s", vector_identifiers[ctx.vector]);
 					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type + 4]);
-					break;
-				case 'B':
 					fprintf(ctx.f,"%s", vector_suffixes[ctx.vector]);
-					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type + 4]);
 					break;
 				case 'c':
 					fprintf(ctx.f,"%u", vector_comps[ctx.vector]);
 					break;
-				case 'i':
-					fprintf(ctx.f,"%s", vector_identifiers[ctx.vector]);
-					break;
-				case 'I':
-					fprintf(ctx.f,"%s", vector_identifiers_cap[ctx.vector]);
-					fprintf(ctx.f,"%s", data_type_suffixes_cap[ctx.data_type]);
-					break;
 				case '2':
-					fprintf(ctx.f,"%s", vector_identifiers[VECTOR_2]);
 					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%s", vector_suffixes[VECTOR_2]);
 					break;
 				case '3':
-					fprintf(ctx.f,"%s", vector_identifiers[VECTOR_3]);
 					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%s", vector_suffixes[VECTOR_3]);
 					break;
 				case 's':
-					fprintf(ctx.f,"%s", vector_identifiers[ctx.vector]);
 					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%s", vector_suffixes[ctx.vector]);
 					break;
 				case 'S':
-					fprintf(ctx.f,"%s", vector_identifiers[ctx.vector]);
-					fprintf(ctx.f,"%-4s", data_type_suffixes[ctx.data_type]);
-					break;
-				case 'f':
-					fprintf(ctx.f,"%s", vector_suffixes[ctx.vector]);
+					fprintf(ctx.f,"%s", data_type_suffixes_cap[ctx.data_type]);
+					fprintf(ctx.f,"%s", vector_suffixes_cap[ctx.vector]);
 					break;
 				case 'x':
 					fprintf(ctx.f,"%s", vector_suffixes[ctx.vector]);
-					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type]);
-					break;
-				case 'X':
-					fprintf(ctx.f,"%s", vector_suffixes_cap[ctx.vector]);
-					fprintf(ctx.f,"%s", data_type_suffixes_cap[ctx.data_type]);
 					break;
 				case 'z':
-					fprintf(ctx.f,"%s", vector_suffixes[ctx.vector]);
-					fprintf(ctx.f,"%-4s", data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%-4s", vector_suffixes[ctx.vector]);
 					break;
 				case 'Z':
-					fprintf(ctx.f,"%s", vector_suffixes_cap[ctx.vector]);
-					fprintf(ctx.f,"%-4s", data_type_suffixes_cap[ctx.data_type]);
+					fprintf(ctx.f,"%s", data_type_suffixes_cap[ctx.data_type]);
+					fprintf(ctx.f,"%-4s", vector_suffixes_cap[ctx.vector]);
 					break;
 			}
 			break;
 		case 'm':
 			next_special += 1; // skip 'm'
 			switch (*next_special) {
-				case 't':
-					fprintf(ctx.f,"%s", matrix_identifiers[ctx.matrix]);
-					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type]);
-					break;
 				case 'c':
 					fprintf(ctx.f,"%u", matrix_columns_count[ctx.matrix]);
 					break;
@@ -1455,18 +1408,18 @@ void print_entry(const char* string) {
 					fprintf(ctx.f,"%-2u", 4 * matrix_rows_count[ctx.matrix]);
 					break;
 				case 'v':
-					fprintf(ctx.f,"%s%s", vector_identifiers[ctx.matrix / 3], data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%s%s", data_type_suffixes[ctx.data_type], vector_suffixes[ctx.matrix / 3]);
 					break;
 				case 'V':
-					fprintf(ctx.f,"%s%s", vector_identifiers[ctx.matrix % 3], data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%s%s", data_type_suffixes[ctx.data_type], vector_suffixes[ctx.matrix % 3]);
 					break;
 				case 'x':
-					fprintf(ctx.f,"%s", matrix_suffixes[ctx.matrix]);
 					fprintf(ctx.f,"%s", data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f,"%s", matrix_suffixes[ctx.matrix]);
 					break;
 				case 'X':
-					fprintf(ctx.f,"%s", matrix_suffixes_cap[ctx.matrix]);
 					fprintf(ctx.f,"%s", data_type_suffixes_cap[ctx.data_type]);
+					fprintf(ctx.f,"%s", matrix_suffixes_cap[ctx.matrix]);
 					break;
 			}
 			break;
@@ -1541,7 +1494,7 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC typedef struct p$vS { $dI x; $dI y; } p$vs;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$vs { $dI x; $dI y; } p$vs;\n");
 		}
 
 		fprintf(ctx.f,"\n");
@@ -1549,7 +1502,7 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC typedef struct p$vS { $dI x; $dI y; $dI z; } p$vs;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$vs { $dI x; $dI y; $dI z; } p$vs;\n");
 		}
 
 		fprintf(ctx.f,"\n");
@@ -1557,7 +1510,7 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC typedef struct p$vS { $dI x; $dI y; $dI z; $dI w; } p$vs;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$vs { $dI x; $dI y; $dI z; $dI w; } p$vs;\n");
 		}
 	}
 
@@ -1569,17 +1522,17 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define p$vx(x, y) ((p$vs){ x, y })\n");
+			print_entry("#define p$vs(x, y) ((p$vs){ x, y })\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define p$vx(x, y, z) ((p$vs){ x, y, z })\n");
+			print_entry("#define p$vs(x, y, z) ((p$vs){ x, y, z })\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define p$vx(x, y, z, w) ((p$vs){ x, y, z, w })\n");
+			print_entry("#define p$vs(x, y, z, w) ((p$vs){ x, y, z, w })\n");
 		}
 
 		fprintf(ctx.f,"\n");
@@ -1591,7 +1544,7 @@ void generate_math_types_header_file() {
 		ctx.vector = vector;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC typedef union $vS $vs;\n");
+			print_entry("HCC_INTRINSIC typedef union $vs $vs;\n");
 		}
 		fprintf(ctx.f,"\n");
 	}
@@ -1650,29 +1603,29 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vx(x, y) (($vs){ { x, y } })\n");
-			print_entry("#define $vxs(s) (($vs){ { s, s } })\n");
+			print_entry("#define $vs(x, y) (($vs){ { x, y } })\n");
+			print_entry("#define $vss(s) (($vs){ { s, s } })\n");
 		}
 		fprintf(ctx.f,"\n");
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vx(x, y, z) (($vs){ { x, y, z } })\n");
-			print_entry("#define $vxs(s) (($vs){ { s, s, s } })\n");
-			print_entry("#define $vxsv2(x, v) (($vs){ { x, (v).x, (v).y } })\n");
-			print_entry("#define $vxv2s(v, z) (($vs){ { (v).x, (v).y, z } })\n");
+			print_entry("#define $vs(x, y, z) (($vs){ { x, y, z } })\n");
+			print_entry("#define $vss(s) (($vs){ { s, s, s } })\n");
+			print_entry("#define $vssv2(x, v) (($vs){ { x, (v).x, (v).y } })\n");
+			print_entry("#define $vsv2s(v, z) (($vs){ { (v).x, (v).y, z } })\n");
 		}
 		fprintf(ctx.f,"\n");
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vx(x, y, z, w) (($vs){ { x, y, z, w } })\n");
-			print_entry("#define $vxs(s) (($vs){ { s, s, s, s } })\n");
-			print_entry("#define $vxsv2(x, y, v) (($vs){ { x, y, (v).x, (v).y } })\n");
-			print_entry("#define $vxv2s(v, z, w) (($vs){ { (v).x, (v).y, z, w } })\n");
-			print_entry("#define $vxsv2s(x, v, w) (($vs){ { x, (v).x, (v).y, w } })\n");
-			print_entry("#define $vxsv3(x, v) (($vs){ { x, (v).x, (v).y, (v).z } })\n");
-			print_entry("#define $vxv3s(v, w) (($vs){ { (v).x, (v).y, (v).z, w } })\n");
+			print_entry("#define $vs(x, y, z, w) (($vs){ { x, y, z, w } })\n");
+			print_entry("#define $vss(s) (($vs){ { s, s, s, s } })\n");
+			print_entry("#define $vssv2(x, y, v) (($vs){ { x, y, (v).x, (v).y } })\n");
+			print_entry("#define $vsv2s(v, z, w) (($vs){ { (v).x, (v).y, z, w } })\n");
+			print_entry("#define $vssv2s(x, v, w) (($vs){ { x, (v).x, (v).y, w } })\n");
+			print_entry("#define $vssv3(x, v) (($vs){ { x, (v).x, (v).y, (v).z } })\n");
+			print_entry("#define $vsv3s(v, w) (($vs){ { (v).x, (v).y, (v).z, w } })\n");
 		}
 	}
 	fprintf(ctx.f,"\n");
@@ -1684,7 +1637,7 @@ void generate_math_types_header_file() {
 			ctx.vector = vector;
 			for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 				ctx.data_type = data_type;
-				print_entry("#define ZERO$vZ (($vS){0})\n");
+				print_entry("#define ZERO$vZ (($vs){0})\n");
 			}
 		}
 	}
@@ -1696,17 +1649,17 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define INFINITY$vX $vx(INFINITY$dX, INFINITY$dX)\n");
+			print_entry("#define INFINITY$vS $vs(INFINITY$dX, INFINITY$dX)\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define INFINITY$vX $vx(INFINITY$dX, INFINITY$dX, INFINITY$dX)\n");
+			print_entry("#define INFINITY$vS $vs(INFINITY$dX, INFINITY$dX, INFINITY$dX)\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define INFINITY$vX $vx(INFINITY$dX, INFINITY$dX, INFINITY$dX, INFINITY$dX)\n");
+			print_entry("#define INFINITY$vS $vs(INFINITY$dX, INFINITY$dX, INFINITY$dX, INFINITY$dX)\n");
 		}
 		fprintf(ctx.f,"\n");
 	}
@@ -1717,17 +1670,17 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define NEGINFINITY$vX $vx(NEGINFINITY$dX, NEGINFINITY$dX)\n");
+			print_entry("#define NEGINFINITY$vS $vs(NEGINFINITY$dX, NEGINFINITY$dX)\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define NEGINFINITY$vX $vx(NEGINFINITY$dX, NEGINFINITY$dX, NEGINFINITY$dX)\n");
+			print_entry("#define NEGINFINITY$vS $vs(NEGINFINITY$dX, NEGINFINITY$dX, NEGINFINITY$dX)\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define NEGINFINITY$vX $vx(NEGINFINITY$dX, NEGINFINITY$dX, NEGINFINITY$dX, NEGINFINITY$dX)\n");
+			print_entry("#define NEGINFINITY$vS $vs(NEGINFINITY$dX, NEGINFINITY$dX, NEGINFINITY$dX, NEGINFINITY$dX)\n");
 		}
 		fprintf(ctx.f,"\n");
 	}
@@ -1738,17 +1691,17 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define NAN$vX $vx(NAN$dX, NAN$dX)\n");
+			print_entry("#define NAN$vS $vs(NAN$dX, NAN$dX)\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define NAN$vX $vx(NAN$dX, NAN$dX, NAN$dX)\n");
+			print_entry("#define NAN$vS $vs(NAN$dX, NAN$dX, NAN$dX)\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define NAN$vX $vx(NAN$dX, NAN$dX, NAN$dX, NAN$dX)\n");
+			print_entry("#define NAN$vS $vs(NAN$dX, NAN$dX, NAN$dX, NAN$dX)\n");
 		}
 		fprintf(ctx.f,"\n");
 	}
@@ -1762,7 +1715,7 @@ void generate_math_types_header_file() {
 		ctx.matrix = matrix;
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC typedef struct p$mt { $dI scalars[$ms]; } p$mt;\n");
+			print_entry("HCC_INTRINSIC typedef struct p$mx { $dI scalars[$ms]; } p$mx;\n");
 		}
 	}
 	fprintf(ctx.f,"\n");
@@ -1776,7 +1729,7 @@ void generate_math_types_header_file() {
 		ctx.matrix = matrix;
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC typedef union $mt { $dI cols[4][$mr]; vec4$dx vcols[$mr]; $dI scalars[$mS]; } $mt;\n");
+			print_entry("HCC_INTRINSIC typedef union $mx { $dI cols[4][$mr]; vec4$dx vcols[$mr]; $dI scalars[$mS]; } $mx;\n");
 		}
 	}
 	fprintf(ctx.f,"\n");
@@ -1789,11 +1742,11 @@ void generate_math_types_header_file() {
 			for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 				ctx.data_type = data_type;
 				if (cols == 4 && rows == 4) {
-					print_entry("#define IDENTITY$mX (($mt) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0, .cols[3][3] = 1.0 })\n");
+					print_entry("#define IDENTITY$mX (($mx) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0, .cols[3][3] = 1.0 })\n");
 				} else if (cols >= 3 && rows >= 3) {
-					print_entry("#define IDENTITY$mX (($mt) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })\n");
+					print_entry("#define IDENTITY$mX (($mx) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })\n");
 				} else {
-					print_entry("#define IDENTITY$mX (($mt) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })\n");
+					print_entry("#define IDENTITY$mX (($mx) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })\n");
 				}
 			}
 		}
@@ -2033,7 +1986,7 @@ void generate_math_header_file() {
 			"//\n"
 			"// returns the absolute (positive) value of 'v'\n"
 		);
-		for (DataType data_type = DATA_TYPE_I8; data_type <= DATA_TYPE_I64; data_type += 1) {
+		for (DataType data_type = DATA_TYPE_S8; data_type <= DATA_TYPE_S64; data_type += 1) {
 			ctx.data_type = data_type;
 			print_entry("static inline $di abs$dx($di v) { return (v &= ~$dm); }\n");
 		}
@@ -2085,7 +2038,7 @@ void generate_math_header_file() {
 			ctx.data_type = data_type;
 			print_entry("HCC_INTRINSIC static inline $di sign$dx($di v) { return v == 0.f ? 0.f : (v < 0.f ? -1.f : 1.f); }\n");
 		}
-		for (DataType data_type = DATA_TYPE_I8; data_type <= DATA_TYPE_I64; data_type += 1) {
+		for (DataType data_type = DATA_TYPE_S8; data_type <= DATA_TYPE_S64; data_type += 1) {
 			ctx.data_type = data_type;
 			print_entry("HCC_INTRINSIC static inline $di sign$dx($di v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }\n");
 		}
@@ -2099,7 +2052,7 @@ void generate_math_header_file() {
 			"//\n"
 			"// returns a 'v' with sign copied from 'sign'\n"
 		);
-		for (DataType data_type = DATA_TYPE_I8; data_type <= DATA_TYPE_I64; data_type += 1) {
+		for (DataType data_type = DATA_TYPE_S8; data_type <= DATA_TYPE_S64; data_type += 1) {
 			ctx.data_type = data_type;
 			print_entry("static inline $di copysign$dx($di v, $di sign) { return v | (sign & $dm); }\n");
 		}
@@ -2331,17 +2284,17 @@ void generate_math_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $vS swizzle$vx($vs v, uint8_t x, uint8_t y) { return $vx(v.array[x], v.array[y]); }\n");
+			print_entry("HCC_INTRINSIC static inline $vs swizzle$vs($vs v, uint8_t x, uint8_t y) { return $vs(v.array[x], v.array[y]); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $vS swizzle$vx($vs v, uint8_t x, uint8_t y, uint8_t z) { return $vx(v.array[x], v.array[y], v.array[z]); }\n");
+			print_entry("HCC_INTRINSIC static inline $vs swizzle$vs($vs v, uint8_t x, uint8_t y, uint8_t z) { return $vs(v.array[x], v.array[y], v.array[z]); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $vS swizzle$vx($vs v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return $vx(v.array[x], v.array[y], v.array[z], v.array[w]); }\n");
+			print_entry("HCC_INTRINSIC static inline $vs swizzle$vs($vs v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return $vs(v.array[x], v.array[y], v.array[z], v.array[w]); }\n");
 		}
 	}
 
@@ -2378,7 +2331,7 @@ void generate_math_header_file() {
 				}
 
 				if (vector_fn_return_vector_bool[fn]) {
-					print_entry("$vibool ");
+					print_entry("bool$vx ");
 				} else if (vector_fn_returns_bool[fn]) {
 					print_entry("bool ");
 				} else if (fn == VECTOR_FN_BITSFROM) {
@@ -2386,12 +2339,12 @@ void generate_math_header_file() {
 				} else if (fn == VECTOR_FN_PACK) {
 					print_entry("p$vs ");
 				} else {
-					print_entry("$vS ");
+					print_entry("$vs ");
 				}
 
 				const char* fn_ident = vector_fn_idents[fn];
 				print_entry(fn_ident);
-				print_entry("$vx(");
+				print_entry("$vs(");
 				for (unsigned param_idx = 0; param_idx < vector_fn_number_params[fn]; param_idx += 1) {
 					if (function_param_is_scalar(fn, param_idx)) {
 						print_entry("$di ");
@@ -2417,13 +2370,13 @@ void generate_math_header_file() {
 						}
 						print_entry("$vs ");
 						fprintf(ctx.f,"%ss", function_param_ident(fn, param_idx));
-						print_entry(" = $vxs(");
+						print_entry(" = $vss(");
 						fprintf(ctx.f, "%s", function_param_ident(fn, param_idx));
 						print_entry("); ");
 					}
 
 					fprintf(ctx.f,"return %s", vector_fn_idents[vector_scalar_non_scalar_fn[fn]]);
-					print_entry("$vx(");
+					print_entry("$vs(");
 					for (unsigned param_idx = 0; param_idx < vector_fn_number_params[fn]; param_idx += 1) {
 						fprintf(ctx.f,
 							"%s%s%s",
@@ -2437,13 +2390,13 @@ void generate_math_header_file() {
 					fprintf(ctx.f," { return ");
 
 					if (vector_fn_return_vector_bool[fn]) {
-						print_entry("$vfbool(");
+						print_entry("bool$vx(");
 					} else if (fn == VECTOR_FN_BITSFROM) {
-						print_entry("$vB(");
+						print_entry("$vb(");
 					} else if (fn == VECTOR_FN_PACK) {
-						print_entry("p$vx(");
+						print_entry("p$vs(");
 					} else if (!vector_fn_returns_bool[fn]) {
-						print_entry("$vx(");
+						print_entry("$vs(");
 					}
 
 					unsigned num_comp = vector_comps[vector];
@@ -2531,21 +2484,21 @@ void generate_math_header_file() {
 		print_entry("HCC_INTRINSIC static inline half dotv2$dx($vs a, $vs b) { return add$dx(mul$dx(a.x, b.x), mul$dx(a.y, b.y)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $di dot$vx($vs a, $vs b) { return (a.x * b.x) + (a.y * b.y); }\n");
+			print_entry("HCC_INTRINSIC static inline $di dot$vs($vs a, $vs b) { return (a.x * b.x) + (a.y * b.y); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		ctx.data_type = DATA_TYPE_HALF;
 		print_entry("HCC_INTRINSIC static inline half dotv3$dx($vs a, $vs b) { return add$dx(mul$dx(a.x, b.x), add$dx(mul$dx(a.y, b.y), mul$dx(a.z, b.z))); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $di dot$vx($vs a, $vs b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z); }\n");
+			print_entry("HCC_INTRINSIC static inline $di dot$vs($vs a, $vs b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		ctx.data_type = DATA_TYPE_HALF;
 		print_entry("HCC_INTRINSIC static inline half dotv4$dx($vs a, $vs b) { return add$dx(mul$dx(a.x, b.x), add$dx(mul$dx(a.y, b.y), add$dx(mul$dx(a.z, b.z), mul$dx(a.w, b.w)))); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $di dot$vx($vs a, $vs b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w); }\n");
+			print_entry("HCC_INTRINSIC static inline $di dot$vs($vs a, $vs b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w); }\n");
 
 		}
 	}
@@ -2560,21 +2513,21 @@ void generate_math_header_file() {
 		print_entry("HCC_INTRINSIC static inline half lenv2$dx($vs v) { return sqrt$dx(add$dx(mul$dx(v.x, v.x), mul$dx(v.y, v.y))); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $di len$vx($vs v) { return sqrt$dx((v.x * v.x) + (v.y * v.y)); }\n");
+			print_entry("HCC_INTRINSIC static inline $di len$vs($vs v) { return sqrt$dx((v.x * v.x) + (v.y * v.y)); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		ctx.data_type = DATA_TYPE_HALF;
 		print_entry("HCC_INTRINSIC static inline half lenv3$dx($vs v) { return sqrt$dx(add$dx(mul$dx(v.x, v.x), add$dx(mul$dx(v.y, v.y), mul$dx(v.z, v.z)))); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $di len$vx($vs v) { return sqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); }\n");
+			print_entry("HCC_INTRINSIC static inline $di len$vs($vs v) { return sqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		ctx.data_type = DATA_TYPE_HALF;
 		print_entry("HCC_INTRINSIC static inline half lenv4$dx($vs v) { return sqrt$dx(add$dx(mul$dx(v.x, v.x), add$dx(mul$dx(v.y, v.y), add$dx(mul$dx(v.z, v.z), mul$dx(v.w, v.w))))); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $di len$vx($vs v) { return sqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); }\n");
+			print_entry("HCC_INTRINSIC static inline $di len$vs($vs v) { return sqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); }\n");
 
 		}
 	}
@@ -2587,29 +2540,29 @@ void generate_math_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di lensq$vx($vs v) { return dot$vx(v, v); }\n");
+			print_entry("static inline $di lensq$vs($vs v) { return dot$vs(v, v); }\n");
 		}
-		for (DataType data_type = DATA_TYPE_I8; data_type <= DATA_TYPE_U64; data_type += 1) {
+		for (DataType data_type = DATA_TYPE_S8; data_type <= DATA_TYPE_U64; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di lensq$vx($vs v) { return (v.x * v.x) + (v.y * v.y); }\n");
+			print_entry("static inline $di lensq$vs($vs v) { return (v.x * v.x) + (v.y * v.y); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di lensq$vx($vs v) { return dot$vx(v, v); }\n");
+			print_entry("static inline $di lensq$vs($vs v) { return dot$vs(v, v); }\n");
 		}
-		for (DataType data_type = DATA_TYPE_I8; data_type <= DATA_TYPE_U64; data_type += 1) {
+		for (DataType data_type = DATA_TYPE_S8; data_type <= DATA_TYPE_U64; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di lensq$vx($vs v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }\n");
+			print_entry("static inline $di lensq$vs($vs v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di lensq$vx($vs v) { return dot$vx(v, v); }\n");
+			print_entry("static inline $di lensq$vs($vs v) { return dot$vs(v, v); }\n");
 		}
-		for (DataType data_type = DATA_TYPE_I8; data_type <= DATA_TYPE_U64; data_type += 1) {
+		for (DataType data_type = DATA_TYPE_S8; data_type <= DATA_TYPE_U64; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di lensq$vx($vs v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }\n");
+			print_entry("static inline $di lensq$vs($vs v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }\n");
 		}
 	}
 
@@ -2623,21 +2576,21 @@ void generate_math_header_file() {
 		print_entry("HCC_INTRINSIC static inline $vs normv2$dx($vs v) { half k = rsqrt$dx(add$dx(mul$dx(v.x, v.x), mul$dx(v.y, v.y))); return v2$dx(mul$dx(v.x, k), mul$dx(v.y, k)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $vs norm$vx($vs v) { $di k = rsqrt$dx((v.x * v.x) + (v.y * v.y)); return $vx(v.x * k, v.y * k); }\n");
+			print_entry("HCC_INTRINSIC static inline $vs norm$vs($vs v) { $di k = rsqrt$dx((v.x * v.x) + (v.y * v.y)); return $vs(v.x * k, v.y * k); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		ctx.data_type = DATA_TYPE_HALF;
 		print_entry("HCC_INTRINSIC static inline $vs normv3$dx($vs v) { half k = rsqrt$dx(add$dx(mul$dx(v.x, v.x), add$dx(mul$dx(v.y, v.y), mul$dx(v.z, v.z)))); return v3$dx(mul$dx(v.x, k), mul$dx(v.y, k), mul$dx(v.z, k)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $vs norm$vx($vs v) { $di k = rsqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); return $vx(v.x * k, v.y * k, v.z * k); }\n");
+			print_entry("HCC_INTRINSIC static inline $vs norm$vs($vs v) { $di k = rsqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); return $vs(v.x * k, v.y * k, v.z * k); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		ctx.data_type = DATA_TYPE_HALF;
 		print_entry("HCC_INTRINSIC static inline $vs normv4$dx($vs v) { half k = rsqrt$dx(add$dx(mul$dx(v.x, v.x), add$dx(mul$dx(v.y, v.y), add$dx(mul$dx(v.z, v.z), mul$dx(v.w, v.w))))); return v4$dx(mul$dx(v.x, k), mul$dx(v.y, k), mul$dx(v.z, k), mul$dx(v.w, k)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC static inline $vs norm$vx($vs v) { $di k = rsqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); return $vx(v.x * k, v.y * k, v.z * k, v.w * k); }\n");
+			print_entry("HCC_INTRINSIC static inline $vs norm$vs($vs v) { $di k = rsqrt$dx((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); return $vs(v.x * k, v.y * k, v.z * k, v.w * k); }\n");
 
 		}
 	}
@@ -2650,10 +2603,10 @@ void generate_math_header_file() {
 		for (Vector vector = VECTOR_2; vector < VECTOR_COUNT; vector += 1) {
 			ctx.vector = vector;
 			ctx.data_type = DATA_TYPE_HALF;
-			print_entry("HCC_INTRINSIC $vs reflect$vx($vs v, $vs normal);\n");
+			print_entry("HCC_INTRINSIC $vs reflect$vs($vs v, $vs normal);\n");
 			for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 				ctx.data_type = data_type;
-				print_entry("HCC_INTRINSIC $vs reflect$vx($vs v, $vs normal);\n");
+				print_entry("HCC_INTRINSIC $vs reflect$vs($vs v, $vs normal);\n");
 			}
 		}
 	}
@@ -2666,10 +2619,10 @@ void generate_math_header_file() {
 		for (Vector vector = VECTOR_2; vector < VECTOR_COUNT; vector += 1) {
 			ctx.vector = vector;
 			ctx.data_type = DATA_TYPE_HALF;
-			print_entry("HCC_INTRINSIC $vs refract$vx($vs v, $vs normal, float eta);\n");
+			print_entry("HCC_INTRINSIC $vs refract$vs($vs v, $vs normal, float eta);\n");
 			for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 				ctx.data_type = data_type;
-				print_entry("HCC_INTRINSIC $vs refract$vx($vs v, $vs normal, float eta);\n");
+				print_entry("HCC_INTRINSIC $vs refract$vs($vs v, $vs normal, float eta);\n");
 			}
 		}
 	}
@@ -2682,17 +2635,17 @@ void generate_math_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di minelmt$vx($vs v) { return min$dx(v.x, v.y); }\n");
+			print_entry("static inline $di minelmt$vs($vs v) { return min$dx(v.x, v.y); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di minelmt$vx($vs v) { return min$dx(v.x, min$dx(v.y, v.z)); }\n");
+			print_entry("static inline $di minelmt$vs($vs v) { return min$dx(v.x, min$dx(v.y, v.z)); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di minelmt$vx($vs v) { return min$dx(v.x, min$dx(v.y, min$dx(v.z, v.w))); }\n");
+			print_entry("static inline $di minelmt$vs($vs v) { return min$dx(v.x, min$dx(v.y, min$dx(v.z, v.w))); }\n");
 		}
 	}
 
@@ -2704,17 +2657,17 @@ void generate_math_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di maxelmt$vx($vs v) { return max$dx(v.x, v.y); }\n");
+			print_entry("static inline $di maxelmt$vs($vs v) { return max$dx(v.x, v.y); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di maxelmt$vx($vs v) { return max$dx(v.x, max$dx(v.y, v.z)); }\n");
+			print_entry("static inline $di maxelmt$vs($vs v) { return max$dx(v.x, max$dx(v.y, v.z)); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = DATA_TYPE_HALF; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di maxelmt$vx($vs v) { return max$dx(v.x, max$dx(v.y, max$dx(v.z, v.w))); }\n");
+			print_entry("static inline $di maxelmt$vs($vs v) { return max$dx(v.x, max$dx(v.y, max$dx(v.z, v.w))); }\n");
 		}
 	}
 
@@ -2725,24 +2678,24 @@ void generate_math_header_file() {
 
 		ctx.vector = VECTOR_2;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $di sumelmts$vx($vs v) { return addf16(v.x, v.y); }\n");
+		print_entry("static inline $di sumelmts$vs($vs v) { return addf16(v.x, v.y); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di sumelmts$vx($vs v) { return v.x + v.y; }\n");
+			print_entry("static inline $di sumelmts$vs($vs v) { return v.x + v.y; }\n");
 		}
 		ctx.vector = VECTOR_3;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $di sumelmts$vx($vs v) { return addf16(v.x, addf16(v.y, v.z)); }\n");
+		print_entry("static inline $di sumelmts$vs($vs v) { return addf16(v.x, addf16(v.y, v.z)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di sumelmts$vx($vs v) { return v.x + v.y + v.z; }\n");
+			print_entry("static inline $di sumelmts$vs($vs v) { return v.x + v.y + v.z; }\n");
 		}
 		ctx.vector = VECTOR_4;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $di sumelmts$vx($vs v) { return addf16(v.x, addf16(v.y, addf16(v.z, v.w))); }\n");
+		print_entry("static inline $di sumelmts$vs($vs v) { return addf16(v.x, addf16(v.y, addf16(v.z, v.w))); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di sumelmts$vx($vs v) { return v.x + v.y + v.z + v.w; }\n");
+			print_entry("static inline $di sumelmts$vs($vs v) { return v.x + v.y + v.z + v.w; }\n");
 		}
 	}
 
@@ -2753,24 +2706,24 @@ void generate_math_header_file() {
 
 		ctx.vector = VECTOR_2;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $di productelmts$vx($vs v) { return mulf16(v.x, v.y); }\n");
+		print_entry("static inline $di productelmts$vs($vs v) { return mulf16(v.x, v.y); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di productelmts$vx($vs v) { return v.x * v.y; }\n");
+			print_entry("static inline $di productelmts$vs($vs v) { return v.x * v.y; }\n");
 		}
 		ctx.vector = VECTOR_3;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $di productelmts$vx($vs v) { return mulf16(v.x, mulf16(v.y, v.z)); }\n");
+		print_entry("static inline $di productelmts$vs($vs v) { return mulf16(v.x, mulf16(v.y, v.z)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di productelmts$vx($vs v) { return v.x * v.y * v.z; }\n");
+			print_entry("static inline $di productelmts$vs($vs v) { return v.x * v.y * v.z; }\n");
 		}
 		ctx.vector = VECTOR_4;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $di productelmts$vx($vs v) { return mulf16(v.x, mulf16(v.y, mulf16(v.z, v.w))); }\n");
+		print_entry("static inline $di productelmts$vs($vs v) { return mulf16(v.x, mulf16(v.y, mulf16(v.z, v.w))); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di productelmts$vx($vs v) { return v.x * v.y * v.z * v.w; }\n");
+			print_entry("static inline $di productelmts$vs($vs v) { return v.x * v.y * v.z * v.w; }\n");
 		}
 	}
 
@@ -2781,24 +2734,24 @@ void generate_math_header_file() {
 
 		ctx.vector = VECTOR_2;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $vs square$vx($vs v) { return $vx(mul$dx(v.x, v.x), mul$dx(v.y, v.y)); }\n");
+		print_entry("static inline $vs square$vs($vs v) { return $vs(mul$dx(v.x, v.x), mul$dx(v.y, v.y)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $vs square$vx($vs v) { return $vx(v.x * v.x, v.y * v.y); }\n");
+			print_entry("static inline $vs square$vs($vs v) { return $vs(v.x * v.x, v.y * v.y); }\n");
 		}
 		ctx.vector = VECTOR_3;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $vs square$vx($vs v) { return $vx(mul$dx(v.x, v.x), mul$dx(v.y, v.y), mul$dx(v.z, v.z)); }\n");
+		print_entry("static inline $vs square$vs($vs v) { return $vs(mul$dx(v.x, v.x), mul$dx(v.y, v.y), mul$dx(v.z, v.z)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $vs square$vx($vs v) { return $vx(v.x * v.x, v.y * v.y, v.z * v.z); }\n");
+			print_entry("static inline $vs square$vs($vs v) { return $vs(v.x * v.x, v.y * v.y, v.z * v.z); }\n");
 		}
 		ctx.vector = VECTOR_4;
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $vs square$vx($vs v) { return $vx(mul$dx(v.x, v.x), mul$dx(v.y, v.y), mul$dx(v.z, v.z), mul$dx(v.w, v.w)); }\n");
+		print_entry("static inline $vs square$vs($vs v) { return $vs(mul$dx(v.x, v.x), mul$dx(v.y, v.y), mul$dx(v.z, v.z), mul$dx(v.w, v.w)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $vs square$vx($vs v) { return $vx(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }\n");
+			print_entry("static inline $vs square$vs($vs v) { return $vs(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }\n");
 		}
 	}
 
@@ -2885,7 +2838,7 @@ void generate_math_header_file() {
 		ctx.matrix = matrix;
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC $mt mulsm$mc$mr$dx($mt m, $di s);\n");
+			print_entry("HCC_INTRINSIC $mx mulsm$mc$mr$dx($mx m, $di s);\n");
 		}
 	}
 
@@ -2993,7 +2946,7 @@ void generate_math_header_file() {
 
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC $mt determinantm$mc$mr$dx($mt m);\n");
+			print_entry("HCC_INTRINSIC $mx determinantm$mc$mr$dx($mx m);\n");
 		}
 	}
 
@@ -3010,7 +2963,7 @@ void generate_math_header_file() {
 
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC $mt inversem$mc$mr$dx($mt m);\n");
+			print_entry("HCC_INTRINSIC $mx inversem$mc$mr$dx($mx m);\n");
 		}
 	}
 
@@ -3131,17 +3084,17 @@ void generate_math_file() {
 			ctx.vector = vector;
 			ctx.data_type = DATA_TYPE_HALF;
 			print_entry(
-				"HCC_INTRINSIC $vs reflect$vx($vs v, $vs normal) {\n"
-					"\t$di dot_2 = mul$dx(dot$vx(normal, v), f32tof16(2.f));\n"
-					"\treturn sub$vx(v, mul$vx(normal, dot_2));\n"
+				"HCC_INTRINSIC $vs reflect$vs($vs v, $vs normal) {\n"
+					"\t$di dot_2 = mul$dx(dot$vs(normal, v), f32tof16(2.f));\n"
+					"\treturn sub$vs(v, mul$vs(normal, dot_2));\n"
 				"}\n"
 			);
 			for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 				ctx.data_type = data_type;
 				print_entry(
-					"HCC_INTRINSIC $vs reflect$vx($vs v, $vs normal) {\n"
-						"\t$di dot_2 = dot$vx(normal, v) * 2.0;\n"
-						"\treturn sub$vx(v, mul$vx(normal, dot_2));\n"
+					"HCC_INTRINSIC $vs reflect$vs($vs v, $vs normal) {\n"
+						"\t$di dot_2 = dot$vs(normal, v) * 2.0;\n"
+						"\treturn sub$vs(v, mul$vs(normal, dot_2));\n"
 					"}\n"
 				);
 			}
@@ -3157,29 +3110,29 @@ void generate_math_file() {
 			ctx.vector = vector;
 			ctx.data_type = DATA_TYPE_HALF;
 			print_entry(
-				"HCC_INTRINSIC $vs refract$vx($vs v, $vs normal, float eta) {\n"
-					"\tfloat dot = dot$vx(normal, v);\n"
+				"HCC_INTRINSIC $vs refract$vs($vs v, $vs normal, float eta) {\n"
+					"\tfloat dot = dot$vs(normal, v);\n"
 					"\tfloat inv_dot_sq = sub$dx(1.0, mul$dx(dot, dot));\n"
 					"\tfloat eta_sq = mul$dx(eta, eta);\n"
 					"\tfloat k = sub$dx(1.f, mul$dx(eta_sq, inv_dot_sq);\n"
 					"\tif (lt$dx(k, 0.0)) {\n"
-						"\t\treturn ZERO$vX;\n"
+						"\t\treturn ZERO$vs;\n"
 					"\t}\n"
-					"\treturn sub$vx(muls$vx(v, eta), muls$vx(normal, ((add$dx(mul$dx(eta, dot$vx(normal, v)), sqrtf(k))))));\n"
+					"\treturn sub$vs(muls$vs(v, eta), muls$vs(normal, ((add$dx(mul$dx(eta, dot$vs(normal, v)), sqrtf(k))))));\n"
 				"}\n"
 			);
 			for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 				ctx.data_type = data_type;
 				print_entry(
-					"HCC_INTRINSIC $vs refract$vx($vs v, $vs normal, float eta) {\n"
-						"\tfloat dot = dot$vx(normal, v);\n"
+					"HCC_INTRINSIC $vs refract$vs($vs v, $vs normal, float eta) {\n"
+						"\tfloat dot = dot$vs(normal, v);\n"
 						"\tfloat inv_dot_sq = 1.0 - dot * dot;\n"
 						"\tfloat eta_sq = eta * eta;\n"
 						"\tfloat k = 1.0 - eta_sq * inv_dot_sq;\n"
 						"\tif (k < 0.0) {\n"
-							"\t\treturn ZERO$vX;\n"
+							"\t\treturn ZERO$vs;\n"
 						"\t}\n"
-						"\treturn sub$vx(muls$vx(v, eta), muls$vx(normal, ((eta * dot$vx(normal, v) + sqrtf(k)))));\n"
+						"\treturn sub$vs(muls$vs(v, eta), muls$vs(normal, ((eta * dot$vs(normal, v) + sqrtf(k)))));\n"
 					"}\n"
 				);
 			}
@@ -3323,7 +3276,7 @@ void generate_math_file() {
 		unsigned rcount = matrix_rows_count[matrix];
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("HCC_INTRINSIC $mt mulsm$mc$mr$dx($mt m, $di s) {\n");
+			print_entry("HCC_INTRINSIC $mx mulsm$mc$mr$dx($mx m, $di s) {\n");
 			for (int c = 0; c < ccount; c += 1) {
 				for (int r = 0; r < rcount; r += 1) {
 					fprintf(ctx.f, "\tm.cols[%u][%u] *= s;\n", c, r);
@@ -3470,7 +3423,7 @@ void generate_math_file() {
 	for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 		ctx.data_type = data_type;
 		print_entry(
-			"HCC_INTRINSIC $di determinantm$mc$mr$dx($mt m) {\n"
+			"HCC_INTRINSIC $di determinantm$mc$mr$dx($mx m) {\n"
 			"\treturn m.cols[0][0] * m.cols[1][1] - m.cols[1][0] * m.cols[0][1];\n"
 			"}\n"
 		);
@@ -3478,7 +3431,7 @@ void generate_math_file() {
 	ctx.matrix = MATRIX_3x3;
 	for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 		ctx.data_type = data_type;
-		print_entry("HCC_INTRINSIC $di determinantm$mc$mr$dx($mt m) {\n");
+		print_entry("HCC_INTRINSIC $di determinantm$mc$mr$dx($mx m) {\n");
 		print_mat3x3_determinant();
 		print_entry(
 			"\treturn det;\n"
@@ -3488,7 +3441,7 @@ void generate_math_file() {
 	ctx.matrix = MATRIX_4x4;
 	for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 		ctx.data_type = data_type;
-		print_entry("HCC_INTRINSIC $di determinantm$mc$mr$dx($mt m) {\n");
+		print_entry("HCC_INTRINSIC $di determinantm$mc$mr$dx($mx m) {\n");
 		print_mat4x4_determinant();
 		print_entry(
 			"\treturn det;\n"
@@ -3505,9 +3458,9 @@ void generate_math_file() {
 	for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 		ctx.data_type = data_type;
 		print_entry(
-			"HCC_INTRINSIC $mt inversem$mc$mr$dx($mt m) {\n"
+			"HCC_INTRINSIC $mx inversem$mc$mr$dx($mx m) {\n"
 			"\t$di inv_det = 1.0 / determinantm$mc$mr$dx(m);\n"
-			"\t$mt ret;\n"
+			"\t$mx ret;\n"
 			"\tret.cols[0][0] = m.cols[1][1] * inv_det;\n"
 			"\tret.cols[0][1] = -m.cols[0][1] * inv_det;\n"
 			"\t\n"
@@ -3520,11 +3473,11 @@ void generate_math_file() {
 	ctx.matrix = MATRIX_3x3;
 	for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 		ctx.data_type = data_type;
-		print_entry("HCC_INTRINSIC $mt inversem$mc$mr$dx($mt m) {\n");
+		print_entry("HCC_INTRINSIC $mx inversem$mc$mr$dx($mx m) {\n");
 		print_mat3x3_determinant();
 		print_entry(
 			"\t$di inv_det = 1.0 / det;\n"
-			"\t$mt ret;\n"
+			"\t$mx ret;\n"
 			"\tret.cols[0][0] = s[0] * inv_det;\n"
 			"\tret.cols[0][1] = (m.cols[0][2] * m.cols[2][1] - m.cols[0][1] * m.cols[2][2]) * inv_det;\n"
 			"\tret.cols[0][2] = (m.cols[0][1] * m.cols[1][2] - m.cols[0][2] * m.cols[1][1]) * inv_det;\n"
@@ -3543,11 +3496,11 @@ void generate_math_file() {
 	ctx.matrix = MATRIX_4x4;
 	for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 		ctx.data_type = data_type;
-		print_entry("HCC_INTRINSIC $mt inversem$mc$mr$dx($mt m) {\n");
+		print_entry("HCC_INTRINSIC $mx inversem$mc$mr$dx($mx m) {\n");
 		print_mat4x4_determinant();
 		print_entry(
 			"\t$di inv_det = 1.0 / det;\n"
-			"\t$mt ret;\n"
+			"\t$mx ret;\n"
 			"\tret.cols[0][0] = ( m.cols[1][1] * c[5] - m.cols[1][2] * c[4] + m.cols[1][3] * c[3]) * inv_det;\n"
 			"\tret.cols[0][1] = (-m.cols[0][1] * c[5] + m.cols[0][2] * c[4] - m.cols[0][3] * c[3]) * inv_det;\n"
 			"\tret.cols[0][2] = ( m.cols[3][1] * s[5] - m.cols[3][2] * s[4] + m.cols[3][3] * s[3]) * inv_det;\n"
