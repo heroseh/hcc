@@ -13,7 +13,7 @@ void hcc_ppgen_init(HccWorker* w, HccPPGenSetup* setup) {
 	w->atagen.ppgen.expand_macro_idx_stack = hcc_stack_init(uint32_t, HCC_ALLOC_TAG_PPGEN_EXPAND_MACRO_IDX_STACK, setup->expand_stack_grow_count, setup->expand_stack_reserve_cap);
 	w->atagen.ppgen.stringify_buffer = hcc_stack_init(char, HCC_ALLOC_TAG_PPGEN_STRINGIFY_BUFFER, setup->stringify_buffer_grow_count, setup->stringify_buffer_reserve_cap);
 	w->atagen.ppgen.if_stack = hcc_stack_init(HccPPGenIf, HCC_ALLOC_TAG_PPGEN_IF_STACK, setup->if_stack_grow_count, setup->if_stack_reserve_cap);
-	w->atagen.ppgen.macro_declarations = hcc_hash_table_init(HccPPGenMacroDeclEntry, HCC_ALLOC_TAG_PPGEN_MACRO_DECLARATIONS, hcc_u32_key_cmp, setup->macro_declarations_cap);
+	w->atagen.ppgen.macro_declarations = hcc_hash_table_init(HccPPGenMacroDeclEntry, HCC_ALLOC_TAG_PPGEN_MACRO_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->macro_declarations_cap);
 	w->atagen.ppgen.macro_args_stack = hcc_stack_init(HccPPMacroArg, HCC_ALLOC_TAG_PPGEN_MACRO_ARGS_STACK, setup->macro_args_stack_grow_count, setup->macro_args_stack_reserve_cap);
 }
 
@@ -35,15 +35,17 @@ void hcc_ppgen_reset(HccWorker* w) {
 	hcc_hash_table_clear(w->atagen.ppgen.macro_declarations);
 	hcc_stack_clear(w->atagen.ppgen.macro_args_stack);
 
-	HccTarget* target = &hcc_worker_cu(w)->target;
+	HccOptions* options = hcc_worker_cu(w)->options;
+	HccTargetArch target_arch = hcc_options_get_u32(options, HCC_OPTION_KEY_TARGET_ARCH);
+	HccTargetOS target_os = hcc_options_get_u32(options, HCC_OPTION_KEY_TARGET_OS);
 	for (HccPPPredefinedMacro m = 0; m < HCC_PP_PREDEFINED_MACRO_COUNT; m += 1) {
-		if (m == HCC_PP_PREDEFINED_MACRO___HCC_LINUX__ && target->os != HCC_TARGET_OS_LINUX) {
+		if (m == HCC_PP_PREDEFINED_MACRO___HCC_LINUX__ && target_os != HCC_TARGET_OS_LINUX) {
 			continue;
 		}
-		if (m == HCC_PP_PREDEFINED_MACRO___HCC_WINDOWS__ && target->os != HCC_TARGET_OS_WINDOWS) {
+		if (m == HCC_PP_PREDEFINED_MACRO___HCC_WINDOWS__ && target_os != HCC_TARGET_OS_WINDOWS) {
 			continue;
 		}
-		if (m == HCC_PP_PREDEFINED_MACRO___HCC_X86_64__ && target->arch != HCC_TARGET_ARCH_X86_64) {
+		if (m == HCC_PP_PREDEFINED_MACRO___HCC_X86_64__ && target_arch != HCC_TARGET_ARCH_X86_64) {
 			continue;
 		}
 
@@ -232,9 +234,9 @@ HccPPEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint3
 			HccConstantId constant_id = hcc_stack_get(w->atagen.ast_file->token_bag.values, *token_value_idx_mut)->constant_id;
 			*token_value_idx_mut += 1;
 
-			HccConstant constant = hcc_constant_table_get(w->atagen.cu, constant_id);
+			HccConstant constant = hcc_constant_table_get(w->cu, constant_id);
 			uint64_t u64;
-			HCC_DEBUG_ASSERT(hcc_constant_as_uint(w->atagen.cu, constant, &u64), "internal error: expected to be a unsigned int");
+			HCC_DEBUG_ASSERT(hcc_constant_as_uint(w->cu, constant, &u64), "internal error: expected to be a unsigned int");
 
 			eval.is_signed = false;
 			eval.u64 = u64;
@@ -247,9 +249,9 @@ HccPPEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint3
 			HccConstantId constant_id = hcc_stack_get(w->atagen.ast_file->token_bag.values, *token_value_idx_mut)->constant_id;
 			*token_value_idx_mut += 1;
 
-			HccConstant constant = hcc_constant_table_get(w->atagen.cu, constant_id);
+			HccConstant constant = hcc_constant_table_get(w->cu, constant_id);
 			int64_t s64;
-			HCC_DEBUG_ASSERT(hcc_constant_as_sint(w->atagen.cu, constant, &s64), "internal error: expected to be a signed int");
+			HCC_DEBUG_ASSERT(hcc_constant_as_sint(w->cu, constant, &s64), "internal error: expected to be a signed int");
 
 			eval.is_signed = true;
 			eval.s64 = s64;
@@ -777,7 +779,7 @@ void hcc_ppgen_parse_defined(HccWorker* w) {
 		hcc_atagen_advance_column(w, 1); // skip ')'
 	}
 
-	HccConstantId* basic_type_constant_ids = does_macro_exist ? w->atagen.cu->dtt.basic_type_one_constant_ids : w->atagen.cu->dtt.basic_type_zero_constant_ids;
+	HccConstantId* basic_type_constant_ids = does_macro_exist ? w->cu->dtt.basic_type_one_constant_ids : w->cu->dtt.basic_type_zero_constant_ids;
 	HccATAValue token_value;
 	token_value.constant_id = basic_type_constant_ids[HCC_AST_BASIC_DATA_TYPE_SINT];
 
@@ -829,9 +831,9 @@ void hcc_ppgen_parse_line(HccWorker* w) {
 			hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_INVALID_PP_LINE_OPERANDS);
 		}
 		HccConstantId constant_id = hcc_stack_get(token_bag->values, token_values_start_idx)->constant_id;
-		HccConstant constant = hcc_constant_table_get(w->atagen.cu, constant_id);
+		HccConstant constant = hcc_constant_table_get(w->cu, constant_id);
 
-		HCC_DEBUG_ASSERT(hcc_constant_as_sint(w->atagen.cu, constant, &custom_line), "internal error: expected to be a signed int");
+		HCC_DEBUG_ASSERT(hcc_constant_as_sint(w->cu, constant, &custom_line), "internal error: expected to be a signed int");
 		if (custom_line < 0 || custom_line > INT32_MAX) {
 			hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_PP_LINE_MUST_BE_MORE_THAN_ZERO, INT32_MAX);
 		}
@@ -1258,18 +1260,18 @@ void hcc_ppgen_copy_expand_predefined_macro(HccWorker* w, HccPPPredefinedMacro p
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___LINE__: {
-			HccBasic line_num = hcc_basic_from_sint(w->atagen.cu, HCC_DATA_TYPE_INT, w->atagen.location.line_end - 1);
+			HccBasic line_num = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_INT, w->atagen.location.line_end - 1);
 			HccATAValue token_value = {
-				.constant_id = hcc_constant_table_deduplicate_basic(w->atagen.cu, HCC_DATA_TYPE_INT, &line_num),
+				.constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_INT, &line_num),
 			};
 			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
 			hcc_atagen_token_value_add(w, token_value);
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___COUNTER__: {
-			HccBasic counter = hcc_basic_from_sint(w->atagen.cu, HCC_DATA_TYPE_INT, w->atagen.__counter__);
+			HccBasic counter = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_INT, w->atagen.__counter__);
 			HccATAValue token_value = {
-				.constant_id = hcc_constant_table_deduplicate_basic(w->atagen.cu, HCC_DATA_TYPE_INT, &counter),
+				.constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_INT, &counter),
 			};
 			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
 			hcc_atagen_token_value_add(w, token_value);
@@ -1830,10 +1832,9 @@ void hcc_atagen_reset(HccWorker* w) {
 }
 
 void hcc_atagen_generate(HccWorker* w) {
-	w->atagen.cu = hcc_worker_cu(w);
 	HccTaskInputLocation* il = w->job.arg;
 
-	hcc_ast_add_file(w->atagen.cu, il->file_path, &w->atagen.ast_file);
+	hcc_ast_add_file(w->cu, il->file_path, &w->atagen.ast_file);
 	HccResult result = hcc_code_file_find_or_insert(il->file_path, &w->atagen.location.code_file);
 	if (!HCC_IS_SUCCESS(result)) {
 		hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_FAILED_TO_OPEN_FILE_FOR_READ, il->file_path.data);
@@ -2312,7 +2313,7 @@ NUM_END:
 
 	//
 	// perform literal type upgrades if they exceed their current type
-	HccCU* cu = w->atagen.cu;
+	HccCU* cu = w->cu;
 	switch (token) {
 		case HCC_ATA_TOKEN_LIT_UINT:
 			if (u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_UINT]) {
@@ -2409,16 +2410,16 @@ NUM_END:
 	switch (token) {
 		case HCC_ATA_TOKEN_LIT_SINT:
 		case HCC_ATA_TOKEN_LIT_SLONG:
-		case HCC_ATA_TOKEN_LIT_SLONGLONG: basic = hcc_basic_from_sint(w->atagen.cu, data_type, s64); break;
+		case HCC_ATA_TOKEN_LIT_SLONGLONG: basic = hcc_basic_from_sint(w->cu, data_type, s64); break;
 		case HCC_ATA_TOKEN_LIT_UINT:
 		case HCC_ATA_TOKEN_LIT_ULONG:
-		case HCC_ATA_TOKEN_LIT_ULONGLONG: basic = hcc_basic_from_uint(w->atagen.cu, data_type, u64); break;
+		case HCC_ATA_TOKEN_LIT_ULONGLONG: basic = hcc_basic_from_uint(w->cu, data_type, u64); break;
 		case HCC_ATA_TOKEN_LIT_FLOAT:
-		case HCC_ATA_TOKEN_LIT_DOUBLE: basic = hcc_basic_from_float(w->atagen.cu, data_type, f64); break;
+		case HCC_ATA_TOKEN_LIT_DOUBLE: basic = hcc_basic_from_float(w->cu, data_type, f64); break;
 	}
 
 	HccATAValue token_value;
-	token_value.constant_id = hcc_constant_table_deduplicate_basic(w->atagen.cu, data_type, &basic);
+	token_value.constant_id = hcc_constant_table_deduplicate_basic(w->cu, data_type, &basic);
 	hcc_atagen_token_value_add(w, token_value);
 
 	//
@@ -2770,7 +2771,7 @@ void hcc_atagen_run(HccWorker* w, HccATATokenBag* dst_token_bag, HccATAGenRunMod
 					hcc_atagen_advance_column(w, 2);
 					while (w->atagen.location.code_end_idx < w->atagen.code_size) {
 						char b = w->atagen.code[w->atagen.location.code_end_idx];
-						if (byte == '\n') {
+						if (b == '\n') {
 							hcc_atagen_advance_newline(w);
 						} else {
 							hcc_atagen_advance_column(w, 1);

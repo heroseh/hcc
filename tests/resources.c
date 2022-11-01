@@ -45,30 +45,41 @@ layout(push_constants) push_constants {
 
 
 ConstBuffer(T)       // uniform buffer/constant buffer - 16K or 64K no indexing on type T
-ROBuffer(T)          // storage buffer / structured buffer / byte address buffer - big data buffer allow indexing on type T
-RWBuffer(T)          // storage buffer / structured buffer / byte address buffer - big data buffer allow indexing on type T
-ROTexture1D
-ROTexture1DArray
-ROTexture2D
-ROTexture2DArray
-ROTexture2DMS
-ROTexture2DMSArray
-ROTextureCube
-ROTextureCubeArray
-ROTextureCubeMS
-ROTextureCubeMSArray
-ROTexture3D
-RWTexture1D(T)
-RWTexture1DArray(T)
-RWTexture2D(T)
-RWTexture2DArray(T)
-RWTexture2DMS(T)
-RWTexture2DMSArray(T)
-RWTextureCube(T)
-RWTextureCubeArray(T)
-RWTextureCubeMS(T)
-RWTextureCubeMSArray(T)
-RWTexture3D(T)
+Buffer(const T)      // storage buffer / structured buffer / byte address buffer - big data buffer allow indexing on type T
+Buffer(T)            // storage buffer / structured buffer / byte address buffer - big data buffer allow indexing on type T
+Texture1D
+Texture1DArray
+Texture2D
+Texture2DArray
+Texture2DMS
+Texture2DMSArray
+TextureCube
+TextureCubeArray
+TextureCubeMS
+TextureCubeMSArray
+Texture3D
+Texture1D(const T)
+Texture1DArray(const T)
+Texture2D(const T)
+Texture2DArray(const T)
+Texture2DMS(const T)
+Texture2DMSArray(const T)
+TextureCube(const T)
+TextureCubeArray(const T)
+TextureCubeMS(const T)
+TextureCubeMSArray(const T)
+Texture3D(const T)
+Texture1D(T)
+Texture1DArray(T)
+Texture2D(T)
+Texture2DArray(T)
+Texture2DMS(T)
+Texture2DMSArray(T)
+TextureCube(T)
+TextureCubeArray(T)
+TextureCubeMS(T)
+TextureCubeMSArray(T)
+Texture3D(T)
 SamplerState
 
 HCC_DEFINE_BUFFER_ELEMENT(FrameConstants,

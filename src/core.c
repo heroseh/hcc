@@ -114,7 +114,7 @@ noreturn void hcc_bail(HccResultCode code, int32_t value) {
 //
 // ===========================================
 
-uint32_t onebitscount32(uint32_t bits) {
+uint32_t hcc_onebitscount32(uint32_t bits) {
 #ifdef __GNUC__
 	return __builtin_popcount(bits);
 #else
@@ -122,7 +122,7 @@ uint32_t onebitscount32(uint32_t bits) {
 #endif
 }
 
-uint32_t leastsetbitidx32(uint32_t bits) {
+uint32_t hcc_leastsetbitidx32(uint32_t bits) {
 #ifdef __GNUC__
 	return __builtin_ctz(bits);
 #else
@@ -673,7 +673,7 @@ void hcc_mutex_lock(HccMutex* mutex) {
 			}
 		}
 
-		uint32_t expected_value = false;
+		uint32_t expected_value = true;
 		long res = syscall(SYS_futex, &mutex->is_locked, FUTEX_WAIT, expected_value, NULL, NULL, 0);
 		if (res == -1 && errno != EAGAIN) {
 			hcc_bail(HCC_ERROR_MUTEX_LOCK, errno);
@@ -1517,6 +1517,10 @@ uintptr_t _hcc_stack_push_many(HccStack(void) stack, uintptr_t amount, uintptr_t
 
 uintptr_t _hcc_stack_push_many_thread_safe(HccStack(void) stack, uintptr_t amount, uintptr_t elmt_size) {
 	HccStackHeader* header = hcc_stack_header(stack);
+	//
+	// TODO inline _hcc_stack_push_many and _hcc_stack_resize and only
+	// lock when we are waiting on another thread to commit more memory.
+	//
 	hcc_spin_mutex_lock(&header->push_thread_safe_mutex);
 	uintptr_t insert_idx = _hcc_stack_push_many(stack, amount, elmt_size);
 	hcc_spin_mutex_unlock(&header->push_thread_safe_mutex);
@@ -1776,7 +1780,7 @@ enum {
 #endif
 static_assert(HCC_HASH_TABLE_BUCKET_ENTRIES_COUNT * sizeof(HccHash) % HCC_CACHE_LINE_SIZE == 0, "bucket must be a multiple of a cache line");
 
-HccHashTable(void) _hcc_hash_table_init(HccAllocTag tag, HccHashTableKeyCmpFn key_cmp_fn, uintptr_t cap, uintptr_t elmt_size) {
+HccHashTable(void) _hcc_hash_table_init(HccAllocTag tag, HccHashTableKeyCmpFn key_cmp_fn, HccHashTableKeyHashFn key_hash_fn, uintptr_t cap, uintptr_t elmt_size) {
 	HCC_DEBUG_ASSERT_POWER_OF_TWO(cap);
 	uintptr_t size = HCC_INT_ROUND_UP_ALIGN(HCC_INT_ROUND_UP_ALIGN(sizeof(HccHashTableHeader) + (cap * elmt_size), HCC_CACHE_LINE_ALIGN) + (cap * sizeof(HccHash)), _hcc_gs.virt_mem_reserve_align);
 	HccHashTableHeader* header;
@@ -1787,6 +1791,7 @@ HccHashTable(void) _hcc_hash_table_init(HccAllocTag tag, HccHashTableKeyCmpFn ke
 	header->count = 0;
 	header->cap = cap;
 	header->key_cmp_fn = key_cmp_fn;
+	header->key_hash_fn = key_hash_fn;
 	header->hashes = HCC_PTR_ROUND_UP_ALIGN(HCC_PTR_ADD((header + 1), cap * elmt_size), HCC_CACHE_LINE_ALIGN);
 	header->tag = tag;
 #if HCC_ENABLE_DEBUG_ASSERTIONS
@@ -1822,13 +1827,7 @@ uintptr_t _hcc_hash_table_find_idx(HccHashTable(void) table, void* key, uintptr_
 
 	//
 	// hash the key and ensure it is no one of the special marker hash values.
-	HccHash hash;
-	if (key_size == 0) {
-		HccString string = *(HccString*)key;
-		hash = hcc_hash_fnv(string.data, string.size, HCC_HASH_FNV_INIT);
-	} else {
-		hash = hcc_hash_fnv(key, key_size, HCC_HASH_FNV_INIT);
-	}
+	HccHash hash = header->key_hash_fn(key, key_size);
 	if (hash < HCC_HASH_TABLE_HASH_START) hash += HCC_HASH_TABLE_HASH_START;
 
 	//
@@ -1880,13 +1879,7 @@ HccHashTableInsert _hcc_hash_table_find_insert_idx(HccHashTable(void) table, voi
 
 	//
 	// hash the key and ensure it is no one of the special marker hash values.
-	HccHash hash;
-	if (key_size == 0) {
-		HccString string = *(HccString*)key;
-		hash = hcc_hash_fnv(string.data, string.size, HCC_HASH_FNV_INIT);
-	} else {
-		hash = hcc_hash_fnv(key, key_size, HCC_HASH_FNV_INIT);
-	}
+	HccHash hash = header->key_hash_fn(key, key_size);
 	if (hash < HCC_HASH_TABLE_HASH_START) hash += HCC_HASH_TABLE_HASH_START;
 
 	//
@@ -1931,12 +1924,10 @@ TRY_THIS_HASH_AGAIN: {}
 					}
 				} while (existing_hash == HCC_HASH_TABLE_HASH_EMPTY || existing_hash == HCC_HASH_TABLE_HASH_TOMBSTONE);
 
-				if (existing_hash == HCC_HASH_TABLE_HASH_IS_INSERTING) {
-					//
-					// another thread stole our entry slot,
-					// lets try again to see if it inserted the hash we are looking for.
-					goto TRY_THIS_HASH_AGAIN;
-				}
+				//
+				// another thread stole our entry slot,
+				// lets try again to see if it inserted the hash we are looking for.
+				goto TRY_THIS_HASH_AGAIN;
 			}
 		}
 
@@ -1964,6 +1955,109 @@ bool _hcc_hash_table_remove(HccHashTable(void) table, void* key, uintptr_t key_s
 bool hcc_u32_key_cmp(void* a, void* b, uintptr_t size) {
 	HCC_UNUSED(size);
 	return *(uint32_t*)a == *(uint32_t*)b;
+}
+
+bool hcc_u64_key_cmp(void* a, void* b, uintptr_t size) {
+	HCC_UNUSED(size);
+	return *(uint64_t*)a == *(uint64_t*)b;
+}
+
+HccHash hcc_data_key_hash(void* key, uintptr_t size) {
+	return hcc_hash_fnv(key, size, HCC_HASH_FNV_INIT);
+}
+
+HccHash hcc_string_key_hash(void* key, uintptr_t size) {
+	HCC_UNUSED(size);
+
+	HccString string = *(HccString*)key;
+	return hcc_hash_fnv(string.data, string.size, HCC_HASH_FNV_INIT);
+}
+
+HccHash hcc_u32_key_hash(void* key, uintptr_t size) {
+	HCC_DEBUG_ASSERT(size == sizeof(uint32_t), "key is not a uint32_t");
+	return *(uint32_t*)key;
+}
+
+HccHash hcc_u64_key_hash(void* key, uintptr_t size) {
+	HCC_DEBUG_ASSERT(size == sizeof(uint64_t), "key is not a uint64_t");
+	return *(uint64_t*)key;
+}
+
+// ===========================================
+//
+//
+// AML Intrinsic Type
+//
+//
+// ===========================================
+
+const char* hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT] = {
+	[HCC_AML_INTRINSIC_DATA_TYPE_VOID] = "void",
+	[HCC_AML_INTRINSIC_DATA_TYPE_BOOL] = "bool",
+	[HCC_AML_INTRINSIC_DATA_TYPE_S8] = "s8",
+	[HCC_AML_INTRINSIC_DATA_TYPE_S16] = "s16",
+	[HCC_AML_INTRINSIC_DATA_TYPE_S32] = "s32",
+	[HCC_AML_INTRINSIC_DATA_TYPE_S64] = "s64",
+	[HCC_AML_INTRINSIC_DATA_TYPE_U8] = "u8",
+	[HCC_AML_INTRINSIC_DATA_TYPE_U16] = "u16",
+	[HCC_AML_INTRINSIC_DATA_TYPE_U32] = "u32",
+	[HCC_AML_INTRINSIC_DATA_TYPE_U64] = "u64",
+	[HCC_AML_INTRINSIC_DATA_TYPE_F16] = "f16",
+	[HCC_AML_INTRINSIC_DATA_TYPE_F32] = "f32",
+	[HCC_AML_INTRINSIC_DATA_TYPE_F64] = "f64",
+};
+
+uint8_t hcc_aml_intrinsic_data_type_scalar_size_aligns[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT] = {
+	[HCC_AML_INTRINSIC_DATA_TYPE_VOID] = 0,
+	[HCC_AML_INTRINSIC_DATA_TYPE_BOOL] = 1,
+	[HCC_AML_INTRINSIC_DATA_TYPE_S8] = 1,
+	[HCC_AML_INTRINSIC_DATA_TYPE_S16] = 2,
+	[HCC_AML_INTRINSIC_DATA_TYPE_S32] = 4,
+	[HCC_AML_INTRINSIC_DATA_TYPE_S64] = 8,
+	[HCC_AML_INTRINSIC_DATA_TYPE_U8] = 1,
+	[HCC_AML_INTRINSIC_DATA_TYPE_U16] = 2,
+	[HCC_AML_INTRINSIC_DATA_TYPE_U32] = 4,
+	[HCC_AML_INTRINSIC_DATA_TYPE_U64] = 8,
+	[HCC_AML_INTRINSIC_DATA_TYPE_F16] = 2,
+	[HCC_AML_INTRINSIC_DATA_TYPE_F32] = 4,
+	[HCC_AML_INTRINSIC_DATA_TYPE_F64] = 8,
+};
+
+// ===========================================
+//
+//
+// AML Scalar Data Type Mask
+//
+//
+// ===========================================
+
+HccString hcc_aml_scalar_data_type_mask_string(HccAMLScalarDataTypeMask mask) {
+	static char buf[512];
+	uint32_t size = 0;
+	while (mask) {
+		HccAMLIntrinsicDataType intrinsic_type = hcc_leastsetbitidx32(mask);
+		const char* str;
+		switch (intrinsic_type) {
+			case HCC_AML_INTRINSIC_DATA_TYPE_VOID: str = "void"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: str = "bool"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S8: str = "int8_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S16: str = "int16_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S32: str = "int32_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S64: str = "int64_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U8: str = "uint8_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U16: str = "uint16_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U32: str = "uint32_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U64: str = "uint64_t"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F16: str = "half"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F32: str = "float"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F64: str = "double"; break;
+		}
+
+		size += snprintf(buf + size, sizeof(buf) - size, size ? " %s" : "%s", str);
+		mask &= ~(1 << intrinsic_type);
+	}
+
+	return hcc_string(buf, size);
 }
 
 // ===========================================
@@ -2003,12 +2097,15 @@ void hcc_data_type_table_init(HccCU* cu, HccDataTypeTableSetup* setup) {
 	cu->dtt.typedefs = hcc_stack_init(HccTypedef, HCC_ALLOC_TAG_DATA_TYPE_TABLE_TYPEDEFS, setup->typedefs_grow_count, setup->typedefs_reserve_cap);
 	cu->dtt.enums = hcc_stack_init(HccEnumDataType, HCC_ALLOC_TAG_DATA_TYPE_TABLE_ENUMS, setup->enums_grow_count, setup->enums_reserve_cap);
 	cu->dtt.enum_values = hcc_stack_init(HccEnumValue, HCC_ALLOC_TAG_DATA_TYPE_TABLE_ENUM_VALUES, setup->enum_values_grow_count, setup->enum_values_reserve_cap);
-	cu->dtt.buffers = hcc_stack_init(HccBufferDataType, HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS, setup->buffers_grow_count, setup->buffers_reserve_cap);
 	cu->dtt.pointers = hcc_stack_init(HccPointerDataType, HCC_ALLOC_TAG_DATA_TYPE_TABLE_POINTERS, setup->pointers_grow_count, setup->pointers_reserve_cap);
+	cu->dtt.buffers = hcc_stack_init(HccBufferDataType, HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS, setup->buffers_grow_count, setup->buffers_reserve_cap);
+	cu->dtt.arrays_dedup_hash_table = hcc_hash_table_init(HccDataTypeDedupEntry, HCC_ALLOC_TAG_DATA_TYPE_TABLE_ARRAYS_DEDUP_HASH_TABLE, hcc_u64_key_cmp, hcc_u64_key_hash, setup->arrays_reserve_cap);
+	cu->dtt.pointers_dedup_hash_table = hcc_hash_table_init(HccDataTypeDedupEntry, HCC_ALLOC_TAG_DATA_TYPE_TABLE_POINTERS_DEDUP_HASH_TABLE, hcc_u64_key_cmp, hcc_u64_key_hash, setup->pointers_reserve_cap);
+	cu->dtt.buffers_dedup_hash_table = hcc_hash_table_init(HccDataTypeDedupEntry, HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS_DEDUP_HASH_TABLE, hcc_u64_key_cmp, hcc_u64_key_hash, setup->buffers_reserve_cap);
 
-	switch (cu->target.arch) {
+	switch (hcc_options_get_u32(cu->options, HCC_OPTION_KEY_TARGET_ARCH)) {
 		case HCC_TARGET_ARCH_X86_64:
-			switch (cu->target.os) {
+			switch (hcc_options_get_u32(cu->options, HCC_OPTION_KEY_TARGET_OS)) {
 				case HCC_TARGET_OS_LINUX:
 					cu->dtt.basic_type_size_and_aligns = hcc_ast_basic_type_size_and_aligns_x86_64_linux;
 					cu->dtt.basic_type_int_mins = hcc_ast_basic_type_int_mins_x86_64_linux;
@@ -2326,6 +2423,74 @@ HccLocation* hcc_data_type_location(HccCU* cu, HccDataType data_type) {
 			return NULL;
 	}
 }
+
+HccDataType hcc_data_type_lower_ast_to_aml(HccCU* cu, HccDataType data_type) {
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_AST_BASIC: {
+			HccASTBasicDataType basic_data_type = HCC_DATA_TYPE_AUX(data_type);
+			if (HCC_AST_BASIC_DATA_TYPE_IS_UINT(cu, basic_data_type)) {
+				switch (cu->dtt.basic_type_size_and_aligns[basic_data_type]) {
+					case sizeof(uint8_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U8); break;
+					case sizeof(uint16_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U16); break;
+					case sizeof(uint32_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U32); break;
+					case sizeof(uint64_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U64); break;
+				}
+			} else if (HCC_AST_BASIC_DATA_TYPE_IS_SINT(cu, basic_data_type)) {
+				switch (cu->dtt.basic_type_size_and_aligns[basic_data_type]) {
+					case sizeof(uint8_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S8); break;
+					case sizeof(uint16_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S16); break;
+					case sizeof(uint32_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S32); break;
+					case sizeof(uint64_t): data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S64); break;
+				}
+			}
+			break;
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			uint32_t compound_data_type_idx = HCC_DATA_TYPE_AUX(data_type);
+			if (HCC_COMPOUND_DATA_TYPE_IDX_SCALARX_START <= compound_data_type_idx && compound_data_type_idx < HCC_COMPOUND_DATA_TYPE_IDX_SCALARX_END) {
+				data_type = HCC_DATA_TYPE(AML_INTRINSIC, compound_data_type_idx - HCC_COMPOUND_DATA_TYPE_IDX_SCALARX_START);
+			}
+			break;
+		};
+	}
+	return data_type;
+}
+
+HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccDataType data_type) {
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_ENUM:
+			data_type = HCC_DATA_TYPE_INT;
+			hcc_fallthrough;
+		case HCC_DATA_TYPE_AST_BASIC:
+			data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
+			hcc_fallthrough;
+		case HCC_DATA_TYPE_AML_INTRINSIC: {
+			HccAMLScalarDataTypeMask mask = 0;
+			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&mask, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type)));
+			return mask;
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, data_type);
+			return compound_data_type->has_scalar_data_types_mask;
+		};
+
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* array_data_type = hcc_array_data_type_get(cu, data_type);
+			return hcc_data_type_scalar_data_types_mask(cu, array_data_type->element_data_type);
+		};
+
+		case HCC_DATA_TYPE_TYPEDEF: {
+			HccTypedef* typedef_ = hcc_typedef_get(cu, data_type);
+			return hcc_data_type_scalar_data_types_mask(cu, typedef_->aliased_data_type);
+		};
+
+		default:
+			return 0;
+	}
+}
+
 
 HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type) {
 	if (!HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
@@ -2834,8 +2999,19 @@ bool hcc_constant_entry_key_cmp(void* a, void* b, uintptr_t size) {
 	return a_->data_type == b_->data_type && a_->size == b_->size && memcmp(a_->data, b_->data, a_->size) == 0;
 }
 
+HccHash hcc_constant_key_hash(void* key, uintptr_t size) {
+	HCC_DEBUG_ASSERT(size == sizeof(HccConstantEntry), "key is not a HccConstantEntry");
+
+	HccConstantEntry* entry = key;
+	HccHash hash = HCC_HASH_FNV_INIT;
+	hash = hcc_hash_fnv(&entry->data_type, sizeof(entry->data_type), hash);
+	hash = hcc_hash_fnv(&entry->size, sizeof(entry->size), hash);
+	hash = hcc_hash_fnv(entry->data, entry->size, hash);
+	return hash;
+}
+
 void hcc_constant_table_init(HccCU* cu, HccConstantTableSetup* setup) {
-	cu->constant_table.entries_hash_table = hcc_hash_table_init(HccConstantEntry, 0, hcc_constant_entry_key_cmp, setup->entries_cap);
+	cu->constant_table.entries_hash_table = hcc_hash_table_init(HccConstantEntry, 0, hcc_constant_entry_key_cmp, hcc_constant_key_hash, setup->entries_cap);
 	cu->constant_table.data = hcc_stack_init(uint8_t, 0, setup->data_grow_size, setup->data_reserve_size);
 	cu->constant_table.composite_fields_buffer = hcc_stack_init(HccConstantId, 0, setup->composite_fields_buffer_grow_count, setup->composite_fields_buffer_reserve_cap);
 }
@@ -2846,7 +3022,9 @@ void hcc_constant_table_deinit(HccCU* cu) {
 	hcc_stack_deinit(cu->constant_table.composite_fields_buffer);
 }
 
-HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_type, void* data, uint32_t data_size, uint32_t data_align, HccStringId debug_string_id) {
+HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_type, void* data, uint32_t data_size, uint32_t data_align) {
+	HCC_UNUSED(data_align);
+
 	HccConstantEntry entry;
 	entry.data = data;
 	entry.size = data_size;
@@ -2857,12 +3035,10 @@ HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_ty
 	if (insert.is_new) {
 		if (data_size) {
 			void* ptr = hcc_stack_push_many_thread_safe(cu->constant_table.data, data_size);
-			ptr = HCC_PTR_ROUND_UP_ALIGN(ptr, data_align);
 			memcpy(ptr, data, data_size);
 			e->data = ptr;
 		}
 		e->size = data_size;
-		e->debug_string_id = debug_string_id;
 		atomic_store(&e->data_type, data_type);
 	} else {
 		//
@@ -2883,8 +3059,7 @@ HccConstantId hcc_constant_table_deduplicate_basic(HccCU* cu, HccDataType data_t
 	uint64_t align;
 	hcc_data_type_size_align(cu, data_type, &size, &align);
 
-	HccStringId debug_string_id = {0};
-	return _hcc_constant_table_deduplicate_end(cu, data_type, basic, size, align, debug_string_id);
+	return _hcc_constant_table_deduplicate_end(cu, data_type, basic, size, align);
 }
 
 HccConstantId* hcc_constant_table_deduplicate_composite_start(HccCU* cu, HccDataType data_type, uint32_t* fields_count_out) {
@@ -2896,8 +3071,7 @@ HccConstantId* hcc_constant_table_deduplicate_composite_start(HccCU* cu, HccData
 }
 
 HccConstantId hcc_constant_table_deduplicate_composite_end(HccCU* cu, HccDataType data_type, HccConstantId* fields, uint32_t fields_count) {
-	HccStringId debug_string_id = {0};
-	HccConstantId constant_id = _hcc_constant_table_deduplicate_end(cu, data_type, fields, fields_count * sizeof(HccConstantId), alignof(HccConstantId), debug_string_id);
+	HccConstantId constant_id = _hcc_constant_table_deduplicate_end(cu, data_type, fields, fields_count * sizeof(HccConstantId), alignof(HccConstantId));
 	hcc_stack_pop_many(cu->constant_table.composite_fields_buffer, fields_count);
 	return constant_id;
 }
@@ -2911,8 +3085,7 @@ HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_ty
 		HccBasic zero = {0};
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &zero);
 	} else {
-		HccStringId debug_string_id = {0};
-		return _hcc_constant_table_deduplicate_end(cu, data_type, NULL, 0, 0, debug_string_id);
+		return _hcc_constant_table_deduplicate_end(cu, data_type, NULL, 0, 0);
 	}
 }
 
@@ -3154,8 +3327,11 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION] =  "the condition expression must be convertable to a boolean but got '%.*s'",
 		[HCC_ERROR_CODE_MISSING_SEMICOLON] = "missing ';' to end the statement",
 		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL] = "redefinition of the '%.*s' identifier",
-		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM] = "expected '{' to declare enum type values",
-		[HCC_ERROR_CODE_REIMPLEMENTATION] = "redefinition of '%.*s'",
+		[HCC_ERROR_CODE_FUNCTION_PROTOTYPE_MISMATCH] = "function prototype mismatch for '%.*s'",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM] = "expected '{' to declare enum values for enum '%.*s' but got '%s'",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM_GOT_SEMICOLON] = "named enum '%.*s' cannot be forward declared, please provide enum values like so. enum '%.*s' { ENUM_ONE };",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_UNNAMED_ENUM] = "expected '{' to declare enum values for an unnamed enum but got '%s'",
+		[HCC_ERROR_CODE_REIMPLEMENTATION_DATA_TYPE] = "redefinition of '%.*s' data type",
 		[HCC_ERROR_CODE_EMPTY_ENUM] = "cannot have an empty enum, please declare some identifiers inside the {}",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_ENUM_VALUE] = "expected an identifier for the enum value name",
 		[HCC_ERROR_CODE_ENUM_VALUE_OVERFLOW] = "enum value overflows a 32 bit signed integer",
@@ -3168,7 +3344,8 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT] = "only one of these can be used per field: '%s' or '%s'",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT] = "the '%s' keyword cannot be used on this structure declaration",
 		[HCC_ERROR_CODE_NOT_AVAILABLE_FOR_UNION] = "the '%s' keyword can only be used on a 'struct' and not a 'union'",
-		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_COMPOUND_TYPE] = "expected '{' to declare compound type fields",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ANON_STRUCT_TYPE] = "expected '{' to declare fields for an anonymous struct",
+		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ANON_UNION_TYPE] = "expected '{' to declare fields for an anonymous union",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT_FIELD] = "the '%s' keyword cannot be used on this structure field declaration",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD] = "only one of these can be used per field: '%s' or '%s'",
 		[HCC_ERROR_CODE_COMPOUND_FIELD_INVALID_TERMINATOR] = "expected 'type name', 'struct' or 'union' to declare another field or '}' to finish declaring the compound type fields",
@@ -3176,7 +3353,6 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT] = "expected intrinsic struct '%.*s' to have '%u' fields but got '%u'",
 		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD] = "expected this intrinsic field to be '%.*s %.*s' for this compiler version",
 		[HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN] = "expected the size and align for the intrinsic vector type '%.*s' to be size '%u' and align '%u' but got size '%u' and align '%u'",
-		[HCC_ERROR_CODE_INTRINSIC_MATRIX_INVALID_SIZE_AND_ALIGN] = "expected the size and align for the intrinsic matrix type '%.*s' to be size '%u' and align '%u' but got size '%u' and align '%u'",
 		[HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER] = "'%s' specifier must be placed before this struct definition before using '%s' or '%s'",
 		[HCC_ERROR_CODE_POSITION_ALREADY_SPECIFIED] = "'%s' has already been specified once before in rasterizer state structure",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_ALIGNAS] = "expected '(' to follow _Alignas that contains a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
@@ -3312,6 +3488,8 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_VAR_USED_BEFORE_ASSIGNED] = "texture, buffer or pointer has been used before it has been assigned too",
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_CONDITIONALLY_ASSIGNED_BEFORE_USE] = "texture, buffer or pointer has been conditionally assigned too before being used. we need to know these value of this variable at compile time.",
 		[HCC_ERROR_CODE_NON_CONST_STATIC_VARIABLE_CANNOT_BE_LOGICALLY_ADDRESSED] = "non-const static variable cannot be a texture, buffer or pointer",
+		[HCC_ERROR_CODE_DECLARATION_MISMATCH] = "'%.*s' has been included by two different source files and it has a different implementation",
+		[HCC_ERROR_CODE_INCOMPLETE_TYPE_USED_BY_VALUE] = "incomplete type '%.*s' has been used by value",
 	},
 };
 
@@ -3355,14 +3533,9 @@ void hcc_message_print(HccIIO* iio, HccMessage* message) {
 void hcc_message_pushv(HccTask* t, HccMessageType type, HccMessageCode code, HccLocation* location, HccLocation* other_location, va_list va_args) {
 	HccMessageSys* sys = &t->message_sys;
 
-	HccMessage* m;
-	if (sys->next_is_deferred) {
-		m = hcc_stack_push(sys->deferred_elmts);
-		sys->next_is_deferred = false;
-	} else {
-		m = hcc_stack_push(sys->elmts);
-		sys->used_type_flags |= type;
-	}
+	HccMessage* m = hcc_stack_push(sys->elmts);
+	sys->used_type_flags |= type;
+
 	m->type = type;
 	m->code = code;
 	m->location = hcc_stack_push(sys->locations);
@@ -3593,12 +3766,5 @@ void hcc_message_print_code(HccIIO* iio, HccLocation* location) {
 	if (line + 2 < lines_count) {
 		hcc_message_print_code_line(iio, location, display_line_num_size, line + 2, display_line + 2);
 	}
-}
-
-void hcc_message_copy_deferred(HccTask* t, uint32_t start_idx, uint32_t count) {
-	HccMessage* deferred_messages = hcc_stack_get(t->message_sys.deferred_elmts, start_idx);
-	HccMessage* dst = hcc_stack_push_many(t->message_sys.elmts, count);
-	HCC_COPY_ELMT_MANY(dst, deferred_messages, count);
-	t->message_sys.used_type_flags |= HCC_MESSAGE_TYPE_ERROR;
 }
 

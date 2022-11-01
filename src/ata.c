@@ -223,30 +223,18 @@ const char* hcc_ata_token_strings[HCC_ATA_TOKEN_COUNT] = {
 	[HCC_ATA_TOKEN_KEYWORD_POSITION] = "__hcc_position",
 	[HCC_ATA_TOKEN_KEYWORD_NOINTERP] = "__hcc_nointerp",
 	[HCC_ATA_TOKEN_KEYWORD_CONSTBUFFER] = "ConstBuffer",
-	[HCC_ATA_TOKEN_KEYWORD_ROBUFFER] = "ROBuffer",
-	[HCC_ATA_TOKEN_KEYWORD_RWBUFFER] = "RWBuffer",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1D] = "ROTexture1D",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1DARRAY] = "ROTexture1DARRAY",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2D] = "ROTexture2D",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DARRAY] = "ROTexture2DARRAY",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMS] = "ROTexture2DMS",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMSARRAY] = "ROTexture2DMSARRAY",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBE] = "ROTextureCube",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEARRAY] = "ROTextureCubeArray",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMS] = "ROTextureCubeMS",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMSARRAY] = "ROTextureCubeMSArray",
-	[HCC_ATA_TOKEN_KEYWORD_ROTEXTURE3D] = "ROTexture3D",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1D] = "RWTexture1D",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1DARRAY] = "RWTexture1DArray",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2D] = "RWTexture2D",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DARRAY] = "RWTexture2DArray",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMS] = "RWTexture2DMS",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMSARRAY] = "RWTexture2DMSarray",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBE] = "RWTextureCube",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEARRAY] = "RWTextureCubeArray",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMS] = "RWTextureCubeMS",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMSARRAY] = "RWTextureCubeMSArray",
-	[HCC_ATA_TOKEN_KEYWORD_RWTEXTURE3D] = "RWTexture3D",
+	[HCC_ATA_TOKEN_KEYWORD_BUFFER] = "Buffer",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURE1D] = "Texture1D",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURE1DARRAY] = "Texture1DArray",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURE2D] = "Texture2D",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURE2DARRAY] = "Texture2DArray",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURE2DMS] = "Texture2DMS",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURE2DMSARRAY] = "Texture2DMSArray",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURECUBE] = "TextureCube",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEARRAY] = "TextureCubeArray",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEMS] = "TextureCubeMS",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEMSARRAY] = "TextureCubeMSArray",
+	[HCC_ATA_TOKEN_KEYWORD_TEXTURE3D] = "Texture3D",
 	[HCC_ATA_TOKEN_KEYWORD_SAMPLERSTATE] = "SamplerState",
 };
 
@@ -384,12 +372,12 @@ HccATAToken hcc_ata_iter_next(HccATAIter* iter) {
 		return HCC_ATA_TOKEN_EOF;
 	}
 
-	HccATAToken token = iter->tokens[iter->token_idx];
 	iter->token_idx += 1;
+	HccATAToken token = iter->tokens[iter->token_idx];
 	return token;
 }
 
-HccATAToken hcc_ata_iter_peek_next(HccATAIter* iter) {
+HccATAToken hcc_ata_iter_peek(HccATAIter* iter) {
 	if (iter->token_idx >= iter->tokens_count) {
 		return HCC_ATA_TOKEN_EOF;
 	}
@@ -397,19 +385,27 @@ HccATAToken hcc_ata_iter_peek_next(HccATAIter* iter) {
 	return iter->tokens[iter->token_idx];
 }
 
+HccATAToken hcc_ata_iter_peek_ahead(HccATAIter* iter, uint32_t by) {
+	if (iter->token_idx + by >= iter->tokens_count) {
+		return HCC_ATA_TOKEN_EOF;
+	}
+
+	return iter->tokens[iter->token_idx + by];
+}
+
 HccLocation* hcc_ata_iter_location(HccATAIter* iter) {
-	return HCC_PP_TOKEN_STRIP_PREEXPANDED_MACRO_ARG(iter->locations[HCC_MAX(1, iter->token_idx) - 1]);
+	return HCC_PP_TOKEN_STRIP_PREEXPANDED_MACRO_ARG(iter->locations[iter->token_idx]);
 }
 
 HccATAValue hcc_ata_iter_next_value(HccATAIter* iter) {
-	HCC_DEBUG_ASSERT(hcc_ata_token_has_value(iter->tokens[HCC_MAX(1, iter->token_idx) - 1]), "cannot get the next value as the current token does not have a value");
+	HCC_DEBUG_ASSERT(hcc_ata_token_has_value(iter->tokens[iter->token_idx]), "cannot get the next value as the current token does not have a value");
 	HccATAValue value = iter->values[iter->value_idx];
 	iter->value_idx += 1;
 	return value;
 }
 
-HccATAValue hcc_ata_iter_peek_next_value(HccATAIter* iter) {
-	HCC_DEBUG_ASSERT(hcc_ata_token_has_value(iter->tokens[HCC_MAX(1, iter->token_idx) - 1]), "cannot get the next value as the current token does not have a value");
+HccATAValue hcc_ata_iter_peek_value(HccATAIter* iter) {
+	HCC_DEBUG_ASSERT(hcc_ata_token_has_value(iter->tokens[iter->token_idx]), "cannot get the next value as the current token does not have a value");
 	return iter->values[iter->value_idx];
 }
 

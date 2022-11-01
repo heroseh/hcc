@@ -186,14 +186,23 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_WORKER_STRING_BUFFER,
 	HCC_ALLOC_TAG_WORKER_ARENA,
 
+	HCC_ALLOC_TAG_CU_GLOBAL_DECLARATIONS,
+	HCC_ALLOC_TAG_CU_STRUCT_DECLARATIONS,
+	HCC_ALLOC_TAG_CU_UNION_DECLARATIONS,
+	HCC_ALLOC_TAG_CU_ENUM_DECLARATIONS,
+
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ARRAYS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_COMPOUNDS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_COMPOUND_FIELDS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_TYPEDEFS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ENUMS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ENUM_VALUES,
-	HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_POINTERS,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ARRAYS_DEDUP_HASH_TABLE,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_POINTERS_DEDUP_HASH_TABLE,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS_DEDUP_HASH_TABLE,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ANON_COMPOUND_DEDUP_HASH_TABLE,
 
 	HCC_ALLOC_TAG_ATA_TOKEN_BAG_TOKENS,
 	HCC_ALLOC_TAG_ATA_TOKEN_BAG_LOCATIONS,
@@ -202,11 +211,16 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_AST_FILE_MACRO_PARAMS,
 	HCC_ALLOC_TAG_AST_FILE_PRAGMA_ONCED_FILES,
 	HCC_ALLOC_TAG_AST_FILE_UNIQUE_INCLUDED_FILES,
+	HCC_ALLOC_TAG_AST_FILE_GLOBAL_DECLARATIONS,
+	HCC_ALLOC_TAG_AST_FILE_STRUCT_DECLARATIONS,
+	HCC_ALLOC_TAG_AST_FILE_UNION_DECLARATIONS,
+	HCC_ALLOC_TAG_AST_FILE_ENUM_DECLARATIONS,
 	HCC_ALLOC_TAG_AST_FILES_HASH_TABLE,
 	HCC_ALLOC_TAG_AST_FUNCTION_PARAMS_AND_VARIABLES,
 	HCC_ALLOC_TAG_AST_FUNCTIONS,
 	HCC_ALLOC_TAG_AST_EXPRS,
 	HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES,
+	HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED,
 
 	HCC_ALLOC_TAG_PPGEN_EXPAND_STACK,
 	HCC_ALLOC_TAG_PPGEN_EXPAND_MACRO_IDX_STACK,
@@ -216,6 +230,15 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_PPGEN_MACRO_ARGS_STACK,
 	HCC_ALLOC_TAG_ATAGEN_PAUSED_FILE_STACK,
 	HCC_ALLOC_TAG_ATAGEN_OPEN_BRACKET_STACK,
+
+	HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS,
+	HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES,
+	HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELD_NAMES,
+	HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELD_LOCATIONS,
+	HCC_ALLOC_TAG_ASTGEN_COMPOUND_TYPE_FIND_FIELDS,
+	HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELDS,
+	HCC_ALLOC_TAG_ASTGEN_FUNCTION_PARAMS_AND_VARIABLES,
+	HCC_ALLOC_TAG_ASTGEN_ENUM_VALUES,
 
 	HCC_ALLOC_TAG_COUNT,
 };
@@ -426,8 +449,11 @@ enum {
 	HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION,
 	HCC_ERROR_CODE_MISSING_SEMICOLON,
 	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL,
+	HCC_ERROR_CODE_FUNCTION_PROTOTYPE_MISMATCH,
 	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM,
-	HCC_ERROR_CODE_REIMPLEMENTATION,
+	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM_GOT_SEMICOLON,
+	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_UNNAMED_ENUM,
+	HCC_ERROR_CODE_REIMPLEMENTATION_DATA_TYPE,
 	HCC_ERROR_CODE_EMPTY_ENUM,
 	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_ENUM_VALUE,
 	HCC_ERROR_CODE_ENUM_VALUE_OVERFLOW,
@@ -440,7 +466,8 @@ enum {
 	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT,
 	HCC_ERROR_CODE_NOT_AVAILABLE_FOR_UNION,
-	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_COMPOUND_TYPE,
+	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ANON_STRUCT_TYPE,
+	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ANON_UNION_TYPE,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT_FIELD,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD,
 	HCC_ERROR_CODE_COMPOUND_FIELD_INVALID_TERMINATOR,
@@ -448,7 +475,6 @@ enum {
 	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT,
 	HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD,
 	HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN,
-	HCC_ERROR_CODE_INTRINSIC_MATRIX_INVALID_SIZE_AND_ALIGN,
 	HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER,
 	HCC_ERROR_CODE_POSITION_ALREADY_SPECIFIED,
 	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_ALIGNAS,
@@ -569,7 +595,6 @@ enum {
 	HCC_ERROR_CODE_FUNCTION_RECURSION,
 	HCC_ERROR_CODE_UNEXPECTED_TOKEN_FUNCTION_PROTOTYPE_END,
 	HCC_ERROR_CODE_UNEXPECTED_TOKEN,
-	HCC_ERROR_CODE_RESOURCE_IN_UNION,
 	HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE,
 	HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE,
 	HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_COMPOUND_DATA_TYPE,
@@ -587,6 +612,8 @@ enum {
 	HCC_ERROR_CODE_LOGICAL_ADDRESSED_VAR_USED_BEFORE_ASSIGNED,
 	HCC_ERROR_CODE_LOGICAL_ADDRESSED_CONDITIONALLY_ASSIGNED_BEFORE_USE,
 	HCC_ERROR_CODE_NON_CONST_STATIC_VARIABLE_CANNOT_BE_LOGICALLY_ADDRESSED,
+	HCC_ERROR_CODE_DECLARATION_MISMATCH,
+	HCC_ERROR_CODE_INCOMPLETE_TYPE_USED_BY_VALUE,
 
 	HCC_ERROR_CODE_COUNT,
 };
@@ -699,7 +726,7 @@ enum HccAMLIntrinsicDataType {
 
 //
 // format constants
-#define HCC_AML_INTRINSIC_DATA_TYPE_TYPE_MASK     0x0f
+#define HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK   0x0f
 #define HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK  0x30
 #define HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_SHIFT 4
 #define HCC_AML_INTRINSIC_DATA_TYPE_ROWS_MASK     0xc0
@@ -716,16 +743,27 @@ enum HccAMLIntrinsicDataType {
 
 //
 // extraction utilities
-#define HCC_AML_INTRINSIC_DATA_TYPE_TYPE(type)    ((type) & HCC_AML_INTRINSIC_DATA_TYPE_TYPE_MASK)
-#define HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(type) (((type) & HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_SHIFT) + 1)
-#define HCC_AML_INTRINSIC_DATA_TYPE_ROWS(type)    (((type) & HCC_AML_INTRINSIC_DATA_TYPE_ROWS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_ROWS_SHIFT) + 1)
+#define HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(type)  ((type) & HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK)
+#define HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(type) ((((type) & HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_SHIFT) + 1)
+#define HCC_AML_INTRINSIC_DATA_TYPE_ROWS(type)    ((((type) & HCC_AML_INTRINSIC_DATA_TYPE_ROWS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_ROWS_SHIFT) + 1)
 
-typedef uint16_t HccIntrinsicBasicTypeMask;
-#define HCC_INTRINSIC_BASIC_TYPE_MASK_SET(ptr, intrinsic_type) (*(ptr)) |= (1 << (intrinsic_type))
-#define HCC_INTRINSIC_BASIC_TYPE_MASK_UNSET(ptr, intrinsic_type) (*(ptr)) &= ~(1 << (intrinsic_type))
-#define HCC_INTRINSIC_BASIC_TYPE_MASK_IS_SET(v, intrinsic_type) ((bool)((v) & (1 << (intrinsic_type))))
+extern const char* hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT];
+extern uint8_t hcc_aml_intrinsic_data_type_scalar_size_aligns[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT];
 
-HccString hcc_intrinsic_basic_type_mask_string(HccIntrinsicBasicTypeMask mask);
+// ===========================================
+//
+//
+// AML Scalar Data Type Mask
+//
+//
+// ===========================================
+
+typedef uint16_t HccAMLScalarDataTypeMask;
+#define HCC_AML_SCALAR_DATA_TYPE_MASK_SET(ptr, aml_intrinsic_type) (*(ptr)) |= (1 << (aml_intrinsic_type))
+#define HCC_AML_SCALAR_DATA_TYPE_MASK_UNSET(ptr, aml_intrinsic_type) (*(ptr)) &= ~(1 << (aml_intrinsic_type))
+#define HCC_AML_SCALAR_DATA_TYPE_MASK_IS_SET(v, aml_intrinsic_type) ((bool)((v) & (1 << (aml_intrinsic_type))))
+
+HccString hcc_aml_scalar_data_type_mask_string(HccAMLScalarDataTypeMask mask);
 
 // ===========================================
 //
@@ -755,23 +793,22 @@ enum HccResourceDataType {
 //
 // format constants
 #define HCC_RESOURCE_DATA_TYPE_TYPE_MASK   0x0003
-#define HCC_RESOURCE_DATA_TYPE_IS_RW_MASK  0x0004
-#define HCC_RESOURCE_DATA_TYPE_AUX_MASK    0xfff8
-#define HCC_RESOURCE_DATA_TYPE_AUX_SHIFT   3
+#define HCC_RESOURCE_DATA_TYPE_AUX_MASK    0xfffc
+#define HCC_RESOURCE_DATA_TYPE_AUX_SHIFT   2
 
 //
 // format aux constants for HCC_RESOURCE_DATA_TYPE_TEXTURE
-#define HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_ARRAY_MASK        0x0008
-#define HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS_MASK           0x0010
-#define HCC_RESOURCE_DATA_TYPE_TEXTURE_DIM_MASK             0x0060
-#define HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE_MASK  0x0710
-#define HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE_SHIFT 7
+#define HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_ARRAY_MASK        0x0004
+#define HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS_MASK           0x0008
+#define HCC_RESOURCE_DATA_TYPE_TEXTURE_DIM_MASK             0x0030
+#define HCC_RESOURCE_DATA_TYPE_TEXTURE_DIM_SHIFT            4
+#define HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE_MASK  0x03c0
+#define HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE_SHIFT 6
 
 //
 // extraction utilities
-#define HCC_RESOURCE_DATA_TYPE_TYPE(type)  ((type) & HCC_RESOURCE_DATA_TYPE_TYPE_MASK)
-#define HCC_RESOURCE_DATA_TYPE_AUX(type)   (((type) & HCC_RESOURCE_DATA_TYPE_AUX_MASK) >> HCC_RESOURCE_DATA_TYPE_AUX_SHIFT)
-#define HCC_RESOURCE_DATA_TYPE_IS_RW(type) (!!((type) & HCC_RESOURCE_DATA_TYPE_IS_RW_MASK))
+#define HCC_RESOURCE_DATA_TYPE_TYPE(type) ((type) & HCC_RESOURCE_DATA_TYPE_TYPE_MASK)
+#define HCC_RESOURCE_DATA_TYPE_AUX(type)  (((type) & HCC_RESOURCE_DATA_TYPE_AUX_MASK) >> HCC_RESOURCE_DATA_TYPE_AUX_SHIFT)
 
 //
 // extraction utilities for HCC_RESOURCE_DATA_TYPE_TEXTURE aux
@@ -782,21 +819,25 @@ enum HccResourceDataType {
 
 //
 // initialization
-#define HCC_RESOURCE_DATA_TYPE_BUFFER(is_rw, idx) \
+#define HCC_RESOURCE_DATA_TYPE_CONSTBUFFER(idx) \
 ( \
-	HCC_RESOURCE_DATA_TYPE_BUFFER | \
-	((is_rw) ? HCC_RESOURCE_DATA_TYPE_IS_RW_MASK : 0) | \
+	HCC_RESOURCE_DATA_TYPE_CONSTBUFFER | \
 	(((idx) << HCC_RESOURCE_DATA_TYPE_AUX_SHIFT) & HCC_RESOURCE_DATA_TYPE_AUX_MASK) \
 )
 
-#define HCC_RESOURCE_DATA_TYPE_TEXTURE(dim, intrinsic_type, is_rw, is_array, is_ms) \
+#define HCC_RESOURCE_DATA_TYPE_BUFFER(idx) \
+( \
+	HCC_RESOURCE_DATA_TYPE_BUFFER | \
+	(((idx) << HCC_RESOURCE_DATA_TYPE_AUX_SHIFT) & HCC_RESOURCE_DATA_TYPE_AUX_MASK) \
+)
+
+#define HCC_RESOURCE_DATA_TYPE_TEXTURE(dim, intrinsic_type, is_array, is_ms) \
 ( \
 	HCC_RESOURCE_DATA_TYPE_TEXTURE | \
-	HCC_TEXTURE_DIM_##dim | \
+	(((dim) << HCC_RESOURCE_DATA_TYPE_TEXTURE_DIM_SHIFT) & HCC_RESOURCE_DATA_TYPE_TEXTURE_DIM_MASK) | \
 	(((intrinsic_type) << HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE_SHIFT) & HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE_MASK) | \
-	((is_rw) ? HCC_RESOURCE_DATA_TYPE_IS_RW_MASK : 0) | \
-	((is_array) ? HCC_RESOURCE_DATA_TYPE_IS_ARRAY_MASK : 0) | \
-	((is_ms) ? HCC_RESOURCE_DATA_TYPE_IS_MS_MASK : 0) \
+	((is_array) ? HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_ARRAY_MASK : 0) | \
+	((is_ms) ? HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS_MASK : 0) \
 )
 
 // ===========================================
@@ -839,7 +880,7 @@ enum HccASTBasicDataType {
 	) || \
 	( \
 		(type) == HCC_AST_BASIC_DATA_TYPE_CHAR && \
-		!hcc_target_is_char_unsigned(&(cu)->target) \
+		!hcc_options_is_char_unsigned((cu)->options) \
 	) \
 )
 
@@ -851,7 +892,7 @@ enum HccASTBasicDataType {
 	) || \
 	( \
 		(type) == HCC_AST_BASIC_DATA_TYPE_CHAR && \
-		hcc_target_is_char_unsigned(&(cu)->target) \
+		hcc_options_is_char_unsigned((cu)->options) \
 	) \
 )
 #define HCC_AST_BASIC_DATA_TYPE_IS_FLOAT(type) ((type) == HCC_AST_BASIC_DATA_TYPE_FLOAT || (type) == HCC_AST_BASIC_DATA_TYPE_DOUBLE)
@@ -883,6 +924,7 @@ enum HccDataType {
 	HCC_DATA_TYPE_GENERIC_FLOAT =  8,
 	HCC_DATA_TYPE_RESOURCE =       9, // HccResourceDataType
 	HCC_DATA_TYPE_COUNT =         10,
+#define HCC_DATA_TYPE_INVALID HCC_DATA_TYPE_COUNT
 };
 
 //
@@ -902,9 +944,9 @@ enum HccDataType {
 
 //
 // insertion utilities
-#define HCC_DATA_TYPE_CONST(type)            ((type) | HCC_DATA_TYPE_CONST_MASK)
-#define HCC_DATA_TYPE_VOLATILE(type)         ((type) | HCC_DATA_TYPE_VOLATILE_MASK)
-#define HCC_DATA_TYPE_ATOMIC(type)           ((type) | HCC_DATA_TYPE_ATOMIC_MASK)
+#define HCC_DATA_TYPE_CONST(type)            ((type) | HCC_DATA_TYPE_CONST_QUALIFIER_MASK)
+#define HCC_DATA_TYPE_VOLATILE(type)         ((type) | HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK)
+#define HCC_DATA_TYPE_ATOMIC(type)           ((type) | HCC_DATA_TYPE_ATOMIC_QUALIFIER_MASK)
 
 //
 // removal utilities
@@ -919,6 +961,8 @@ enum HccDataType {
 	HCC_DATA_TYPE_##type | \
 	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
 )
+#define HCC_DATA_TYPE_SCALARX(aml_intrinsic_data_type) HCC_DATA_TYPE(UNION, HCC_COMPOUND_DATA_TYPE_IDX_SCALARX_START + (aml_intrinsic_data_type))
+#define HCC_DATA_TYPE_PSCALARX(aml_intrinsic_data_type) HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_PSCALARX_START + (aml_intrinsic_data_type))
 
 //
 // comparision utilities
@@ -942,19 +986,20 @@ enum HccDataType {
 #define HCC_DATA_TYPE_IS_PMATRIX(type)       (HCC_DATA_TYPE_IS_STRUCT(type) && HCC_STRUCT_IDX_PMAT_START <= HCC_DATA_TYPE_AUX(type) && HCC_DATA_TYPE_AUX(type) < HCC_STRUCT_IDX_PMAT_END)
 #define HCC_DATA_TYPE_IS_MATRIX(type)        (HCC_DATA_TYPE_IS_UNION(type) && HCC_UNION_IDX_MAT_START <= HCC_DATA_TYPE_AUX(type) && HCC_DATA_TYPE_AUX(type) < HCC_UNION_IDX_MAT_END)
 
+#define HCC_DATA_TYPE_VOID                   HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_VOID)
 #define HCC_DATA_TYPE_INT                    HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SINT)
-#define HCC_DATA_TYPE_UINT8                  HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT8)
-#define HCC_DATA_TYPE_UINT16                 HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT16)
-#define HCC_DATA_TYPE_UINT32                 HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT32)
-#define HCC_DATA_TYPE_UINT64                 HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT64)
-#define HCC_DATA_TYPE_UINTPTR                HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINTPTR)
-#define HCC_DATA_TYPE_INT8                   HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT8)
-#define HCC_DATA_TYPE_INT16                  HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT16)
-#define HCC_DATA_TYPE_INT32                  HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT32)
-#define HCC_DATA_TYPE_INT64                  HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT64)
-#define HCC_DATA_TYPE_INTPTR                 HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INTPTR)
-#define HCC_DATA_TYPE_HALF                   HCC_DATA_TYPE(STRUCT, HCC_STRUCT_IDX_HALF)
-#define HCC_DATA_TYPE_TYPEDEF_HALF           HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_HALF)
+#define HCC_DATA_TYPE_UINT8_T                HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT8_T)
+#define HCC_DATA_TYPE_UINT16_T               HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT16_T)
+#define HCC_DATA_TYPE_UINT32_T               HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT32_T)
+#define HCC_DATA_TYPE_UINT64_T               HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT64_T)
+#define HCC_DATA_TYPE_UINTPTR_T              HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINTPTR_T)
+#define HCC_DATA_TYPE_INT8_T                 HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT8_T)
+#define HCC_DATA_TYPE_INT16_T                HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT16_T)
+#define HCC_DATA_TYPE_INT32_T                HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT32_T)
+#define HCC_DATA_TYPE_INT64_T                HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INT64_T)
+#define HCC_DATA_TYPE_INTPTR_T               HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_INTPTR_T)
+#define HCC_DATA_TYPE_HALF                   HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HALF)
+#define HCC_DATA_TYPE_HALF_T                 HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_HALF)
 
 // ===========================================
 //
@@ -1025,10 +1070,10 @@ struct HccDataTypeTableSetup {
 	uint32_t enums_reserve_cap;
 	uint32_t enum_values_grow_count;
 	uint32_t enum_values_reserve_cap;
-	uint32_t buffers_grow_count;
-	uint32_t buffers_reserve_cap;
 	uint32_t pointers_grow_count;
 	uint32_t pointers_reserve_cap;
+	uint32_t buffers_grow_count;
+	uint32_t buffers_reserve_cap;
 };
 
 typedef uint8_t HccBasicTypeClass;
@@ -1072,6 +1117,8 @@ bool hcc_data_type_has_resources(HccCU* cu, HccDataType data_type);
 HccDataType hcc_data_type_strip_pointer(HccCU* cu, HccDataType data_type);
 HccDataType hcc_data_type_strip_all_pointers(HccCU* cu, HccDataType data_type);
 HccLocation* hcc_data_type_location(HccCU* cu, HccDataType data_type);
+HccDataType hcc_data_type_lower_ast_to_aml(HccCU* cu, HccDataType data_type);
+HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccDataType data_type);
 
 HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type);
 HccBasic hcc_basic_from_sint(HccCU* cu, HccDataType data_type, int64_t value);
@@ -1166,24 +1213,10 @@ HccConstant hcc_constant_table_get(HccCU* cu, HccConstantId id);
 // ===========================================
 //
 //
-// AST Declarations
+// AST Expressions
 //
 //
 // ===========================================
-
-typedef struct HccASTVariable HccASTVariable;
-typedef struct HccASTFunction HccASTFunction;
-
-typedef uint8_t HccASTFunctionShaderStage;
-enum HccASTFunctionShaderStage {
-	HCC_AST_FUNCTION_SHADER_STAGE_NONE,
-	HCC_AST_FUNCTION_SHADER_STAGE_VERTEX,
-	HCC_AST_FUNCTION_SHADER_STAGE_FRAGMENT,
-	HCC_AST_FUNCTION_SHADER_STAGE_COMPUTE,
-	HCC_AST_FUNCTION_SHADER_STAGE_MESHTASK,
-
-	HCC_AST_FUNCTION_SHADER_STAGE_COUNT,
-};
 
 typedef uint8_t HccASTBinaryOp;
 enum HccASTBinaryOp {
@@ -1233,6 +1266,30 @@ enum HccASTUnaryOp {
 	HCC_AST_UNARY_OP_COUNT,
 };
 
+extern uint8_t hcc_ast_unary_op_precedence[HCC_AST_UNARY_OP_COUNT];
+
+// ===========================================
+//
+//
+// AST Declarations
+//
+//
+// ===========================================
+
+typedef struct HccASTVariable HccASTVariable;
+typedef struct HccASTFunction HccASTFunction;
+
+typedef uint8_t HccASTFunctionShaderStage;
+enum HccASTFunctionShaderStage {
+	HCC_AST_FUNCTION_SHADER_STAGE_NONE,
+	HCC_AST_FUNCTION_SHADER_STAGE_VERTEX,
+	HCC_AST_FUNCTION_SHADER_STAGE_FRAGMENT,
+	HCC_AST_FUNCTION_SHADER_STAGE_COMPUTE,
+	HCC_AST_FUNCTION_SHADER_STAGE_MESHTASK,
+
+	HCC_AST_FUNCTION_SHADER_STAGE_COUNT,
+};
+
 extern const char* hcc_ast_function_shader_stage_strings[HCC_AST_FUNCTION_SHADER_STAGE_COUNT];
 
 HccASTVariable* hcc_ast_global_variable_get(HccCU* cu, HccDecl decl);
@@ -1240,7 +1297,7 @@ HccLocation* hcc_ast_variable_identifier_location(HccASTVariable* variable);
 HccStringId hcc_ast_variable_identifier_string_id(HccASTVariable* variable);
 HccDataType hcc_ast_variable_data_type(HccASTVariable* variable);
 HccConstantId hcc_ast_variable_initializer_constant_id(HccASTVariable* variable);
-void hcc_ast_variable_to_string(HccCU* cu, HccASTVariable* variable, HccIIO* iio, bool color);
+void hcc_ast_variable_to_string(HccCU* cu, HccASTVariable* variable, HccIIO* iio);
 
 HccASTFunction* hcc_ast_function_get(HccCU* cu, HccDecl decl);
 HccASTFunctionShaderStage hcc_ast_function_shader_stage(HccASTFunction* function);
@@ -1254,7 +1311,7 @@ HccLocation* hcc_ast_function_return_data_type_location(HccASTFunction* function
 uint8_t hcc_ast_function_params_count(HccASTFunction* function);
 uint16_t hcc_ast_function_variables_count(HccASTFunction* function);
 HccASTVariable* hcc_ast_function_params_and_variables(HccASTFunction* function);
-void hcc_ast_function_to_string(HccCU* cu, HccASTFunction* function, HccIIO* iio, bool color);
+void hcc_ast_function_to_string(HccCU* cu, HccASTFunction* function, HccIIO* iio);
 
 // ===========================================
 //
@@ -1427,30 +1484,18 @@ enum {
 	HCC_ATA_TOKEN_KEYWORD_POSITION,
 	HCC_ATA_TOKEN_KEYWORD_NOINTERP,
 	HCC_ATA_TOKEN_KEYWORD_CONSTBUFFER,
-	HCC_ATA_TOKEN_KEYWORD_ROBUFFER,
-	HCC_ATA_TOKEN_KEYWORD_RWBUFFER,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1D,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1DARRAY,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2D,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DARRAY,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMS,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMSARRAY,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBE,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEARRAY,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMS,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMSARRAY,
-	HCC_ATA_TOKEN_KEYWORD_ROTEXTURE3D,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1D,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1DARRAY,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2D,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DARRAY,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMS,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMSARRAY,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBE,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEARRAY,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMS,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMSARRAY,
-	HCC_ATA_TOKEN_KEYWORD_RWTEXTURE3D,
+	HCC_ATA_TOKEN_KEYWORD_BUFFER,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURE1D,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURE1DARRAY,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURE2D,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURE2DARRAY,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURE2DMS,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURE2DMSARRAY,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURECUBE,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEARRAY,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEMS,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEMSARRAY,
+	HCC_ATA_TOKEN_KEYWORD_TEXTURE3D,
 	HCC_ATA_TOKEN_KEYWORD_SAMPLERSTATE,
 #define HCC_ATA_TOKEN_KEYWORDS_END HCC_ATA_TOKEN_COUNT
 #define HCC_ATA_TOKEN_KEYWORDS_COUNT (HCC_ATA_TOKEN_KEYWORDS_END - HCC_ATA_TOKEN_KEYWORDS_START)
@@ -1498,10 +1543,11 @@ HccATAIter* hcc_ata_iter_start(HccASTFile* file);
 void hcc_ata_iter_finish(HccASTFile* file, HccATAIter* iter);
 
 HccATAToken hcc_ata_iter_next(HccATAIter* iter);
-HccATAToken hcc_ata_iter_peek_next(HccATAIter* iter);
+HccATAToken hcc_ata_iter_peek(HccATAIter* iter);
+HccATAToken hcc_ata_iter_peek_ahead(HccATAIter* iter, uint32_t by);
 HccLocation* hcc_ata_iter_location(HccATAIter* iter);
 HccATAValue hcc_ata_iter_next_value(HccATAIter* iter);
-HccATAValue hcc_ata_iter_peek_next_value(HccATAIter* iter);
+HccATAValue hcc_ata_iter_peek_value(HccATAIter* iter);
 
 // ===========================================
 //
@@ -1609,64 +1655,6 @@ HccAML* hcc_cu_get_aml(HccCU* cu);
 // ===========================================
 //
 //
-// Compiler Options
-//
-//
-// ===========================================
-
-typedef struct HccOptions HccOptions;
-typedef uint16_t HccOptionKey;
-enum HccOptionKey {
-	HCC_OPTION_KEY_RESOURCE_SET_SLOT_MAX,
-	HCC_OPTION_KEY_RESOURCE_CONSTANTS_MAX_SIZE,
-
-	HCC_OPTION_KEY_COUNT,
-};
-
-typedef union HccOptionValue HccOptionValue;
-union HccOptionValue {
-	bool      bool_;
-	uint32_t  uint;
-	int32_t   int_;
-	float     float_;
-	HccString string;
-};
-
-typedef struct HccOptionsSetup HccOptionsSetup;
-struct HccOptionsSetup {
-	uint32_t defines_grow_count;
-	uint32_t defines_reserve_cap;
-};
-
-extern HccOptionsSetup hcc_options_setup_default;
-extern HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT];
-
-HccResult hcc_options_init(HccOptionsSetup* setup, HccOptions** o_out);
-void hcc_options_deinit(HccOptions* options);
-void hcc_options_reset(HccOptions* options);
-HccResult hcc_options_merge(HccOptions* low_priority, HccOptions* high_priority, HccOptions** o_out);
-HccResult hcc_options_clone(HccOptions* src, HccOptions** o_out);
-bool hcc_options_is_set(HccOptions* options, HccOptionKey key);
-
-HccOptionValue hcc_options_get(HccOptions* options, HccOptionKey key);
-bool hcc_options_get_bool(HccOptions* options, HccOptionKey key);
-uint32_t hcc_options_get_u32(HccOptions* options, HccOptionKey key);
-int32_t hcc_options_get_s32(HccOptions* options, HccOptionKey key);
-float hcc_options_get_float(HccOptions* options, HccOptionKey key);
-HccString hcc_options_get_string(HccOptions* options, HccOptionKey key);
-
-void hcc_options_set(HccOptions* options, HccOptionKey key, HccOptionValue value);
-void hcc_options_set_bool(HccOptions* options, HccOptionKey key, bool value);
-void hcc_options_set_u32(HccOptions* options, HccOptionKey key, uint32_t value);
-void hcc_options_set_s32(HccOptions* options, HccOptionKey key, int32_t value);
-void hcc_options_set_float(HccOptions* options, HccOptionKey key, float value);
-void hcc_options_set_string(HccOptions* options, HccOptionKey key, HccString value);
-
-HccResult hcc_options_add_define(HccOptions* options, HccString name, HccString value);
-
-// ===========================================
-//
-//
 // Compiler Target
 //
 //
@@ -1718,16 +1706,75 @@ enum HccTargetResourceModel {
 	HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS,
 };
 
-typedef struct HccTarget HccTarget;
-struct HccTarget {
-	HccTargetArch          arch;
-	HccTargetOS            os;
-	HccTargetGfxAPI        gfx_api;
-	HccTargetFormat        format;
-	HccTargetResourceModel resource_model;
+// ===========================================
+//
+//
+// Compiler Options
+//
+//
+// ===========================================
+
+typedef struct HccOptions HccOptions;
+typedef uint16_t HccOptionKey;
+enum HccOptionKey {
+	HCC_OPTION_KEY_TARGET_ARCH,                 // HccTargetArch
+	HCC_OPTION_KEY_TARGET_OS,                   // HccTargetOS
+	HCC_OPTION_KEY_TARGET_GFX_API,              // HccTargetGfxAPI
+	HCC_OPTION_KEY_TARGET_FORMAT,               // HccTargetFormat
+	HCC_OPTION_KEY_TARGET_RESOURCE_MODEL,       // HccTargetResourceModel
+	HCC_OPTION_KEY_INT8_ENABLED,                // bool
+	HCC_OPTION_KEY_INT16_ENABLED,               // bool
+	HCC_OPTION_KEY_INT64_ENABLED,               // bool
+	HCC_OPTION_KEY_FLOAT16_ENABLED,             // bool
+	HCC_OPTION_KEY_FLOAT64_ENABLED,             // bool
+	HCC_OPTION_KEY_RESOURCE_SET_SLOT_MAX,       // uint
+	HCC_OPTION_KEY_RESOURCE_CONSTANTS_MAX_SIZE, // uint
+
+	HCC_OPTION_KEY_COUNT,
 };
 
-bool hcc_target_is_char_unsigned(HccTarget* target);
+typedef union HccOptionValue HccOptionValue;
+union HccOptionValue {
+	bool      bool_;
+	uint32_t  uint;
+	int32_t   int_;
+	float     float_;
+	HccString string;
+};
+
+typedef struct HccOptionsSetup HccOptionsSetup;
+struct HccOptionsSetup {
+	uint32_t defines_grow_count;
+	uint32_t defines_reserve_cap;
+};
+
+extern HccOptionsSetup hcc_options_setup_default;
+extern HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT];
+
+HccResult hcc_options_init(HccOptionsSetup* setup, HccOptions** o_out);
+void hcc_options_deinit(HccOptions* options);
+void hcc_options_reset(HccOptions* options);
+HccResult hcc_options_merge(HccOptions* low_priority, HccOptions* high_priority, HccOptions** o_out);
+HccResult hcc_options_clone(HccOptions* src, HccOptions** o_out);
+bool hcc_options_is_set(HccOptions* options, HccOptionKey key);
+
+HccOptionValue hcc_options_get(HccOptions* options, HccOptionKey key);
+bool hcc_options_get_bool(HccOptions* options, HccOptionKey key);
+uint32_t hcc_options_get_u32(HccOptions* options, HccOptionKey key);
+int32_t hcc_options_get_s32(HccOptions* options, HccOptionKey key);
+float hcc_options_get_float(HccOptions* options, HccOptionKey key);
+HccString hcc_options_get_string(HccOptions* options, HccOptionKey key);
+
+void hcc_options_set(HccOptions* options, HccOptionKey key, HccOptionValue value);
+void hcc_options_set_bool(HccOptions* options, HccOptionKey key, bool value);
+void hcc_options_set_u32(HccOptions* options, HccOptionKey key, uint32_t value);
+void hcc_options_set_s32(HccOptions* options, HccOptionKey key, int32_t value);
+void hcc_options_set_float(HccOptions* options, HccOptionKey key, float value);
+void hcc_options_set_string(HccOptions* options, HccOptionKey key, HccString value);
+
+HccResult hcc_options_add_define(HccOptions* options, HccString name, HccString value);
+
+bool hcc_options_is_char_unsigned(HccOptions* o);
 
 // ===========================================
 //
@@ -1774,7 +1821,6 @@ typedef struct HccTaskSetup HccTaskSetup;
 struct HccTaskSetup {
 	HccCUSetup       cu;
 	HccOptions*      options;
-	HccTarget        target;
 	HccWorkerJobType final_worker_job_type;
 	uint32_t         include_paths_cap;
 	uint32_t         messages_cap;
@@ -1842,9 +1888,19 @@ struct HccATAGenSetup {
 	uint32_t      open_bracket_stack_reserve_cap;
 };
 
+typedef struct HccASTGenSetup HccASTGenSetup;
+struct HccASTGenSetup {
+	uint32_t variable_stack_grow_count;
+	uint32_t variable_stack_reserve_cap;
+	uint32_t compound_fields_reserve_cap;
+	uint32_t function_params_and_variables_reserve_cap;
+	uint32_t enum_values_reserve_cap;
+};
+
 typedef struct HccCompilerSetup HccCompilerSetup;
 struct HccCompilerSetup {
 	HccATAGenSetup atagen;
+	HccASTGenSetup astgen;
 	uint32_t       worker_string_buffer_grow_size;
 	uint32_t       worker_string_buffer_reserve_size;
 	uint32_t       worker_arena_size;

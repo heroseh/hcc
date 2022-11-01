@@ -135,7 +135,7 @@ noreturn Uptr _hcc_abort(const char* file, int line, const char* message, ...) {
 //
 // ===========================================
 
-U32 onebitscount32(U32 bits) {
+U32 hcc_onebitscount32(U32 bits) {
 #ifdef __GNUC__
 	return __builtin_popcount(bits);
 #else
@@ -143,7 +143,7 @@ U32 onebitscount32(U32 bits) {
 #endif
 }
 
-U32 leastsetbitidx32(U32 bits) {
+U32 hcc_leastsetbitidx32(U32 bits) {
 #ifdef __GNUC__
 	return __builtin_ctz(bits);
 #else
@@ -7710,7 +7710,7 @@ HccString hcc_intrinsic_basic_type_mask_string(HccIntrinsicBasicTypeMask mask) {
 	static char buf[512];
 	U32 size = 0;
 	while (mask) {
-		HccIntrinsicType intrinsic_type = leastsetbitidx32(mask);
+		HccIntrinsicType intrinsic_type = hcc_leastsetbitidx32(mask);
 		const char* str;
 		switch (intrinsic_type) {
 			case HCC_INTRINSIC_TYPE_VOID: str = "void"; break;
@@ -11467,7 +11467,7 @@ NON_NUM_TYPE: {}
 				return HCC_DATA_TYPE_INVALID;
 			}
 
-			U32 num_types = onebitscount32((type_specifiers & HCC_TYPE_SPECIFIER_TYPES) & ~HCC_TYPE_SPECIFIER_INT);
+			U32 num_types = hcc_onebitscount32((type_specifiers & HCC_TYPE_SPECIFIER_TYPES) & ~HCC_TYPE_SPECIFIER_INT);
 			if (
 				num_types > 1 &&
 				!(num_types == 2 && type_specifiers & HCC_TYPE_SPECIFIER_LONG_DOUBLE)

@@ -14,12 +14,58 @@
 // into a single AST and therefore a single binary.
 //
 
-void hcc_cu_init(HccCU* cu, HccCUSetup* setup, HccTarget* target) {
-	cu->target = *target;
+void hcc_cu_init(HccCU* cu, HccCUSetup* setup, HccOptions* options) {
+	cu->options = options;
+
+	cu->supported_scalar_data_types_mask
+		= (1 << HCC_AML_INTRINSIC_DATA_TYPE_VOID)
+		| (1 << HCC_AML_INTRINSIC_DATA_TYPE_BOOL)
+		| (1 << HCC_AML_INTRINSIC_DATA_TYPE_S32)
+		| (1 << HCC_AML_INTRINSIC_DATA_TYPE_U32)
+		| (1 << HCC_AML_INTRINSIC_DATA_TYPE_F32)
+		;
+
+	if (hcc_options_get_bool(options, HCC_OPTION_KEY_INT8_ENABLED)) {
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_S8);
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_U8);
+	}
+	if (hcc_options_get_bool(options, HCC_OPTION_KEY_INT16_ENABLED)) {
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_S16);
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_U16);
+	}
+	if (hcc_options_get_bool(options, HCC_OPTION_KEY_INT64_ENABLED)) {
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_S64);
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_U64);
+	}
+	if (hcc_options_get_bool(options, HCC_OPTION_KEY_FLOAT16_ENABLED)) {
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_F16);
+	}
+	if (hcc_options_get_bool(options, HCC_OPTION_KEY_FLOAT64_ENABLED)) {
+		cu->supported_scalar_data_types_mask |= (1 << HCC_AML_INTRINSIC_DATA_TYPE_F64);
+	}
+
+	uint32_t global_declarations_cap
+		= setup->dtt.arrays_reserve_cap
+		+ setup->dtt.compounds_reserve_cap
+		+ setup->dtt.typedefs_reserve_cap
+		+ setup->dtt.enums_reserve_cap
+		+ setup->dtt.pointers_reserve_cap
+		+ setup->dtt.buffers_reserve_cap
+		+ setup->ast.functions_reserve_cap
+		+ setup->ast.global_variables_reserve_cap
+		;
+
 	hcc_constant_table_init(cu, &setup->constant_table);
 	hcc_data_type_table_init(cu, &setup->dtt);
 	hcc_ast_init(cu, &setup->ast);
 	hcc_aml_init(cu, &setup->aml);
+	cu->global_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_GLOBAL_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, global_declarations_cap);
+	cu->struct_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_STRUCT_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
+	cu->union_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_UNION_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
+	cu->enum_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_ENUM_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.enums_reserve_cap);
+	cu->global_declarations_cap = global_declarations_cap;
+	cu->compounds_cap = setup->dtt.compounds_reserve_cap;
+	cu->enums_cap = setup->dtt.enums_reserve_cap;
 }
 
 void hcc_cu_deinit(HccCU* cu) {
@@ -43,6 +89,16 @@ HccOptionsSetup hcc_options_setup_default = {
 };
 
 HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
+	[HCC_OPTION_KEY_TARGET_ARCH] =             HCC_TARGET_ARCH_X86_64,
+	[HCC_OPTION_KEY_TARGET_OS] =               HCC_TARGET_OS_LINUX,
+	[HCC_OPTION_KEY_TARGET_GFX_API] =          HCC_TARGET_GFX_API_VULKAN,
+	[HCC_OPTION_KEY_TARGET_FORMAT] =           HCC_TARGET_FORMAT_SPIR_V,
+	[HCC_OPTION_KEY_TARGET_RESOURCE_MODEL] =   HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS,
+	[HCC_OPTION_KEY_INT8_ENABLED] =            false,
+	[HCC_OPTION_KEY_INT16_ENABLED] =           false,
+	[HCC_OPTION_KEY_INT64_ENABLED] =           false,
+	[HCC_OPTION_KEY_FLOAT16_ENABLED] =         false,
+	[HCC_OPTION_KEY_FLOAT64_ENABLED] =         false,
 	[HCC_OPTION_KEY_RESOURCE_SET_SLOT_MAX] = { .uint = 4 },
 	[HCC_OPTION_KEY_RESOURCE_CONSTANTS_MAX_SIZE] = { .uint = 32 },
 };
@@ -192,16 +248,8 @@ HccResult hcc_options_add_define(HccOptions* options, HccString name, HccString 
 	return HCC_RESULT_SUCCESS;
 }
 
-// ===========================================
-//
-//
-// Compiler Target
-//
-//
-// ===========================================
-
-bool hcc_target_is_char_unsigned(HccTarget* target) {
-	switch (target->arch) {
+bool hcc_options_is_char_unsigned(HccOptions* o) {
+	switch (hcc_options_get_u32(o, HCC_OPTION_KEY_TARGET_ARCH)) {
 		case HCC_TARGET_ARCH_X86_64:
 			return false;
 		default: HCC_ABORT("TODO implement the signiness of the char type for this target configuration");
@@ -238,10 +286,10 @@ HccTaskSetup hcc_task_setup_default = {
 			.enums_reserve_cap = 131072,
 			.enum_values_grow_count = 1024,
 			.enum_values_reserve_cap = 131072,
-			.buffers_grow_count = 1024,
-			.buffers_reserve_cap = 131072,
 			.pointers_grow_count = 1024,
 			.pointers_reserve_cap = 131072,
+			.buffers_grow_count = 1024,
+			.buffers_reserve_cap = 131072,
 		},
 		.ast = {
 			.files_cap = 8192,
@@ -273,13 +321,6 @@ HccTaskSetup hcc_task_setup_default = {
 		},
 	},
 	.options = NULL,
-	.target = {
-		.arch = HCC_TARGET_ARCH_X86_64,
-		.os = HCC_TARGET_OS_LINUX,
-		.gfx_api = HCC_TARGET_GFX_API_VULKAN,
-		.format = HCC_TARGET_FORMAT_SPIR_V,
-		.resource_model = HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS,
-	},
 	.final_worker_job_type = HCC_WORKER_JOB_TYPE_METADATA,
 	.include_paths_cap = 1024,
 	.messages_cap = 4096,
@@ -418,12 +459,10 @@ HccResult hcc_task_init(HccTaskSetup* setup, HccTask** t_out) {
 
 	HccTask* t = HCC_ARENA_ALCTOR_ALLOC_ELMT_THREAD_SAFE(HccTask, &_hcc_gs.arena_alctor);
 	t->cu_setup = setup->cu;
-	t->target = setup->target;
 	t->options = setup->options;
 	t->final_worker_job_type = setup->final_worker_job_type;
 	t->include_path_strings = hcc_stack_init(HccString, 0, setup->include_paths_cap, setup->include_paths_cap);
 	t->message_sys.elmts = hcc_stack_init(HccMessage, 0, setup->messages_cap, setup->messages_cap);
-	t->message_sys.deferred_elmts = hcc_stack_init(HccMessage, 0, setup->messages_cap, setup->messages_cap);
 	t->message_sys.locations = hcc_stack_init(HccLocation, 0, setup->messages_cap * 2, setup->messages_cap * 2);
 	t->message_sys.strings = hcc_stack_init(char, 0, setup->message_strings_cap, setup->message_strings_cap);
 
@@ -435,7 +474,6 @@ HccResult hcc_task_init(HccTaskSetup* setup, HccTask** t_out) {
 void hcc_task_deinit(HccTask* t) {
 	hcc_stack_deinit(t->include_path_strings);
 	hcc_stack_deinit(t->message_sys.elmts);
-	hcc_stack_deinit(t->message_sys.deferred_elmts);
 	hcc_stack_deinit(t->message_sys.locations);
 	hcc_stack_deinit(t->message_sys.strings);
 
@@ -646,6 +684,7 @@ void hcc_worker_main(void* arg) {
 		}
 
 		hcc_worker_start_job(w);
+		w->cu = w->job.task->cu;
 
 		switch (w->job.type) {
 			case HCC_WORKER_JOB_TYPE_ATAGEN:
@@ -655,8 +694,15 @@ void hcc_worker_main(void* arg) {
 				}
 				hcc_atagen_reset(w);
 				hcc_atagen_generate(w);
+				hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_ASTGEN, w->atagen.ast_file);
 				break;
 			case HCC_WORKER_JOB_TYPE_ASTGEN:
+				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
+					hcc_astgen_init(w, &c->astgen_setup);
+					w->initialized_generators_bitset |= (1 << w->job.type);
+				}
+				hcc_astgen_reset(w);
+				hcc_astgen_generate(w);
 				break;
 			case HCC_WORKER_JOB_TYPE_AMLGEN:
 				break;
@@ -697,6 +743,13 @@ HccCompilerSetup hcc_compiler_setup_default = {
 		.paused_file_stack_reserve_cap = 1024,
 		.open_bracket_stack_grow_count = 256,
 		.open_bracket_stack_reserve_cap = 1024,
+	},
+	.astgen = {
+		.variable_stack_grow_count = 1024,
+		.variable_stack_reserve_cap = 16384,
+		.compound_fields_reserve_cap = 1024,
+		.function_params_and_variables_reserve_cap = 1024,
+		.enum_values_reserve_cap = 1024,
 	},
 	.worker_string_buffer_grow_size = 4096,
 	.worker_string_buffer_reserve_size = 65536,
@@ -774,10 +827,11 @@ HccResult hcc_compiler_init(HccCompilerSetup* setup, HccCompiler** c_out) {
 
 	uint32_t workers_count = setup->workers_count;
 	if (workers_count == 0) {
-		workers_count = 1; //hcc_logical_cores_count();
+		workers_count = hcc_logical_cores_count();
 	}
 
 	c->atagen_setup = setup->atagen;
+	c->astgen_setup = setup->astgen;
 
 	//
 	// allocate the job queue magic ring buffer
@@ -855,7 +909,7 @@ HccResult hcc_compiler_dispatch_task(HccCompiler* c, HccTask* t) {
 	}
 
 	t->cu = HCC_ARENA_ALCTOR_ALLOC_ELMT_THREAD_SAFE(HccCU, &_hcc_gs.arena_alctor);
-	hcc_cu_init(t->cu, &t->cu_setup, &t->target);
+	hcc_cu_init(t->cu, &t->cu_setup, t->options);
 
 	if (atomic_fetch_add(&c->tasks_running_count, 1) == 0) {
 		//
@@ -936,115 +990,236 @@ HccDuration hcc_compiler_workers_duration_for_type(HccCompiler* c, HccWorkerJobT
 //
 // ===========================================
 
-const char* hcc_string_intrinsic_param_names[HCC_STRING_ID_INTRINSIC_PARAM_NAMES_END] = {
-	[HCC_STRING_ID_UINT8_T] = "uint8_t",
-	[HCC_STRING_ID_UINT16_T] = "uint16_t",
-	[HCC_STRING_ID_UINT32_T] = "uint32_t",
-	[HCC_STRING_ID_UINT64_T] = "uint64_t",
-	[HCC_STRING_ID_UINTPTR_T] = "uintptr_t",
-	[HCC_STRING_ID_INT8_T] = "int8_t",
-	[HCC_STRING_ID_INT16_T] = "int16_t",
-	[HCC_STRING_ID_INT32_T] = "int32_t",
-	[HCC_STRING_ID_INT64_T] = "int64_t",
-	[HCC_STRING_ID_INTPTR_T] = "intptr_t",
-	[HCC_STRING_ID_HCC_VERTEX_INPUT] = "HccVertexInput",
+#define HCC_STRING_INTRINSIC_TYPEDEF(NAME, name) \
+	[HCC_STRING_ID_INTRINSIC_TYPEDEFS_START + HCC_TYPEDEF_IDX_##NAME] = #name
+#define HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(NAME, name) \
+	[HCC_STRING_ID_INTRINSIC_TYPEDEFS_START + HCC_TYPEDEF_IDX_PSCALARX_T_START + HCC_AML_INTRINSIC_DATA_TYPE_##NAME] = #name
+#define HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(NAME, name) \
+	[HCC_STRING_ID_INTRINSIC_TYPEDEFS_START + HCC_TYPEDEF_IDX_SCALARX_T_START + HCC_AML_INTRINSIC_DATA_TYPE_##NAME] = #name
+#define HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE(NAME, name) \
+	[HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_##NAME] = #name
+#define HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(NAME, name) \
+	[HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_##NAME] = #name
+#define HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(NAME, name) \
+	[HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_##NAME] = #name
+const char* hcc_string_intrinsics[HCC_STRING_ID_INTRINSICS_END] = {
+	//
+	// intrinsic typedefs aka. HCC_STRING_ID_INTRINSIC_TYPEDEFS_START
+	//
+	HCC_STRING_INTRINSIC_TYPEDEF(UINT8_T, uint8_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(UINT16_T, uint16_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(UINT32_T, uint32_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(UINT64_T, uint64_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(UINTPTR_T, uintptr_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(INT8_T, int8_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(INT16_T, int16_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(INT32_T, int32_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(INT64_T, int64_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(INTPTR_T, intptr_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(HALF_T, half_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(HCC_VERTEX_INPUT_T, hcc_vertex_input_t),
+	HCC_STRING_INTRINSIC_TYPEDEF(HCC_FRAGMENT_INPUT_T, hcc_fragment_input_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(BOOLX2,  pboolx2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S8X2,    ps8x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S16X2,   ps16x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S32X2,   ps32x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S64X2,   ps64x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U8X2,    pu8x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U16X2,   pu16x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U32X2,   pu32x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U64X2,   pu64x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F16X2,   pf16x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F32X2,   pf32x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F64X2,   pf64x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(BOOLX3,  pboolx3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S8X3,    ps8x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S16X3,   ps16x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S32X3,   ps32x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S64X3,   ps64x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U8X3,    pu8x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U16X3,   pu16x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U32X3,   pu32x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U64X3,   pu64x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F16X3,   pf16x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F32X3,   pf32x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F64X3,   pf64x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(BOOLX4,  pboolx4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S8X4,    ps8x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S16X4,   ps16x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S32X4,   ps32x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(S64X4,   ps64x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U8X4,    pu8x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U16X4,   pu16x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U32X4,   pu32x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(U64X4,   pu64x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F16X4,   pf16x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F32X4,   pf32x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F64X4,   pf64x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F16X2X2, pf16x2x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F32X2X3, pf32x2x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F64X2X4, pf64x2x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F16X3X2, pf16x3x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F32X3X3, pf32x3x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F64X3X4, pf64x3x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F16X4X2, pf16x4x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F32X4X3, pf32x4x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX(F64X4X4, pf64x4x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(BOOLX2,  boolx2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S8X2,    s8x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S16X2,   s16x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S32X2,   s32x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S64X2,   s64x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U8X2,    u8x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U16X2,   u16x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U32X2,   u32x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U64X2,   u64x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F16X2,   f16x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F32X2,   f32x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F64X2,   f64x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(BOOLX3,  boolx3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S8X3,    s8x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S16X3,   s16x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S32X3,   s32x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S64X3,   s64x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U8X3,    u8x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U16X3,   u16x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U32X3,   u32x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U64X3,   u64x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F16X3,   f16x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F32X3,   f32x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F64X3,   f64x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(BOOLX4,  boolx4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S8X4,    s8x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S16X4,   s16x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S32X4,   s32x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(S64X4,   s64x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U8X4,    u8x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U16X4,   u16x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U32X4,   u32x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(U64X4,   u64x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F16X4,   f16x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F32X4,   f32x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F64X4,   f64x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F16X2X2, f16x2x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F32X2X3, f32x2x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F64X2X4, f64x2x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F16X3X2, f16x3x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F32X3X3, f32x3x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F64X3X4, f64x3x4_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F16X4X2, f16x4x2_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F32X4X3, f32x4x3_t),
+	HCC_STRING_INTRINSIC_TYPEDEF_SCALARX(F64X4X4, f64x4x4_t),
+
+	//
+	// intrinsic compound data types aka. HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START
+	//
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE(HCC_VERTEX_INPUT, hcc_vertex_input),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE(HCC_FRAGMENT_INPUT, hcc_fragment_input),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE(HALF, half),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(BOOLX2, pboolx2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S8X2, ps8x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S16X2, ps16x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S32X2, ps32x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S64X2, ps64x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U8X2, pu8x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U16X2, pu16x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U32X2, pu32x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U64X2, pu64x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F16X2, pf16x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F32X2, pf32x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F64X2, pf64x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(BOOLX3, pboolx3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S8X3, ps8x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S16X3, ps16x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S32X3, ps32x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S64X3, ps64x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U8X3, pu8x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U16X3, pu16x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U32X3, pu32x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U64X3, pu64x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F16X3, pf16x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F32X3, pf32x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F64X3, pf64x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(BOOLX4, pboolx4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S8X4, ps8x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S16X4, ps16x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S32X4, ps32x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(S64X4, ps64x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U8X4, pu8x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U16X4, pu16x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U32X4, pu32x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(U64X4, pu64x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F16X4, pf16x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F32X4, pf32x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F64X4, pf64x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F16X2X2, pf16x2x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F32X2X3, pf32x2x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F64X2X4, pf64x2x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F16X3X2, pf16x3x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F32X3X3, pf32x3x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F64X3X4, pf64x3x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F16X4X2, pf16x4x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F32X4X3, pf32x4x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX(F64X4X4, pf64x4x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(BOOLX2, boolx2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S8X2, s8x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S16X2, s16x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S32X2, s32x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S64X2, s64x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U8X2, u8x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U16X2, u16x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U32X2, u32x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U64X2, u64x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F16X2, f16x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F32X2, f32x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F64X2, f64x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(BOOLX3, boolx3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S8X3, s8x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S16X3, s16x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S32X3, s32x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S64X3, s64x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U8X3, u8x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U16X3, u16x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U32X3, u32x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U64X3, u64x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F16X3, f16x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F32X3, f32x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F64X3, f64x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(BOOLX4, boolx4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S8X4, s8x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S16X4, s16x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S32X4, s32x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(S64X4, s64x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U8X4, u8x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U16X4, u16x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U32X4, u32x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(U64X4, u64x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F16X4, f16x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F32X4, f32x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F64X4, f64x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F16X2X2, f16x2x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F32X2X3, f32x2x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F64X2X4, f64x2x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F16X3X2, f16x3x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F32X3X3, f32x3x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F64X3X4, f64x3x4),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F16X4X2, f16x4x2),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F32X4X3, f32x4x3),
+	HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX(F64X4X4, f64x4x4),
+
+	//
+	// intrinsic compound data type fields
 	[HCC_STRING_ID_VERTEX_IDX] = "vertex_idx",
 	[HCC_STRING_ID_INSTANCE_IDX] = "instance_idx",
-	[HCC_STRING_ID_HCC_FRAGMENT_INPUT] = "HccFragmentInput",
 	[HCC_STRING_ID_FRAG_COORD] = "frag_coord",
-	[HCC_STRING_ID_HALF] = "half",
 	[HCC_STRING_ID__BITS] = "_bits",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_BOOLX2] = "boolx2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S8X2] =   "s8x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S16X2] =  "s16x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S32X2] =  "s32x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S64X2] =  "s64x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U8X2] =   "u8x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U16X2] =  "u16x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U32X2] =  "u32x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U64X2] =  "u64x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X2] =  "f16x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X2] =  "f32x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X2] =  "f64x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_BOOLX3] = "boolx3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S8X3] =   "s8x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S16X3] =  "s16x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S32X3] =  "s32x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S64X3] =  "s64x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U8X3] =   "u8x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U16X3] =  "u16x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U32X3] =  "u32x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U64X3] =  "u64x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X3] =  "f16x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X3] =  "f32x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X3] =  "f64x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_BOOLX4] = "boolx4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S8X4] =   "s8x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S16X4] =  "s16x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S32X4] =  "s32x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S64X4] =  "s64x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U8X4] =   "u8x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U16X4] =  "u16x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U32X4] =  "u32x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U64X4] =  "u64x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X4] =  "f16x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X4] =  "f32x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X4] =  "f64x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X2X2] ="f16x2x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X2X3] ="f32x2x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X2X4] ="f64x2x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X3X2] ="f16x3x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X3X3] ="f32x3x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X3X4] ="f64x3x4",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X4X2] ="f16x4x2",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X4X3] ="f32x4x3",
-	[HCC_STRING_ID_SCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X4X4] ="f64x4x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_BOOLX2] = "pboolx2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S8X2] =   "ps8x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S16X2] =  "ps16x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S32X2] =  "ps32x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S64X2] =  "ps64x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U8X2] =   "pu8x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U16X2] =  "pu16x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U32X2] =  "pu32x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U64X2] =  "pu64x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X2] =  "pf16x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X2] =  "pf32x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X2] =  "pf64x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_BOOLX3] = "pboolx3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S8X3] =   "ps8x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S16X3] =  "ps16x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S32X3] =  "ps32x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S64X3] =  "ps64x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U8X3] =   "pu8x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U16X3] =  "pu16x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U32X3] =  "pu32x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U64X3] =  "pu64x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X3] =  "pf16x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X3] =  "pf32x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X3] =  "pf64x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_BOOLX4] = "pboolx4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S8X4] =   "ps8x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S16X4] =  "ps16x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S32X4] =  "ps32x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_S64X4] =  "ps64x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U8X4] =   "pu8x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U16X4] =  "pu16x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U32X4] =  "pu32x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_U64X4] =  "pu64x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X4] =  "pf16x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X4] =  "pf32x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X4] =  "pf64x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X2X2] = "pf16x2x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X2X3] = "pf32x2x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X2X4] = "pf64x2x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X3X2] = "pf16x3x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X3X3] = "pf32x3x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X3X4] = "pf64x3x4",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F16X4X2] = "pf16x4x2",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F32X4X3] = "pf32x4x3",
-	[HCC_STRING_ID_PSCALARX_START + HCC_AML_INTRINSIC_DATA_TYPE_F64X4X4] = "pf64x4x4",
 };
+#undef HCC_STRING_INTRINSIC_TYPEDEF
+#undef HCC_STRING_INTRINSIC_TYPEDEF_PSCALARX
+#undef HCC_STRING_INTRINSIC_TYPEDEF_SCALARX
+#undef HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE
+#undef HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_PSCALARX
+#undef HCC_STRING_INTRINSIC_COMPOUND_DATA_TYPE_SCALARX
 
 void hcc_string_table_intrinsic_add(uint32_t expected_string_id, const char* string) {
 	HccStringId id;
@@ -1053,14 +1228,14 @@ void hcc_string_table_intrinsic_add(uint32_t expected_string_id, const char* str
 }
 
 void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_count, uint32_t data_reserve_cap, uint32_t entries_cap) {
-	string_table->entries_hash_table = hcc_hash_table_init(HccStringEntry, HCC_ALLOC_TAG_STRING_TABLE_ENTRIES, hcc_string_key_cmp, entries_cap);
+	string_table->entries_hash_table = hcc_hash_table_init(HccStringEntry, HCC_ALLOC_TAG_STRING_TABLE_ENTRIES, hcc_string_key_cmp, hcc_string_key_hash, entries_cap);
 	string_table->id_to_entry_map = hcc_stack_init(uint32_t, HCC_ALLOC_TAG_STRING_TABLE_ID_TO_ENTRY_MAP, entries_cap, entries_cap);
 	hcc_stack_resize(string_table->id_to_entry_map, entries_cap);
 	string_table->data = hcc_stack_init(char, HCC_ALLOC_TAG_STRING_TABLE_DATA, data_grow_count, data_reserve_cap);
 	string_table->next_id = 1;
 
-	for (uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_PARAM_NAMES_START; expected_string_id < HCC_STRING_ID_INTRINSIC_PARAM_NAMES_END; expected_string_id += 1) {
-		const char* string = hcc_string_intrinsic_param_names[expected_string_id];
+	for (uint32_t expected_string_id = HCC_STRING_ID_INTRINSICS_START; expected_string_id < HCC_STRING_ID_INTRINSICS_END; expected_string_id += 1) {
+		const char* string = hcc_string_intrinsics[expected_string_id];
 		if (string) {
 			hcc_string_table_intrinsic_add(expected_string_id, string);
 		} else {
@@ -1080,10 +1255,54 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 		hcc_string_table_intrinsic_add(expected_string_id, string);
 	}
 
-	for (uint32_t f = 0; f < HCC_FUNCTION_IDX_INTRINSIC_END; f += 1) {
-		//const char* string = hcc_intrinsic_function_strings[f];
-		//uint32_t expected_string_id = HCC_STRING_ID_FUNCTION_IDXS_START + f;
-		//hcc_string_table_intrinsic_add(expected_string_id, string);
+	for (uint32_t f = 0; f < HCC_FUNCTION_IDX_SPECIFIC_END; f += 1) {
+		const char* string = hcc_intrinsic_function_specific_strings[f];
+		uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_FUNCTIONS_START + f;
+		hcc_string_table_intrinsic_add(expected_string_id, string);
+	}
+
+	for (uint32_t f = 0; f < HCC_FUNCTION_SCALARX_COUNT; f += 1) {
+		const char* scalar_string = hcc_function_scalarx_strings[f];
+		uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_FUNCTIONS_START + HCC_FUNCTION_IDX_SCALARX_START + f * HCC_AML_INTRINSIC_DATA_TYPE_COUNT;
+		char buf[128];
+		uint32_t insert_idx = snprintf(buf, sizeof(buf), "%s", scalar_string);
+		for (uint32_t r = 1; r <= 4; r += 1) {
+			for (uint32_t c = 1; c <= 4; c += 1) {
+				if (c == 1 && r > 1) {
+					hcc_string_table_skip_next_ids(&_hcc_gs.string_table, 16);
+					expected_string_id += 16;
+					continue;
+				}
+
+				expected_string_id += HCC_AML_INTRINSIC_DATA_TYPE_BOOL;
+				hcc_string_table_skip_next_ids(&_hcc_gs.string_table, HCC_AML_INTRINSIC_DATA_TYPE_BOOL);
+
+				for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_BOOL; intrinsic < HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT; intrinsic += 1) {
+					bool skip = r > 1 && c > 1 && intrinsic < HCC_AML_INTRINSIC_DATA_TYPE_F16;
+					if (skip) {
+						hcc_string_table_skip_next_ids(&_hcc_gs.string_table, 1);
+						expected_string_id += 1;
+						continue;
+					}
+
+					if (c == 1 && r == 1) {
+						snprintf(buf + insert_idx, sizeof(buf) - insert_idx, "%s", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic]);
+						hcc_string_table_intrinsic_add(expected_string_id, buf);
+					} else if (c > 1 && r == 1) {
+						snprintf(buf + insert_idx, sizeof(buf) - insert_idx, "%sx%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c);
+						hcc_string_table_intrinsic_add(expected_string_id, buf);
+					} else {
+						snprintf(buf + insert_idx, sizeof(buf) - insert_idx, "%sx%ux%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r);
+						hcc_string_table_intrinsic_add(expected_string_id, buf);
+					}
+
+					expected_string_id += 1;
+				}
+
+				expected_string_id += 16 - HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT;
+				hcc_string_table_skip_next_ids(&_hcc_gs.string_table, 16 - HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT);
+			}
+		}
 	}
 
 	hcc_string_table_intrinsic_add(HCC_STRING_ID_ONCE, "once");
@@ -1101,12 +1320,16 @@ HccStringId hcc_string_table_alloc_next_id(HccStringTable* string_table) {
 	return HccStringId(atomic_fetch_add(&string_table->next_id, 1));
 }
 
+void hcc_string_table_skip_next_ids(HccStringTable* string_table, uint32_t num) {
+	HccStringId(atomic_fetch_add(&string_table->next_id, num));
+}
+
 HccResult hcc_string_table_deduplicate(const char* string, uint32_t string_size, HccStringId* out) {
 	HCC_SET_BAIL_JMP_LOC_GLOBAL();
 
 	HccStringTable* string_table = &_hcc_gs.string_table;
 	HccString str = hcc_string((char*)string, string_size);
-	HccHashTableInsert insert = hcc_hash_table_find_insert_idx_string(string_table->entries_hash_table, &str);
+	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(string_table->entries_hash_table, &str);
 	HccStringEntry* entry = &string_table->entries_hash_table[insert.idx];
 	if (insert.is_new) {
 		char* dst = hcc_stack_push_many_thread_safe(string_table->data, str.size);
@@ -1187,14 +1410,14 @@ void hcc_code_file_deinit(HccCodeFile* code_file) {
 }
 
 HccCodeFile* hcc_code_file_find(HccString file_path) {
-	uintptr_t idx = hcc_hash_table_find_idx_string(_hcc_gs.path_to_code_file_map, &file_path);
+	uintptr_t idx = hcc_hash_table_find_idx(_hcc_gs.path_to_code_file_map, &file_path);
 	return idx == UINTPTR_MAX ? NULL : &_hcc_gs.path_to_code_file_map[idx].file;
 }
 
 HccResult hcc_code_file_find_or_insert(HccString file_path, HccCodeFile** code_file_out) {
 	HCC_SET_BAIL_JMP_LOC_GLOBAL();
 
-	HccHashTableInsert insert = hcc_hash_table_find_insert_idx_string(_hcc_gs.path_to_code_file_map, &file_path);
+	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(_hcc_gs.path_to_code_file_map, &file_path);
 	HccCodeFile* code_file = &_hcc_gs.path_to_code_file_map[insert.idx].file;
 	*code_file_out = code_file;
 	HccResult result = HCC_RESULT_SUCCESS;
@@ -1319,7 +1542,7 @@ HccResult hcc_init(HccSetup* setup) {
 	hcc_arena_alctor_init(&_hcc_gs.arena_alctor, HCC_ALLOC_TAG_GLOBAL_MEM_ARENA, setup->global_mem_arena_size);
 	hcc_string_table_init(&_hcc_gs.string_table, setup->string_table_data_grow_count, setup->string_table_data_reserve_cap, setup->string_table_entries_cap);
 
-	_hcc_gs.path_to_code_file_map = hcc_hash_table_init(HccCodeFileEntry, 0, hcc_string_key_cmp, setup->code_files_cap);
+	_hcc_gs.path_to_code_file_map = hcc_hash_table_init(HccCodeFileEntry, 0, hcc_string_key_cmp, hcc_string_key_hash, setup->code_files_cap);
 	_hcc_gs.code_file_lines_grow_count = setup->code_file_lines_grow_count;
 	_hcc_gs.code_file_lines_reserve_cap = setup->code_file_lines_reserve_cap;
 	_hcc_gs.code_file_pp_if_spans_grow_count = setup->code_file_pp_if_spans_grow_count;
