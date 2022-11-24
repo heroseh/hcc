@@ -2457,10 +2457,122 @@ HccDataType hcc_data_type_lower_ast_to_aml(HccCU* cu, HccDataType data_type) {
 	return data_type;
 }
 
+HccDataType hcc_data_type_signed_to_unsigned(HccCU* cu, HccDataType data_type) {
+	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
+		HccASTBasicDataType basic_data_type = HCC_DATA_TYPE_AUX(data_type);
+		switch (basic_data_type) {
+			case HCC_AST_BASIC_DATA_TYPE_CHAR:
+				if (hcc_options_is_char_unsigned((cu)->options)) {
+					goto ERROR;
+				}
+				hcc_fallthrough;
+			case HCC_AST_BASIC_DATA_TYPE_SCHAR:
+				return HCC_DATA_TYPE_AST_BASIC_UCHAR;
+			case HCC_AST_BASIC_DATA_TYPE_SSHORT:
+				return HCC_DATA_TYPE_AST_BASIC_USHORT;
+			case HCC_AST_BASIC_DATA_TYPE_SINT:
+				return HCC_DATA_TYPE_AST_BASIC_UINT;
+			case HCC_AST_BASIC_DATA_TYPE_SLONG:
+				return HCC_DATA_TYPE_AST_BASIC_ULONG;
+			case HCC_AST_BASIC_DATA_TYPE_SLONGLONG:
+				return HCC_DATA_TYPE_AST_BASIC_ULONGLONG;
+
+			default: goto ERROR;
+		}
+	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
+		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+		HccAMLIntrinsicDataType scalar_data_type = intrinsic_data_type & HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK;
+
+		switch (scalar_data_type) {
+			case HCC_AML_INTRINSIC_DATA_TYPE_S8: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_U8; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S16: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_U16; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S32: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_U32; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S64: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_U64; break;
+			default: goto ERROR;
+		}
+
+		intrinsic_data_type &= ~HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK;
+		intrinsic_data_type |= scalar_data_type;
+		return HCC_DATA_TYPE(AML_INTRINSIC, intrinsic_data_type);
+	}
+
+ERROR:{}
+	HccString data_type_name = hcc_data_type_string(cu, data_type);
+	HCC_UNREACHABLE("internal error: expected a basic/intrinsic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
+}
+
+HccDataType hcc_data_type_unsigned_to_signed(HccCU* cu, HccDataType data_type) {
+	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
+		HccASTBasicDataType basic_data_type = HCC_DATA_TYPE_AUX(data_type);
+		switch (basic_data_type) {
+			case HCC_AST_BASIC_DATA_TYPE_CHAR:
+				if (!hcc_options_is_char_unsigned((cu)->options)) {
+					goto ERROR;
+				}
+				hcc_fallthrough;
+			case HCC_AST_BASIC_DATA_TYPE_UCHAR:
+				return HCC_DATA_TYPE_AST_BASIC_SCHAR;
+			case HCC_AST_BASIC_DATA_TYPE_USHORT:
+				return HCC_DATA_TYPE_AST_BASIC_SSHORT;
+			case HCC_AST_BASIC_DATA_TYPE_UINT:
+				return HCC_DATA_TYPE_AST_BASIC_SINT;
+			case HCC_AST_BASIC_DATA_TYPE_ULONG:
+				return HCC_DATA_TYPE_AST_BASIC_SLONG;
+			case HCC_AST_BASIC_DATA_TYPE_ULONGLONG:
+				return HCC_DATA_TYPE_AST_BASIC_SLONGLONG;
+
+			default: goto ERROR;
+		}
+	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
+		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+		HccAMLIntrinsicDataType scalar_data_type = intrinsic_data_type & HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK;
+
+		switch (scalar_data_type) {
+			case HCC_AML_INTRINSIC_DATA_TYPE_U8: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_S8; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U16: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_S16; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U32: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_S32; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U64: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_S64; break;
+			default: goto ERROR;
+		}
+
+		intrinsic_data_type &= ~HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK;
+		intrinsic_data_type |= scalar_data_type;
+		return HCC_DATA_TYPE(AML_INTRINSIC, intrinsic_data_type);
+	}
+
+ERROR:{}
+	HccString data_type_name = hcc_data_type_string(cu, data_type);
+	HCC_UNREACHABLE("internal error: expected a basic/intrinsic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
+}
+
+HccCanCast hcc_data_type_can_cast(HccCU* cu, HccDataType dst_data_type, HccDataType src_data_type) {
+	HccDataType resolved_dst_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, dst_data_type);
+	HccDataType resolved_src_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, src_data_type);
+	if (resolved_dst_data_type == resolved_src_data_type) {
+		return HCC_CAN_CAST_NO_SAME_TYPES;
+	}
+
+	if (HCC_DATA_TYPE_IS_AST_BASIC(resolved_dst_data_type) && HCC_DATA_TYPE_IS_AST_BASIC(resolved_src_data_type)) {
+		return HCC_CAN_CAST_YES;
+	}
+
+	if (HCC_DATA_TYPE_IS_POINTER(resolved_dst_data_type)) {
+		if (HCC_DATA_TYPE_IS_POINTER(resolved_src_data_type)) {
+			return HCC_CAN_CAST_YES;
+		}
+
+		if (HCC_DATA_TYPE_IS_ARRAY(resolved_src_data_type)) {
+			return HCC_CAN_CAST_YES;
+		}
+	}
+
+	return HCC_CAN_CAST_NO_DIFFERENT_TYPES;
+}
+
 HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccDataType data_type) {
 	switch (HCC_DATA_TYPE_TYPE(data_type)) {
 		case HCC_DATA_TYPE_ENUM:
-			data_type = HCC_DATA_TYPE_INT;
+			data_type = HCC_DATA_TYPE_AST_BASIC_SINT;
 			hcc_fallthrough;
 		case HCC_DATA_TYPE_AST_BASIC:
 			data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
@@ -2814,7 +2926,7 @@ HccDataType hcc_typedef_resolve_and_strip_qualifiers(HccCU* cu, HccDataType data
 // ===========================================
 //
 //
-// AST Constant
+// Constant
 //
 //
 // ===========================================
@@ -2987,7 +3099,7 @@ bool hcc_constant_as_float(HccCU* cu, HccConstant constant, double* out) {
 // ===========================================
 //
 //
-// AST Constant Table
+// Constant Table
 //
 //
 // ===========================================
@@ -3099,6 +3211,80 @@ HccConstant hcc_constant_table_get(HccCU* cu, HccConstantId id) {
 	constant.data = entry->data;
 	constant.size = entry->size;
 	return constant;
+}
+
+// ===========================================
+//
+//
+// Basic Eval
+//
+//
+// ===========================================
+
+HccBasicEval hcc_basic_eval(HccASTBinaryOp binary_op, HccBasicEval left_eval, HccBasicEval right_eval) {
+	HccBasicEval eval;
+	eval.is_signed = left_eval.is_signed == right_eval.is_signed;
+	switch (binary_op) {
+		case HCC_AST_BINARY_OP_ADD: eval.u64 = left_eval.u64 + right_eval.u64; break;
+		case HCC_AST_BINARY_OP_SUBTRACT: eval.u64 = left_eval.u64 - right_eval.u64; break;
+		case HCC_AST_BINARY_OP_MULTIPLY: eval.u64 = left_eval.u64 * right_eval.u64; break;
+		case HCC_AST_BINARY_OP_DIVIDE:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 / right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 / right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_MODULO:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 % right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 % right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_BIT_AND:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 & right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 & right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_BIT_OR:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 | right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 | right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_BIT_XOR:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 ^ right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 ^ right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_BIT_SHIFT_LEFT:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 << right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 << right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_BIT_SHIFT_RIGHT:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 >> right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 >> right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_EQUAL:     eval.u64 = left_eval.u64 == right_eval.u64; break;
+		case HCC_AST_BINARY_OP_NOT_EQUAL: eval.u64 = left_eval.u64 != right_eval.u64; break;
+		case HCC_AST_BINARY_OP_LESS_THAN:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 < right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 < right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_LESS_THAN_OR_EQUAL:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 <= right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 <= right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_GREATER_THAN:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 > right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 > right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_GREATER_THAN_OR_EQUAL:
+			if (eval.is_signed) { eval.s64 = left_eval.s64 >= right_eval.s64; }
+			else {                eval.u64 = left_eval.u64 >= right_eval.u64; }
+			break;
+		case HCC_AST_BINARY_OP_LOGICAL_AND:
+			eval.u64 = left_eval.u64 && right_eval.u64;
+			break;
+		case HCC_AST_BINARY_OP_LOGICAL_OR:
+			eval.u64 = left_eval.u64 || right_eval.u64;
+			break;
+		default:
+			HCC_UNREACHABLE();
+	}
+
+	return eval;
 }
 
 // ===========================================

@@ -221,11 +221,11 @@ void hcc_ppgen_eval_binary_op(HccWorker* w, uint32_t* token_idx_mut, HccASTBinar
 	}
 }
 
-HccPPEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
+HccBasicEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
 	HccATAToken token = *hcc_stack_get(w->atagen.ast_file->token_bag.tokens, *token_idx_mut);
 	*token_idx_mut += 1;
 
-	HccPPEval eval;
+	HccBasicEval eval;
 	HccASTUnaryOp unary_op;
 	switch (token) {
 		case HCC_ATA_TOKEN_LIT_UINT:
@@ -302,90 +302,31 @@ UNARY:
 	return eval;
 }
 
-HccPPEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
-	HccPPEval left_eval = hcc_ppgen_eval_unary_expr(w, token_idx_mut, token_value_idx_mut);
+HccBasicEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
+	HccBasicEval left_eval = hcc_ppgen_eval_unary_expr(w, token_idx_mut, token_value_idx_mut);
 
 	while (*token_idx_mut < hcc_stack_count(w->atagen.ast_file->token_bag.tokens)) {
-		HccASTBinaryOp binary_op_type;
+		HccASTBinaryOp binary_op;
 		uint32_t precedence;
-		hcc_ppgen_eval_binary_op(w, token_idx_mut, &binary_op_type, &precedence);
-		if (binary_op_type == HCC_AST_BINARY_OP_ASSIGN || (min_precedence && min_precedence <= precedence)) {
+		hcc_ppgen_eval_binary_op(w, token_idx_mut, &binary_op, &precedence);
+		if (binary_op == HCC_AST_BINARY_OP_ASSIGN || (min_precedence && min_precedence <= precedence)) {
 			return left_eval;
 		}
 		*token_idx_mut += 1;
 
-		HccPPEval eval;
-		if (binary_op_type == HCC_AST_BINARY_OP_TERNARY) {
-			HccPPEval true_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
+		HccBasicEval eval;
+		if (binary_op == HCC_AST_BINARY_OP_TERNARY) {
+			HccBasicEval true_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
 			HccATAToken token = *hcc_stack_get(w->atagen.ast_file->token_bag.tokens, *token_idx_mut);
 			if (token != HCC_ATA_TOKEN_COLON) {
 				hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_COLON_FOR_TERNARY_OP);
 			}
 			*token_idx_mut += 1;
-			HccPPEval false_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
+			HccBasicEval false_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
 			eval = left_eval.u64 ? true_eval : false_eval;
 		} else {
-			HccPPEval right_eval = hcc_ppgen_eval_expr(w, precedence, token_idx_mut, token_value_idx_mut);
-			eval.is_signed = left_eval.is_signed == right_eval.is_signed;
-			switch (binary_op_type) {
-				case HCC_AST_BINARY_OP_ADD: eval.u64 = left_eval.u64 + right_eval.u64; break;
-				case HCC_AST_BINARY_OP_SUBTRACT: eval.u64 = left_eval.u64 - right_eval.u64; break;
-				case HCC_AST_BINARY_OP_MULTIPLY: eval.u64 = left_eval.u64 * right_eval.u64; break;
-				case HCC_AST_BINARY_OP_DIVIDE:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 / right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 / right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_MODULO:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 % right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 % right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_BIT_AND:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 & right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 & right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_BIT_OR:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 | right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 | right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_BIT_XOR:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 ^ right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 ^ right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_BIT_SHIFT_LEFT:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 << right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 << right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_BIT_SHIFT_RIGHT:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 >> right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 >> right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_EQUAL:     eval.u64 = left_eval.u64 == right_eval.u64; break;
-				case HCC_AST_BINARY_OP_NOT_EQUAL: eval.u64 = left_eval.u64 != right_eval.u64; break;
-				case HCC_AST_BINARY_OP_LESS_THAN:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 < right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 < right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_LESS_THAN_OR_EQUAL:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 <= right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 <= right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_GREATER_THAN:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 > right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 > right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_GREATER_THAN_OR_EQUAL:
-					if (eval.is_signed) { eval.s64 = left_eval.s64 >= right_eval.s64; }
-					else {                eval.u64 = left_eval.u64 >= right_eval.u64; }
-					break;
-				case HCC_AST_BINARY_OP_LOGICAL_AND:
-					eval.u64 = left_eval.u64 && right_eval.u64;
-					break;
-				case HCC_AST_BINARY_OP_LOGICAL_OR:
-					eval.u64 = left_eval.u64 || right_eval.u64;
-					break;
-				default:
-					HCC_UNREACHABLE();
-			}
+			HccBasicEval right_eval = hcc_ppgen_eval_expr(w, precedence, token_idx_mut, token_value_idx_mut);
+			eval = hcc_basic_eval(binary_op, left_eval, right_eval);
 		}
 
 		left_eval = eval;
@@ -1260,18 +1201,18 @@ void hcc_ppgen_copy_expand_predefined_macro(HccWorker* w, HccPPPredefinedMacro p
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___LINE__: {
-			HccBasic line_num = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_INT, w->atagen.location.line_end - 1);
+			HccBasic line_num = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT, w->atagen.location.line_end - 1);
 			HccATAValue token_value = {
-				.constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_INT, &line_num),
+				.constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT, &line_num),
 			};
 			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
 			hcc_atagen_token_value_add(w, token_value);
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___COUNTER__: {
-			HccBasic counter = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_INT, w->atagen.__counter__);
+			HccBasic counter = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT, w->atagen.__counter__);
 			HccATAValue token_value = {
-				.constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_INT, &counter),
+				.constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT, &counter),
 			};
 			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
 			hcc_atagen_token_value_add(w, token_value);

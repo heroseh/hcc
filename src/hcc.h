@@ -986,8 +986,21 @@ enum HccDataType {
 #define HCC_DATA_TYPE_IS_PMATRIX(type)       (HCC_DATA_TYPE_IS_STRUCT(type) && HCC_STRUCT_IDX_PMAT_START <= HCC_DATA_TYPE_AUX(type) && HCC_DATA_TYPE_AUX(type) < HCC_STRUCT_IDX_PMAT_END)
 #define HCC_DATA_TYPE_IS_MATRIX(type)        (HCC_DATA_TYPE_IS_UNION(type) && HCC_UNION_IDX_MAT_START <= HCC_DATA_TYPE_AUX(type) && HCC_DATA_TYPE_AUX(type) < HCC_UNION_IDX_MAT_END)
 
-#define HCC_DATA_TYPE_VOID                   HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_VOID)
-#define HCC_DATA_TYPE_INT                    HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SINT)
+#define HCC_DATA_TYPE_AST_BASIC_VOID         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_VOID)
+#define HCC_DATA_TYPE_AST_BASIC_BOOL         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_BOOL)
+#define HCC_DATA_TYPE_AST_BASIC_CHAR         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_CHAR)
+#define HCC_DATA_TYPE_AST_BASIC_SCHAR        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SCHAR)
+#define HCC_DATA_TYPE_AST_BASIC_SSHORT       HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SSHORT)
+#define HCC_DATA_TYPE_AST_BASIC_SINT         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SINT)
+#define HCC_DATA_TYPE_AST_BASIC_SLONG        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SLONG)
+#define HCC_DATA_TYPE_AST_BASIC_SLONGLONG    HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SLONGLONG)
+#define HCC_DATA_TYPE_AST_BASIC_UCHAR        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_UCHAR)
+#define HCC_DATA_TYPE_AST_BASIC_USHORT       HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_USHORT)
+#define HCC_DATA_TYPE_AST_BASIC_UINT         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_UINT)
+#define HCC_DATA_TYPE_AST_BASIC_ULONG        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_ULONG)
+#define HCC_DATA_TYPE_AST_BASIC_ULONGLONG    HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_ULONGLONG)
+#define HCC_DATA_TYPE_AST_BASIC_FLOAT        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_FLOAT)
+#define HCC_DATA_TYPE_AST_BASIC_DOUBLE       HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_DOUBLE)
 #define HCC_DATA_TYPE_UINT8_T                HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT8_T)
 #define HCC_DATA_TYPE_UINT16_T               HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT16_T)
 #define HCC_DATA_TYPE_UINT32_T               HCC_DATA_TYPE(TYPEDEF, HCC_TYPEDEF_IDX_UINT32_T)
@@ -1101,6 +1114,13 @@ union HccBasic {
 	double   d;
 };
 
+typedef uint8_t HccCanCast;
+enum HccCanCast {
+	HCC_CAN_CAST_YES,
+	HCC_CAN_CAST_NO_DIFFERENT_TYPES,
+	HCC_CAN_CAST_NO_SAME_TYPES,
+};
+
 HccString hcc_data_type_string(HccCU* cu, HccDataType data_type);
 void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_out, uint64_t* align_out);
 void hcc_data_type_print_basic(HccCU* cu, HccDataType data_type, void* data, HccIIO* iio);
@@ -1118,6 +1138,9 @@ HccDataType hcc_data_type_strip_pointer(HccCU* cu, HccDataType data_type);
 HccDataType hcc_data_type_strip_all_pointers(HccCU* cu, HccDataType data_type);
 HccLocation* hcc_data_type_location(HccCU* cu, HccDataType data_type);
 HccDataType hcc_data_type_lower_ast_to_aml(HccCU* cu, HccDataType data_type);
+HccDataType hcc_data_type_signed_to_unsigned(HccCU* cu, HccDataType data_type);
+HccDataType hcc_data_type_unsigned_to_signed(HccCU* cu, HccDataType data_type);
+HccCanCast hcc_data_type_can_cast(HccCU* cu, HccDataType dst_data_type, HccDataType src_data_type);
 HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccDataType data_type);
 
 HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type);
@@ -1246,6 +1269,9 @@ enum HccASTBinaryOp {
 
 	HCC_AST_BINARY_OP_TERNARY,
 	HCC_AST_BINARY_OP_COMMA,
+	HCC_AST_BINARY_OP_FIELD_ACCESS,
+	HCC_AST_BINARY_OP_CALL,
+	HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT,
 
 	HCC_AST_BINARY_OP_COUNT,
 };
@@ -1279,6 +1305,142 @@ extern uint8_t hcc_ast_unary_op_precedence[HCC_AST_UNARY_OP_COUNT];
 typedef struct HccASTVariable HccASTVariable;
 typedef struct HccASTFunction HccASTFunction;
 
+typedef uint8_t HccASTExprType;
+enum {
+	HCC_AST_EXPR_TYPE_NONE,
+
+	HCC_AST_EXPR_TYPE_CURLY_INITIALIZER,
+	HCC_AST_EXPR_TYPE_DESIGNATED_INITIALIZER,
+	HCC_AST_EXPR_TYPE_CAST,
+
+	HCC_AST_EXPR_TYPE_LOCAL_VARIABLE,
+	HCC_AST_EXPR_TYPE_GLOBAL_VARIABLE,
+
+	HCC_AST_EXPR_TYPE_CONSTANT,
+	HCC_AST_EXPR_TYPE_DATA_TYPE,
+	HCC_AST_EXPR_TYPE_FUNCTION,
+	HCC_AST_EXPR_TYPE_BINARY_OP,
+	HCC_AST_EXPR_TYPE_UNARY_OP,
+
+	HCC_AST_EXPR_TYPE_STMT_IF,
+	HCC_AST_EXPR_TYPE_STMT_SWITCH,
+	HCC_AST_EXPR_TYPE_STMT_WHILE,
+	HCC_AST_EXPR_TYPE_STMT_FOR,
+	HCC_AST_EXPR_TYPE_STMT_CASE,
+	HCC_AST_EXPR_TYPE_STMT_DEFAULT,
+	HCC_AST_EXPR_TYPE_STMT_BREAK,
+	HCC_AST_EXPR_TYPE_STMT_CONTINUE,
+	HCC_AST_EXPR_TYPE_STMT_RETURN,
+	HCC_AST_EXPR_TYPE_STMT_BLOCK,
+};
+
+typedef struct HccASTExpr HccASTExpr;
+struct HccASTExpr {
+	union {
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+		};
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			uint32_t		idx;
+		} function;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTUnaryOp   op;
+			HccASTExpr*     expr;
+		} unary;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTBinaryOp  op;
+			bool            is_assign; // add/sub/mul/div assignment
+			HccASTExpr*     left_expr;
+			union {
+				HccASTExpr* right_expr;
+				uint32_t    field_idx;
+			};
+		} binary;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccConstantId   id;
+		} constant;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     first_expr;
+			uint32_t        variables_count;
+		} stmt_block;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     first_expr;
+		} curly_initializer;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     value_expr;
+			uint32_t        elmt_indices_start_idx; // index into HccAST.designated_initializer_elmt_indices
+			uint32_t        elmts_count;
+		} designated_initializer;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     cond_expr;
+			HccASTExpr*     true_stmt;
+			HccASTExpr*     false_stmt;
+		} if_;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     cond_expr;
+			HccASTExpr*     block_expr;
+			HccASTExpr*     first_case_expr;
+		} switch_;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     next_case_stmt;
+			HccConstantId   constant_id;
+		} case_;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     cond_expr;
+			HccASTExpr*     loop_stmt;
+		} while_;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     init_expr;
+			HccASTExpr*     cond_expr;
+			HccASTExpr*     inc_expr;
+			HccASTExpr*     loop_stmt;
+		} for_;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			uint32_t        idx;
+		} variable;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTBinaryOp  op;
+			HccASTExpr*     false_expr;
+			HccASTExpr*     cond_expr;
+			HccASTExpr*     true_expr;
+		} ternary;
+	};
+
+	union {
+		HccDataType data_type; // if !HccASTExpr.is_stmt
+		HccASTExpr* next_stmt; // if HccASTExpr.is_stmt
+	};
+};
+
 typedef uint8_t HccASTFunctionShaderStage;
 enum HccASTFunctionShaderStage {
 	HCC_AST_FUNCTION_SHADER_STAGE_NONE,
@@ -1311,6 +1473,7 @@ HccLocation* hcc_ast_function_return_data_type_location(HccASTFunction* function
 uint8_t hcc_ast_function_params_count(HccASTFunction* function);
 uint16_t hcc_ast_function_variables_count(HccASTFunction* function);
 HccASTVariable* hcc_ast_function_params_and_variables(HccASTFunction* function);
+HccASTExpr* hcc_ast_function_block_expr(HccASTFunction* function);
 void hcc_ast_function_to_string(HccCU* cu, HccASTFunction* function, HccIIO* iio);
 
 // ===========================================

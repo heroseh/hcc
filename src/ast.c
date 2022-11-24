@@ -310,6 +310,10 @@ HccASTVariable* hcc_ast_function_params_and_variables(HccASTFunction* function) 
 	return function->params_and_variables;
 }
 
+HccASTExpr* hcc_ast_function_block_expr(HccASTFunction* function) {
+	return function->block_expr;
+}
+
 void hcc_ast_function_to_string(HccCU* cu, HccASTFunction* function, HccIIO* iio) {
 	char* function_fmt;
 	if (iio->ascii_colors_enabled) {
@@ -1111,10 +1115,9 @@ CONSTANT: {}
 				}
 				hcc_iio_write_fmt(iio, "\t}\n");
 			}
-			if (function->block_expr_id.idx_plus_one) {
+			if (function->block_expr) {
 #if 0
-				HccASTExpr* expr = &w->astgen.exprs[function->block_expr_id.idx_plus_one - 1];
-				hcc_astgen_print_expr(w, expr, 1, f);
+				hcc_astgen_print_expr(w, function->block_expr, 1, f);
 #endif
 			}
 			hcc_iio_write_fmt(iio, "}\n");
