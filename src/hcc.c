@@ -304,6 +304,8 @@ HccTaskSetup hcc_task_setup_default = {
 				.values_reserve_cap = 65536,
 				.unique_include_files_grow_count = 1024,
 				.unique_include_files_reserve_cap = 65546,
+				.forward_declarations_to_link_grow_count = 1024,
+				.forward_declarations_to_link_reserve_cap = 131072,
 			},
 			.function_params_and_variables_grow_count = 1024,
 			.function_params_and_variables_reserve_cap = 131072,
@@ -315,6 +317,8 @@ HccTaskSetup hcc_task_setup_default = {
 			.expr_locations_reserve_cap = 131072,
 			.global_variables_grow_count = 1024,
 			.global_variables_reserve_cap = 131072,
+			.forward_declarations_grow_count = 1024,
+			.forward_declarations_reserve_cap = 131072,
 		},
 		.aml = {
 			.placeholder = 1,
@@ -336,14 +340,17 @@ const char* hcc_stage_strings[HCC_STAGE_COUNT] = {
 };
 
 const char* hcc_phase_strings[HCC_PHASE_COUNT] = {
-	[HCC_PHASE_FRONTEND] = "frontend",
-	[HCC_PHASE_OPTIMIZATION] = "optimization",
+	[HCC_PHASE_ASTGEN] = "astgen",
+	[HCC_PHASE_ASTLINK] = "astlink",
+	[HCC_PHASE_AMLGEN] = "amlgen",
+	[HCC_PHASE_AMLOPT] = "amlopt",
 	[HCC_PHASE_BACKEND] = "backend",
 };
 
 const char* hcc_worker_job_type_strings[HCC_WORKER_JOB_TYPE_COUNT] = {
 	[HCC_WORKER_JOB_TYPE_ATAGEN] = "ATAGEN",
 	[HCC_WORKER_JOB_TYPE_ASTGEN] = "ASTGEN",
+	[HCC_WORKER_JOB_TYPE_ASTLINK] = "ASTLINK",
 	[HCC_WORKER_JOB_TYPE_AMLGEN] = "AMLGEN",
 	[HCC_WORKER_JOB_TYPE_AMLOPT] = "AMLOPT",
 	[HCC_WORKER_JOB_TYPE_BINARY] = "BINARY",
@@ -574,10 +581,11 @@ HccDuration hcc_task_workers_duration_for_type(HccTask* t, HccWorkerJobType type
 // ===========================================
 
 HccPhase hcc_worker_job_type_phases[HCC_WORKER_JOB_TYPE_COUNT] = {
-	[HCC_WORKER_JOB_TYPE_ATAGEN] = HCC_PHASE_FRONTEND,
-	[HCC_WORKER_JOB_TYPE_ASTGEN] = HCC_PHASE_FRONTEND,
-	[HCC_WORKER_JOB_TYPE_AMLGEN] = HCC_PHASE_FRONTEND,
-	[HCC_WORKER_JOB_TYPE_AMLOPT] = HCC_PHASE_OPTIMIZATION,
+	[HCC_WORKER_JOB_TYPE_ATAGEN] = HCC_PHASE_ASTGEN,
+	[HCC_WORKER_JOB_TYPE_ASTGEN] = HCC_PHASE_ASTGEN,
+	[HCC_WORKER_JOB_TYPE_ASTLINK] = HCC_PHASE_ASTLINK,
+	[HCC_WORKER_JOB_TYPE_AMLGEN] = HCC_PHASE_AMLGEN,
+	[HCC_WORKER_JOB_TYPE_AMLOPT] = HCC_PHASE_AMLOPT,
 	[HCC_WORKER_JOB_TYPE_BINARY] = HCC_PHASE_BACKEND,
 	[HCC_WORKER_JOB_TYPE_METADATA] = HCC_PHASE_BACKEND,
 };
@@ -639,28 +647,46 @@ void hcc_worker_end_job(HccWorker* w) {
 	t->worker_job_type_durations[w->job.type] = hcc_duration_add(t->worker_job_type_durations[w->job.type], duration);
 	c->worker_job_type_durations[w->job.type] = hcc_duration_add(c->worker_job_type_durations[w->job.type], duration);
 
-	if (atomic_fetch_sub(&t->running_jobs_count, 1) == 1) {
+	if (atomic_fetch_sub(&t->queued_jobs_count, 1) == 1) {
 		//
 		// set the phase duration in the task and add it to the compiler's overall copy
 		t->phase_durations[t->phase] = hcc_time_diff(end_time, t->phase_start_times[t->phase]);
 		c->phase_durations[t->phase] = hcc_duration_add(c->phase_durations[t->phase], t->phase_durations[t->phase]);
 
 		if (t->phase == hcc_worker_job_type_phases[t->final_worker_job_type]) {
+			bool was_successful = true;
+			if (t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
+				t->result.code = HCC_ERROR_MESSAGES;
+				c->result_data.result.code = HCC_ERROR_MESSAGES;
+				was_successful = false;
+			}
+
 			//
 			// we have finished all jobs and have reached the phase where we end.
 			// t->final_worker_job_type also stops any jobs being added that
 			// are later than it at the start of the hcc_compiler_give_worker_job function.
-			hcc_task_finish(w->job.task, true);
+			hcc_task_finish(w->job.task, was_successful);
 			return;
 		}
 
 		//
 		// setup the next phase worker jobs
 		switch (t->phase) {
-			case HCC_PHASE_FRONTEND:
+			case HCC_PHASE_ASTGEN: {
+				HccStack(HccASTFile*) ast_files = t->cu->ast.files;
+				uint32_t files_count = hcc_stack_count(ast_files);
+				for (uint32_t file_idx = 0; file_idx < files_count; file_idx += 1) {
+					hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_ASTLINK, ast_files[file_idx]);
+				}
+				break;
+			};
+			case HCC_PHASE_ASTLINK:
 				// TODO: loop over all functions and hcc_compiler_give_worker_job for AMLOPT
 				break;
-			case HCC_PHASE_OPTIMIZATION:
+			case HCC_PHASE_AMLGEN:
+				// TODO: queue job for the backend
+				break;
+			case HCC_PHASE_AMLOPT:
 				// TODO: queue job for the backend
 				break;
 			case HCC_PHASE_BACKEND:
@@ -703,6 +729,14 @@ void hcc_worker_main(void* arg) {
 				}
 				hcc_astgen_reset(w);
 				hcc_astgen_generate(w);
+				break;
+			case HCC_WORKER_JOB_TYPE_ASTLINK:
+				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
+					hcc_astlink_init(w, &c->astlink_setup);
+					w->initialized_generators_bitset |= (1 << w->job.type);
+				}
+				hcc_astlink_reset(w);
+				hcc_astlink_link_file(w);
 				break;
 			case HCC_WORKER_JOB_TYPE_AMLGEN:
 				break;
@@ -791,7 +825,7 @@ void hcc_compiler_give_worker_job(HccCompiler* c, HccTask* t, HccWorkerJobType j
 
 	//
 	// tell the worker threads that there is a new job
-	atomic_fetch_add(&t->running_jobs_count, 1);
+	atomic_fetch_add(&t->queued_jobs_count, 1);
 	hcc_semaphore_give(&c->worker_job_queue.semaphore, 1);
 }
 
@@ -832,6 +866,7 @@ HccResult hcc_compiler_init(HccCompilerSetup* setup, HccCompiler** c_out) {
 
 	c->atagen_setup = setup->atagen;
 	c->astgen_setup = setup->astgen;
+	c->astlink_setup = setup->astlink;
 
 	//
 	// allocate the job queue magic ring buffer
@@ -896,12 +931,12 @@ HccResult hcc_compiler_dispatch_task(HccCompiler* c, HccTask* t) {
 
 	t->result = HCC_RESULT_SUCCESS;
 	t->flags &= ~(HCC_TASK_FLAGS_IS_RESULT_SET);
-	t->phase = HCC_PHASE_FRONTEND;
+	t->phase = HCC_PHASE_ASTGEN;
 	HCC_ZERO_ARRAY(t->worker_job_type_durations);
 	HCC_ZERO_ARRAY(t->phase_durations);
 	HCC_ZERO_ELMT(&t->duration);
 	t->start_time = hcc_time_now(HCC_TIME_MODE_MONOTONIC);
-	t->phase_start_times[HCC_PHASE_FRONTEND] = t->start_time;
+	t->phase_start_times[HCC_PHASE_ASTGEN] = t->start_time;
 
 	if (t->cu) {
 		hcc_cu_deinit(t->cu);

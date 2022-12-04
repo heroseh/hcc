@@ -6,6 +6,7 @@
 #include "aml.c"
 #include "atagen.c"
 #include "astgen.c"
+#include "astlink.c"
 #include "hcc.c"
 
 void print_duration(const char* what, HccDuration d) {
@@ -30,7 +31,7 @@ int main(int argc, char** argv) {
 	HccTask* task;
 	HccTaskSetup task_setup = hcc_task_setup_default;
 	task_setup.options = options;
-	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_ASTGEN;
+	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_ASTLINK;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
 	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/astgen_test.c", NULL));
 	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/astgen_test2.c", NULL));
@@ -58,9 +59,9 @@ int main(int argc, char** argv) {
 	}
 
 	print_duration("compiler", hcc_compiler_duration(compiler));
-	print_duration("frontend", hcc_compiler_phase_duration(compiler, HCC_PHASE_FRONTEND));
-	print_duration("optimizer", hcc_compiler_phase_duration(compiler, HCC_PHASE_OPTIMIZATION));
-	print_duration("backend", hcc_compiler_phase_duration(compiler, HCC_PHASE_BACKEND));
+	for (HccPhase phase = 0; phase < HCC_PHASE_COUNT; phase += 1) {
+		print_duration(hcc_phase_strings[phase], hcc_compiler_phase_duration(compiler, phase));
+	}
 
 	return 0;
 }

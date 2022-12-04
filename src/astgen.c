@@ -1,6 +1,8 @@
 
 HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 	[HCC_ASTGEN_SPECIFIER_STATIC] =           HCC_ATA_TOKEN_KEYWORD_STATIC,
+	[HCC_ASTGEN_SPECIFIER_EXTERN] =           HCC_ATA_TOKEN_KEYWORD_EXTERN,
+	[HCC_ASTGEN_SPECIFIER_THREAD_LOCAL] =     HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL,
 	[HCC_ASTGEN_SPECIFIER_INLINE] =           HCC_ATA_TOKEN_KEYWORD_INLINE,
 	[HCC_ASTGEN_SPECIFIER_NO_RETURN] =        HCC_ATA_TOKEN_KEYWORD_NO_RETURN,
 	[HCC_ASTGEN_SPECIFIER_INTRINSIC] =        HCC_ATA_TOKEN_KEYWORD_INTRINSIC,
@@ -165,7 +167,7 @@ void hcc_astgen_data_type_found(HccWorker* w, HccDataType data_type) {
 }
 
 void hcc_astgen_data_type_ensure_compound_type_default_kind(HccWorker* w, HccDataType data_type, HccErrorCode error_code) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_data_type);
 		if (d->kind != HCC_COMPOUND_DATA_TYPE_KIND_DEFAULT) {
@@ -176,7 +178,7 @@ void hcc_astgen_data_type_ensure_compound_type_default_kind(HccWorker* w, HccDat
 }
 
 void hcc_astgen_data_type_ensure_valid_variable(HccWorker* w, HccDataType data_type, HccErrorCode error_code) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_data_type);
 		if (d->kind != HCC_COMPOUND_DATA_TYPE_KIND_DEFAULT) {
@@ -201,7 +203,7 @@ ERROR: {}
 }
 
 void hcc_astgen_data_type_ensure_compound_type_has_no_resources(HccWorker* w, HccDataType data_type, HccErrorCode error_code) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_data_type);
 		if (d->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE) {
@@ -219,7 +221,7 @@ void hcc_astgen_data_type_ensure_has_no_resources(HccWorker* w, HccDataType data
 }
 
 void hcc_astgen_data_type_ensure_has_no_pointers(HccWorker* w, HccDataType data_type, HccErrorCode error_code) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_data_type);
 		if (d->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER) {
@@ -300,14 +302,14 @@ void hcc_astgen_static_variable_usage_found(HccWorker* w, HccDecl decl) {
 #endif
 }
 
-void hcc_astgen_insert_global_declaration(HccWorker* w, HccStringId identifier_string_id, HccDeclEntryValue value, HccLocation* location) {
+void hcc_astgen_insert_global_declaration(HccWorker* w, HccStringId identifier_string_id, HccDecl decl, HccLocation* location) {
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(w->astgen.ast_file->global_declarations, &identifier_string_id);
 	HccDeclEntry* entry = &w->astgen.ast_file->global_declarations[insert.idx];
 	if (!insert.is_new) {
 		HccString string = hcc_string_table_get(identifier_string_id);
-		hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL, location, entry->location, (int)string.size, string.data);
+		hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_INTERNAL, location, entry->location, (int)string.size, string.data);
 	}
-	entry->value = value;
+	entry->decl = decl;
 	entry->location = location;
 }
 
@@ -318,15 +320,15 @@ void hcc_astgen_eval_cast(HccWorker* w, HccASTExpr* expr, HccDataType dst_data_t
 	HccBasic basic;
 	if (HCC_DATA_TYPE_TYPE(expr->data_type) == HCC_DATA_TYPE_AST_BASIC) {
 		HccASTBasicDataType basic_data_type = HCC_DATA_TYPE_AUX(expr->data_type);
-		if (HCC_AST_BASIC_DATA_TYPE_IS_UINT(w->cu, expr->data_type)) {
+		if (HCC_AST_BASIC_DATA_TYPE_IS_UINT(w->cu, basic_data_type)) {
 			uint64_t uint;
 			hcc_constant_as_uint(w->cu, constant, &uint);
 			basic = hcc_basic_from_uint(w->cu, dst_data_type, uint);
-		} else if (HCC_AST_BASIC_DATA_TYPE_IS_SINT(w->cu, expr->data_type)) {
+		} else if (HCC_AST_BASIC_DATA_TYPE_IS_SINT(w->cu, basic_data_type)) {
 			int64_t sint;
 			hcc_constant_as_sint(w->cu, constant, &sint);
 			basic = hcc_basic_from_sint(w->cu, dst_data_type, sint);
-		} else if (HCC_AST_BASIC_DATA_TYPE_IS_FLOAT(expr->data_type)) {
+		} else if (HCC_AST_BASIC_DATA_TYPE_IS_FLOAT(basic_data_type)) {
 			double float_;
 			hcc_constant_as_float(w->cu, constant, &float_);
 			basic = hcc_basic_from_float(w->cu, dst_data_type, float_);
@@ -353,7 +355,13 @@ HccASTExpr* hcc_astgen_alloc_expr(HccWorker* w, HccASTExprType type) {
 }
 
 HccHash64 hcc_astgen_hash_compound_data_type_field(HccCU* cu, HccDataType data_type, HccHash64 hash) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+
+	if (HCC_DATA_TYPE_IS_POINTER(data_type)) {
+		// don't hash pointers as the same because they can be for forward declarations which will mess up the hash.
+		data_type = HCC_DATA_TYPE_POINTER;
+	}
+
 	if (!HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
 		return hcc_hash_fnv_64(&data_type, sizeof(data_type), hash);
 	}
@@ -391,8 +399,8 @@ const char* hcc_astgen_type_specifier_string(HccASTGenTypeSpecifier specifier) {
 }
 
 void hcc_astgen_data_type_ensure_is_condition(HccWorker* w, HccDataType data_type) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, data_type);
-	if (!hcc_data_type_is_condition(w->cu, data_type)) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
+	if (!hcc_data_type_is_condition(data_type)) {
 		HccString data_type_name = hcc_data_type_string(w->cu, data_type);
 		hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION, (int)data_type_name.size, data_type_name.data);
 	}
@@ -469,8 +477,8 @@ bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType 
 		return false;
 	}
 
-	target_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, target_data_type);
-	source_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, source_data_type);
+	target_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, target_data_type);
+	source_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, source_data_type);
 	if (target_data_type == source_data_type) {
 		return true;
 	}
@@ -499,8 +507,8 @@ bool hcc_astgen_data_type_check_compatible_arithmetic(HccWorker* w, HccASTExpr**
 	HccASTExpr* left_expr = *left_expr_mut;
 	HccASTExpr* right_expr = *right_expr_mut;
 
-	HccDataType left_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, left_expr->data_type);
-	HccDataType right_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, right_expr->data_type);
+	HccDataType left_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, left_expr->data_type);
+	HccDataType right_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, right_expr->data_type);
 	if (left_data_type == right_data_type) {
 		return true;
 	}
@@ -623,19 +631,20 @@ void hcc_astgen_data_type_ensure_compatible_arithmetic(HccWorker* w, HccLocation
 	}
 }
 
-void hcc_astgen_ensure_function_args_count(HccWorker* w, HccASTFunction* function, uint32_t args_count) {
-	if (args_count < function->params_count) {
-		HccString string = hcc_string_table_get(function->identifier_string_id);
-		hcc_astgen_error_2(w, HCC_ERROR_CODE_NOT_ENOUGH_FUNCTION_ARGS, function->identifier_location, function->params_count, args_count, (int)string.size, string.data);
-	} else if (args_count > function->params_count) {
-		HccString string = hcc_string_table_get(function->identifier_string_id);
-		hcc_astgen_error_2(w, HCC_ERROR_CODE_TOO_MANY_FUNCTION_ARGS, function->identifier_location, function->params_count, args_count, (int)string.size, string.data);
+void hcc_astgen_ensure_function_args_count(HccWorker* w, HccDecl function_decl, uint32_t args_count) {
+	uint32_t params_count = hcc_decl_function_params_count(w->cu, function_decl);
+	if (args_count < params_count) {
+		HccString string = hcc_string_table_get(hcc_decl_identifier_string_id(w->cu, function_decl));
+		hcc_astgen_error_2(w, HCC_ERROR_CODE_NOT_ENOUGH_FUNCTION_ARGS, hcc_decl_location(w->cu, function_decl), params_count, args_count, (int)string.size, string.data);
+	} else if (args_count > params_count) {
+		HccString string = hcc_string_table_get(hcc_decl_identifier_string_id(w->cu, function_decl));
+		hcc_astgen_error_2(w, HCC_ERROR_CODE_TOO_MANY_FUNCTION_ARGS, hcc_decl_location(w->cu, function_decl), params_count, args_count, (int)string.size, string.data);
 	}
 }
 
 HccDataType hcc_astgen_deduplicate_array_data_type(HccWorker* w, HccDataType element_data_type, HccConstantId element_count_constant_id) {
 	HccCU* cu = w->cu;
-	element_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, element_data_type);
+	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
 	uint64_t key = (uint64_t)element_data_type | ((uint64_t)element_count_constant_id.idx_plus_one << 32);
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.arrays_dedup_hash_table, &key);
 	HccDataTypeDedupEntry* entry = &cu->dtt.arrays_dedup_hash_table[insert.idx];
@@ -679,7 +688,7 @@ HccDataType hcc_astgen_deduplicate_array_data_type(HccWorker* w, HccDataType ele
 
 HccDataType hcc_astgen_deduplicate_pointer_data_type(HccWorker* w, HccDataType element_data_type) {
 	HccCU* cu = w->cu;
-	element_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, element_data_type);
+	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
 	uint64_t key = element_data_type;
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.pointers_dedup_hash_table, &key);
 	HccDataTypeDedupEntry* entry = &cu->dtt.pointers_dedup_hash_table[insert.idx];
@@ -703,7 +712,7 @@ HccDataType hcc_astgen_deduplicate_pointer_data_type(HccWorker* w, HccDataType e
 
 HccDataType hcc_astgen_deduplicate_constbuffer_data_type(HccWorker* w, HccDataType element_data_type) {
 	HccCU* cu = w->cu;
-	element_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, element_data_type);
+	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
 	uint64_t key = (uint64_t)element_data_type | ((uint64_t)HCC_RESOURCE_DATA_TYPE_CONSTBUFFER << 32);
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.buffers_dedup_hash_table, &key);
 	HccDataTypeDedupEntry* entry = &cu->dtt.buffers_dedup_hash_table[insert.idx];
@@ -727,7 +736,7 @@ HccDataType hcc_astgen_deduplicate_constbuffer_data_type(HccWorker* w, HccDataTy
 
 HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type) {
 	HccCU* cu = w->cu;
-	element_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, element_data_type);
+	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
 	uint64_t key = (uint64_t)element_data_type | ((uint64_t)HCC_RESOURCE_DATA_TYPE_BUFFER << 32);
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.buffers_dedup_hash_table, &key);
 	HccDataTypeDedupEntry* entry = &cu->dtt.buffers_dedup_hash_table[insert.idx];
@@ -754,6 +763,10 @@ void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what) {
 		HccATAToken keyword_token;
 		if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_STATIC;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN) {
+			keyword_token = HCC_ATA_TOKEN_KEYWORD_EXTERN;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL) {
+			keyword_token = HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INLINE) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_INLINE;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN) {
@@ -848,7 +861,7 @@ HccATAToken hcc_astgen_curly_initializer_start(HccWorker* w, HccDataType data_ty
 	gen->first_initializer_expr = first_expr;
 	gen->prev_initializer_expr = first_expr;
 	gen->nested_elmts_start_idx = hcc_stack_count(gen->nested_elmts);
-	HccASTExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(w);
+	HccASTExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(w, hcc_ata_iter_location(w->astgen.token_iter));
 	initializer_expr->designated_initializer.value_expr = NULL;
 
 	return hcc_astgen_curly_initializer_open(w);
@@ -933,7 +946,7 @@ bool hcc_astgen_curly_initializer_next_elmt(HccWorker* w, HccDataType resolved_t
 				//
 				// this is a compound data type so fetch the next element data type
 				gen->elmt_data_type = gen->compound_fields[nested_elmt->elmt_idx].data_type;
-				gen->resolved_elmt_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
+				gen->resolved_elmt_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
 			}
 
 			if (resolved_target_data_type == gen->resolved_elmt_data_type) {
@@ -991,18 +1004,18 @@ HccATAToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccWorker* w)
 				for (uint32_t i = 0; i < hcc_stack_count(w->astgen.compound_type_find_fields); i += 1) {
 					HccFieldAccess* field = hcc_stack_get(w->astgen.compound_type_find_fields, i);
 					hcc_stack_get_last(gen->nested_elmts)->elmt_idx = field->idx;
-					hcc_astgen_curly_initializer_nested_elmt_push(w, field->data_type, hcc_typedef_resolve_and_keep_qualifiers(w->cu, field->data_type));
+					hcc_astgen_curly_initializer_nested_elmt_push(w, field->data_type, hcc_decl_resolve_and_keep_qualifiers(w->cu, field->data_type));
 				}
 
 				if (hcc_stack_count(w->astgen.compound_type_find_fields) > 1) {
 					gen->composite_data_type = hcc_stack_get_back(w->astgen.compound_type_find_fields, 1)->data_type;
-					gen->resolved_composite_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, gen->composite_data_type);
+					gen->resolved_composite_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, gen->composite_data_type);
 					gen->compound_data_type = hcc_compound_data_type_get(w->cu, gen->resolved_composite_data_type);
 					gen->compound_fields = gen->compound_data_type->fields;
 				}
 
 				gen->elmt_data_type = hcc_stack_get_last(w->astgen.compound_type_find_fields)->data_type;
-				gen->resolved_elmt_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
+				gen->resolved_elmt_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
 				token = hcc_ata_iter_next(w->astgen.token_iter);
 				break;
 			case HCC_ATA_TOKEN_SQUARE_OPEN:
@@ -1114,13 +1127,13 @@ void hcc_astgen_curly_initializer_set_composite(HccWorker* w, HccDataType data_t
 		hcc_constant_as_uint(w->cu, constant, &cap);
 
 		gen->elmt_data_type = gen->array_data_type->element_data_type;
-		gen->resolved_elmt_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
+		gen->resolved_elmt_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
 		gen->elmts_end_idx = cap;
 	} else if (HCC_DATA_TYPE_IS_COMPOUND(gen->resolved_composite_data_type)) {
 		gen->compound_data_type = hcc_compound_data_type_get(w->cu, gen->resolved_composite_data_type);
 		gen->compound_fields = gen->compound_data_type->fields;
 		gen->elmt_data_type = gen->compound_fields[0].data_type;
-		gen->resolved_elmt_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
+		gen->resolved_elmt_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
 
 		gen->elmts_end_idx = HCC_DATA_TYPE_IS_UNION(gen->resolved_composite_data_type) ? 1 : gen->compound_data_type->fields_count;
 	} else {
@@ -1132,7 +1145,7 @@ void hcc_astgen_curly_initializer_set_composite(HccWorker* w, HccDataType data_t
 	}
 }
 
-HccASTExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccWorker* w) {
+HccASTExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccWorker* w, HccLocation* location) {
 	HccASTGenCurlyInitializer* gen = &w->astgen.curly_initializer;
 	uint32_t elmt_indices_start_idx = gen->nested_elmts_start_idx;
 	uint32_t elmt_indices_end_idx = hcc_stack_count(gen->nested_elmts);
@@ -1153,6 +1166,7 @@ HccASTExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccWork
 	initializer_expr->next_stmt = NULL;
 	initializer_expr->designated_initializer.elmt_indices_start_idx = dst_elmt_indices_start_idx;
 	initializer_expr->designated_initializer.elmts_count = elmt_indices_count;
+	initializer_expr->location = location;
 
 	//
 	// append to the link list of designated initializers
@@ -1172,6 +1186,8 @@ HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 		HccASTGenSpecifierFlags flag = 0;
 		switch (token) {
 			case HCC_ATA_TOKEN_KEYWORD_STATIC:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_STATIC;           break;
+			case HCC_ATA_TOKEN_KEYWORD_EXTERN:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN;           break;
+			case HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL:     flag = HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL;     break;
 			case HCC_ATA_TOKEN_KEYWORD_INLINE:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_INLINE;           break;
 			case HCC_ATA_TOKEN_KEYWORD_NO_RETURN:        flag = HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN;        break;
 			case HCC_ATA_TOKEN_KEYWORD_INTRINSIC:        flag = HCC_ASTGEN_SPECIFIER_FLAGS_INTRINSIC;        break;
@@ -1186,9 +1202,6 @@ HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT;         break;
 			case HCC_ATA_TOKEN_KEYWORD_AUTO: break;
 			case HCC_ATA_TOKEN_KEYWORD_VOLATILE:
-			case HCC_ATA_TOKEN_KEYWORD_EXTERN:
-				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER, hcc_ata_token_strings[token]);
-				break;
 			case HCC_ATA_TOKEN_KEYWORD_RESOURCE_SET:
 				flag = HCC_ASTGEN_SPECIFIER_FLAGS_RESOURCE_SET;
 
@@ -1264,7 +1277,7 @@ HccDataType hcc_astgen_generate_enum_data_type(HccWorker* w) {
 		if (insert.is_new) {
 			goto MAKE_NEW;
 		} else {
-			HccDataType data_type = HCC_DECL_ENTRY_VALUE_DECL(table_entry->value);
+			HccDataType data_type = table_entry->decl;
 			HccString data_type_name = hcc_data_type_string(w->cu, data_type);
 			w->astgen.token_iter->token_idx -= 1;
 			hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_REIMPLEMENTATION_DATA_TYPE, hcc_enum_data_type_get(w->cu, data_type)->identifier_location, (int)data_type_name.size, data_type_name.data);
@@ -1355,46 +1368,59 @@ MAKE_NEW: {}
 	token = hcc_ata_iter_next(w->astgen.token_iter);
 
 	//
-	// add the enum to the compilation unit
+	// add the enum to the compilation unit if an identical version doesn't exist there already
 	HccEnumDataType* real_enum_data_type = &enum_data_type;
 	HccDataType data_type = 0;
 	if (table_entry) {
 		HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->enum_declarations, &identifier_string_id);
 		HccDeclEntryAtomic* entry = &cu->enum_declarations[insert.idx];
-		if (insert.is_new) {
-			HccEnumValue* dst_enum_values = hcc_stack_push_many_thread_safe(cu->dtt.enum_values, enum_data_type.values_count);
-			HCC_COPY_ELMT_MANY(dst_enum_values, enum_data_type.values, enum_data_type.values_count);
-			enum_data_type.values = dst_enum_values;
 
-			HccEnumDataType* dst_enum_data_type = hcc_stack_push_thread_safe(cu->dtt.enums);
-			*dst_enum_data_type = enum_data_type;
+		HccAtomic(HccDeclEntryAtomicLink*)* link_ptr = &entry->link;
+		while (1) {
+			HccDeclEntryAtomicLink* link = atomic_load(link_ptr);
+			if (link == NULL && atomic_compare_exchange_strong(link_ptr, &link, HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL)) {
+				//
+				// our thread claimed the atomic link which means this enum is unique with this identifier.
+				// so now lets setup the enum and atomic link.
+				HccEnumValue* dst_enum_values = hcc_stack_push_many_thread_safe(cu->dtt.enum_values, enum_data_type.values_count);
+				HCC_COPY_ELMT_MANY(dst_enum_values, enum_data_type.values, enum_data_type.values_count);
+				enum_data_type.values = dst_enum_values;
 
-			uint32_t enum_idx = dst_enum_data_type - cu->dtt.enums;
-			data_type = HCC_DATA_TYPE(ENUM, enum_idx);
-			atomic_store(&entry->decl, data_type);
-			real_enum_data_type = dst_enum_data_type;
-		} else {
+				HccEnumDataType* dst_enum_data_type = hcc_stack_push_thread_safe(cu->dtt.enums);
+				*dst_enum_data_type = enum_data_type;
+
+				uint32_t enum_idx = dst_enum_data_type - cu->dtt.enums;
+				data_type = HCC_DATA_TYPE(ENUM, enum_idx);
+
+				HccDeclEntryAtomicLink* alloced_link = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccDeclEntryAtomicLink, &w->arena_alctor);
+				alloced_link->decl = data_type;
+				atomic_store(link_ptr, alloced_link);
+
+				real_enum_data_type = dst_enum_data_type;
+				break;
+			}
+
 			//
-			// spin and wait if another thread is initializing the enum data type after it inserted it
-			while ((data_type = atomic_load(&entry->decl)) == 0) {
+			// wait if any other thread is setting up the atomic link
+			while (link == HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL) {
 				HCC_CPU_RELAX();
+				link = atomic_load(link_ptr);
 			}
 
-			//
-			// this enum has been declared in two different files, lets make sure they are identical
-			//
-
-			HccEnumDataType* other_enum_data_type = hcc_enum_data_type_get(cu, data_type);
+			HccEnumDataType* other_enum_data_type = hcc_enum_data_type_get(cu, link->decl);
 			if (
-				enum_data_type.values_count != other_enum_data_type->values_count
-				|| enum_data_type.value_identifiers_hash != other_enum_data_type->value_identifiers_hash
-				|| enum_data_type.values_hash != other_enum_data_type->values_hash
+				enum_data_type.values_count == other_enum_data_type->values_count
+				&& enum_data_type.value_identifiers_hash == other_enum_data_type->value_identifiers_hash
+				&& enum_data_type.values_hash == other_enum_data_type->values_hash
 			) {
-				HccLocation* other_location = other_enum_data_type->identifier_location;
-				HccString string = hcc_string_table_get(identifier_string_id);
-				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL, enum_data_type.identifier_location, other_location, (int)string.size, string.data);
+				//
+				// we have found a matching enum with the same identifier, so lets use this one instead.
+				real_enum_data_type = other_enum_data_type;
+				data_type = link->decl;
+				break;
 			}
-			real_enum_data_type = other_enum_data_type;
+
+			link_ptr = &link->next;
 		}
 	}
 
@@ -1408,7 +1434,7 @@ MAKE_NEW: {}
 	}
 
 	if (table_entry) {
-		table_entry->value = HCC_DECL_ENTRY_VALUE(data_type, true);
+		table_entry->decl = data_type;
 	}
 
 	hcc_astgen_data_type_found(w, data_type);
@@ -1468,47 +1494,19 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		HccHashTableInsert insert = hcc_hash_table_find_insert_idx(declarations, &identifier_string_id);
 		table_entry = &declarations[insert.idx];
 		if (insert.is_new) {
-			HccHashTable(HccDeclEntryAtomic) cu_declarations;
-			if (is_union) {
-				cu_declarations = cu->union_declarations;
-			} else {
-				cu_declarations = cu->struct_declarations;
-			}
+			HccASTForwardDecl* forward_decl = hcc_stack_push_thread_safe(cu->ast.forward_declarations);
+			forward_decl->ast_file = w->astgen.ast_file;
+			forward_decl->identifier_location = compound_data_type_location;
+			forward_decl->identifier_string_id = identifier_string_id;
 
-			//
-			// add the compound data type to the compilation unit
-			insert = hcc_hash_table_find_insert_idx(cu_declarations, &identifier_string_id);
-			HccDeclEntryAtomic* entry = &cu_declarations[insert.idx];
-			if (insert.is_new) {
-				HccCompoundDataType* dst_compound_data_type = hcc_stack_push_thread_safe(cu->dtt.compounds);
-				HCC_ZERO_ELMT(dst_compound_data_type);
-				dst_compound_data_type->identifier_location = compound_data_type_location;
-				dst_compound_data_type->identifier_string_id = identifier_string_id;
+			uint32_t forward_decl_idx = forward_decl - cu->ast.forward_declarations;
+			data_type = is_union ? HCC_DATA_TYPE_FORWARD_DECL(UNION, forward_decl_idx) : HCC_DATA_TYPE_FORWARD_DECL(STRUCT, forward_decl_idx);
 
-				uint32_t compound_idx = dst_compound_data_type - cu->dtt.compounds;
-				data_type = is_union ? HCC_DATA_TYPE(UNION, compound_idx) : HCC_DATA_TYPE(STRUCT, compound_idx);
-				atomic_store(&entry->decl, data_type);
-			} else {
-				//
-				// spin and wait if another thread is initializing the compound data type after it inserted it
-				while ((data_type = atomic_load(&entry->decl)) == 0) {
-					HCC_CPU_RELAX();
-				}
-			}
-
-			table_entry->value = HCC_DECL_ENTRY_VALUE(data_type, false);
+			table_entry->decl = data_type;
 			table_entry->location = compound_data_type_location;
 		} else {
-			data_type = HCC_DECL_ENTRY_VALUE_DECL(table_entry->value);
+			data_type = table_entry->decl;
 		}
-	} else {
-		//
-		// here we are an anonymous struct
-		//
-		HccCompoundDataType* dst_compound_data_type = hcc_stack_push_thread_safe(cu->dtt.compounds);
-		HCC_ZERO_ELMT(dst_compound_data_type);
-		uint32_t compound_idx = dst_compound_data_type - cu->dtt.compounds;
-		data_type = is_union ? HCC_DATA_TYPE(UNION, compound_idx) : HCC_DATA_TYPE(STRUCT, compound_idx);
 	}
 
 	if (token != HCC_ATA_TOKEN_CURLY_OPEN) {
@@ -1570,7 +1568,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		w->astgen.specifier_flags &= ~HCC_ASTGEN_SPECIFIER_FLAGS_ALL_STRUCT_SPECIFIERS;
 	}
 
-	if (table_entry && HCC_DECL_ENTRY_VALUE_HAS_CONCRETE_IMPL(table_entry->value)) {
+	if (table_entry && !HCC_DATA_TYPE_IS_FORWARD_DECL(data_type)) {
 		HccString data_type_name = hcc_data_type_string(w->cu, data_type);
 		hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REIMPLEMENTATION_DATA_TYPE, compound_data_type.identifier_location, table_entry->location, (int)data_type_name.size, data_type_name.data);
 	}
@@ -1692,7 +1690,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 
 		compound_data_type.field_data_types_hash = hcc_astgen_hash_compound_data_type_field(cu, compound_field->data_type, compound_data_type.field_data_types_hash);
 
-		HccDataType data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, compound_field->data_type);
+		HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, compound_field->data_type);
 		if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
 			HccDataType aml_intrinsic_data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
 			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&compound_data_type.has_scalar_data_types_mask, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(aml_intrinsic_data_type)));
@@ -1794,7 +1792,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 					// ensure the resource set slot is unique
 					for (uint32_t other_field_idx = 0; other_field_idx < field_idx; other_field_idx += 1) {
 						HccCompoundField* prev_field = &fields[other_field_idx];
-						HccDataType prev_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, prev_field->data_type);
+						HccDataType prev_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, prev_field->data_type);
 						HccCompoundDataType* prev_rs_d = hcc_data_type_get_resource_set(w->cu, prev_data_type);
 						if (!prev_rs_d) {
 							continue;
@@ -1832,7 +1830,6 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		}
 		hcc_astgen_ensure_semicolon(w);
 		token = hcc_ata_iter_peek(w->astgen.token_iter);
-		compound_data_type.field_identifiers_hash = hcc_hash_fnv_64(&compound_field->identifier_string_id, sizeof(compound_field->identifier_string_id), compound_data_type.field_identifiers_hash);
 
 		//
 		// TODO: in future this will be a platform specific problem
@@ -1881,61 +1878,65 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_POSITION_NOT_SPECIFIED, compound_data_type_location, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_POSITION]);
 	}
 
-	if (table_entry && !HCC_DECL_ENTRY_VALUE_HAS_CONCRETE_IMPL(table_entry->value)) {
-		table_entry->value = HCC_DECL_ENTRY_VALUE(HCC_DECL_ENTRY_VALUE_DECL(table_entry->value), true);
+	if (table_entry && HCC_DATA_TYPE_IS_FORWARD_DECL(data_type)) {
 		table_entry->location = compound_data_type.identifier_location;
 	}
 
-	HccCompoundDataType* dst_compound_data_type = hcc_compound_data_type_get(cu, data_type);
-	if (table_entry) {
-		static_assert(offsetof(HccCompoundDataType, size) == 0, "this code is designed for size to be the first field in HccCompoundDataType");
-		static_assert(sizeof(dst_compound_data_type->size) == sizeof(uint64_t), "this code is designed for size to a uint64_t in HccCompoundDataType");
-		HccAtomic(uint64_t)* size_ptr = (HccAtomic(uint64_t)*)&dst_compound_data_type->size;
+	//
+	// add the struct or union to the compilation unit if an identical version doesn't exist there already
+	HccHashTable(HccDeclEntryAtomic) cu_declarations = is_union ? cu->union_declarations : cu->struct_declarations;
+	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu_declarations, &identifier_string_id);
+	HccDeclEntryAtomic* entry = &cu_declarations[insert.idx];
 
-		//
-		// try to see if we are the thread that can perform the direct copy of the structure
-		uint64_t size = atomic_load(size_ptr);
-		bool needs_compare = true;
-		while (size == 0) {
-			if (atomic_compare_exchange_weak(size_ptr, &size, UINT64_MAX)) {
-				//
-				// we are the thread to do the copy
-				HccCompoundField* new_fields = hcc_stack_push_many_thread_safe(cu->dtt.compound_fields, compound_data_type.fields_count);
-				HCC_COPY_ELMT_MANY(new_fields, compound_data_type.fields, compound_data_type.fields_count);
-				compound_data_type.fields = new_fields;
-				memcpy(HCC_PTR_ADD(dst_compound_data_type, sizeof(uint64_t)), HCC_PTR_ADD(&compound_data_type, sizeof(uint64_t)), sizeof(HccCompoundDataType) - sizeof(uint64_t));
-				atomic_store(size_ptr, compound_data_type.size);
-				needs_compare = false;
-				break;
-			}
-			HCC_CPU_RELAX();
-		}
-
-		if (needs_compare) {
+	HccAtomic(HccDeclEntryAtomicLink*)* link_ptr = &entry->link;
+	while (1) {
+		HccDeclEntryAtomicLink* link = atomic_load(link_ptr);
+		if (link == NULL && atomic_compare_exchange_strong(link_ptr, &link, HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL)) {
 			//
-			// wait for the other thread to copy the structure in
-			while ((size = atomic_load(size_ptr)) == UINT64_MAX) {
-				HCC_CPU_RELAX();
-			}
+			// our thread claimed the atomic link which means this compound data type is unique with this identifier.
+			// so now lets setup the enum and atomic link.
+			HccCompoundField* new_fields = hcc_stack_push_many_thread_safe(cu->dtt.compound_fields, compound_data_type.fields_count);
+			HCC_COPY_ELMT_MANY(new_fields, compound_data_type.fields, compound_data_type.fields_count);
+			compound_data_type.fields = new_fields;
 
-			if (
-				dst_compound_data_type->fields_count != compound_data_type.fields_count
-				|| dst_compound_data_type->field_data_types_hash != compound_data_type.field_data_types_hash
-				|| dst_compound_data_type->size != compound_data_type.size
-				|| dst_compound_data_type->align != compound_data_type.align
-			) {
-				HccString identifier_string = hcc_string_table_get(identifier_string_id);
-				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_DECLARATION_MISMATCH, compound_data_type.identifier_location, dst_compound_data_type->identifier_location, (int)identifier_string.size, identifier_string.data);
-			}
+			HccCompoundDataType* dst_compound_data_type = hcc_stack_push_thread_safe(cu->dtt.compounds);
+			*dst_compound_data_type = compound_data_type;
+
+			uint32_t compound_idx = dst_compound_data_type - cu->dtt.compounds;
+			data_type = is_union ? HCC_DATA_TYPE(UNION, compound_idx) : HCC_DATA_TYPE(STRUCT, compound_idx);
+
+			HccDeclEntryAtomicLink* alloced_link = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccDeclEntryAtomicLink, &w->arena_alctor);
+			alloced_link->decl = data_type;
+			atomic_store(link_ptr, alloced_link);
+			break;
 		}
-	} else {
+
 		//
-		// here we are an anonymous compound data type
-		//
-		HccCompoundField* new_fields = hcc_stack_push_many_thread_safe(cu->dtt.compound_fields, compound_data_type.fields_count);
-		HCC_COPY_ELMT_MANY(new_fields, compound_data_type.fields, compound_data_type.fields_count);
-		compound_data_type.fields = new_fields;
-		*dst_compound_data_type = compound_data_type;
+		// wait if any other thread is setting up the atomic link
+		while (link == HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL) {
+			HCC_CPU_RELAX();
+			link = atomic_load(link_ptr);
+		}
+
+		HccCompoundDataType* other_compound_data_type = hcc_compound_data_type_get(cu, link->decl);
+		if (
+			other_compound_data_type->fields_count == compound_data_type.fields_count
+			&& other_compound_data_type->field_data_types_hash == compound_data_type.field_data_types_hash
+			&& other_compound_data_type->size == compound_data_type.size
+			&& other_compound_data_type->align == compound_data_type.align
+			&& other_compound_data_type->flags == compound_data_type.flags
+		) {
+			//
+			// we have found a matching compound data type with the same identifier, so lets use this one instead.
+			data_type = link->decl;
+			break;
+		}
+
+		link_ptr = &link->next;
+	}
+
+	if (table_entry) {
+		table_entry->decl = data_type;
 	}
 
 	hcc_stack_pop_many(w->astgen.compound_fields, compound_data_type.fields_count);
@@ -2004,7 +2005,7 @@ HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code,
 				uintptr_t found_idx = hcc_hash_table_find_idx(w->astgen.ast_file->global_declarations, &identifier_string_id);
 				if (found_idx != UINTPTR_MAX) {
 					HccDeclEntry* entry = &w->astgen.ast_file->global_declarations[found_idx];
-					HccDecl decl = HCC_DECL_ENTRY_VALUE_DECL(entry->value);
+					HccDecl decl = entry->decl;
 					if (HCC_DECL_IS_DATA_TYPE(decl)) {
 						data_type = decl;
 						hcc_astgen_generate_type_specifiers(w, location, &type_specifiers);
@@ -2021,7 +2022,7 @@ HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code,
 				}
 
 				HccDataType generic_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, false);
-				HccDataType resolved_generic_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, generic_data_type);
+				HccDataType resolved_generic_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, generic_data_type);
 				token = hcc_ata_iter_peek(w->astgen.token_iter);
 				if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC);
@@ -2055,7 +2056,7 @@ TEXTURE:{}
 				HccAMLIntrinsicDataType intrinsic_type = HCC_AML_INTRINSIC_DATA_TYPE_VOID;
 				if (hcc_ata_iter_next(w->astgen.token_iter) == HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
 					HccDataType generic_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, false);
-					HccDataType resolved_generic_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, generic_data_type);
+					HccDataType resolved_generic_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, generic_data_type);
 					token = hcc_ata_iter_peek(w->astgen.token_iter);
 					if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
 						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC);
@@ -2248,21 +2249,12 @@ NON_NUM_TYPE: {}
 
 	if (token != HCC_ATA_TOKEN_ASTERISK) {
 		if (want_concrete_type) {
-			HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, data_type);
+			HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
 			bool is_concrete_impl = true;
 			switch (HCC_DATA_TYPE_TYPE(resolved_data_type)) {
 				case HCC_DATA_TYPE_STRUCT:
 				case HCC_DATA_TYPE_UNION: {
-					HccCompoundDataType* cd = hcc_compound_data_type_get(w->cu, resolved_data_type);
-					HccHashTable(HccDeclEntry) declarations;
-					if (HCC_DATA_TYPE_IS_UNION(resolved_data_type)) {
-						declarations = w->astgen.ast_file->union_declarations;
-					} else {
-						declarations = w->astgen.ast_file->struct_declarations;
-					}
-					uintptr_t found_idx = hcc_hash_table_find_idx(declarations, &cd->identifier_string_id);
-					HccDeclEntry* entry = &declarations[found_idx];
-					is_concrete_impl = HCC_DECL_ENTRY_VALUE_HAS_CONCRETE_IMPL(entry->value);
+					is_concrete_impl = !HCC_DATA_TYPE_IS_FORWARD_DECL(resolved_data_type);
 					break;
 				};
 			}
@@ -2292,7 +2284,7 @@ HccDataType hcc_astgen_generate_pointer_data_type_if_exists(HccWorker* w, HccDat
 
 	bool TODO_POINTER_TYPE_FOR_ALL_THE_OTHER_THINGS = false;
 
-	HccDataType resolved_element_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, element_data_type);
+	HccDataType resolved_element_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, element_data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_element_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_element_data_type);
 		switch (d->kind) {
@@ -2396,6 +2388,7 @@ HccDataType hcc_astgen_generate_typedef_with_data_type(HccWorker* w, HccDataType
 	if (token != HCC_ATA_TOKEN_IDENT) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_IDENTIFIER_TYPEDEF, hcc_ata_token_strings[token]);
 	}
+	HccLocation* identifier_location = hcc_ata_iter_location(w->astgen.token_iter);
 	HccStringId identifier_string_id = hcc_ata_iter_next_value(w->astgen.token_iter).string_id;
 	hcc_ata_iter_next(w->astgen.token_iter);
 	aliased_data_type = hcc_astgen_generate_array_data_type_if_exists(w, aliased_data_type);
@@ -2422,43 +2415,58 @@ HccDataType hcc_astgen_generate_typedef_with_data_type(HccWorker* w, HccDataType
 	HccDeclEntry* table_entry = &w->astgen.ast_file->global_declarations[insert.idx];
 	if (insert.is_new) {
 		//
-		// add the typedef to the compilation unit
-		insert = hcc_hash_table_find_insert_idx(cu->global_declarations, &identifier_string_id);
+		// add the typedef to the compilation unit if an identical version doesn't exist there already
+		HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->global_declarations, &identifier_string_id);
 		HccDeclEntryAtomic* entry = &cu->global_declarations[insert.idx];
-		HccLocation* identifier_location = hcc_ata_iter_location(w->astgen.token_iter);
-		if (insert.is_new) {
-			typedef_ = hcc_stack_push_thread_safe(cu->dtt.typedefs);
 
-			typedef_->identifier_location = identifier_location;
-			typedef_->identifier_string_id = identifier_string_id;
-			typedef_->aliased_data_type = aliased_data_type;
+		HccAtomic(HccDeclEntryAtomicLink*)* link_ptr = &entry->link;
+		while (1) {
+			HccDeclEntryAtomicLink* link = atomic_load(link_ptr);
+			if (link == NULL && atomic_compare_exchange_strong(link_ptr, &link, HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL)) {
+				//
+				// our thread claimed the atomic link which means this typedef is unique with this identifier.
+				// so now lets setup the typedef and atomic link.
+				typedef_ = hcc_stack_push_thread_safe(cu->dtt.typedefs);
 
-			uint32_t typedef_idx = typedef_ - cu->dtt.typedefs;
-			data_type = HCC_DATA_TYPE(TYPEDEF, typedef_idx);
-			atomic_store(&entry->decl, data_type);
-		} else {
+				typedef_->identifier_location = identifier_location;
+				typedef_->identifier_string_id = identifier_string_id;
+				typedef_->aliased_data_type = aliased_data_type;
+
+				uint32_t typedef_idx = typedef_ - cu->dtt.typedefs;
+				data_type = HCC_DATA_TYPE(TYPEDEF, typedef_idx);
+
+				HccDeclEntryAtomicLink* alloced_link = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccDeclEntryAtomicLink, &w->arena_alctor);
+				alloced_link->decl = data_type;
+				atomic_store(link_ptr, alloced_link);
+				break;
+			}
+
 			//
-			// spin and wait if another thread is initializing the typedef after it inserted it
-			while ((data_type = atomic_load(&entry->decl)) == 0) {
+			// wait if any other thread is setting up the atomic link
+			while (link == HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL) {
 				HCC_CPU_RELAX();
+				link = atomic_load(link_ptr);
 			}
 
-			if (!HCC_DATA_TYPE_IS_TYPEDEF(data_type) || hcc_typedef_get(cu, data_type)->aliased_data_type != aliased_data_type) {
-				HccString identifier_string = hcc_string_table_get(identifier_string_id);
-				HccLocation* other_location = hcc_decl_location(cu, data_type);
-				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_DECLARATION_MISMATCH, identifier_location, other_location, (int)identifier_string.size, identifier_string.data);
+			if (HCC_DATA_TYPE_IS_TYPEDEF(data_type) && hcc_typedef_get(cu, data_type)->aliased_data_type == aliased_data_type) {
+				//
+				// we have found a matching enum with the same identifier, so lets use this one instead.
+				data_type = link->decl;
+				break;
 			}
+
+			link_ptr = &link->next;
 		}
 
-		table_entry->value = HCC_DECL_ENTRY_VALUE(data_type, false);
+		table_entry->decl = data_type;
 		table_entry->location = identifier_location;
 		hcc_astgen_data_type_found(w, data_type);
 	} else {
-		data_type = HCC_DECL_ENTRY_VALUE_DECL(table_entry->value);
+		data_type = table_entry->decl;
 		if (!HCC_DATA_TYPE_IS_TYPEDEF(data_type) || hcc_typedef_get(cu, data_type)->aliased_data_type != aliased_data_type) {
 			HccString data_type_name = hcc_string_table_get(identifier_string_id);
 			HccLocation* other_location = hcc_data_type_location(cu, data_type);
-			hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL, other_location, (int)data_type_name.size, data_type_name.data);
+			hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_INTERNAL, identifier_location, other_location, (int)data_type_name.size, data_type_name.data);
 		}
 	}
 
@@ -2468,7 +2476,7 @@ HccDataType hcc_astgen_generate_typedef_with_data_type(HccWorker* w, HccDataType
 
 void hcc_astgen_generate_implicit_cast(HccWorker* w, HccDataType dst_data_type, HccASTExpr** expr_mut) {
 	HccASTExpr* expr = *expr_mut;
-	if (hcc_typedef_resolve_and_strip_qualifiers(w->cu, expr->data_type) == hcc_typedef_resolve_and_strip_qualifiers(w->cu, dst_data_type)) {
+	if (hcc_decl_resolve_and_strip_qualifiers(w->cu, expr->data_type) == hcc_decl_resolve_and_strip_qualifiers(w->cu, dst_data_type)) {
 		return;
 	}
 
@@ -2478,13 +2486,14 @@ void hcc_astgen_generate_implicit_cast(HccWorker* w, HccDataType dst_data_type, 
 	}
 
 	HccASTExpr* cast_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CAST);
-	cast_expr->unary.expr = expr;
+	cast_expr->cast_.expr = expr;
 	cast_expr->data_type = dst_data_type;
+	cast_expr->location = hcc_ata_iter_location(w->astgen.token_iter);
 	*expr_mut = cast_expr;
 }
 
-HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, HccASTUnaryOp unary_op, HccATAToken operator_token) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, inner_expr->data_type);
+HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, HccASTUnaryOp unary_op, HccATAToken operator_token, HccLocation* location) {
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, inner_expr->data_type);
 
 	HccDataType unary_expr_data_type;
 	if (unary_op == HCC_AST_UNARY_OP_DEREF || unary_op == HCC_AST_UNARY_OP_ADDRESS_OF) {
@@ -2516,6 +2525,7 @@ HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, H
 	expr->unary.op = unary_op;
 	expr->unary.expr = inner_expr;
 	expr->data_type = unary_expr_data_type;
+	expr->location = location;
 
 	return expr;
 
@@ -2570,23 +2580,26 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 			HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CONSTANT);
 			expr->constant.id = constant_id;
 			expr->data_type = data_type;
+			expr->location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
 			return expr;
 		};
 		case HCC_ATA_TOKEN_IDENT: {
 			HccATAValue identifier_value = hcc_ata_iter_next_value(w->astgen.token_iter);
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
 
 			uint32_t existing_variable_id = hcc_astgen_variable_stack_find(w, identifier_value.string_id);
 			if (existing_variable_id) {
-				HccASTVariable* variable = &w->astgen.function_params_and_variables[existing_variable_id];
+				HccASTVariable* variable = &w->astgen.function_params_and_variables[existing_variable_id - 1];
 
 				HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_LOCAL_VARIABLE);
-				expr->variable.idx = existing_variable_id - 1;
+				expr->variable.decl = HCC_DECL(LOCAL_VARIABLE, existing_variable_id - 1);
 				expr->data_type = variable->data_type;
+				expr->location = location;
 
-				if (variable->is_static) {
-					hcc_astgen_static_variable_usage_found(w, HCC_DECL(LOCAL_VARIABLE, existing_variable_id - 1));
+				if (variable->storage_duration != HCC_AST_STORAGE_DURATION_AUTOMATIC) {
+					hcc_astgen_static_variable_usage_found(w, expr->variable.decl);
 				}
 				return expr;
 			}
@@ -2595,26 +2608,29 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 			uintptr_t found_idx = hcc_hash_table_find_idx(w->astgen.ast_file->global_declarations, &identifier_value.string_id);
 			if (found_idx != UINTPTR_MAX) {
 				HccDeclEntry* entry = &w->astgen.ast_file->global_declarations[found_idx];
-				HccDecl decl = HCC_DECL_ENTRY_VALUE_DECL(entry->value);
+				HccDecl decl = entry->decl;
 				if (HCC_DECL_IS_DATA_TYPE(decl)) {
 					HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_DATA_TYPE);
 					expr->data_type = decl;
+					expr->location = location;
 					return expr;
 				} else if (HCC_DECL_IS_FUNCTION(decl)) {
 					HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_FUNCTION);
-					expr->function.idx = HCC_DECL_AUX(decl);
+					expr->function.decl = decl;
+					expr->location = location;
 					return expr;
 				} else if (HCC_DECL_IS_ENUM_VALUE(decl)) {
 					HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CONSTANT);
 					HccEnumValue* enum_value = hcc_enum_value_get(w->cu, decl);
 					expr->constant.id = enum_value->constant_id;
 					expr->data_type = HCC_DATA_TYPE_AST_BASIC_SINT;
+					expr->location = location;
 					return expr;
 				} else if (HCC_DECL_IS_GLOBAL_VARIABLE(decl)) {
 					HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_GLOBAL_VARIABLE);
-					HccASTVariable* variable = hcc_ast_global_variable_get(w->cu, decl);
-					expr->variable.idx = HCC_DECL_AUX(decl);
-					expr->data_type = variable->data_type;
+					expr->variable.decl = decl;
+					expr->data_type = hcc_decl_return_data_type(w->cu, decl);
+					expr->location = location;
 
 					hcc_astgen_static_variable_usage_found(w, decl);
 					return expr;
@@ -2637,13 +2653,15 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 UNARY:
 		{
 			HccATAToken operator_token = token;
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
 			uint8_t precedence = hcc_ast_unary_op_precedence[unary_op];
 
 			HccASTExpr* inner_expr = hcc_astgen_generate_expr(w, precedence);
-			return hcc_astgen_generate_unary_op(w, inner_expr, unary_op, operator_token);
+			return hcc_astgen_generate_unary_op(w, inner_expr, unary_op, operator_token, location);
 		};
 		case HCC_ATA_TOKEN_PARENTHESIS_OPEN: {
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
 			HccASTExpr* expr = hcc_astgen_generate_expr(w, 0);
 			HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
@@ -2669,8 +2687,9 @@ UNARY:
 							}
 
 							HccASTExpr* cast_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CAST);
-							cast_expr->unary.expr = cast_expr;
+							cast_expr->cast_.expr = cast_expr;
 							cast_expr->data_type = expr->data_type;
+							cast_expr->location = location;
 							return cast_expr;
 						case HCC_CAN_CAST_NO_DIFFERENT_TYPES: {
 							HccString target_data_type_name = hcc_data_type_string(w->cu, expr->data_type);
@@ -2690,9 +2709,10 @@ UNARY:
 		};
 		case HCC_ATA_TOKEN_CURLY_OPEN: {
 			HccDataType assign_data_type = w->astgen.assign_data_type;
-			HccDataType resolved_assign_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, assign_data_type);
+			HccDataType resolved_assign_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, assign_data_type);
 			w->astgen.assign_data_type = HCC_DATA_TYPE_AST_BASIC_VOID;
 			HccASTGenCurlyInitializer* gen = &w->astgen.curly_initializer;
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 
 			HccASTExpr* curly_initializer_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CURLY_INITIALIZER);
 			curly_initializer_expr->data_type = assign_data_type;
@@ -2704,14 +2724,14 @@ UNARY:
 				variable->identifier_string_id.idx_plus_one = 0;
 				variable->identifier_location = NULL;
 				variable->data_type = assign_data_type;
-				w->astgen.stmt_block->stmt_block.variables_count += 1;
 
 				uint32_t variable_idx = w->astgen.next_var_idx;
 				w->astgen.next_var_idx += 1;
 
 				variable_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_LOCAL_VARIABLE);
-				variable_expr->variable.idx = variable_idx;
+				variable_expr->variable.decl = HCC_DECL(LOCAL_VARIABLE, variable_idx);
 				variable_expr->next_stmt = NULL;
+				variable_expr->location = location;
 			}
 
 			uint32_t nested_curlys_start_idx = hcc_stack_count(gen->nested_curlys);
@@ -2727,7 +2747,7 @@ UNARY:
 					continue;
 				}
 
-				HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+				location = hcc_ata_iter_location(w->astgen.token_iter);
 				if (token == HCC_ATA_TOKEN_FULL_STOP || token == HCC_ATA_TOKEN_SQUARE_OPEN) {
 					token = hcc_astgen_curly_initializer_next_elmt_with_designator(w);
 					if (token == HCC_ATA_TOKEN_CURLY_OPEN) {
@@ -2739,12 +2759,12 @@ UNARY:
 				}
 
 				HccASTExpr* value_expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
-				HccDataType resolved_value_data_type = hcc_typedef_resolve_and_keep_qualifiers(w->cu, value_expr->data_type);
+				HccDataType resolved_value_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, value_expr->data_type);
 				bool emit_elmt_initializer = hcc_astgen_curly_initializer_next_elmt(w, resolved_value_data_type);
 				if (emit_elmt_initializer) {
 					HccLocation* other_location = NULL;
 					hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, w->astgen.curly_initializer.elmt_data_type, &value_expr);
-					HccASTExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(w);
+					HccASTExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(w, location);
 					initializer_expr->designated_initializer.value_expr = value_expr;
 				}
 
@@ -2844,10 +2864,12 @@ CURLY_INITIALIZER_FINISH: {}
 		case HCC_ATA_TOKEN_KEYWORD_STRUCT:
 		case HCC_ATA_TOKEN_KEYWORD_UNION:
 		default: {
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			HccDataType data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_EXPR, true);
 			data_type = hcc_astgen_generate_array_data_type_if_exists(w, data_type);
 			HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_DATA_TYPE);
 			expr->data_type = data_type;
+			expr->location = location;
 			return expr;
 		};
 	}
@@ -3014,22 +3036,27 @@ void hcc_astgen_generate_binary_op(HccWorker* w, HccASTBinaryOp* binary_op_out, 
 
 HccASTExpr* hcc_astgen_generate_call_expr(HccWorker* w, HccASTExpr* function_expr) {
 	HCC_DEBUG_ASSERT(function_expr->type == HCC_AST_EXPR_TYPE_FUNCTION, "TODO: function pointer support");
-	uint32_t function_idx = function_expr->function.idx;
-	HccASTFunction* function = hcc_ast_function_get(w->cu, HCC_DECL(FUNCTION, function_idx));
-	if (function->shader_stage != HCC_AST_FUNCTION_SHADER_STAGE_NONE) {
-		hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION, function->identifier_location);
+	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+	HccDecl function_decl = function_expr->function.decl;
+	HccDataType return_data_type = hcc_decl_return_data_type(w->cu, function_decl);
+	HccASTVariable* params_array = hcc_decl_function_params(w->cu, function_decl);
+	uint32_t params_count = hcc_decl_function_params_count(w->cu, function_decl);
+
+	if (hcc_decl_function_shader_stage(w->cu, function_decl) != HCC_AST_FUNCTION_SHADER_STAGE_NONE) {
+		hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION, hcc_decl_location(w->cu, function_decl));
 	}
 
 	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
 	if (token == HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
-		hcc_astgen_ensure_function_args_count(w, function, 0);
+		hcc_astgen_ensure_function_args_count(w, function_decl, 0);
 		token = hcc_ata_iter_next(w->astgen.token_iter);
 
 		HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 		expr->binary.op = HCC_AST_BINARY_OP_CALL;
 		expr->binary.left_expr = function_expr;
 		expr->binary.right_expr = NULL;
-		expr->data_type = function->return_data_type;
+		expr->data_type = return_data_type;
+		expr->location = location;
 		return expr;
 	}
 
@@ -3037,14 +3064,15 @@ HccASTExpr* hcc_astgen_generate_call_expr(HccWorker* w, HccASTExpr* function_exp
 	HccASTExpr* prev_arg_expr = NULL;
 	uint32_t args_count = 0;
 	token = hcc_ata_iter_peek(w->astgen.token_iter);
-	HccASTVariable* params_array = function->params_and_variables;
 	while (1) {
 		HccASTExpr* arg_expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
-		if (args_count <= function->params_count) {
+		if (args_count <= params_count) {
 			HccASTVariable* param = &params_array[args_count];
 			HccDataType param_data_type = HCC_DATA_TYPE_STRIP_CONST(param->data_type);
 			hcc_astgen_data_type_ensure_compatible_assignment(w, param->identifier_location, param_data_type, &arg_expr);
 		}
+		arg_expr->is_stmt = true;
+		arg_expr->next_stmt = NULL;
 
 		if (prev_arg_expr) {
 			prev_arg_expr->next_stmt = arg_expr;
@@ -3065,14 +3093,14 @@ HccASTExpr* hcc_astgen_generate_call_expr(HccWorker* w, HccASTExpr* function_exp
 		prev_arg_expr = arg_expr;
 	}
 
-	hcc_astgen_ensure_function_args_count(w, function, args_count);
+	hcc_astgen_ensure_function_args_count(w, function_decl, args_count);
 
-	HccDataType return_data_type = function->return_data_type;
 	HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 	expr->binary.op = HCC_AST_BINARY_OP_CALL;
 	expr->binary.left_expr = function_expr;
 	expr->binary.right_expr = first_arg_expr;
 	expr->data_type = return_data_type;
+	expr->location = location;
 	return expr;
 }
 
@@ -3091,6 +3119,7 @@ HccASTExpr* hcc_astgen_generate_array_subscript_expr(HccWorker* w, HccASTExpr* a
 	expr->binary.left_expr = array_expr;
 	expr->binary.right_expr = index_expr;
 	expr->data_type = d->element_data_type | (array_expr->data_type & HCC_DATA_TYPE_QUALIFIERS_MASK);
+	expr->location = hcc_ata_iter_location(w->astgen.token_iter);
 	return expr;
 }
 
@@ -3102,6 +3131,7 @@ HccASTExpr* hcc_astgen_generate_field_access_expr(HccWorker* w, HccASTExpr* left
 		hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_ACCESS, location, (int)left_data_type_name.size, left_data_type_name.data);
 	}
 
+	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 	HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(w->cu, left_expr->data_type);
 
 	HccStringId identifier_string_id = hcc_ata_iter_next_value(w->astgen.token_iter).string_id;
@@ -3122,6 +3152,7 @@ HccASTExpr* hcc_astgen_generate_field_access_expr(HccWorker* w, HccASTExpr* left
 		expr->binary.left_expr = left_expr; // link to the previous expression
 		expr->binary.field_idx = access->idx;
 		expr->data_type = access->data_type | qualifier_mask;
+		expr->location = location;
 		left_expr = expr;
 	}
 
@@ -3137,6 +3168,7 @@ HccASTExpr* hcc_astgen_generate_ternary_expr(HccWorker* w, HccASTExpr* cond_expr
 	if (token != HCC_ATA_TOKEN_COLON) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_MISSING_COLON_TERNARY_OP);
 	}
+	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 	token = hcc_ata_iter_next(w->astgen.token_iter);
 
 	HccASTExpr* false_expr = hcc_astgen_generate_expr(w, 0);
@@ -3158,11 +3190,19 @@ HccASTExpr* hcc_astgen_generate_ternary_expr(HccWorker* w, HccASTExpr* cond_expr
 		return cond ? true_expr : false_expr;
 	} else {
 		HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
-		expr->ternary.op = HCC_AST_BINARY_OP_TERNARY;
-		expr->ternary.cond_expr = cond_expr;
-		expr->ternary.true_expr = true_expr;
-		expr->ternary.false_expr = false_expr;
+		HccASTExpr* results_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
+
+		expr->binary.op = HCC_AST_BINARY_OP_TERNARY;
+		expr->binary.left_expr = cond_expr;
+		expr->binary.right_expr = results_expr;
 		expr->data_type = HCC_DATA_TYPE_STRIP_CONST(true_expr->data_type);
+		expr->location = location;
+
+		results_expr->binary.op = HCC_AST_BINARY_OP_TERNARY_RESULTS;
+		results_expr->binary.left_expr = true_expr;
+		results_expr->binary.right_expr = false_expr;
+		results_expr->data_type = HCC_DATA_TYPE_STRIP_CONST(true_expr->data_type);
+		results_expr->location = location;
 		return expr;
 	}
 }
@@ -3178,6 +3218,7 @@ HccASTExpr* hcc_astgen_generate_expr_(HccWorker* w, uint32_t min_precedence, boo
 		HccASTBinaryOp binary_op;
 		uint32_t precedence;
 		bool is_assign;
+		HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 		HccATAToken operator_token = hcc_ata_iter_peek(w->astgen.token_iter);
 		if (no_comma_operator && operator_token == HCC_ATA_TOKEN_COMMA) {
 			goto RETURN;
@@ -3185,10 +3226,12 @@ HccASTExpr* hcc_astgen_generate_expr_(HccWorker* w, uint32_t min_precedence, boo
 
 		switch (operator_token) {
 			case HCC_ATA_TOKEN_INCREMENT:
-				left_expr = hcc_astgen_generate_unary_op(w, left_expr, HCC_AST_UNARY_OP_POST_INCREMENT, operator_token);
+				left_expr = hcc_astgen_generate_unary_op(w, left_expr, HCC_AST_UNARY_OP_POST_INCREMENT, operator_token, hcc_ata_iter_location(w->astgen.token_iter));
+				hcc_ata_iter_next(w->astgen.token_iter);
 				continue;
 			case HCC_ATA_TOKEN_DECREMENT:
-				left_expr = hcc_astgen_generate_unary_op(w, left_expr, HCC_AST_UNARY_OP_POST_DECREMENT, operator_token);
+				left_expr = hcc_astgen_generate_unary_op(w, left_expr, HCC_AST_UNARY_OP_POST_DECREMENT, operator_token, hcc_ata_iter_location(w->astgen.token_iter));
+				hcc_ata_iter_next(w->astgen.token_iter);
 				continue;
 		}
 
@@ -3197,7 +3240,7 @@ HccASTExpr* hcc_astgen_generate_expr_(HccWorker* w, uint32_t min_precedence, boo
 			goto RETURN;
 		}
 		hcc_ata_iter_next(w->astgen.token_iter);
-		HccDataType resolved_left_expr_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, left_expr->data_type);
+		HccDataType resolved_left_expr_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, left_expr->data_type);
 
 		if (binary_op == HCC_AST_BINARY_OP_CALL) {
 			if (left_expr->type != HCC_AST_EXPR_TYPE_FUNCTION) { // TODO add function pointer support
@@ -3240,7 +3283,7 @@ HccASTExpr* hcc_astgen_generate_expr_(HccWorker* w, uint32_t min_precedence, boo
 			data_type = HCC_DATA_TYPE_STRIP_CONST(data_type);
 
 			if (left_expr->type == HCC_AST_EXPR_TYPE_CONSTANT && right_expr->type == HCC_AST_EXPR_TYPE_CONSTANT) {
-				HccDataType resolved_right_expr_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, right_expr->data_type);
+				HccDataType resolved_right_expr_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, right_expr->data_type);
 				HCC_DEBUG_ASSERT(
 					HCC_DATA_TYPE_IS_AST_BASIC(resolved_left_expr_data_type) && HCC_DATA_TYPE_IS_AST_BASIC(resolved_right_expr_data_type),
 					"this constant folding code assumes that both expressions are basic types"
@@ -3279,6 +3322,7 @@ HccASTExpr* hcc_astgen_generate_expr_(HccWorker* w, uint32_t min_precedence, boo
 				expr->binary.right_expr = right_expr;
 				expr->binary.is_assign = is_assign;
 				expr->data_type = data_type;
+				expr->location = location;
 				left_expr = expr;
 			}
 		}
@@ -3314,7 +3358,7 @@ HccASTExpr* hcc_astgen_generate_cond_expr(HccWorker* w) {
 	return cond_expr;
 }
 
-uint32_t hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataType element_data_type, HccDataType* data_type_mut, HccASTExpr** init_expr_out) {
+HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataType element_data_type, HccDataType* data_type_mut, HccASTExpr** init_expr_out) {
 	HCC_UNUSED(element_data_type);
 	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
 	HCC_DEBUG_ASSERT(token == HCC_ATA_TOKEN_IDENT, "internal error: expected '%s' at the start of generating a variable", hcc_ata_token_strings[HCC_ATA_TOKEN_IDENT]);
@@ -3335,12 +3379,29 @@ uint32_t hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccData
 		hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_LOCAL, other_location, (int)string.size, string.data);
 	}
 
+	bool found_static = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC;
+	bool found_extern = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN;
+	bool found_thread_local = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL;
+
+	if (found_static && found_extern) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_AND_EXTERN);
+	}
+
+	if (!is_global && found_thread_local) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL);
+	}
+
 	HccASTVariable variable;
+	variable.ast_file = w->astgen.ast_file;
 	variable.identifier_string_id = identifier_string_id;
 	variable.identifier_location = identifier_location;
 	variable.data_type = hcc_astgen_generate_array_data_type_if_exists(w, *data_type_mut);
-	variable.is_static = !!(w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC) || is_global;
 	variable.initializer_constant_id.idx_plus_one = 0;
+	if (is_global) {
+		variable.storage_duration = found_thread_local ? HCC_AST_STORAGE_DURATION_THREAD : HCC_AST_STORAGE_DURATION_STATIC;
+	} else {
+		variable.storage_duration = found_static ? HCC_AST_STORAGE_DURATION_STATIC : HCC_AST_STORAGE_DURATION_AUTOMATIC;
+	}
 
 	*data_type_mut = variable.data_type;
 	token = hcc_ata_iter_peek(w->astgen.token_iter);
@@ -3360,7 +3421,7 @@ uint32_t hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccData
 			hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, variable_data_type, &init_expr);
 			w->astgen.assign_data_type = HCC_DATA_TYPE_AST_BASIC_VOID;
 
-			if (variable.is_static) {
+			if (variable.storage_duration != HCC_AST_STORAGE_DURATION_AUTOMATIC) {
 				if (init_expr->type != HCC_AST_EXPR_TYPE_CONSTANT) {
 					hcc_astgen_error_1(w, HCC_ERROR_CODE_STATIC_VARIABLE_INITIALIZER_MUST_BE_CONSTANT);
 				}
@@ -3377,69 +3438,152 @@ uint32_t hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccData
 			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_VARIABLE_DECL_TERMINATOR);
 	}
 
-	if (variable.is_static && variable.initializer_constant_id.idx_plus_one == 0) {
-		variable.initializer_constant_id = hcc_constant_table_deduplicate_zero(w->cu, variable.data_type);
-	}
-
-	uint32_t variable_idx = UINT32_MAX;
+	HccCU* cu = w->cu;
+	HccDecl decl = 0;
 	if (is_global) {
-		HccCU* cu = w->cu;
-		HccDecl decl;
+		variable.linkage = found_static ? HCC_AST_LINKAGE_INTERNAL : HCC_AST_LINKAGE_EXTERNAL;
+		variable.linkage_has_been_explicitly_declared = found_static | found_extern;
+
+		bool is_definition = !found_extern | variable.initializer_constant_id.idx_plus_one;
+		if (found_static) {
+			//
+			// found static global variable so just add it to the global variable array for the AST
+			HccASTVariable* dst_variable = hcc_stack_push_thread_safe(cu->ast.global_variables);
+			*dst_variable = variable;
+
+			uint32_t variable_idx = dst_variable - cu->ast.global_variables;
+			decl = HCC_DECL(GLOBAL_VARIABLE, variable_idx);
+		} else if (is_definition) {
+			//
+			// try to add the global variable definition to the compilation unit as it has external linkage
+			HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->global_declarations, &identifier_string_id);
+			HccDeclEntryAtomic* entry = &cu->global_declarations[insert.idx];
+
+			HccAtomic(HccDeclEntryAtomicLink*)* link_ptr = &entry->link;
+			while (1) {
+				HccDeclEntryAtomicLink* link = atomic_load(link_ptr);
+				if (link == NULL && atomic_compare_exchange_strong(link_ptr, &link, HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL)) {
+					//
+					// our thread claimed the atomic link which means adding this global variable to the compilation unit is okay.
+					// so now lets setup the global variable and atomic link.
+					HccASTVariable* dst_variable = hcc_stack_push_thread_safe(cu->ast.global_variables);
+					*dst_variable = variable;
+
+					uint32_t variable_idx = dst_variable - cu->ast.global_variables;
+					decl = HCC_DECL(GLOBAL_VARIABLE, variable_idx);
+
+					HccDeclEntryAtomicLink* alloced_link = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccDeclEntryAtomicLink, &w->arena_alctor);
+					alloced_link->decl = decl;
+					atomic_store(link_ptr, alloced_link);
+					break;
+				}
+
+				//
+				// wait if any other thread is setting up the atomic link
+				while (link == HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL) {
+					HCC_CPU_RELAX();
+					link = atomic_load(link_ptr);
+				}
+
+				if (HCC_DECL_IS_GLOBAL_VARIABLE(link->decl)) {
+					HccASTVariable* other_variable = hcc_ast_global_variable_get(cu, link->decl);
+					if (variable.ast_file == other_variable->ast_file && !found_extern && !variable.initializer_constant_id.idx_plus_one) {
+						//
+						// tentative definition
+						HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(cu, variable.data_type);
+						HccDataType other_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, other_variable->data_type);
+						if (data_type == other_data_type) {
+							break;
+						}
+					}
+					HccString identifier_string = hcc_string_table_get(identifier_string_id);
+					hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_EXTERNAL, variable.identifier_location, other_variable->identifier_location, (int)identifier_string.size, identifier_string.data);
+				} else if (HCC_DECL_IS_FUNCTION(link->decl)) {
+					HccASTFunction* other_function = hcc_ast_function_get(cu, link->decl);
+					HccString identifier_string = hcc_string_table_get(identifier_string_id);
+					hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_EXTERNAL, variable.identifier_location, other_function->identifier_location, (int)identifier_string.size, identifier_string.data);
+				}
+
+				link_ptr = &link->next;
+			}
+		}
+
+		//
+		// insert the global variable in to this file's global declarations and perform the crazy C error checking
 		HccDataType* insert_value_ptr;
 		HccHashTableInsert insert = hcc_hash_table_find_insert_idx(w->astgen.ast_file->global_declarations, &identifier_string_id.idx_plus_one);
 		HccDeclEntry* table_entry = &w->astgen.ast_file->global_declarations[insert.idx];
 		if (insert.is_new) {
-			//
-			// add the global variable to the compilation unit
-			insert = hcc_hash_table_find_insert_idx(cu->global_declarations, &identifier_string_id);
-			HccDeclEntryAtomic* entry = &cu->global_declarations[insert.idx];
-			if (insert.is_new) {
-				HccString identifier_string = hcc_string_table_get(identifier_string_id);
-
-				HccASTVariable* dst_variable = hcc_stack_push_thread_safe(cu->ast.global_variables);
-				*dst_variable = variable;
-
-				uint32_t global_variable_idx = dst_variable - cu->ast.global_variables;
-				decl = HCC_DECL(GLOBAL_VARIABLE, global_variable_idx);
-				atomic_store(&entry->decl, decl);
-			} else {
+			if (decl == 0) {
 				//
-				// spin and wait if another thread is initializing the typedef after it inserted it
-				while ((decl = atomic_load(&entry->decl)) == 0) {
-					HCC_CPU_RELAX();
-				}
+				// for the case when this is the first declaration in the file and is 'extern T variable;' with no initialization
+				HccASTForwardDecl* forward_decl = hcc_stack_push_thread_safe(cu->ast.forward_declarations);
+				forward_decl->ast_file = w->astgen.ast_file;
+				forward_decl->identifier_location = variable.identifier_location;
+				forward_decl->identifier_string_id = variable.identifier_string_id;
+				forward_decl->variable.data_type = variable.data_type;
 
-				if (!HCC_DECL_IS_GLOBAL_VARIABLE(decl)) {
-					HccString identifier_string = hcc_string_table_get(identifier_string_id);
-					HccLocation* other_location = hcc_decl_location(cu, decl);
-					hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_DECLARATION_MISMATCH, identifier_location, other_location, (int)identifier_string.size, identifier_string.data);
-				}
+				uint32_t forward_decl_idx = forward_decl - cu->ast.forward_declarations;
+				decl = HCC_DECL_FORWARD_DECL(GLOBAL_VARIABLE, forward_decl_idx);
+				*hcc_stack_push(w->astgen.ast_file->forward_declarations_to_link) = decl;
+			}
 
- 				HccASTVariable* other_variable = hcc_ast_global_variable_get(cu, decl);
-				if (other_variable->data_type != variable.data_type) {
-					HccString identifier_string = hcc_string_table_get(identifier_string_id);
-					HccLocation* other_location = hcc_decl_location(cu, decl);
-					hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_DECLARATION_MISMATCH, identifier_location, other_location, (int)identifier_string.size, identifier_string.data);
+			table_entry->decl = decl;
+			table_entry->location = identifier_location;
+		} else {
+			bool is_error = true;
+			HccDecl found_decl = hcc_decl_resolve_and_strip_qualifiers(cu, table_entry->decl); // try to resolve a possible forward decl
+			if (HCC_DECL_IS_GLOBAL_VARIABLE(found_decl)) {
+				is_error = false;
+				HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(cu, variable.data_type);
+				if (HCC_DECL_IS_FORWARD_DECL(found_decl)) {
+					//
+					// we have a 'extern T variable;' declaration
+					HccASTForwardDecl* forward_decl = hcc_ast_forward_decl_get(cu, found_decl);
+					HccDataType other_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, forward_decl->variable.data_type);
+					is_error |= found_static;
+					is_error |= data_type != other_data_type;
+				} else {
+					//
+					// we have a definition, lets see if the C rules allow for this type of redeclaring
+					HccASTVariable* other_variable = hcc_ast_global_variable_get(cu, found_decl);
+					HccDataType other_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, other_variable->data_type);
+					is_error |= other_variable->linkage == HCC_AST_LINKAGE_INTERNAL && !found_extern;
+					is_error |= other_variable->linkage == HCC_AST_LINKAGE_EXTERNAL && found_static;
+					is_error |= other_variable->initializer_constant_id.idx_plus_one && variable.initializer_constant_id.idx_plus_one;
+					is_error |= data_type != other_data_type;
 				}
 			}
 
-			table_entry->value = HCC_DECL_ENTRY_VALUE(decl, false);
-			table_entry->location = identifier_location;
-		} else {
-			decl = HCC_DECL_ENTRY_VALUE_DECL(table_entry->value);
-			HccString data_type_name = hcc_string_table_get(identifier_string_id);
-			HccLocation* other_location = hcc_decl_location(cu, decl);
-			hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL, other_location, (int)data_type_name.size, data_type_name.data);
+			if (is_error) {
+				HccString identifier_string = hcc_string_table_get(identifier_string_id);
+				HccLocation* other_location = hcc_decl_location(cu, found_decl);
+				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_INTERNAL, variable.identifier_location, other_location, (int)identifier_string.size, identifier_string.data);
+			}
+
+			if (decl) {
+				if (
+					HCC_DECL_IS_GLOBAL_VARIABLE(found_decl) &&
+					HCC_DECL_IS_FORWARD_DECL(found_decl)
+				) {
+					// we have a definition that can overwrite an 'extern T variable;' declaration
+					table_entry->decl = decl;
+				}
+			} else {
+				// we found another 'extern T variable;' so just reference the same decl as before.
+				decl = found_decl;
+			}
 		}
 	} else {
-		variable_idx = hcc_astgen_variable_stack_add(w, identifier_string_id);
+		variable.linkage = HCC_AST_LINKAGE_INTERNAL;
+		uint32_t variable_idx = hcc_astgen_variable_stack_add(w, identifier_string_id);
 		HccASTVariable* dst_variable = hcc_stack_push(w->astgen.function_params_and_variables);
 		*dst_variable = variable;
-		w->astgen.stmt_block->stmt_block.variables_count += 1;
+		decl = HCC_DECL(LOCAL_VARIABLE, variable_idx);
 	}
 
 	w->astgen.specifier_flags &= ~HCC_ASTGEN_SPECIFIER_FLAGS_ALL_VARIABLE_SPECIFIERS;
-	return variable_idx;
+	return decl;
 }
 
 HccASTExpr* hcc_astgen_generate_variable_decl_stmt(HccWorker* w, HccDataType data_type) {
@@ -3449,17 +3593,20 @@ HccASTExpr* hcc_astgen_generate_variable_decl_stmt(HccWorker* w, HccDataType dat
 
 	HccDataType element_data_type = hcc_data_type_strip_all_pointers(w->cu, data_type);
 	while (1) {
-		uint32_t variable_idx = hcc_astgen_generate_variable_decl(w, false, element_data_type, &data_type, &init_expr);
+		HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+		HccDecl decl = hcc_astgen_generate_variable_decl(w, false, element_data_type, &data_type, &init_expr);
 		if (init_expr) {
 			HccASTExpr* left_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_LOCAL_VARIABLE);
-			left_expr->variable.idx = variable_idx;
+			left_expr->variable.decl = decl;
 			left_expr->data_type = data_type;
+			left_expr->location = location;
 
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 			stmt->binary.op = HCC_AST_BINARY_OP_ASSIGN;
 			stmt->binary.is_assign = true;
 			stmt->binary.left_expr = left_expr;
 			stmt->binary.right_expr = init_expr;
+			stmt->location = location;
 
 			if (prev_expr) {
 				HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
@@ -3467,6 +3614,7 @@ HccASTExpr* hcc_astgen_generate_variable_decl_stmt(HccWorker* w, HccDataType dat
 				expr->binary.is_assign = false;
 				expr->binary.left_expr = prev_expr;
 				expr->binary.right_expr = stmt;
+				expr->location = hcc_ata_iter_location(w->astgen.token_iter);
 				prev_expr = expr;
 			} else {
 				prev_expr = stmt;
@@ -3495,7 +3643,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			HccASTExpr* prev_stmt_block = w->astgen.stmt_block;
 
 			stmt_block->is_stmt = true;
-			stmt_block->stmt_block.variables_count = 0;
+			stmt_block->location = hcc_ata_iter_location(w->astgen.token_iter);
 
 			w->astgen.stmt_block = stmt_block;
 
@@ -3506,11 +3654,12 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 					continue;
 				}
 				stmt->is_stmt = true;
+				stmt->next_stmt = NULL;
 
 				if (prev_stmt) {
-					prev_stmt->next_stmt = prev_stmt;
+					prev_stmt->next_stmt = stmt;
 				} else {
-					stmt_block->stmt_block.first_expr = stmt_block;
+					stmt_block->stmt_block.first_stmt = stmt;
 				}
 
 				token = hcc_ata_iter_peek(w->astgen.token_iter);
@@ -3529,13 +3678,16 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			hcc_astgen_data_type_ensure_compatible_assignment(w, w->astgen.function->return_data_type_location, w->astgen.function->return_data_type, &expr);
 
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_RETURN);
-			stmt->unary.expr = expr;
+			stmt->return_.expr = expr;
+			stmt->location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_astgen_ensure_semicolon(w);
 
 			return stmt;
 		};
 		case HCC_ATA_TOKEN_KEYWORD_IF: {
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_IF);
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+
 			hcc_ata_iter_next(w->astgen.token_iter);
 			HccASTExpr* cond_expr = hcc_astgen_generate_cond_expr(w);
 
@@ -3557,10 +3709,12 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			stmt->if_.cond_expr = cond_expr;
 			stmt->if_.true_stmt = true_stmt;
 			stmt->if_.false_stmt = false_stmt;
+			stmt->location = location;
 			return stmt;
 		};
 		case HCC_ATA_TOKEN_KEYWORD_SWITCH: {
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_SWITCH);
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 
 			HccASTExpr* cond_expr;
@@ -3570,8 +3724,8 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 				}
 				token = hcc_ata_iter_next(w->astgen.token_iter);
 
-				HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, cond_expr->data_type);
 				cond_expr = hcc_astgen_generate_expr(w, 0);
+				HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, cond_expr->data_type);
 				if (!HCC_DATA_TYPE_IS_AST_BASIC(resolved_data_type) || !HCC_AST_BASIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(resolved_data_type))) {
 					HccString data_type_name = hcc_data_type_string(w->cu, cond_expr->data_type);
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_SWITCH_CONDITION_TYPE, (int)data_type_name.size, data_type_name.data);
@@ -3605,12 +3759,15 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			stmt->switch_.first_case_expr = switch_state->first_switch_case;
 			stmt->switch_.block_expr = block_stmt;
 			stmt->next_stmt = switch_state->default_switch_case;
+			stmt->location = location;
 
 			*switch_state = prev_switch_state;
 			return stmt;
 		};
 		case HCC_ATA_TOKEN_KEYWORD_DO: {
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_WHILE);
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+
 			hcc_ata_iter_next(w->astgen.token_iter);
 
 			bool prev_is_in_loop = w->astgen.is_in_loop;
@@ -3629,12 +3786,15 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 
 			stmt->while_.cond_expr = cond_expr;
 			stmt->while_.loop_stmt = loop_stmt;
+			stmt->location = location;
 
 			hcc_astgen_ensure_semicolon(w);
 			return stmt;
 		};
 		case HCC_ATA_TOKEN_KEYWORD_WHILE: {
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_WHILE);
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+
 			hcc_ata_iter_next(w->astgen.token_iter);
 
 			HccASTExpr* cond_expr = hcc_astgen_generate_cond_expr(w);
@@ -3647,12 +3807,15 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 
 			stmt->while_.cond_expr = cond_expr;
 			stmt->while_.loop_stmt = loop_stmt;
+			stmt->location = location;
 			return stmt;
 		};
 		case HCC_ATA_TOKEN_KEYWORD_FOR: {
 			hcc_astgen_variable_stack_open(w);
 
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_FOR);
+			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 
 			if (token != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
@@ -3692,6 +3855,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			stmt->for_.cond_expr = cond_expr;
 			stmt->for_.inc_expr = inc_expr;
 			stmt->for_.loop_stmt = loop_stmt;
+			stmt->location = location;
 
 			hcc_astgen_variable_stack_close(w);
 			return stmt;
@@ -3749,6 +3913,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			}
 
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_DEFAULT);
+			stmt->location = hcc_ata_iter_location(w->astgen.token_iter);
 			stmt->is_stmt = true;
 
 			token = hcc_ata_iter_next(w->astgen.token_iter);
@@ -3766,6 +3931,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			}
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_BREAK);
 			stmt->is_stmt = true;
+			stmt->location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
 			hcc_astgen_ensure_semicolon(w);
 			return stmt;
@@ -3776,6 +3942,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			}
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_CONTINUE);
 			stmt->is_stmt = true;
+			stmt->location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
 			hcc_astgen_ensure_semicolon(w);
 			return stmt;
@@ -3819,6 +3986,8 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 	HccLocation* params_location = hcc_ata_iter_location(w->astgen.token_iter);
 
 	bool is_intrinsic = false;
+	bool found_static = false;
+	bool found_extern = false;
 	HccASTFunctionShaderStage shader_stage = HCC_AST_FUNCTION_SHADER_STAGE_NONE;
 	HccASTFunctionFlags flags = 0;
 	{
@@ -3838,9 +4007,8 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			shader_stage = HCC_AST_FUNCTION_SHADER_STAGE_FRAGMENT;
 		}
 
-		if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC) {
-			flags |= HCC_AST_FUNCTION_FLAGS_STATIC;
-		}
+		found_static |= w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC;
+		found_extern |= w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN;
 
 		if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INLINE) {
 			flags |= HCC_AST_FUNCTION_FLAGS_INLINE;
@@ -3850,67 +4018,17 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 		w->astgen.specifier_flags &= ~HCC_ASTGEN_SPECIFIER_FLAGS_ALL_FUNCTION_SPECIFIERS;
 	}
 
-	HccDeclEntry* table_entry = NULL;
-	bool is_new = true;
-	HccCU* cu = w->cu;
-	HccDecl decl;
-#if 0
-	if (is_intrinsic) {
-		if (identifier_string_id.idx_plus_one < HCC_STRING_ID_FUNCTION_IDXS_START || identifier_string_id.idx_plus_one >= HCC_STRING_ID_FUNCTION_IDXS_END) {
-			HccString identifier_string = hcc_string_table_get(identifier_string_id);
-			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_FUNCTION, (int)identifier_string.size, identifier_string.data);
-		}
-
-		function_idx = identifier_string_id.idx_plus_one - HCC_STRING_ID_FUNCTION_IDXS_START;
-	} else {
-#endif
-		HccHashTableInsert insert = hcc_hash_table_find_insert_idx(w->astgen.ast_file->global_declarations, &identifier_string_id);
-		table_entry = &w->astgen.ast_file->global_declarations[insert.idx];
-		bool needs_check = true;
-		if (insert.is_new) {
-			//
-			// add the function to the compilation unit
-			insert = hcc_hash_table_find_insert_idx(cu->global_declarations, &identifier_string_id);
-			HccDeclEntryAtomic* entry = &cu->global_declarations[insert.idx];
-			if (insert.is_new) {
-				HccASTFunction* dst_function = hcc_stack_push_thread_safe(cu->ast.functions);
-				HCC_ZERO_ELMT(dst_function);
-				dst_function->identifier_location = identifier_location;
-				dst_function->identifier_string_id = identifier_string_id;
-
-				uint32_t function_idx = dst_function - cu->ast.functions;
-				decl = HCC_DECL(FUNCTION, function_idx);
-				atomic_store(&entry->decl, decl);
-				needs_check = false;
-			} else {
-				//
-				// spin and wait if another thread is initializing the function after it inserted it
-				while ((decl = atomic_load(&entry->decl)) == 0) {
-					HCC_CPU_RELAX();
-				}
-			}
-
-			table_entry->value = HCC_DECL_ENTRY_VALUE(decl, false);
-			table_entry->location = identifier_location;
-		} else {
-			decl = HCC_DECL_ENTRY_VALUE_DECL(table_entry->value);
-		}
-
-		if (needs_check) {
-			if (!HCC_DECL_IS_FUNCTION(decl)) {
-				HccString data_type_name = hcc_string_table_get(identifier_string_id);
-				HccLocation* other_location = hcc_decl_location(cu, decl);
-				hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL, other_location, (int)data_type_name.size, data_type_name.data);
-			}
-		}
-#if 0
+	if (found_static && found_extern) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_AND_EXTERN);
 	}
-#endif
+
+	HccCU* cu = w->cu;
 	HccASTFunction function = {0};
 	w->astgen.function = &function;
 	function.identifier_location = identifier_location;
 	function.shader_stage = shader_stage;
 	function.flags = flags;
+	function.linkage = found_static ? HCC_AST_LINKAGE_INTERNAL : HCC_AST_LINKAGE_EXTERNAL;
 
 	token = hcc_ata_iter_next(w->astgen.token_iter);
 
@@ -3937,23 +4055,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 	uint32_t param_idx = 0;
 	if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
 		//
-		// scan ahead an count how many values we are going to have.
-		uint32_t ahead_by = 0;
-		bool is_at_start_of_value = true; // to avoid counting the comma operator
-		uint32_t params_count = 1;
-		while (1) {
-			HccATAToken token = hcc_ata_iter_peek_ahead(w->astgen.token_iter, ahead_by);
-			switch (token) {
-				case HCC_ATA_TOKEN_COMMA:
-					params_count += 1;
-					break;
-				case HCC_ATA_TOKEN_PARENTHESIS_CLOSE:
-					goto END_PARAMS_COUNT;
-			}
-			ahead_by += 1;
-		}
-END_PARAMS_COUNT: {}
-
+		// parse the parameters into a temporary buffer
 		function.params_and_variables = w->astgen.function_params_and_variables;
 		while (1) {
 			HccASTVariable* param = hcc_stack_push(w->astgen.function_params_and_variables);
@@ -3968,7 +4070,6 @@ END_PARAMS_COUNT: {}
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM_INLINE, (int)data_type_name.size, data_type_name.data);
 				}
 			}
-			function.params_and_variables_hash = hcc_hash_fnv_64(&param_data_type, sizeof(param_data_type), function.params_and_variables_hash);
 
 			token = hcc_ata_iter_peek(w->astgen.token_iter);
 			if (token != HCC_ATA_TOKEN_IDENT) {
@@ -3981,7 +4082,6 @@ END_PARAMS_COUNT: {}
 				HccString data_type_name = hcc_data_type_string(w->cu, param_data_type);
 				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_SHADER_PARAM_TO_BE_CONST, (int)data_type_name.size, data_type_name.data, (int)identifier.size, identifier.data);
 			}
-			function.params_and_variables_hash = hcc_hash_fnv_64(&param_identifier_string_id, sizeof(param_identifier_string_id), function.params_and_variables_hash);
 
 			uint32_t existing_variable_id = hcc_astgen_variable_stack_find(w, param_identifier_string_id);
 			if (existing_variable_id) {
@@ -3992,19 +4092,11 @@ END_PARAMS_COUNT: {}
 			hcc_astgen_variable_stack_add(w, param_identifier_string_id);
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 
-			if (is_new) {
-				param->data_type = param_data_type;
-				param->identifier_string_id = param_identifier_string_id;
-				param->identifier_location = param_identifier_location;
-			} else {
-				if (param->data_type != param_data_type) {
-					HccString identifier_string = hcc_string_table_get(identifier_string_id);
-					HccString param_identifier_string = hcc_string_table_get(param_identifier_string_id);
-					HccString expected_data_type_name = hcc_data_type_string(w->cu, param->data_type);
-					HccString data_type_name = hcc_data_type_string(w->cu, param_data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_MISMATCH_PARAM_DATA_TYPE, (int)identifier_string.size, identifier_string.data, (int)param_identifier_string.size, param_identifier_string.data, (int)expected_data_type_name.size, expected_data_type_name.data, (int)data_type_name.size, data_type_name.data);
-				}
-			}
+			param->data_type = param_data_type;
+			param->identifier_string_id = param_identifier_string_id;
+			param->identifier_location = param_identifier_location;
+			param->linkage = HCC_AST_LINKAGE_INTERNAL;
+			param->storage_duration = HCC_AST_STORAGE_DURATION_AUTOMATIC;
 
 			if (token != HCC_ATA_TOKEN_COMMA) {
 				if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
@@ -4015,18 +4107,9 @@ END_PARAMS_COUNT: {}
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 
 			param_idx += 1;
-			if (!is_new && param_idx == function.params_count) {
-				HccString identifier_string = hcc_string_table_get(identifier_string_id);
-				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_TOO_MANY_PARAMETERS, (int)identifier_string.size, identifier_string.data, function.params_count);
-			}
 		}
 	}
 	token = hcc_ata_iter_next(w->astgen.token_iter);
-
-	if (!is_new && param_idx != function.params_count) {
-		HccString identifier_string = hcc_string_table_get(identifier_string_id);
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_NOT_ENOUGH_PARAMETERS, (int)identifier_string.size, identifier_string.data, function.params_count, param_idx);
-	}
 
 	switch (function.shader_stage) {
 		case HCC_AST_FUNCTION_SHADER_STAGE_VERTEX: {
@@ -4035,7 +4118,7 @@ END_PARAMS_COUNT: {}
 			}
 
 			HccASTVariable* vertex_input_var = hcc_stack_get(w->astgen.function_params_and_variables, 0);
-			if (hcc_typedef_resolve_and_keep_qualifiers(w->cu, vertex_input_var->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_INPUT))) {
+			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, vertex_input_var->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_INPUT))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_FUNCTION_SHADER_PROTOTYPE_VERTEX_INVALID_INPUT, vertex_input_var->identifier_location);
 			}
 			break;
@@ -4046,7 +4129,7 @@ END_PARAMS_COUNT: {}
 			}
 
 			HccASTVariable* fragment_input_var = hcc_stack_get(w->astgen.function_params_and_variables, 0);
-			if (hcc_typedef_resolve_and_keep_qualifiers(w->cu, fragment_input_var->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_INPUT))) {
+			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, fragment_input_var->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_INPUT))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_FUNCTION_SHADER_PROTOTYPE_FRAGMENT_INVALID_INPUT, fragment_input_var->identifier_location);
 			}
 
@@ -4068,74 +4151,169 @@ END_PARAMS_COUNT: {}
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNEXPECTED_TOKEN_FUNCTION_PROTOTYPE_END, hcc_ata_token_strings[token]);
 	}
 
-	if (function.block_expr) {
-		HccString identifier_string = hcc_string_table_get(identifier_string_id);
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_BODY_ALREADY_DECLARED, (int)identifier_string.size, identifier_string.data);
-	}
-
 	function.block_expr = NULL;
 	if (token == HCC_ATA_TOKEN_CURLY_OPEN) {
 		function.block_expr = hcc_astgen_generate_stmt(w);
 	}
 
-	function.variables_count = w->astgen.next_var_idx;
-
 END: {}
+	function.variables_count = w->astgen.next_var_idx;
 	hcc_astgen_variable_stack_close(w);
 
-	HccASTFunction* dst_function = hcc_ast_function_get(cu, decl);
-	static_assert(offsetof(HccASTFunction, identifier_location) == 0, "this code is designed for identifier_location to be the first field in HccASTFunction");
-	static_assert(sizeof(dst_function->identifier_location) == sizeof(HccLocation*), "this code is designed for identifier_location to a HccLocation* in HccASTFunction");
-	HccAtomic(HccLocation*)* identifier_location_ptr = (HccAtomic(HccLocation*)*)&dst_function->identifier_location;
+	HccDecl decl = 0;
+	bool is_definition = w->astgen.function != NULL;
+	if (found_static) {
+		//
+		// found static global variable so just add it to the global variable array for the AST
+		HccASTVariable* params_and_variables = hcc_stack_push_many_thread_safe(cu->ast.function_params_and_variables, function.variables_count);
+		HCC_COPY_ELMT_MANY(params_and_variables, w->astgen.function_params_and_variables, function.variables_count);
+		function.params_and_variables = params_and_variables;
+
+		HccASTFunction* dst_function = hcc_stack_push_thread_safe(cu->ast.functions);
+		*dst_function = function;
+
+		uint32_t function_idx = dst_function - cu->ast.functions;
+		decl = HCC_DECL(FUNCTION, function_idx);
+	} else if (is_definition) {
+		//
+		// try to add the global function definition to the compilation unit as it has external linkage
+		HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->global_declarations, &identifier_string_id);
+		HccDeclEntryAtomic* entry = &cu->global_declarations[insert.idx];
+
+		HccAtomic(HccDeclEntryAtomicLink*)* link_ptr = &entry->link;
+		while (1) {
+			HccDeclEntryAtomicLink* link = atomic_load(link_ptr);
+			if (link == NULL && atomic_compare_exchange_strong(link_ptr, &link, HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL)) {
+				//
+				// our thread claimed the atomic link which means adding this function to the compilation unit is okay.
+				// so now lets setup the function and atomic link.
+				HccASTVariable* params_and_variables = hcc_stack_push_many_thread_safe(cu->ast.function_params_and_variables, function.variables_count);
+				HCC_COPY_ELMT_MANY(params_and_variables, w->astgen.function_params_and_variables, function.variables_count);
+				function.params_and_variables = params_and_variables;
+
+				HccASTFunction* dst_function = hcc_stack_push_thread_safe(cu->ast.functions);
+				*dst_function = function;
+
+				uint32_t function_idx = dst_function - cu->ast.functions;
+				decl = HCC_DECL(FUNCTION, function_idx);
+
+				HccDeclEntryAtomicLink* alloced_link = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccDeclEntryAtomicLink, &w->arena_alctor);
+				alloced_link->decl = decl;
+				atomic_store(link_ptr, alloced_link);
+				break;
+			}
+
+			//
+			// wait if any other thread is setting up the atomic link
+			while (link == HCC_DECL_ENTRY_ATOMIC_LINK_SENTINAL) {
+				HCC_CPU_RELAX();
+				link = atomic_load(link_ptr);
+			}
+
+			if (HCC_DECL_IS_GLOBAL_VARIABLE(link->decl)) {
+				HccASTVariable* other_variable = hcc_ast_global_variable_get(cu, link->decl);
+				HccString identifier_string = hcc_string_table_get(identifier_string_id);
+				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_EXTERNAL, function.identifier_location, other_variable->identifier_location, (int)identifier_string.size, identifier_string.data);
+			} else if (HCC_DECL_IS_FUNCTION(link->decl)) {
+				HccASTFunction* other_function = hcc_ast_function_get(cu, link->decl);
+				HccString identifier_string = hcc_string_table_get(identifier_string_id);
+				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_EXTERNAL, function.identifier_location, other_function->identifier_location, (int)identifier_string.size, identifier_string.data);
+			}
+
+			link_ptr = &link->next;
+		}
+	}
 
 	//
-	// try to see if we are the thread that can perform the direct copy of the structure
-	identifier_location = atomic_load(identifier_location_ptr);
-	bool needs_compare = true;
-	while (identifier_location == NULL) {
-		if (atomic_compare_exchange_weak(identifier_location_ptr, &identifier_location, (HccLocation*)UINT64_MAX)) {
+	// insert the function in to this file's global declarations and perform the crazy C error checking
+	HccDataType* insert_value_ptr;
+	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(w->astgen.ast_file->global_declarations, &identifier_string_id.idx_plus_one);
+	HccDeclEntry* table_entry = &w->astgen.ast_file->global_declarations[insert.idx];
+	if (insert.is_new) {
+		if (decl == 0) {
 			//
-			// we are the thread to do the copy
+			// for the case when this is the first declaration in the HccASTFile and is 'T function();' with no body
+			HccASTForwardDecl* forward_decl = hcc_stack_push_thread_safe(cu->ast.forward_declarations);
+			forward_decl->ast_file = w->astgen.ast_file;
+			forward_decl->identifier_location = function.identifier_location;
+			forward_decl->identifier_string_id = function.identifier_string_id;
+			forward_decl->function.return_data_type = function.return_data_type;
+
 			HccASTVariable* params_and_variables = hcc_stack_push_many_thread_safe(cu->ast.function_params_and_variables, function.variables_count);
 			HCC_COPY_ELMT_MANY(params_and_variables, w->astgen.function_params_and_variables, function.variables_count);
-			function.params_and_variables = params_and_variables;
-			memcpy(HCC_PTR_ADD(dst_function, sizeof(HccLocation*)), HCC_PTR_ADD(&function, sizeof(HccLocation*)), sizeof(HccASTFunction) - sizeof(HccLocation*));
-			atomic_store(identifier_location_ptr, function.identifier_location);
-			needs_compare = false;
-			break;
-		}
-		HCC_CPU_RELAX();
-	}
+			forward_decl->function.params = params_and_variables;
+			forward_decl->function.params_count = function.params_count;
 
-	////////////////////////////////////////////////////////////////////////
-	//
-	// TODO: make this code accept expressions as well, by making sure that if the expression tree has not be set
-	// it can be set after by another version of the function. and also handle the case when the expression tree
-	// has been set and we have another forward declaration that just wants to compare.
-	//
-	////////////////////////////////////////////////////////////////////////
-
-	if (needs_compare) {
-		//
-		// wait for the other thread to copy the structure in
-		while ((identifier_location = atomic_load(identifier_location_ptr)) == (HccLocation*)UINT64_MAX) {
-			HCC_CPU_RELAX();
+			uint32_t forward_decl_idx = forward_decl - cu->ast.forward_declarations;
+			decl = HCC_DECL_FORWARD_DECL(FUNCTION, forward_decl_idx);
+			*hcc_stack_push(w->astgen.ast_file->forward_declarations_to_link) = decl;
 		}
 
-		if (
-			dst_function->params_count != function.params_count
-			|| dst_function->variables_count != function.variables_count
-			|| dst_function->params_and_variables_hash != function.params_and_variables_hash
-		) {
-			HccString identifier_string = hcc_string_table_get(identifier_string_id);
-			if (function.identifier_location == table_entry->location) {
-				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_DECLARATION_MISMATCH, function.identifier_location, dst_function->identifier_location, (int)identifier_string.size, identifier_string.data);
+		table_entry->decl = decl;
+		table_entry->location = identifier_location;
+	} else {
+		bool is_error = true;
+		HccDecl found_decl = hcc_decl_resolve_and_strip_qualifiers(cu, table_entry->decl); // try to resolve a possible forward decl
+		bool current_or_found_is_a_forward_declaration = HCC_DECL_IS_FORWARD_DECL(found_decl) || !is_definition;
+		if (HCC_DECL_IS_FUNCTION(found_decl) && current_or_found_is_a_forward_declaration) {
+			HccDataType other_return_data_type;
+			HccASTVariable* other_params;
+			uint32_t other_params_count;
+			if (HCC_DECL_IS_FORWARD_DECL(found_decl)) {
+				//
+				// we have a 'T function();' forward declaration
+				HccASTForwardDecl* forward_decl = hcc_ast_forward_decl_get(cu, found_decl);
+				other_return_data_type = forward_decl->function.return_data_type;
+				other_params = forward_decl->function.params;
+				other_params_count = forward_decl->function.params_count;
 			} else {
-				hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_FUNCTION_PROTOTYPE_MISMATCH, function.identifier_location, dst_function->identifier_location, (int)identifier_string.size, identifier_string.data);
+				//
+				// we have a function definition 'T function() { ... }'
+				HccASTFunction* other_function = hcc_ast_function_get(cu, found_decl);
+				other_return_data_type = other_function->return_data_type;
+				other_params = other_function->params_and_variables;
+				other_params_count = other_function->params_count;
+			}
+
+			HccDataType return_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, function.return_data_type);
+			other_return_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, other_return_data_type);
+
+			is_error = false;
+			is_error |= return_data_type != other_return_data_type;
+			is_error |= function.params_count != other_params_count;
+			if (!is_error) {
+				for (uint32_t param_idx = 0; param_idx < function.params_count; param_idx += 1) {
+					HccDataType param_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, function.params_and_variables[param_idx].data_type);
+					HccDataType other_param_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, other_params[param_idx].data_type);
+					if (param_data_type != other_param_data_type) {
+						is_error = true;
+						break;
+					}
+				}
 			}
 		}
+
+		if (is_error) {
+			HccString identifier_string = hcc_string_table_get(identifier_string_id);
+			HccLocation* other_location = hcc_decl_location(cu, found_decl);
+			hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_INTERNAL, function.identifier_location, other_location, (int)identifier_string.size, identifier_string.data);
+		}
+
+		if (decl) {
+			if (
+				HCC_DECL_IS_FUNCTION(found_decl) &&
+				HCC_DECL_IS_FORWARD_DECL(found_decl)
+			) {
+				// we have a function definition 'T function() { ... }' that can overwrite an 'T function();' declaration
+				table_entry->decl = decl;
+			}
+		} else {
+			// we found another 'T function();' so just reference the same decl as before.
+			decl = found_decl;
+		}
 	}
 
+	hcc_stack_pop_many(w->astgen.function_params_and_variables, function.variables_count);
 	w->astgen.function = NULL;
 }
 
@@ -4186,6 +4364,7 @@ void hcc_astgen_generate(HccWorker* w) {
 			};
 		}
 	}
+
 END_OF_FILE:{}
 	hcc_ata_iter_finish(w->astgen.ast_file, w->astgen.token_iter);
 }

@@ -206,6 +206,7 @@ const char* hcc_ata_token_strings[HCC_ATA_TOKEN_COUNT] = {
 	[HCC_ATA_TOKEN_KEYWORD_REGISTER] = "register",
 	[HCC_ATA_TOKEN_KEYWORD_VOLATILE] = "volatile",
 	[HCC_ATA_TOKEN_KEYWORD_EXTERN] = "extern",
+	[HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL] = "_Thread_local",
 	[HCC_ATA_TOKEN_KEYWORD_INLINE] = "inline",
 	[HCC_ATA_TOKEN_KEYWORD_NO_RETURN] = "_Noreturn",
 	[HCC_ATA_TOKEN_KEYWORD_SIZEOF] = "sizeof",

@@ -62,6 +62,9 @@ typedef struct HccCodeFile HccCodeFile;
 typedef struct HccLocation HccLocation;
 typedef struct HccTarget HccTarget;
 typedef struct HccCU HccCU;
+typedef struct HccASTFile HccASTFile;
+typedef struct HccASTVariable HccASTVariable;
+typedef uint8_t HccASTFunctionShaderStage;
 
 // ===========================================
 //
@@ -211,15 +214,18 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_AST_FILE_MACRO_PARAMS,
 	HCC_ALLOC_TAG_AST_FILE_PRAGMA_ONCED_FILES,
 	HCC_ALLOC_TAG_AST_FILE_UNIQUE_INCLUDED_FILES,
+	HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS_TO_LINK,
 	HCC_ALLOC_TAG_AST_FILE_GLOBAL_DECLARATIONS,
 	HCC_ALLOC_TAG_AST_FILE_STRUCT_DECLARATIONS,
 	HCC_ALLOC_TAG_AST_FILE_UNION_DECLARATIONS,
 	HCC_ALLOC_TAG_AST_FILE_ENUM_DECLARATIONS,
 	HCC_ALLOC_TAG_AST_FILES_HASH_TABLE,
+	HCC_ALLOC_TAG_AST_FILES,
 	HCC_ALLOC_TAG_AST_FUNCTION_PARAMS_AND_VARIABLES,
 	HCC_ALLOC_TAG_AST_FUNCTIONS,
 	HCC_ALLOC_TAG_AST_EXPRS,
 	HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES,
+	HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS,
 	HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED,
 
 	HCC_ALLOC_TAG_PPGEN_EXPAND_STACK,
@@ -448,8 +454,10 @@ enum {
 	HCC_ERROR_CODE_DUPLICATE_FIELD_IDENTIFIER,
 	HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION,
 	HCC_ERROR_CODE_MISSING_SEMICOLON,
-	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL,
+	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_INTERNAL,
+	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_EXTERNAL,
 	HCC_ERROR_CODE_FUNCTION_PROTOTYPE_MISMATCH,
+	HCC_ERROR_CODE_FUNCTION_BODY_MISMATCH,
 	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM,
 	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM_GOT_SEMICOLON,
 	HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_UNNAMED_ENUM,
@@ -588,10 +596,6 @@ enum {
 	HCC_ERROR_CODE_EXPECTED_SHADER_PARAM_TO_BE_CONST,
 	HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION,
 	HCC_ERROR_CODE_CANNOT_CALL_UNIMPLEMENTED_FUNCTION,
-	HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_MISMATCH_PARAM_DATA_TYPE,
-	HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_TOO_MANY_PARAMETERS,
-	HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_NOT_ENOUGH_PARAMETERS,
-	HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_BODY_ALREADY_DECLARED,
 	HCC_ERROR_CODE_FUNCTION_RECURSION,
 	HCC_ERROR_CODE_UNEXPECTED_TOKEN_FUNCTION_PROTOTYPE_END,
 	HCC_ERROR_CODE_UNEXPECTED_TOKEN,
@@ -612,8 +616,12 @@ enum {
 	HCC_ERROR_CODE_LOGICAL_ADDRESSED_VAR_USED_BEFORE_ASSIGNED,
 	HCC_ERROR_CODE_LOGICAL_ADDRESSED_CONDITIONALLY_ASSIGNED_BEFORE_USE,
 	HCC_ERROR_CODE_NON_CONST_STATIC_VARIABLE_CANNOT_BE_LOGICALLY_ADDRESSED,
-	HCC_ERROR_CODE_DECLARATION_MISMATCH,
 	HCC_ERROR_CODE_INCOMPLETE_TYPE_USED_BY_VALUE,
+	HCC_ERROR_CODE_STATIC_AND_EXTERN,
+	HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL,
+	HCC_ERROR_CODE_LINK_FUNCTION_PROTOTYPE_MISMATCH,
+	HCC_ERROR_CODE_LINK_GLOBAL_VARIABLE_MISMATCH,
+	HCC_ERROR_CODE_LINK_DECLARATION_UNDEFINED,
 
 	HCC_ERROR_CODE_COUNT,
 };
@@ -934,13 +942,15 @@ enum HccDataType {
 #define HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK 0x00000020
 #define HCC_DATA_TYPE_ATOMIC_QUALIFIER_MASK   0x00000040
 #define HCC_DATA_TYPE_QUALIFIERS_MASK         0x00000070
-#define HCC_DATA_TYPE_AUX_MASK                0xffffff80
-#define HCC_DATA_TYPE_AUX_SHIFT               7
+#define HCC_DATA_TYPE_FORWARD_DECL_MASK       0x00000080 // for HCC_DATA_TYPE_STRUCT, HCC_DATA_TYPE_UNION, HCC_DECL_GLOBAL_VARIABLE, HCC_DECL_FUNCTION
+#define HCC_DATA_TYPE_AUX_MASK                0xffffff00
+#define HCC_DATA_TYPE_AUX_SHIFT               8
 
 //
 // extraction utilities
-#define HCC_DATA_TYPE_TYPE(type)        ((type) & HCC_DATA_TYPE_TYPE_MASK)
-#define HCC_DATA_TYPE_AUX(type)         (((type) & HCC_DATA_TYPE_AUX_MASK) >> HCC_DATA_TYPE_AUX_SHIFT)
+#define HCC_DATA_TYPE_TYPE(type)            ((type) & HCC_DATA_TYPE_TYPE_MASK)
+#define HCC_DATA_TYPE_AUX(type)             (((type) & HCC_DATA_TYPE_AUX_MASK) >> HCC_DATA_TYPE_AUX_SHIFT)
+#define HCC_DATA_TYPE_IS_FORWARD_DECL(type) ((type) & HCC_DATA_TYPE_FORWARD_DECL_MASK)
 
 //
 // insertion utilities
@@ -959,6 +969,11 @@ enum HccDataType {
 // initialization
 #define HCC_DATA_TYPE(type, aux) ( \
 	HCC_DATA_TYPE_##type | \
+	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
+)
+#define HCC_DATA_TYPE_FORWARD_DECL(type, aux) ( \
+	HCC_DATA_TYPE_##type | \
+	HCC_DATA_TYPE_FORWARD_DECL_MASK | \
 	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
 )
 #define HCC_DATA_TYPE_SCALARX(aml_intrinsic_data_type) HCC_DATA_TYPE(UNION, HCC_COMPOUND_DATA_TYPE_IDX_SCALARX_START + (aml_intrinsic_data_type))
@@ -1038,17 +1053,31 @@ enum HccDecl {
 	HCC_DECL_##type | \
 	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
 )
+#define HCC_DECL_FORWARD_DECL(type, aux) ( \
+	HCC_DECL_##type | \
+	HCC_DATA_TYPE_FORWARD_DECL_MASK | \
+	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
+)
 
 //
 // comparison utilities
-#define HCC_DECL_IS_DATA_TYPE(type) (HCC_DATA_TYPE_TYPE(type) < HCC_DATA_TYPE_COUNT)
-#define HCC_DECL_IS_FUNCTION(type) (HCC_DATA_TYPE_TYPE(type) == HCC_DECL_FUNCTION)
-#define HCC_DECL_IS_ENUM_VALUE(type) (HCC_DATA_TYPE_TYPE(type) == HCC_DECL_ENUM_VALUE)
-#define HCC_DECL_IS_LOCAL_VARIABLE(type) (HCC_DATA_TYPE_TYPE(type) == HCC_DECL_LOCAL_VARIABLE)
-#define HCC_DECL_IS_GLOBAL_VARIABLE(type) (HCC_DATA_TYPE_TYPE(type) == HCC_DECL_GLOBAL_VARIABLE)
+#define HCC_DECL_IS_DATA_TYPE(decl) (HCC_DATA_TYPE_TYPE(decl) < HCC_DATA_TYPE_COUNT)
+#define HCC_DECL_IS_FUNCTION(decl) (HCC_DATA_TYPE_TYPE(decl) == HCC_DECL_FUNCTION)
+#define HCC_DECL_IS_ENUM_VALUE(decl) (HCC_DATA_TYPE_TYPE(decl) == HCC_DECL_ENUM_VALUE)
+#define HCC_DECL_IS_LOCAL_VARIABLE(decl) (HCC_DATA_TYPE_TYPE(decl) == HCC_DECL_LOCAL_VARIABLE)
+#define HCC_DECL_IS_GLOBAL_VARIABLE(decl) (HCC_DATA_TYPE_TYPE(decl) == HCC_DECL_GLOBAL_VARIABLE)
+#define HCC_DECL_IS_FORWARD_DECL(decl) HCC_DATA_TYPE_IS_FORWARD_DECL(decl)
 
-#define HCC_DECL_AUX(type) HCC_DATA_TYPE_AUX(type)
+#define HCC_DECL_TYPE(decl) HCC_DATA_TYPE_TYPE(decl)
+#define HCC_DECL_AUX(decl) HCC_DATA_TYPE_AUX(decl)
 
+HccDecl hcc_decl_resolve_and_keep_qualifiers(HccCU* cu, HccDecl decl);
+HccDecl hcc_decl_resolve_and_strip_qualifiers(HccCU* cu, HccDecl decl);
+HccDecl hcc_decl_return_data_type(HccCU* cu, HccDecl decl);
+uint8_t hcc_decl_function_params_count(HccCU* cu, HccDecl decl);
+HccASTVariable* hcc_decl_function_params(HccCU* cu, HccDecl decl);
+HccASTFunctionShaderStage hcc_decl_function_shader_stage(HccCU* cu, HccDecl decl);
+HccStringId hcc_decl_identifier_string_id(HccCU* cu, HccDecl decl);
 HccLocation* hcc_decl_location(HccCU* cu, HccDecl decl);
 
 // ===========================================
@@ -1124,7 +1153,7 @@ enum HccCanCast {
 HccString hcc_data_type_string(HccCU* cu, HccDataType data_type);
 void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_out, uint64_t* align_out);
 void hcc_data_type_print_basic(HccCU* cu, HccDataType data_type, void* data, HccIIO* iio);
-bool hcc_data_type_is_condition(HccCU* cu, HccDataType data_type);
+bool hcc_data_type_is_condition(HccDataType data_type);
 uint32_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type);
 bool hcc_data_type_is_rasterizer_state(HccCU* cu, HccDataType data_type);
 bool hcc_data_type_is_fragment_state(HccCU* cu, HccDataType data_type);
@@ -1186,8 +1215,6 @@ HccTypedef* hcc_typedef_get(HccCU* cu, HccDataType data_type);
 HccLocation* hcc_typedef_identifier_location(HccTypedef* dt);
 HccStringId hcc_typedef_identifier_string_id(HccTypedef* dt);
 HccDataType hcc_typedef_aliased_data_type(HccTypedef* dt);
-HccDataType hcc_typedef_resolve_and_keep_qualifiers(HccCU* cu, HccDataType data_type);
-HccDataType hcc_typedef_resolve_and_strip_qualifiers(HccCU* cu, HccDataType data_type);
 
 // ===========================================
 //
@@ -1267,7 +1294,10 @@ enum HccASTBinaryOp {
 	HCC_AST_BINARY_OP_LOGICAL_AND,
 	HCC_AST_BINARY_OP_LOGICAL_OR,
 
+#define HCC_AST_BINARY_OP_LANG_FEATURES_START HCC_AST_BINARY_OP_TERNARY
+
 	HCC_AST_BINARY_OP_TERNARY,
+	HCC_AST_BINARY_OP_TERNARY_RESULTS,
 	HCC_AST_BINARY_OP_COMMA,
 	HCC_AST_BINARY_OP_FIELD_ACCESS,
 	HCC_AST_BINARY_OP_CALL,
@@ -1302,7 +1332,6 @@ extern uint8_t hcc_ast_unary_op_precedence[HCC_AST_UNARY_OP_COUNT];
 //
 // ===========================================
 
-typedef struct HccASTVariable HccASTVariable;
 typedef struct HccASTFunction HccASTFunction;
 
 typedef uint8_t HccASTExprType;
@@ -1344,7 +1373,7 @@ struct HccASTExpr {
 		struct {
 			HccASTExprType  type: 7;
 			uint8_t         is_stmt: 1;
-			uint32_t		idx;
+			HccDecl         decl;
 		} function;
 		struct {
 			HccASTExprType  type: 7;
@@ -1371,9 +1400,18 @@ struct HccASTExpr {
 		struct {
 			HccASTExprType  type: 7;
 			uint8_t         is_stmt: 1;
-			HccASTExpr*     first_expr;
-			uint32_t        variables_count;
+			HccASTExpr*     first_stmt;
 		} stmt_block;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     expr;
+		} return_;
+		struct {
+			HccASTExprType  type: 7;
+			uint8_t         is_stmt: 1;
+			HccASTExpr*     expr;
+		} cast_;
 		struct {
 			HccASTExprType  type: 7;
 			uint8_t         is_stmt: 1;
@@ -1423,25 +1461,17 @@ struct HccASTExpr {
 		struct {
 			HccASTExprType  type: 7;
 			uint8_t         is_stmt: 1;
-			uint32_t        idx;
+			HccDecl         decl;
 		} variable;
-		struct {
-			HccASTExprType  type: 7;
-			uint8_t         is_stmt: 1;
-			HccASTBinaryOp  op;
-			HccASTExpr*     false_expr;
-			HccASTExpr*     cond_expr;
-			HccASTExpr*     true_expr;
-		} ternary;
 	};
 
+	HccLocation* location;
 	union {
 		HccDataType data_type; // if !HccASTExpr.is_stmt
 		HccASTExpr* next_stmt; // if HccASTExpr.is_stmt
 	};
 };
 
-typedef uint8_t HccASTFunctionShaderStage;
 enum HccASTFunctionShaderStage {
 	HCC_AST_FUNCTION_SHADER_STAGE_NONE,
 	HCC_AST_FUNCTION_SHADER_STAGE_VERTEX,
@@ -1452,20 +1482,58 @@ enum HccASTFunctionShaderStage {
 	HCC_AST_FUNCTION_SHADER_STAGE_COUNT,
 };
 
+//
+// tracking information for forward declarations inside an HccASTFile for:
+//    - struct's, union's and external global variable declarations 'extern T var;' and functions.
+// later these will be resolved using hcc_decl_resolve_* functions.
+typedef struct HccASTForwardDecl HccASTForwardDecl;
+struct HccASTForwardDecl {
+	HccASTFile*  ast_file;
+	HccLocation* identifier_location;
+	HccStringId  identifier_string_id;
+
+	union {
+		struct {
+			HccDataType data_type;
+		} variable;
+		struct {
+			HccASTVariable* params;
+			uint32_t        params_count;
+			HccDataType     return_data_type;
+		} function;
+	};
+};
+
+typedef uint8_t HccASTStorageDuration;
+enum {
+	HCC_AST_STORAGE_DURATION_STATIC,
+	HCC_AST_STORAGE_DURATION_THREAD,
+	HCC_AST_STORAGE_DURATION_AUTOMATIC,
+};
+
+typedef uint8_t HccASTLinkage;
+enum {
+	HCC_AST_LINKAGE_EXTERNAL = 0,
+	HCC_AST_LINKAGE_INTERNAL = 1,
+};
+
 extern const char* hcc_ast_function_shader_stage_strings[HCC_AST_FUNCTION_SHADER_STAGE_COUNT];
+
+HccASTForwardDecl* hcc_ast_forward_decl_get(HccCU* cu, HccDecl decl);
 
 HccASTVariable* hcc_ast_global_variable_get(HccCU* cu, HccDecl decl);
 HccLocation* hcc_ast_variable_identifier_location(HccASTVariable* variable);
 HccStringId hcc_ast_variable_identifier_string_id(HccASTVariable* variable);
 HccDataType hcc_ast_variable_data_type(HccASTVariable* variable);
+HccASTLinkage hcc_ast_variable_linkage(HccASTVariable* variable);
+HccASTStorageDuration hcc_ast_variable_storage_duration(HccASTVariable* variable);
 HccConstantId hcc_ast_variable_initializer_constant_id(HccASTVariable* variable);
-void hcc_ast_variable_to_string(HccCU* cu, HccASTVariable* variable, HccIIO* iio);
+void hcc_ast_variable_to_string(HccCU* cu, HccDataType data_type, HccStringId identifier_string_id, HccIIO* iio);
 
 HccASTFunction* hcc_ast_function_get(HccCU* cu, HccDecl decl);
 HccASTFunctionShaderStage hcc_ast_function_shader_stage(HccASTFunction* function);
 bool hcc_ast_function_is_inline(HccASTFunction* function);
-bool hcc_ast_function_is_static(HccASTFunction* function);
-bool hcc_ast_function_is_extern(HccASTFunction* function);
+HccASTLinkage hcc_ast_function_linkage(HccASTFunction* function);
 HccLocation* hcc_ast_function_identifier_location(HccASTFunction* function);
 HccStringId hcc_ast_function_identifier_string_id(HccASTFunction* function);
 HccDataType hcc_ast_function_return_data_type(HccASTFunction* function);
@@ -1474,7 +1542,7 @@ uint8_t hcc_ast_function_params_count(HccASTFunction* function);
 uint16_t hcc_ast_function_variables_count(HccASTFunction* function);
 HccASTVariable* hcc_ast_function_params_and_variables(HccASTFunction* function);
 HccASTExpr* hcc_ast_function_block_expr(HccASTFunction* function);
-void hcc_ast_function_to_string(HccCU* cu, HccASTFunction* function, HccIIO* iio);
+void hcc_ast_function_to_string(HccCU* cu, HccDecl function_decl, HccIIO* iio);
 
 // ===========================================
 //
@@ -1630,6 +1698,7 @@ enum {
 	HCC_ATA_TOKEN_KEYWORD_REGISTER,
 	HCC_ATA_TOKEN_KEYWORD_VOLATILE,
 	HCC_ATA_TOKEN_KEYWORD_EXTERN,
+	HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL,
 	HCC_ATA_TOKEN_KEYWORD_INLINE,
 	HCC_ATA_TOKEN_KEYWORD_NO_RETURN,
 	HCC_ATA_TOKEN_KEYWORD_SIZEOF,
@@ -1700,7 +1769,6 @@ static_assert(sizeof(HccATAValue) == sizeof(uint32_t), "HccATAValue has been des
 // ===========================================
 
 typedef struct HccATAIter HccATAIter;
-typedef struct HccASTFile HccASTFile;
 
 HccATAIter* hcc_ata_iter_start(HccASTFile* file);
 void hcc_ata_iter_finish(HccASTFile* file, HccATAIter* iter);
@@ -1734,6 +1802,8 @@ struct HccASTFileSetup {
 	uint32_t values_reserve_cap;
 	uint32_t unique_include_files_grow_count;
 	uint32_t unique_include_files_reserve_cap;
+	uint32_t forward_declarations_to_link_grow_count;
+	uint32_t forward_declarations_to_link_reserve_cap;
 };
 
 HccString hcc_ast_file_get_path(HccASTFile* file);
@@ -1770,6 +1840,8 @@ struct HccASTSetup {
 	uint32_t        expr_locations_reserve_cap;
 	uint32_t        global_variables_grow_count;
 	uint32_t        global_variables_reserve_cap;
+	uint32_t        forward_declarations_grow_count;
+	uint32_t        forward_declarations_reserve_cap;
 };
 
 // ===========================================
@@ -1951,6 +2023,7 @@ typedef uint8_t HccWorkerJobType;
 enum HccWorkerJobType {
 	HCC_WORKER_JOB_TYPE_ATAGEN,
 	HCC_WORKER_JOB_TYPE_ASTGEN,
+	HCC_WORKER_JOB_TYPE_ASTLINK,
 	HCC_WORKER_JOB_TYPE_AMLGEN,
 	HCC_WORKER_JOB_TYPE_AMLOPT,
 	HCC_WORKER_JOB_TYPE_BINARY,
@@ -1973,9 +2046,11 @@ enum HccStage {
 
 typedef uint8_t HccPhase;
 enum HccPhase {
-	HCC_PHASE_FRONTEND,     // ATA -> AST -> AML
-	HCC_PHASE_OPTIMIZATION, // AML -> AML (optimized)
-	HCC_PHASE_BACKEND,      // AML -> BINARY
+	HCC_PHASE_ASTGEN,  // ATA -> AST
+	HCC_PHASE_ASTLINK, // AST -> AST (linked)
+	HCC_PHASE_AMLGEN,  // AST (linked) -> AML
+	HCC_PHASE_AMLOPT,  // AML -> AML (optimized)
+	HCC_PHASE_BACKEND, // AML -> BINARY
 
 	HCC_PHASE_COUNT,
 };
@@ -2060,16 +2135,22 @@ struct HccASTGenSetup {
 	uint32_t enum_values_reserve_cap;
 };
 
+typedef struct HccASTLinkSetup HccASTLinkSetup;
+struct HccASTLinkSetup {
+	uint32_t __placeholder__;
+};
+
 typedef struct HccCompilerSetup HccCompilerSetup;
 struct HccCompilerSetup {
-	HccATAGenSetup atagen;
-	HccASTGenSetup astgen;
-	uint32_t       worker_string_buffer_grow_size;
-	uint32_t       worker_string_buffer_reserve_size;
-	uint32_t       worker_arena_size;
-	uint32_t       workers_count;
-	uint32_t       worker_jobs_queue_cap;
-	uint32_t       worker_call_stack_size;
+	HccATAGenSetup  atagen;
+	HccASTGenSetup  astgen;
+	HccASTLinkSetup astlink;
+	uint32_t        worker_string_buffer_grow_size;
+	uint32_t        worker_string_buffer_reserve_size;
+	uint32_t        worker_arena_size;
+	uint32_t        workers_count;
+	uint32_t        worker_jobs_queue_cap;
+	uint32_t        worker_call_stack_size;
 };
 
 extern HccCompilerSetup hcc_compiler_setup_default;

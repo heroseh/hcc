@@ -1,9 +1,7 @@
 
-
 typedef int int32;
 
 typedef struct Test Test;
-
 struct Test {
 	int a;
 	struct {
@@ -11,6 +9,10 @@ struct Test {
 	};
 	int c;
 };
+
+void func(Test t);
+
+int extern_func();
 
 enum {
 	ENUM_ONE,
@@ -24,7 +26,13 @@ enum Test {
 
 struct Test var;
 
-void func();
-void func();
-void func();
+static void static_func() {
+
+}
+
+int extern_func() {
+	func(var);
+
+	return i1 + i2 + i3 + i4 + i5;
+}
 

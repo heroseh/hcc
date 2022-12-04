@@ -220,8 +220,14 @@ const char* hcc_intrinsic_function_specific_strings[HCC_FUNCTION_IDX_SPECIFIC_EN
 	[HCC_FUNCTION_IDX_UNPACKS8X4F32X4] = "unpacks8x4f32x4",
 };
 
+HccASTForwardDecl* hcc_ast_forward_decl_get(HccCU* cu, HccDecl decl) {
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_FORWARD_DECL(decl), "internal error: expected a forward declaration");
+	return hcc_stack_get(cu->ast.forward_declarations, HCC_DATA_TYPE_AUX(decl));
+}
+
 HccASTVariable* hcc_ast_global_variable_get(HccCU* cu, HccDecl decl) {
 	HCC_DEBUG_ASSERT(HCC_DECL_IS_GLOBAL_VARIABLE(decl), "internal error: expected a global variable");
+	HCC_DEBUG_ASSERT(!HCC_DATA_TYPE_IS_FORWARD_DECL(decl), "internal error: expected global variable that is not a forward declaration");
 	return hcc_stack_get(cu->ast.global_variables, HCC_DECL_AUX(decl));
 }
 
@@ -237,32 +243,34 @@ HccDataType hcc_ast_variable_data_type(HccASTVariable* variable) {
 	return variable->data_type;
 }
 
+HccASTLinkage hcc_ast_variable_linkage(HccASTVariable* variable) {
+	return variable->linkage;
+}
+
+HccASTStorageDuration hcc_ast_variable_storage_duration(HccASTVariable* variable) {
+	return variable->storage_duration;
+}
+
 HccConstantId hcc_ast_variable_initializer_constant_id(HccASTVariable* variable) {
 	return variable->initializer_constant_id;
 }
 
-void hcc_ast_variable_to_string(HccCU* cu, HccASTVariable* variable, HccIIO* iio) {
+void hcc_ast_variable_to_string(HccCU* cu, HccDataType data_type, HccStringId identifier_string_id, HccIIO* iio) {
 	char* fmt;
 	if (iio->ascii_colors_enabled) {
-		fmt = "\x1b[1;95m%s\x1b[1;94m%.*s \x1b[97m%.*s\x1b[0m";
+		fmt = "\x1b[1;94m%.*s \x1b[97m%.*s\x1b[0m";
 	} else {
-		fmt = "%s%.*s %.*s";
+		fmt = "%.*s %.*s";
 	}
 
-	char* specifiers;
-	if (variable->is_static) {
-		specifiers = "static ";
-	} else {
-		// no need to handle const since hcc_data_type_string does this at a type level
-		specifiers = "";
-	}
-	HccString type_name = hcc_data_type_string(cu, variable->data_type);
-	HccString variable_name = hcc_string_table_get(variable->identifier_string_id);
-	hcc_iio_write_fmt(iio, fmt, specifiers, (int)type_name.size, type_name.data, (int)variable_name.size, variable_name.data);
+	HccString type_name = hcc_data_type_string(cu, data_type);
+	HccString variable_name = hcc_string_table_get(identifier_string_id);
+	hcc_iio_write_fmt(iio, fmt, (int)type_name.size, type_name.data, (int)variable_name.size, variable_name.data);
 }
 
 HccASTFunction* hcc_ast_function_get(HccCU* cu, HccDecl decl) {
 	HCC_DEBUG_ASSERT(HCC_DECL_IS_FUNCTION(decl), "internal error: expected a function declaration");
+	HCC_DEBUG_ASSERT(!HCC_DECL_IS_FORWARD_DECL(decl), "internal error: expected a function declaration that is not a forward declaration");
 	return hcc_stack_get(cu->ast.functions, HCC_DECL_AUX(decl));
 }
 
@@ -274,12 +282,8 @@ bool hcc_ast_function_is_inline(HccASTFunction* function) {
 	return function->flags & HCC_AST_FUNCTION_FLAGS_INLINE;
 }
 
-bool hcc_ast_function_is_static(HccASTFunction* function) {
-	return function->flags & HCC_AST_FUNCTION_FLAGS_STATIC;
-}
-
-bool hcc_ast_function_is_extern(HccASTFunction* function) {
-	return !(function->flags & HCC_AST_FUNCTION_FLAGS_STATIC);
+HccASTLinkage hcc_ast_function_linkage(HccASTFunction* function) {
+	return function->linkage;
 }
 
 HccLocation* hcc_ast_function_identifier_location(HccASTFunction* function) {
@@ -314,7 +318,7 @@ HccASTExpr* hcc_ast_function_block_expr(HccASTFunction* function) {
 	return function->block_expr;
 }
 
-void hcc_ast_function_to_string(HccCU* cu, HccASTFunction* function, HccIIO* iio) {
+void hcc_ast_function_to_string(HccCU* cu, HccDecl function_decl, HccIIO* iio) {
 	char* function_fmt;
 	if (iio->ascii_colors_enabled) {
 		function_fmt = "\x1b[1;94m%.*s \x1b[97m%.*s\x1b[0m";
@@ -322,14 +326,16 @@ void hcc_ast_function_to_string(HccCU* cu, HccASTFunction* function, HccIIO* iio
 		function_fmt = "%.*s %.*s";
 	}
 
-	HccString return_type_name = hcc_data_type_string(cu, function->return_data_type);
-	HccString name = hcc_string_table_get(function->identifier_string_id);
+	HccString return_type_name = hcc_data_type_string(cu, hcc_decl_return_data_type(cu, function_decl));
+	HccString name = hcc_string_table_get(hcc_decl_identifier_string_id(cu, function_decl));
 	hcc_iio_write_fmt(iio, function_fmt, (int)return_type_name.size, return_type_name.data, (int)name.size, name.data);
 	hcc_iio_write_fmt(iio, "(");
-	for (uint32_t param_idx = 0; param_idx < function->params_count; param_idx += 1) {
-		HccASTVariable* param = &function->params_and_variables[param_idx];
-		hcc_ast_variable_to_string(cu, param, iio);
-		if (param_idx + 1 < function->params_count) {
+	uint32_t params_count = hcc_decl_function_params_count(cu, function_decl);
+	HccASTVariable* params_array = hcc_decl_function_params(cu, function_decl);
+	for (uint32_t param_idx = 0; param_idx < params_count; param_idx += 1) {
+		HccASTVariable* param = &params_array[param_idx];
+		hcc_ast_variable_to_string(cu, param->data_type, param->identifier_string_id, iio);
+		if (param_idx + 1 < params_count) {
 			hcc_iio_write_fmt(iio, ", ");
 		}
 	}
@@ -396,6 +402,7 @@ void hcc_ast_file_init(HccASTFile* file, HccCU* cu, HccASTFileSetup* setup, HccS
 	file->macro_params = hcc_stack_init(HccStringId, HCC_ALLOC_TAG_AST_FILE_MACRO_PARAMS, setup->macro_params_grow_count, setup->macro_params_reserve_cap);
 	file->pragma_onced_files = hcc_stack_init(HccStringId, HCC_ALLOC_TAG_AST_FILE_PRAGMA_ONCED_FILES, setup->unique_include_files_grow_count, setup->unique_include_files_reserve_cap);
 	file->unique_included_files = hcc_stack_init(HccStringId, HCC_ALLOC_TAG_AST_FILE_UNIQUE_INCLUDED_FILES, setup->unique_include_files_grow_count, setup->unique_include_files_reserve_cap);
+	file->forward_declarations_to_link = hcc_stack_init(HccDecl, HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS_TO_LINK, setup->forward_declarations_to_link_grow_count, setup->forward_declarations_to_link_reserve_cap);
 	hcc_ata_token_bag_init(&file->token_bag, setup->tokens_grow_count, setup->tokens_reserve_cap, setup->values_grow_count, setup->values_reserve_cap);
 	hcc_ata_token_bag_init(&file->macro_token_bag, setup->tokens_grow_count, setup->tokens_reserve_cap, setup->values_grow_count, setup->values_reserve_cap);
 
@@ -447,10 +454,12 @@ void hcc_ast_file_found_included_file(HccASTFile* file, HccStringId path_string_
 void hcc_ast_init(HccCU* cu, HccASTSetup* setup) {
 	cu->ast.file_setup = setup->file_setup;
 	cu->ast.files_hash_table = hcc_hash_table_init(HccASTFileEntry, HCC_ALLOC_TAG_AST_FILES_HASH_TABLE, hcc_string_key_cmp, hcc_string_key_hash, setup->files_cap);
+	cu->ast.files = hcc_stack_init(HccASTFile*, HCC_ALLOC_TAG_AST_FILES, setup->files_cap, setup->files_cap);
 	cu->ast.function_params_and_variables = hcc_stack_init(HccASTVariable, HCC_ALLOC_TAG_AST_FUNCTION_PARAMS_AND_VARIABLES, setup->function_params_and_variables_grow_count, setup->function_params_and_variables_reserve_cap);
 	cu->ast.functions = hcc_stack_init(HccASTFunction, HCC_ALLOC_TAG_AST_FUNCTIONS, setup->functions_grow_count, setup->functions_reserve_cap);
 	cu->ast.exprs = hcc_stack_init(HccASTExpr, HCC_ALLOC_TAG_AST_EXPRS, setup->exprs_grow_count, setup->exprs_reserve_cap);
 	cu->ast.global_variables = hcc_stack_init(HccASTVariable, HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES, setup->global_variables_grow_count, setup->global_variables_reserve_cap);
+	cu->ast.forward_declarations = hcc_stack_init(HccASTForwardDecl, HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS, setup->forward_declarations_grow_count, setup->forward_declarations_reserve_cap);
 	cu->ast.unsupported_intrinsic_type_used = hcc_stack_init(HccASTUnsupportedIntrinsicTypeUsed, HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED, setup->functions_grow_count, setup->functions_reserve_cap);
 }
 
@@ -462,6 +471,7 @@ void hcc_ast_deinit(HccCU* cu) {
 		}
 	}
 	hcc_hash_table_deinit(cu->ast.files_hash_table);
+	hcc_stack_deinit(cu->ast.files);
 	hcc_stack_deinit(cu->ast.function_params_and_variables);
 	hcc_stack_deinit(cu->ast.functions);
 	hcc_stack_deinit(cu->ast.exprs);
@@ -472,8 +482,11 @@ void hcc_ast_add_file(HccCU* cu, HccString file_path, HccASTFile** out) {
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->ast.files_hash_table, &file_path);
 	HCC_ASSERT(insert.is_new, "AST File '%s' has already been added to this AST", file_path);
 
-	*out = &cu->ast.files_hash_table[insert.idx].file;
+	HccASTFile* ast_file = &cu->ast.files_hash_table[insert.idx].file;
+	*out = ast_file;
 	hcc_ast_file_init(*out, cu, &cu->ast.file_setup, file_path);
+
+	*hcc_stack_push(cu->ast.files) = ast_file;
 }
 
 HccASTFile* hcc_ast_find_file(HccCU* cu, HccString file_path) {
@@ -518,322 +531,289 @@ void hcc_ast_print_section_header(const char* name, const char* path, HccIIO* ii
 
 }
 
-#if 0
-void hcc_astgen_print_expr(HccWorker* w, HccASTExpr* expr, uint32_t indent, FILE* f) {
+void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, uint32_t indent, HccIIO* iio) {
 	static char* indent_chars = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
-	fprintf(f, "%.*s", indent, indent_chars);
-	if (!expr->is_stmt_block_entry) {
-		HccString data_type_name = hcc_data_type_string(w->cu, expr->data_type);
-		fprintf(f, "(%.*s)", (int)data_type_name.size, data_type_name.data);
+	hcc_iio_write_fmt(iio, "%.*s", indent, indent_chars);
+	if (!expr->is_stmt) {
+		HccString data_type_name = hcc_data_type_string(cu, expr->data_type);
+		hcc_iio_write_fmt(iio, "(%.*s)", (int)data_type_name.size, data_type_name.data);
 	}
 
 	const char* expr_name;
 	switch (expr->type) {
-		case HCC_EXPR_TYPE_CONSTANT: expr_name = "EXPR_CONSTANT"; goto CONSTANT;
-		case HCC_EXPR_TYPE_STMT_CASE: expr_name = "STMT_CASE"; goto CONSTANT;
-CONSTANT: {
-			fprintf(f, "%s ", expr_name);
-			HccConstantId constant_id = { .idx_plus_one = expr->constant.id };
-			hcc_constant_print(w, constant_id, stdout);
+		case HCC_AST_EXPR_TYPE_CONSTANT: {
+			hcc_iio_write_fmt(iio, "%s ", "EXPR_CONSTANT");
+			hcc_constant_print(cu, expr->constant.id, iio);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_BLOCK: {
-			uint32_t stmts_count = expr->stmt_block.stmts_count;
-			fprintf(f, "STMT_BLOCK[%u] {\n", stmts_count);
-			HccASTExpr* stmt = &expr[expr->stmt_block.first_expr_rel_idx];
-			uint32_t variables_count = expr->stmt_block.variables_count;
-			for (uint32_t i = 0; i < variables_count; i += 1) {
-				char buf[1024] = "<CURLY_INITIALIZER_RESULT>";
-				uint32_t variable_idx = w->astgen.print_variable_base_idx + i;
-				HccASTVariable* variable = hcc_stack_get(w->astgen.function_params_and_variables, w->astgen.function->params_start_idx + variable_idx);
-				if (variable->identifier_string_id.idx_plus_one) {
-					hcc_variable_to_string(w, variable, buf, sizeof(buf), false);
-				}
-				fprintf(f, "%.*sLOCAL_VARIABLE(#%u): %s", indent + 1, indent_chars, variable_idx, buf);
-				if (variable->initializer_constant_id.idx_plus_one) {
-					fprintf(f, " = ");
-					hcc_constant_print(w, variable->initializer_constant_id, f);
-				}
-				fprintf(f, "\n");
-			}
-			w->astgen.print_variable_base_idx += variables_count;
-
-			for (uint32_t i = 0; i < stmts_count; i += 1) {
-				hcc_astgen_print_expr(w, stmt, indent + 1, f);
-				stmt = &stmt[stmt->next_expr_rel_idx];
-			}
-			fprintf(f, "%.*s}", indent, indent_chars);
+		case HCC_AST_EXPR_TYPE_STMT_CASE: {
+			hcc_iio_write_fmt(iio, "%s ", "STMT_CASE");
+			hcc_constant_print(cu, expr->case_.constant_id, iio);
 			break;
 		};
-		case HCC_EXPR_TYPE_FUNCTION: {
-			HccASTFunction* function = hcc_stack_get(w->astgen.functions, expr->function.idx);
+		case HCC_AST_EXPR_TYPE_STMT_BLOCK: {
+			hcc_iio_write_fmt(iio, "STMT_BLOCK {\n");
+			HccASTExpr* stmt = expr->stmt_block.first_stmt;
+			while (stmt) {
+				hcc_ast_print_expr(cu, function, stmt, indent + 1, iio);
+				stmt = stmt->next_stmt;
+			}
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
+			break;
+		};
+		case HCC_AST_EXPR_TYPE_FUNCTION: {
 			char buf[1024];
-			hcc_function_to_string(w, function, buf, sizeof(buf), false);
-			fprintf(f, "EXPR_FUNCTION Function(#%u): %s", expr->function.idx, buf);
+			hcc_ast_function_to_string(cu, expr->function.decl, iio);
+			hcc_iio_write_fmt(iio, "EXPR_FUNCTION Function(#%u): %s%s", HCC_DECL_AUX(expr->function.decl), HCC_DECL_IS_FORWARD_DECL(expr->function.decl) ? "[forward_decl] " : "", buf);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_RETURN: expr_name = "STMT_RETURN"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(LOGICAL_NOT): expr_name = "EXPR_LOGICAL_NOT"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(BIT_NOT): expr_name = "EXPR_BIT_NOT"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(PLUS): expr_name = "EXPR_PLUS"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(NEGATE): expr_name = "EXPR_NEGATE"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(PRE_INCREMENT): expr_name = "EXPR_PRE_INCREMENT"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(PRE_DECREMENT): expr_name = "EXPR_PRE_DECREMENT"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(POST_INCREMENT): expr_name = "EXPR_POST_INCREMENT"; goto UNARY;
-		case HCC_EXPR_TYPE_UNARY_OP(POST_DECREMENT): expr_name = "EXPR_POST_DECREMENT"; goto UNARY;
-UNARY:
+		case HCC_AST_EXPR_TYPE_STMT_RETURN:
 		{
-			fprintf(f, "%s: {\n", expr_name);
-			HccASTExpr* unary_expr = expr - expr->unary.expr_rel_idx;
-			hcc_astgen_print_expr(w, unary_expr, indent + 1, f);
-			fprintf(f, "%.*s}", indent, indent_chars);
+			hcc_iio_write_fmt(iio, "%s: {\n", "STMT_RETURN");
+			HccASTExpr* unary_expr = expr->return_.expr;
+			hcc_ast_print_expr(cu, function, unary_expr, indent + 1, iio);
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_CAST: {
-			fprintf(f, "EXPR_CAST: {\n");
-			HccASTExpr* unary_expr = expr - expr->unary.expr_rel_idx;
-			hcc_astgen_print_expr(w, unary_expr, indent + 1, f);
-			fprintf(f, "%.*s}", indent, indent_chars);
-			break;
-		};
-		case HCC_EXPR_TYPE_STMT_IF: {
-			fprintf(f, "%s: {\n", "STMT_IF");
-
-			HccASTExpr* cond_expr = &expr[expr->if_.cond_expr_rel_idx];
-			fprintf(f, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, cond_expr, indent + 2, f);
-
-			HccASTExpr* true_stmt = &expr[expr->if_.true_stmt_rel_idx];
-			fprintf(f, "%.*sTRUE_STMT:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, true_stmt, indent + 2, f);
-
-			if (true_stmt->if_aux.false_stmt_rel_idx) {
-				HccASTExpr* false_stmt = &true_stmt[true_stmt->if_aux.false_stmt_rel_idx];
-				fprintf(f, "%.*sFALSE_STMT:\n", indent + 1, indent_chars);
-				hcc_astgen_print_expr(w, false_stmt, indent + 2, f);
+		case HCC_AST_EXPR_TYPE_UNARY_OP:
+		{
+			switch (expr->unary.op) {
+				case HCC_AST_UNARY_OP_LOGICAL_NOT: expr_name = "EXPR_LOGICAL_NOT"; break;
+				case HCC_AST_UNARY_OP_BIT_NOT: expr_name = "EXPR_BIT_NOT"; break;
+				case HCC_AST_UNARY_OP_PLUS: expr_name = "EXPR_PLUS"; break;
+				case HCC_AST_UNARY_OP_NEGATE: expr_name = "EXPR_NEGATE"; break;
+				case HCC_AST_UNARY_OP_PRE_INCREMENT: expr_name = "EXPR_PRE_INCREMENT"; break;
+				case HCC_AST_UNARY_OP_PRE_DECREMENT: expr_name = "EXPR_PRE_DECREMENT"; break;
+				case HCC_AST_UNARY_OP_POST_INCREMENT: expr_name = "EXPR_POST_INCREMENT"; break;
+				case HCC_AST_UNARY_OP_POST_DECREMENT: expr_name = "EXPR_POST_DECREMENT"; break;
 			}
 
-			fprintf(f, "%.*s}", indent, indent_chars);
+			hcc_iio_write_fmt(iio, "%s: {\n", expr_name);
+			HccASTExpr* unary_expr = expr->unary.expr;
+			hcc_ast_print_expr(cu, function, unary_expr, indent + 1, iio);
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_SWITCH: {
-			fprintf(f, "%s: {\n", "STMT_SWITCH");
-
-			HccASTExpr* block_expr = &expr[expr->switch_.block_expr_rel_idx];
-			hcc_astgen_print_expr(w, block_expr, indent + 1, f);
-
-			fprintf(f, "%.*s}", indent, indent_chars);
+		case HCC_AST_EXPR_TYPE_CAST: {
+			hcc_iio_write_fmt(iio, "EXPR_CAST: {\n");
+			HccASTExpr* unary_expr = expr->cast_.expr;
+			hcc_ast_print_expr(cu, function, unary_expr, indent + 1, iio);
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_WHILE: {
-			fprintf(f, "%s: {\n", expr->while_.cond_expr_rel_idx > expr->while_.loop_stmt_rel_idx ? "STMT_DO_WHILE" : "STMT_WHILE");
+		case HCC_AST_EXPR_TYPE_STMT_IF: {
+			hcc_iio_write_fmt(iio, "%s: {\n", "STMT_IF");
 
-			HccASTExpr* cond_expr = &expr[expr->while_.cond_expr_rel_idx];
-			fprintf(f, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, cond_expr, indent + 2, f);
+			HccASTExpr* cond_expr = expr->if_.cond_expr;
+			hcc_iio_write_fmt(iio, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, cond_expr, indent + 2, iio);
 
-			HccASTExpr* loop_stmt = &expr[expr->while_.loop_stmt_rel_idx];
-			fprintf(f, "%.*sLOOP_STMT:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, loop_stmt, indent + 2, f);
+			HccASTExpr* true_stmt = expr->if_.true_stmt;
+			hcc_iio_write_fmt(iio, "%.*sTRUE_STMT:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, true_stmt, indent + 2, iio);
 
-			fprintf(f, "%.*s}", indent, indent_chars);
+			if (expr->if_.false_stmt) {
+				HccASTExpr* false_stmt = expr->if_.false_stmt;
+				hcc_iio_write_fmt(iio, "%.*sFALSE_STMT:\n", indent + 1, indent_chars);
+				hcc_ast_print_expr(cu, function, false_stmt, indent + 2, iio);
+			}
+
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_FOR: {
-			fprintf(f, "%s: {\n", "STMT_FOR");
+		case HCC_AST_EXPR_TYPE_STMT_SWITCH: {
+			hcc_iio_write_fmt(iio, "%s: {\n", "STMT_SWITCH");
 
-			HccASTExpr* init_expr = &expr[expr->for_.init_expr_rel_idx];
-			fprintf(f, "%.*sINIT_EXPR:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, init_expr, indent + 2, f);
+			HccASTExpr* block_expr = expr->switch_.block_expr;
+			hcc_ast_print_expr(cu, function, block_expr, indent + 1, iio);
 
-			HccASTExpr* cond_expr = &expr[expr->for_.cond_expr_rel_idx];
-			fprintf(f, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, cond_expr, indent + 2, f);
-
-			HccASTExpr* inc_expr = &expr[expr->for_.inc_expr_rel_idx];
-			fprintf(f, "%.*sINCREMENT_EXPR:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, inc_expr, indent + 2, f);
-
-			HccASTExpr* loop_stmt = &expr[expr->for_.loop_stmt_rel_idx];
-			fprintf(f, "%.*sLOOP_STMT:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, loop_stmt, indent + 2, f);
-
-			fprintf(f, "%.*s}", indent, indent_chars);
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_DEFAULT: {
-			fprintf(f, "%s:\n", "STMT_DEFAULT");
+		case HCC_AST_EXPR_TYPE_STMT_WHILE: {
+			hcc_iio_write_fmt(iio, "%s: {\n", expr->while_.cond_expr > expr->while_.loop_stmt ? "STMT_DO_WHILE" : "STMT_WHILE");
+
+			HccASTExpr* cond_expr = expr->while_.cond_expr;
+			hcc_iio_write_fmt(iio, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, cond_expr, indent + 2, iio);
+
+			HccASTExpr* loop_stmt = expr->while_.loop_stmt;
+			hcc_iio_write_fmt(iio, "%.*sLOOP_STMT:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, loop_stmt, indent + 2, iio);
+
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_BREAK: {
-			fprintf(f, "%s:\n", "STMT_BREAK");
+		case HCC_AST_EXPR_TYPE_STMT_FOR: {
+			hcc_iio_write_fmt(iio, "%s: {\n", "STMT_FOR");
+
+			HccASTExpr* init_expr = expr->for_.init_expr;
+			hcc_iio_write_fmt(iio, "%.*sINIT_EXPR:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, init_expr, indent + 2, iio);
+
+			HccASTExpr* cond_expr = expr->for_.cond_expr;
+			hcc_iio_write_fmt(iio, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, cond_expr, indent + 2, iio);
+
+			HccASTExpr* inc_expr = expr->for_.inc_expr;
+			hcc_iio_write_fmt(iio, "%.*sINCREMENT_EXPR:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, inc_expr, indent + 2, iio);
+
+			HccASTExpr* loop_stmt = expr->for_.loop_stmt;
+			hcc_iio_write_fmt(iio, "%.*sLOOP_STMT:\n", indent + 1, indent_chars);
+			hcc_ast_print_expr(cu, function, loop_stmt, indent + 2, iio);
+
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_STMT_CONTINUE: {
-			fprintf(f, "%s:\n", "STMT_CONTINUE");
+		case HCC_AST_EXPR_TYPE_STMT_DEFAULT: {
+			hcc_iio_write_fmt(iio, "%s:\n", "STMT_DEFAULT");
 			break;
 		};
-		case HCC_EXPR_TYPE_BINARY_OP(ASSIGN): expr_name = "ASSIGN"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(ADD): expr_name = "ADD"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(SUBTRACT): expr_name = "SUBTRACT"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(MULTIPLY): expr_name = "MULTIPLY"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(DIVIDE): expr_name = "DIVIDE"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(MODULO): expr_name = "MODULO"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(BIT_AND): expr_name = "BIT_AND"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(BIT_OR): expr_name = "BIT_OR"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(BIT_XOR): expr_name = "BIT_XOR"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(BIT_SHIFT_LEFT): expr_name = "BIT_SHIFT_LEFT"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(BIT_SHIFT_RIGHT): expr_name = "BIT_SHIFT_RIGHT"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(EQUAL): expr_name = "EQUAL"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(NOT_EQUAL): expr_name = "NOT_EQUAL"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(LESS_THAN): expr_name = "LESS_THAN"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(LESS_THAN_OR_EQUAL): expr_name = "LESS_THAN_OR_EQUAL"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(GREATER_THAN): expr_name = "GREATER_THAN"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(GREATER_THAN_OR_EQUAL): expr_name = "GREATER_THAN_OR_EQUAL"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(LOGICAL_AND): expr_name = "LOGICAL_AND"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(LOGICAL_OR): expr_name = "LOGICAL_OR"; goto BINARY;
-		case HCC_EXPR_TYPE_BINARY_OP(COMMA): expr_name = "COMMA"; goto BINARY;
-		case HCC_EXPR_TYPE_CALL: expr_name = "CALL"; goto BINARY;
-		case HCC_EXPR_TYPE_ARRAY_SUBSCRIPT: expr_name = "ARRAY_SUBSCRIPT"; goto BINARY;
-BINARY:
-		{
-			char* prefix = expr->binary.is_assignment ? "STMT_ASSIGN_" : "EXPR_";
-			fprintf(f, "%s%s: {\n", prefix, expr_name);
-			HccASTExpr* left_expr = expr - expr->binary.left_expr_rel_idx;
-			HccASTExpr* right_expr = expr - expr->binary.right_expr_rel_idx;
-			hcc_astgen_print_expr(w, left_expr, indent + 1, f);
-			hcc_astgen_print_expr(w, right_expr, indent + 1, f);
-			fprintf(f, "%.*s}", indent, indent_chars);
+		case HCC_AST_EXPR_TYPE_STMT_BREAK: {
+			hcc_iio_write_fmt(iio, "%s:\n", "STMT_BREAK");
 			break;
 		};
-		case HCC_EXPR_TYPE_CURLY_INITIALIZER: {
-			fprintf(f, "%s: {\n", "EXPR_CURLY_INITIALIZER");
+		case HCC_AST_EXPR_TYPE_STMT_CONTINUE: {
+			hcc_iio_write_fmt(iio, "%s:\n", "STMT_CONTINUE");
+			break;
+		};
+
+		case HCC_AST_EXPR_TYPE_BINARY_OP: {
+			switch (expr->binary.op) {
+				case HCC_AST_BINARY_OP_ASSIGN: expr_name = "ASSIGN"; break;
+				case HCC_AST_BINARY_OP_ADD: expr_name = "ADD"; break;
+				case HCC_AST_BINARY_OP_SUBTRACT: expr_name = "SUBTRACT"; break;
+				case HCC_AST_BINARY_OP_MULTIPLY: expr_name = "MULTIPLY"; break;
+				case HCC_AST_BINARY_OP_DIVIDE: expr_name = "DIVIDE"; break;
+				case HCC_AST_BINARY_OP_MODULO: expr_name = "MODULO"; break;
+				case HCC_AST_BINARY_OP_BIT_AND: expr_name = "BIT_AND"; break;
+				case HCC_AST_BINARY_OP_BIT_OR: expr_name = "BIT_OR"; break;
+				case HCC_AST_BINARY_OP_BIT_XOR: expr_name = "BIT_XOR"; break;
+				case HCC_AST_BINARY_OP_BIT_SHIFT_LEFT: expr_name = "BIT_SHIFT_LEFT"; break;
+				case HCC_AST_BINARY_OP_BIT_SHIFT_RIGHT: expr_name = "BIT_SHIFT_RIGHT"; break;
+				case HCC_AST_BINARY_OP_EQUAL: expr_name = "EQUAL"; break;
+				case HCC_AST_BINARY_OP_NOT_EQUAL: expr_name = "NOT_EQUAL"; break;
+				case HCC_AST_BINARY_OP_LESS_THAN: expr_name = "LESS_THAN"; break;
+				case HCC_AST_BINARY_OP_LESS_THAN_OR_EQUAL: expr_name = "LESS_THAN_OR_EQUAL"; break;
+				case HCC_AST_BINARY_OP_GREATER_THAN: expr_name = "GREATER_THAN"; break;
+				case HCC_AST_BINARY_OP_GREATER_THAN_OR_EQUAL: expr_name = "GREATER_THAN_OR_EQUAL"; break;
+				case HCC_AST_BINARY_OP_LOGICAL_AND: expr_name = "LOGICAL_AND"; break;
+				case HCC_AST_BINARY_OP_LOGICAL_OR: expr_name = "LOGICAL_OR"; break;
+				case HCC_AST_BINARY_OP_TERNARY: expr_name = "TERNARY"; break;
+				case HCC_AST_BINARY_OP_TERNARY_RESULTS: expr_name = "TERNARY_RESULTS"; break;
+				case HCC_AST_BINARY_OP_COMMA: expr_name = "COMMA"; break;
+				case HCC_AST_BINARY_OP_FIELD_ACCESS: expr_name = "FIELD_ACCESS"; break;
+				case HCC_AST_BINARY_OP_CALL: expr_name = "CALL"; break;
+				case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT: expr_name = "ARRAY_SUBSCRIPT"; break;
+			}
+			if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS) {
+				hcc_iio_write_fmt(iio, "%s: {\n", expr_name);
+
+				HccASTExpr* left_expr = expr->binary.left_expr;
+				uint32_t field_idx = expr->binary.field_idx;
+				hcc_ast_print_expr(cu, function, left_expr, indent + 1, iio);
+
+				HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, left_expr->data_type);
+				HccCompoundField* field = &compound_data_type->fields[field_idx];
+
+				HccString field_data_type_name = hcc_data_type_string(cu, field->data_type);
+				if (field->identifier_string_id.idx_plus_one) {
+					HccString identifier_string = hcc_string_table_get(field->identifier_string_id);
+					hcc_iio_write_fmt(iio, "%.*sfield_idx(%u): %.*s %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data, (int)identifier_string.size, identifier_string.data);
+				} else {
+					hcc_iio_write_fmt(iio, "%.*sfield_idx(%u): %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data);
+				}
+
+				hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
+			} else {
+				char* prefix = expr->binary.is_assign && expr->binary.op != HCC_AST_BINARY_OP_ASSIGN ? "EXPR_ASSIGN_" : "EXPR_";
+				hcc_iio_write_fmt(iio, "%s%s: {\n", prefix, expr_name);
+				HccASTExpr* left_expr = expr->binary.left_expr;
+				HccASTExpr* right_expr = expr->binary.right_expr;
+				hcc_ast_print_expr(cu, function, left_expr, indent + 1, iio);
+				if (right_expr) {
+	NEXT_ARG: {}
+					hcc_ast_print_expr(cu, function, right_expr, indent + 1, iio);
+					if (expr->binary.op == HCC_AST_BINARY_OP_CALL && right_expr->next_stmt) {
+						right_expr = right_expr->next_stmt;
+						goto NEXT_ARG;
+					}
+				}
+				hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
+			};
+			break;
+		};
+
+		case HCC_AST_EXPR_TYPE_CURLY_INITIALIZER: {
+			hcc_iio_write_fmt(iio, "%s: {\n", "EXPR_CURLY_INITIALIZER");
 
 			////////////////////////////////////////////////////////////////////////////
 			// skip the internal variable expression that sits at the start of the initializer_expr list
-			HccASTExpr* initializer_expr = &expr[expr->curly_initializer.first_expr_rel_idx];
-			uint32_t expr_rel_idx;
+			HccASTExpr* initializer_expr = expr->curly_initializer.first_expr->next_stmt;
 			////////////////////////////////////////////////////////////////////////////
 
-			while (1) {
-				expr_rel_idx = initializer_expr->next_expr_rel_idx;
-				if (expr_rel_idx == 0) {
-					break;
-				}
-				initializer_expr = &initializer_expr[expr_rel_idx];
-
-				HccAstGenDesignatorInitializer* di = &w->astgen.curly_initializer.designated_initializers[initializer_expr->alt_next_expr_rel_idx];
-				uint64_t* elmt_indices = hcc_stack_get(w->astgen.curly_initializer.designated_initializer_elmt_indices, di->elmt_indices_start_idx);
-				fprintf(f, "%.*s", indent + 1, indent_chars);
+			while (initializer_expr) {
+				hcc_iio_write_fmt(iio, "%.*s", indent + 1, indent_chars);
 				HccDataType data_type = expr->data_type;
-				if (di->elmt_indices_count) {
-					for (uint32_t idx = 0; idx < di->elmt_indices_count; idx += 1) {
-						data_type = hcc_typedef_resolve_and_strip_qualifiers(w->cu, data_type);
+				if (initializer_expr->designated_initializer.elmts_count) {
+					uint64_t* elmt_indices = &cu->ast.designated_initializer_elmt_indices[initializer_expr->designated_initializer.elmt_indices_start_idx];
+					for (uint32_t idx = 0; idx < initializer_expr->designated_initializer.elmts_count; idx += 1) {
+						data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 						uint64_t entry_idx = elmt_indices[idx];
 						if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
-							HccArrayDataType* array_data_type = hcc_array_data_type_get(w->cu, data_type);
-							fprintf(f, "[%zu]", entry_idx);
+							HccArrayDataType* array_data_type = hcc_array_data_type_get(cu, data_type);
+							hcc_iio_write_fmt(iio, "[%zu]", entry_idx);
 							data_type = array_data_type->element_data_type;
 						} else if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
-							HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(w->cu, data_type);
+							HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, data_type);
 							HccCompoundField* field = &compound_data_type->fields[entry_idx];
 							if (field->identifier_string_id.idx_plus_one) {
 								HccString identifier_string = hcc_string_table_get(field->identifier_string_id);
-								fprintf(f, ".%.*s", (int)identifier_string.size, identifier_string.data);
+								hcc_iio_write_fmt(iio, ".%.*s", (int)identifier_string.size, identifier_string.data);
 							}
 							data_type = field->data_type;
 						}
 					}
 				} else {
-				fprintf(f, "...");
+					hcc_iio_write_fmt(iio, "...");
 				}
-				fprintf(f, " = ");
+				hcc_iio_write_fmt(iio, " = ");
 
-				if (initializer_expr->designated_initializer.value_expr_rel_idx) {
-					HccASTExpr* value_expr = initializer_expr - initializer_expr->designated_initializer.value_expr_rel_idx;
-					if (value_expr->type == HCC_EXPR_TYPE_CURLY_INITIALIZER) {
-						fprintf(f, "\n");
+				if (initializer_expr->designated_initializer.value_expr) {
+					HccASTExpr* value_expr = initializer_expr->designated_initializer.value_expr;
+					if (value_expr->type == HCC_AST_EXPR_TYPE_CURLY_INITIALIZER) {
+						hcc_iio_write_fmt(iio, "\n");
 					}
-					hcc_astgen_print_expr(w, value_expr, value_expr->type == HCC_EXPR_TYPE_CURLY_INITIALIZER ? indent + 2 : 0, f);
+					hcc_ast_print_expr(cu, function, value_expr, value_expr->type == HCC_AST_EXPR_TYPE_CURLY_INITIALIZER ? indent + 2 : 0, iio);
 				} else {
-					fprintf(f, "<ZERO>\n");
+					hcc_iio_write_fmt(iio, "<ZERO>\n");
 				}
+
+				initializer_expr = initializer_expr->next_stmt;
 			}
 
-			fprintf(f, "%.*s}", indent, indent_chars);
+			hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			break;
 		};
-		case HCC_EXPR_TYPE_FIELD_ACCESS: {
-			fprintf(f, "%s: {\n", "EXPR_FIELD_ACCESS");
-
-			HccASTExpr* left_expr = expr - expr->binary.left_expr_rel_idx;
-			uint32_t field_idx = expr->binary.right_expr_rel_idx;
-			hcc_astgen_print_expr(w, left_expr, indent + 1, f);
-
-			HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(w->cu, left_expr->data_type);
-			HccCompoundField* field = &compound_data_type->fields[field_idx];
-
-			HccString field_data_type_name = hcc_data_type_string(w->cu, field->data_type);
-			if (field->identifier_string_id.idx_plus_one) {
-				HccString identifier_string = hcc_string_table_get(field->identifier_string_id);
-				fprintf(f, "%.*sfield_idx(%u): %.*s %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data, (int)identifier_string.size, identifier_string.data);
-			} else {
-				fprintf(f, "%.*sfield_idx(%u): %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data);
-			}
-
-			fprintf(f, "%.*s}", indent, indent_chars);
-			break;
-		};
-		case HCC_EXPR_TYPE_CALL_ARG_LIST: {
-			fprintf(f, "EXPR_CALL_ARG_LIST: {\n");
-			HccASTExpr* arg_expr = expr;
-			uint32_t args_count = ((U8*)expr)[1];
-			U8* next_arg_expr_rel_indices = &((U8*)expr)[2];
-			for (uint32_t i = 0; i < args_count; i += 1) {
-				arg_expr = &arg_expr[next_arg_expr_rel_indices[i]];
-				hcc_astgen_print_expr(w, arg_expr, indent + 1, f);
-			}
-			fprintf(f, "%.*s}", indent, indent_chars);
-			break;
-		};
-		case HCC_EXPR_TYPE_LOCAL_VARIABLE: {
+		case HCC_AST_EXPR_TYPE_LOCAL_VARIABLE: {
 			char buf[1024];
-			HccASTVariable* variable = hcc_stack_get(w->astgen.function_params_and_variables, w->astgen.function->params_start_idx + expr->variable.idx);
-			hcc_variable_to_string(w, variable, buf, sizeof(buf), false);
-			fprintf(f, "LOCAL_VARIABLE(#%u): %s", expr->variable.idx, buf);
+			HccASTVariable* variable = &function->params_and_variables[HCC_DECL_AUX(expr->variable.decl)];
+			hcc_ast_variable_to_string(cu, variable->data_type, variable->identifier_string_id, iio);
+			hcc_iio_write_fmt(iio, " LOCAL_VARIABLE(#%u): %s", HCC_DECL_AUX(expr->variable.decl), buf);
 			break;
 		};
-		case HCC_EXPR_TYPE_GLOBAL_VARIABLE: {
+		case HCC_AST_EXPR_TYPE_GLOBAL_VARIABLE: {
 			char buf[1024];
-			HccASTVariable* variable = hcc_stack_get(w->astgen.global_variables, expr->variable.idx);
-			hcc_variable_to_string(w, variable, buf, sizeof(buf), false);
-			fprintf(f, "GLOBAL_VARIABLE(#%u): %s", expr->variable.idx, buf);
-			break;
-		};
-		case HCC_EXPR_TYPE_BINARY_OP(TERNARY): {
-			fprintf(f, "%s: {\n", "STMT_TERNARY");
-
-			HccASTExpr* cond_expr = expr - expr->ternary.cond_expr_rel_idx;
-			fprintf(f, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, cond_expr, indent + 2, f);
-
-			HccASTExpr* true_stmt = expr - expr->ternary.true_expr_rel_idx;
-			fprintf(f, "%.*sTRUE_STMT:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, true_stmt, indent + 2, f);
-
-			HccASTExpr* false_stmt = expr - expr->ternary.false_expr_rel_idx;
-			fprintf(f, "%.*sFALSE_STMT:\n", indent + 1, indent_chars);
-			hcc_astgen_print_expr(w, false_stmt, indent + 2, f);
-
-			fprintf(f, "%.*s}", indent, indent_chars);
+			hcc_ast_variable_to_string(cu, hcc_decl_return_data_type(cu, expr->variable.decl), hcc_decl_identifier_string_id(cu, expr->variable.decl), iio);
+			hcc_iio_write_fmt(iio, " GLOBAL_VARIABLE(#%u): %s%s", HCC_DECL_AUX(expr->variable.decl), HCC_DECL_IS_FORWARD_DECL(expr->variable.decl) ? "[forward_decl]" : "", buf);
 			break;
 		};
 		default:
 			HCC_ABORT("unhandled expr type %u\n", expr->type);
 	}
-	fprintf(f, "\n");
+	hcc_iio_write_fmt(iio, "\n");
 }
-#endif
 
 void hcc_ast_print(HccCU* cu, HccIIO* iio) {
 	for (uint32_t file_idx = 0; file_idx < hcc_hash_table_cap(cu->ast.files_hash_table); file_idx += 1) {
@@ -1082,10 +1062,14 @@ CONSTANT: {}
 		for (uint32_t variable_idx = 0; variable_idx < hcc_stack_count(cu->ast.global_variables); variable_idx += 1) {
 			HccASTVariable* variable = hcc_stack_get(cu->ast.global_variables, variable_idx);
 
-			hcc_iio_write_fmt(iio, "GLOBAL_VARIABLE(#%u): ", variable_idx);
-			hcc_ast_variable_to_string(cu, variable, iio);
+			hcc_iio_write_fmt(iio, "GLOBAL_VARIABLE(#%u): [%s] ", variable_idx, variable->linkage == HCC_AST_LINKAGE_EXTERNAL ? "extern" : "static");
+			hcc_ast_variable_to_string(cu, variable->data_type, variable->identifier_string_id, iio);
 			hcc_iio_write_fmt(iio, " = ");
-			hcc_constant_print(cu, variable->initializer_constant_id, iio);
+			if (variable->initializer_constant_id.idx_plus_one) {
+				hcc_constant_print(cu, variable->initializer_constant_id, iio);
+			} else {
+				hcc_iio_write_fmt(iio, "{0}");
+			}
 			hcc_iio_write_fmt(iio, "\n");
 		}
 	}
@@ -1103,22 +1087,38 @@ CONSTANT: {}
 			hcc_iio_write_fmt(iio, "Function(#%u): %.*s {\n", function_idx, (int)name.size, name.data);
 			hcc_iio_write_fmt(iio, "\treturn_type: %.*s\n", (int)return_data_type_name.size, return_data_type_name.data);
 			hcc_iio_write_fmt(iio, "\tshader_stage: %s\n", hcc_ast_function_shader_stage_strings[function->shader_stage]);
-			hcc_iio_write_fmt(iio, "\tstatic: %s\n", function->flags & HCC_AST_FUNCTION_FLAGS_STATIC ? "true" : "false");
+			hcc_iio_write_fmt(iio, "\tlinkage: %s\n", function->linkage == HCC_AST_LINKAGE_EXTERNAL ? "external" : "internal");
 			hcc_iio_write_fmt(iio, "\tinline: %s\n", function->flags & HCC_AST_FUNCTION_FLAGS_INLINE ? "true" : "false");
 			if (function->params_count) {
 				hcc_iio_write_fmt(iio, "\tparams[%u]: {\n", function->params_count);
 				for (uint32_t param_idx = 0; param_idx < function->params_count; param_idx += 1) {
 					HccASTVariable* param = &function->params_and_variables[param_idx];
-					HccString type_name = hcc_data_type_string(cu, param->data_type);
-					HccString param_name = hcc_string_table_get(param->identifier_string_id);
-					hcc_iio_write_fmt(iio, "\t\t%.*s %.*s\n", (int)type_name.size, type_name.data, (int)param_name.size, param_name.data);
+					hcc_iio_write_fmt(iio, "\t\t");
+					hcc_ast_variable_to_string(cu, param->data_type, param->identifier_string_id, iio);
+				}
+				hcc_iio_write_fmt(iio, "\n\t}\n");
+			}
+
+			if (function->variables_count) {
+				hcc_iio_write_fmt(iio, "\tlocal_variables[%u]: {\n", function->variables_count);
+				for (uint32_t variable_idx = 0; variable_idx < function->variables_count; variable_idx += 1) {
+					HccASTVariable* variable = &function->params_and_variables[function->params_count + variable_idx];
+					hcc_iio_write_fmt(iio, "\t\t");
+					if (variable->identifier_string_id.idx_plus_one) {
+						hcc_ast_variable_to_string(cu, variable->data_type, variable->identifier_string_id, iio);
+					}
+					hcc_iio_write_fmt(iio, "%.*s LOCAL_VARIABLE(#%u)", 0, "", variable_idx);
+					if (variable->initializer_constant_id.idx_plus_one) {
+						hcc_iio_write_fmt(iio, " = ");
+						hcc_constant_print(cu, variable->initializer_constant_id, iio);
+					}
+					hcc_iio_write_fmt(iio, "\n");
 				}
 				hcc_iio_write_fmt(iio, "\t}\n");
 			}
+
 			if (function->block_expr) {
-#if 0
-				hcc_astgen_print_expr(w, function->block_expr, 1, f);
-#endif
+				hcc_ast_print_expr(cu, function, function->block_expr, 1, iio);
 			}
 			hcc_iio_write_fmt(iio, "}\n");
 		}

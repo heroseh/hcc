@@ -2068,10 +2068,123 @@ HccString hcc_aml_scalar_data_type_mask_string(HccAMLScalarDataTypeMask mask) {
 //
 // ===========================================
 
+HccDecl hcc_decl_resolve_and_keep_qualifiers(HccCU* cu, HccDecl decl) {
+	uint32_t qualifiers_mask = decl & HCC_DATA_TYPE_QUALIFIERS_MASK;
+	decl = hcc_decl_resolve_and_strip_qualifiers(cu, decl);
+	return decl | qualifiers_mask;
+}
+
+HccDecl hcc_decl_resolve_and_strip_qualifiers(HccCU* cu, HccDecl decl) {
+	decl = HCC_DATA_TYPE_STRIP_QUALIFIERS(decl);
+	while (1) {
+		if (HCC_DECL_IS_FORWARD_DECL(decl)) {
+			HccHashTable(HccDeclEntry) declarations;
+			HccASTForwardDecl* forward_decl = hcc_ast_forward_decl_get(cu, decl);
+			HccASTFile* ast_file = forward_decl->ast_file;
+			switch (HCC_DECL_TYPE(decl)) {
+				case HCC_DECL_FUNCTION:
+				case HCC_DECL_GLOBAL_VARIABLE: declarations = ast_file->global_declarations; break;
+				case HCC_DATA_TYPE_STRUCT: declarations = ast_file->struct_declarations; break;
+				case HCC_DATA_TYPE_UNION: declarations = ast_file->union_declarations; break;
+				default: HCC_ABORT("decl type '%u' does not have forward declarations", HCC_DECL_TYPE(decl));
+			}
+
+			uintptr_t found_idx = hcc_hash_table_find_idx(declarations, &forward_decl->identifier_string_id);
+			if (found_idx == UINTPTR_MAX) {
+				return decl;
+			}
+
+			HccDecl found_decl = declarations[found_idx].decl;
+			if (found_decl == decl) {
+				return decl;
+			}
+			decl = found_decl;
+		} else {
+			switch (HCC_DECL_TYPE(decl)) {
+				case HCC_DATA_TYPE_ENUM:
+					return HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SINT);
+				case HCC_DATA_TYPE_TYPEDEF: {
+					HccTypedef* typedef_ = hcc_typedef_get(cu, decl);
+					decl = typedef_->aliased_data_type;
+					break;
+				};
+				default:
+					return decl;
+			}
+		}
+	}
+}
+
+HccDecl hcc_decl_return_data_type(HccCU* cu, HccDecl decl) {
+	switch (HCC_DECL_TYPE(decl)) {
+		case HCC_DECL_FUNCTION:
+			return HCC_DECL_IS_FORWARD_DECL(decl) ? hcc_ast_forward_decl_get(cu, decl)->function.return_data_type : hcc_ast_function_get(cu, decl)->return_data_type;
+		case HCC_DECL_ENUM_VALUE:
+			return HCC_DATA_TYPE_AST_BASIC_SINT;
+		case HCC_DECL_GLOBAL_VARIABLE:
+			return HCC_DECL_IS_FORWARD_DECL(decl) ? hcc_ast_forward_decl_get(cu, decl)->variable.data_type : hcc_ast_global_variable_get(cu, decl)->data_type;
+		default:
+			if (HCC_DECL_IS_DATA_TYPE(decl)) {
+				return decl;
+			}
+			return 0;
+	}
+}
+
+uint8_t hcc_decl_function_params_count(HccCU* cu, HccDecl decl) {
+	switch (HCC_DECL_TYPE(decl)) {
+		case HCC_DECL_FUNCTION:
+			return HCC_DECL_IS_FORWARD_DECL(decl) ? hcc_ast_forward_decl_get(cu, decl)->function.params_count : hcc_ast_function_get(cu, decl)->params_count;
+		default:
+			return 0;
+	}
+}
+
+HccASTVariable* hcc_decl_function_params(HccCU* cu, HccDecl decl) {
+	switch (HCC_DECL_TYPE(decl)) {
+		case HCC_DECL_FUNCTION:
+			return HCC_DECL_IS_FORWARD_DECL(decl) ? hcc_ast_forward_decl_get(cu, decl)->function.params : hcc_ast_function_get(cu, decl)->params_and_variables;
+		default:
+			return 0;
+	}
+}
+
+HccASTFunctionShaderStage hcc_decl_function_shader_stage(HccCU* cu, HccDecl decl) {
+	switch (HCC_DECL_TYPE(decl)) {
+		case HCC_DECL_FUNCTION:
+			return HCC_DECL_IS_FORWARD_DECL(decl) ? HCC_AST_FUNCTION_SHADER_STAGE_NONE : hcc_ast_function_get(cu, decl)->shader_stage;
+		default:
+			return 0;
+	}
+}
+
+HccStringId hcc_decl_identifier_string_id(HccCU* cu, HccDecl decl) {
+	if (HCC_DECL_IS_FORWARD_DECL(decl)) {
+		return hcc_ast_forward_decl_get(cu, decl)->identifier_string_id;
+	}
+
+	switch (HCC_DECL_TYPE(decl)) {
+		case HCC_DECL_FUNCTION:
+			return hcc_ast_function_get(cu, decl)->identifier_string_id;
+		case HCC_DECL_GLOBAL_VARIABLE:
+			return hcc_ast_global_variable_get(cu, decl)->identifier_string_id;
+		case HCC_DECL_ENUM_VALUE:
+			return hcc_enum_value_get(cu, decl)->identifier_string_id;
+		default:
+			return HccStringId(0);
+	}
+}
+
 HccLocation* hcc_decl_location(HccCU* cu, HccDecl decl) {
-	switch (decl & 0xff) {
+	if (HCC_DECL_IS_FORWARD_DECL(decl)) {
+		return hcc_ast_forward_decl_get(cu, decl)->identifier_location;
+	}
+
+	switch (HCC_DECL_TYPE(decl)) {
 		case HCC_DECL_FUNCTION:
 			return hcc_ast_function_get(cu, decl)->identifier_location;
+		case HCC_DECL_GLOBAL_VARIABLE:
+			return hcc_ast_global_variable_get(cu, decl)->identifier_location;
 		case HCC_DECL_ENUM_VALUE:
 			return hcc_enum_value_get(cu, decl)->identifier_location;
 		default:
@@ -2162,7 +2275,7 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 				if (d->identifier_string_id.idx_plus_one) {
 					identifier = hcc_string_table_get(d->identifier_string_id);
 				}
-				uint32_t string_size = snprintf(buf, sizeof(buf), "%s(#%u) %.*s", compound_name, HCC_DATA_TYPE_AUX(data_type), (int)identifier.size, identifier.data);
+				uint32_t string_size = snprintf(buf, sizeof(buf), "%s(#%u) %s%.*s", compound_name, HCC_DATA_TYPE_AUX(data_type), HCC_DATA_TYPE_IS_FORWARD_DECL(data_type) ? "[forward_decl] " : "", (int)identifier.size, identifier.data);
 				string = hcc_string(buf, string_size);
 				break;
 			};
@@ -2198,7 +2311,7 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 }
 
 void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_out, uint64_t* align_out) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 
 	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
 		*size_out = cu->dtt.basic_type_size_and_aligns[HCC_DATA_TYPE_AUX(data_type)];
@@ -2280,9 +2393,8 @@ FLOAT:
 	}
 }
 
-bool hcc_data_type_is_condition(HccCU* cu, HccDataType data_type) {
-	HCC_UNUSED(cu); // unused param for now, we will have to get pointers working later with this
-	return HCC_DATA_TYPE_IS_AST_BASIC(data_type) && HCC_DATA_TYPE_AUX(data_type) == HCC_AST_BASIC_DATA_TYPE_BOOL;
+bool hcc_data_type_is_condition(HccDataType data_type) {
+	return HCC_DATA_TYPE_IS_AST_BASIC(data_type) || HCC_DATA_TYPE_IS_POINTER(data_type);
 }
 
 uint32_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type) {
@@ -2307,22 +2419,22 @@ uint32_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type) 
 }
 
 bool hcc_data_type_is_rasterizer_state(HccCU* cu, HccDataType data_type) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	return HCC_DATA_TYPE_IS_STRUCT(data_type) && (hcc_compound_data_type_get(cu, data_type)->kind == HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE);
 }
 
 bool hcc_data_type_is_fragment_state(HccCU* cu, HccDataType data_type) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	return HCC_DATA_TYPE_IS_STRUCT(data_type) && (hcc_compound_data_type_get(cu, data_type)->kind == HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE);
 }
 
 HccCompoundDataType* hcc_data_type_get_resource_table(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
 		return NULL;
 	}
 	resolved_data_type = hcc_data_type_strip_pointer(cu, resolved_data_type);
-	resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, resolved_data_type);
+	resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, resolved_data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(cu, resolved_data_type);
 		switch (d->kind) {
@@ -2334,12 +2446,12 @@ HccCompoundDataType* hcc_data_type_get_resource_table(HccCU* cu, HccDataType dat
 }
 
 HccCompoundDataType* hcc_data_type_get_resource_set(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
 		return NULL;
 	}
 	resolved_data_type = hcc_data_type_strip_pointer(cu, resolved_data_type);
-	resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, resolved_data_type);
+	resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, resolved_data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(cu, resolved_data_type);
 		switch (d->kind) {
@@ -2359,12 +2471,12 @@ bool hcc_data_type_is_resource_set_pointer(HccCU* cu, HccDataType data_type) {
 }
 
 bool hcc_data_type_is_resource_set_or_table_pointer(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
 		return false;
 	}
 	resolved_data_type = hcc_data_type_strip_pointer(cu, resolved_data_type);
-	resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, resolved_data_type);
+	resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, resolved_data_type);
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(cu, resolved_data_type);
 		switch (d->kind) {
@@ -2377,7 +2489,7 @@ bool hcc_data_type_is_resource_set_or_table_pointer(HccCU* cu, HccDataType data_
 }
 
 bool hcc_data_type_has_resources(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	if (HCC_DATA_TYPE_IS_RESOURCE(resolved_data_type)) {
 		return true;
 	}
@@ -2546,8 +2658,8 @@ ERROR:{}
 }
 
 HccCanCast hcc_data_type_can_cast(HccCU* cu, HccDataType dst_data_type, HccDataType src_data_type) {
-	HccDataType resolved_dst_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, dst_data_type);
-	HccDataType resolved_src_data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, src_data_type);
+	HccDataType resolved_dst_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, dst_data_type);
+	HccDataType resolved_src_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, src_data_type);
 	if (resolved_dst_data_type == resolved_src_data_type) {
 		return HCC_CAN_CAST_NO_SAME_TYPES;
 	}
@@ -2750,7 +2862,7 @@ ERROR:{}
 }
 
 HccArrayDataType* hcc_array_data_type_get(HccCU* cu, HccDataType data_type) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_ARRAY(data_type), "internal error: expected array data type");
 	return hcc_stack_get(cu->dtt.arrays, HCC_DATA_TYPE_AUX(data_type));
 }
@@ -2771,7 +2883,7 @@ uint64_t hcc_array_data_type_element_count(HccCU* cu, HccArrayDataType* dt) {
 }
 
 HccBufferDataType* hcc_buffer_data_type_get(HccCU* cu, HccDataType data_type) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	HCC_DEBUG_ASSERT(
 		HCC_DATA_TYPE_IS_RESOURCE(data_type) &&
 		(
@@ -2788,7 +2900,7 @@ HccDataType hcc_buffer_data_type_element_data_type(HccBufferDataType* dt) {
 }
 
 HccPointerDataType* hcc_pointer_data_type_get(HccCU* cu, HccDataType data_type) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_POINTER(data_type), "internal error: expected pointer data type");
 	return hcc_stack_get(cu->dtt.pointers, HCC_DATA_TYPE_AUX(data_type));
 }
@@ -2798,8 +2910,9 @@ HccDataType hcc_pointer_data_type_element_data_type(HccPointerDataType* dt) {
 }
 
 HccCompoundDataType* hcc_compound_data_type_get(HccCU* cu, HccDataType data_type) {
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_COMPOUND(data_type), "internal error: expected compound data type");
+	HCC_DEBUG_ASSERT(!HCC_DATA_TYPE_IS_FORWARD_DECL(data_type), "internal error: expected compound data type that is not a forward declaration");
 	return hcc_stack_get(cu->dtt.compounds, HCC_DATA_TYPE_AUX(data_type));
 }
 
@@ -2898,29 +3011,6 @@ HccStringId hcc_typedef_identifier_string_id(HccTypedef* dt) {
 
 HccDataType hcc_typedef_aliased_data_type(HccTypedef* dt) {
 	return dt->aliased_data_type;
-}
-
-HccDataType hcc_typedef_resolve_and_keep_qualifiers(HccCU* cu, HccDataType data_type) {
-	uint32_t qualifiers_mask = data_type & HCC_DATA_TYPE_QUALIFIERS_MASK;
-	data_type = hcc_typedef_resolve_and_strip_qualifiers(cu, data_type);
-	return data_type | qualifiers_mask;
-}
-
-HccDataType hcc_typedef_resolve_and_strip_qualifiers(HccCU* cu, HccDataType data_type) {
-	data_type = HCC_DATA_TYPE_STRIP_QUALIFIERS(data_type);
-	while (1) {
-		switch (HCC_DATA_TYPE_TYPE(data_type)) {
-			case HCC_DATA_TYPE_ENUM:
-				return HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SINT);
-			case HCC_DATA_TYPE_TYPEDEF: {
-				HccTypedef* typedef_ = hcc_typedef_get(cu, data_type);
-				data_type = typedef_->aliased_data_type;
-				break;
-			};
-			default:
-				return data_type;
-		}
-	}
 }
 
 // ===========================================
@@ -3512,8 +3602,10 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_DUPLICATE_FIELD_IDENTIFIER] = "duplicate field identifier '%.*s' in '%.*s'",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION] =  "the condition expression must be convertable to a boolean but got '%.*s'",
 		[HCC_ERROR_CODE_MISSING_SEMICOLON] = "missing ';' to end the statement",
-		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_GLOBAL] = "redefinition of the '%.*s' identifier",
+		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_INTERNAL] = "redefinition of the '%.*s' identifier in this source file",
+		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_EXTERNAL] = "redefinition of the '%.*s' identifier in this compilation unit",
 		[HCC_ERROR_CODE_FUNCTION_PROTOTYPE_MISMATCH] = "function prototype mismatch for '%.*s'",
+		[HCC_ERROR_CODE_FUNCTION_BODY_MISMATCH] = "function body mismatch for '%.*s'",
 		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM] = "expected '{' to declare enum values for enum '%.*s' but got '%s'",
 		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ENUM_GOT_SEMICOLON] = "named enum '%.*s' cannot be forward declared, please provide enum values like so. enum '%.*s' { ENUM_ONE };",
 		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_UNNAMED_ENUM] = "expected '{' to declare enum values for an unnamed enum but got '%s'",
@@ -3650,10 +3742,6 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_SHADER_PARAM_TO_BE_CONST] = "all shader parameters must be defined with 'const'. eg. 'const %.*s %.*s'",
 		[HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION] = "cannot call shaders like regular functions. they can only be used as entry points",
 		[HCC_ERROR_CODE_CANNOT_CALL_UNIMPLEMENTED_FUNCTION] = "cannot call a function with no implemention",
-		[HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_MISMATCH_PARAM_DATA_TYPE] = "redefinition of function '%.*s' data type mismatch for parameter '%.*s', expected '%.*s' but got '%.*s'",
-		[HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_TOO_MANY_PARAMETERS] = "redefinition of function '%.*s' has too many parameters, expected '%u' but got more defined",
-		[HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_NOT_ENOUGH_PARAMETERS] = "redefinition of function '%.*s' has not enough parameters, expected '%u' but got '%u'",
-		[HCC_ERROR_CODE_REDEFINITION_OF_FUNCTION_BODY_ALREADY_DECLARED] = "redefinition of function '%.*s', body has already been declared",
 		[HCC_ERROR_CODE_FUNCTION_RECURSION] = "function '%.*s' is recursively called! callstack:\n%s",
 		[HCC_ERROR_CODE_UNEXPECTED_TOKEN_FUNCTION_PROTOTYPE_END] = "unexpected token '%s', expected ';' to end the function definition or '{' to define a function body",
 		[HCC_ERROR_CODE_UNEXPECTED_TOKEN] = "unexpected token '%s'",
@@ -3674,8 +3762,12 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_VAR_USED_BEFORE_ASSIGNED] = "texture, buffer or pointer has been used before it has been assigned too",
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_CONDITIONALLY_ASSIGNED_BEFORE_USE] = "texture, buffer or pointer has been conditionally assigned too before being used. we need to know these value of this variable at compile time.",
 		[HCC_ERROR_CODE_NON_CONST_STATIC_VARIABLE_CANNOT_BE_LOGICALLY_ADDRESSED] = "non-const static variable cannot be a texture, buffer or pointer",
-		[HCC_ERROR_CODE_DECLARATION_MISMATCH] = "'%.*s' has been included by two different source files and it has a different implementation",
 		[HCC_ERROR_CODE_INCOMPLETE_TYPE_USED_BY_VALUE] = "incomplete type '%.*s' has been used by value",
+		[HCC_ERROR_CODE_STATIC_AND_EXTERN] = "a declaration cannot be both 'static' and 'extern', please pick one",
+		[HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL] = "'_Thread_local' can only be on global variables",
+		[HCC_ERROR_CODE_LINK_FUNCTION_PROTOTYPE_MISMATCH] = "failed to link the '%.*s' function in two different source files. the function prototype is a mismatch. check to make sure all your parameters are the same type and don't have any samely named struct's or union's with different fields due to conditional compile time code",
+		[HCC_ERROR_CODE_LINK_GLOBAL_VARIABLE_MISMATCH] = "failed to link the '%.*s' variable in two different source files. they have a mismatch in their data type. make sure you don't have any samely named struct's or union's with different fields due to conditional compile time code",
+		[HCC_ERROR_CODE_LINK_DECLARATION_UNDEFINED] = "failed to link the '%.*s' declartion as a definition does not exist in any source file.",
 	},
 };
 
