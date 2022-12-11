@@ -19,290 +19,305 @@
 // ===========================================
 //
 //
-// Libc Math extensions
-//
-//
-// ===========================================
-
-#define PIF16 f32tof16((float)M_PI)
-#define PIF32 ((float)M_PI)
-#define PIF64 M_PI
-#define isinff32 isinf
-#define isinff64 isinf
-#define isnanf32 isnan
-#define isnanf64 isnan
-#define modf32 fmodf
-#define modf64 fmod
-#define copysignf32 copysignf
-#define copysignf64 copysign
-#define absf32 fabsf
-#define absf64 fabs
-#define floorf32 floorf
-#define floorf64 floor
-#define ceilf32 ceilf
-#define ceilf64 ceil
-#define roundf32 roundf
-#define roundf64 round
-#define truncf32 truncf
-#define truncf64 trunc
-#define sinf32 sinf
-#define sinf64 sin
-#define cosf32 cosf
-#define cosf64 cos
-#define tanf32 tanf
-#define tanf64 tan
-#define asinf32 asinf
-#define asinf64 asin
-#define acosf32 acosf
-#define acosf64 acos
-#define atanf32 atanf
-#define atanf64 atan
-#define sinhf32 sinhf
-#define sinhf64 sinh
-#define coshf32 coshf
-#define coshf64 cosh
-#define tanhf32 tanhf
-#define tanhf64 tanh
-#define asinhf32 asinhf
-#define asinhf64 asinh
-#define acoshf32 acoshf
-#define acoshf64 acosh
-#define atanhf32 atanhf
-#define atanhf64 atanh
-#define atan2f32 atan2f
-#define atan2f64 atan2
-#define fmaf32 fmaf
-#define fmaf64 fma
-#define sqrtf32 sqrtf
-#define sqrtf64 sqrt
-#define powf32 powf
-#define powf64 pow
-#define expf32 expf
-#define expf64 exp
-#define logf32 logf
-#define logf64 log
-#define exp2f32 exp2f
-#define exp2f64 exp2
-#define log2f32 log2f
-#define log2f64 log2
-
-// ===========================================
-//
-//
 // Half type aka. float 16 bit
 //
 //
 // ===========================================
 
-HCC_INTRINSIC float f16tof32(half v);
-HCC_INTRINSIC double f16tof64(half v);
-HCC_INTRINSIC half f32tof16(float v);
-HCC_INTRINSIC half f64tof16(double v);
-HCC_INTRINSIC static inline bool isinff16(half v) { (v._bits & 0x7c00) == 0x7c00 && (v._bits & 0x03ff) == 0; }
-HCC_INTRINSIC static inline bool isnanf16(half v) { (v._bits & 0x7c00) == 0x7c00 && v._bits & 0x03ff; }
-HCC_INTRINSIC half addf16(half a, half b) { return f32tof16(f16tof32(a) + f16tof32(b)); }
-HCC_INTRINSIC half subf16(half a, half b) { return f32tof16(f16tof32(a) - f16tof32(b)); }
-HCC_INTRINSIC half mulf16(half a, half b) { return f32tof16(f16tof32(a) * f16tof32(b)); }
-HCC_INTRINSIC half divf16(half a, half b) { return f32tof16(f16tof32(a) / f16tof32(b)); }
-HCC_INTRINSIC half modf16(half a, half b) { return f32tof16(modf32(f16tof32(a), f16tof32(b))); }
-HCC_INTRINSIC bool eqf16(half a, half b) { return f16tof32(a) == f16tof32(b); }
-HCC_INTRINSIC bool neqf16(half a, half b) { return f16tof32(a) != f16tof32(b); }
-HCC_INTRINSIC bool ltf16(half a, half b) { return f16tof32(a) < f16tof32(b); }
-HCC_INTRINSIC bool lteqf16(half a, half b) { return f16tof32(a) <= f16tof32(b); }
-HCC_INTRINSIC bool gtf16(half a, half b) { return f16tof32(a) > f16tof32(b); }
-HCC_INTRINSIC bool gteqf16(half a, half b) { return f16tof32(a) >= f16tof32(b); }
-HCC_INTRINSIC bool notf16(half v) { return !f16tof32(v); }
-HCC_INTRINSIC half negf16(half v) { return f32tof16(-f16tof32(v)); }
-half copysignf16(half v, half sign) { return f32tof16(copysignf32(f16tof32(v), f16tof32(sign))); }
-HCC_INTRINSIC half absf16(half v) { return f32tof16(absf32(f16tof32(v))); }
-HCC_INTRINSIC half floorf16(half v) { return f32tof16(floorf32(f16tof32(v))); }
-HCC_INTRINSIC half ceilf16(half v) { return f32tof16(ceilf32(f16tof32(v))); }
-HCC_INTRINSIC half roundf16(half v) { return f32tof16(roundf32(f16tof32(v))); }
-HCC_INTRINSIC half truncf16(half v) { return f32tof16(truncf32(f16tof32(v))); }
-HCC_INTRINSIC half sinf16(half v) { return f32tof16(sinf32(f16tof32(v))); }
-HCC_INTRINSIC half cosf16(half v) { return f32tof16(cosf32(f16tof32(v))); }
-HCC_INTRINSIC half tanf16(half v) { return f32tof16(tanf32(f16tof32(v))); }
-HCC_INTRINSIC half asinf16(half v) { return f32tof16(asinf32(f16tof32(v))); }
-HCC_INTRINSIC half acosf16(half v) { return f32tof16(acosf32(f16tof32(v))); }
-HCC_INTRINSIC half atanf16(half v) { return f32tof16(atanf32(f16tof32(v))); }
-HCC_INTRINSIC half sinhf16(half v) { return f32tof16(sinhf32(f16tof32(v))); }
-HCC_INTRINSIC half coshf16(half v) { return f32tof16(coshf32(f16tof32(v))); }
-HCC_INTRINSIC half tanhf16(half v) { return f32tof16(tanhf32(f16tof32(v))); }
-HCC_INTRINSIC half asinhf16(half v) { return f32tof16(asinhf32(f16tof32(v))); }
-HCC_INTRINSIC half acoshf16(half v) { return f32tof16(acoshf32(f16tof32(v))); }
-HCC_INTRINSIC half atanhf16(half v) { return f32tof16(atanhf32(f16tof32(v))); }
-HCC_INTRINSIC half atan2f16(half y, half x) { return f32tof16(atan2f32(f16tof32(y), f16tof32(x))); }
-HCC_INTRINSIC half fmaf16(half x, half y, half z) { return f32tof16(fmaf32(f16tof32(x), f16tof32(y), f16tof32(z))); }
-HCC_INTRINSIC half sqrtf16(half v) { return f32tof16(sqrtf32(f16tof32(v))); }
-HCC_INTRINSIC half powf16(half v) { return f32tof16(powf32(f16tof32(v))); }
-HCC_INTRINSIC half expf16(half v) { return f32tof16(expf32(f16tof32(v))); }
-HCC_INTRINSIC half logf16(half v) { return f32tof16(logf32(f16tof32(v))); }
-HCC_INTRINSIC half exp2f16(half v) { return f32tof16(exp2f32(f16tof32(v))); }
-HCC_INTRINSIC half log2f16(half v) { return f32tof16(log2f32(f16tof32(v))); }
+float f16tof32(half v);
+double f16tof64(half v);
+half f32tof16(float v);
+half f64tof16(double v);
+static inline half add_f16(half a, half b) { return f32tof16(f16tof32(a) + f16tof32(b)); }
+static inline half sub_f16(half a, half b) { return f32tof16(f16tof32(a) - f16tof32(b)); }
+static inline half mul_f16(half a, half b) { return f32tof16(f16tof32(a) * f16tof32(b)); }
+static inline half div_f16(half a, half b) { return f32tof16(f16tof32(a) / f16tof32(b)); }
+static inline bool eq_f16(half a, half b) { return f16tof32(a) == f16tof32(b); }
+static inline bool neq_f16(half a, half b) { return f16tof32(a) != f16tof32(b); }
+static inline bool lt_f16(half a, half b) { return f16tof32(a) < f16tof32(b); }
+static inline bool lteq_f16(half a, half b) { return f16tof32(a) <= f16tof32(b); }
+static inline bool gt_f16(half a, half b) { return f16tof32(a) > f16tof32(b); }
+static inline bool gteq_f16(half a, half b) { return f16tof32(a) >= f16tof32(b); }
+static inline bool not_f16(half v) { return !f16tof32(v); }
+static inline half neg_f16(half v) { return f32tof16(-f16tof32(v)); }
 
 // ===========================================
 //
 //
-// Scalar Math
+// Scalar
 //
 //
 // ===========================================
+
+bool isinf_f16(half v);
+bool isinf_f32(float v);
+bool isinf_f64(double v);
+
+bool isnan_f16(half v);
+bool isnan_f32(float v);
+bool isnan_f64(double v);
+
+half mod_f16(half a, half b);
+float mod_f32(float a, float b);
+double mod_f64(double a, double b);
+
+half floor_f16(half v);
+float floor_f32(float v);
+double floor_f64(double v);
+
+half ceil_f16(half v);
+float ceil_f32(float v);
+double ceil_f64(double v);
+
+half round_f16(half v);
+float round_f32(float v);
+double round_f64(double v);
+
+half trunc_f16(half v);
+float trunc_f32(float v);
+double trunc_f64(double v);
+
+half sin_f16(half v);
+float sin_f32(float v);
+double sin_f64(double v);
+
+half cos_f16(half v);
+float cos_f32(float v);
+double cos_f64(double v);
+
+half tan_f16(half v);
+float tan_f32(float v);
+double tan_f64(double v);
+
+half asin_f16(half v);
+float asin_f32(float v);
+double asin_f64(double v);
+
+half acos_f16(half v);
+float acos_f32(float v);
+double acos_f64(double v);
+
+half atan_f16(half v);
+float atan_f32(float v);
+double atan_f64(double v);
+
+half sinh_f16(half v);
+float sinh_f32(float v);
+double sinh_f64(double v);
+
+half cosh_f16(half v);
+float cosh_f32(float v);
+double cosh_f64(double v);
+
+half tanh_f16(half v);
+float tanh_f32(float v);
+double tanh_f64(double v);
+
+half asinh_f16(half v);
+float asinh_f32(float v);
+double asinh_f64(double v);
+
+half acosh_f16(half v);
+float acosh_f32(float v);
+double acosh_f64(double v);
+
+half atanh_f16(half v);
+float atanh_f32(float v);
+double atanh_f64(double v);
+
+half atan2_f16(half y, half x);
+float atan2_f32(float y, float x);
+double atan2_f64(double y, double x);
+
+half fma_f16(half a, half b, half c);
+float fma_f32(float a, float b, float c);
+double fma_f64(double a, double b, double c);
+
+half sqrt_f16(half v);
+float sqrt_f32(float v);
+double sqrt_f64(double v);
+
+half pow_f16(half v);
+float pow_f32(float v);
+double pow_f64(double v);
+
+half exp_f16(half v);
+float exp_f32(float v);
+double exp_f64(double v);
+
+half log_f16(half v);
+float log_f32(float v);
+double log_f64(double v);
+
+half exp2_f16(half v);
+float exp2_f32(float v);
+double exp2_f64(double v);
+
+half log2_f16(half v);
+float log2_f32(float v);
+double log2_f64(double v);
 
 //
 // returns the minimum value between 'a' and 'b'
-HCC_INTRINSIC static inline half minf16(half a, half b) { return ltf16(a, b) ? a : b; }
-HCC_INTRINSIC static inline float minf32(float a, float b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline double minf64(double a, double b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline int8_t mins8(int8_t a, int8_t b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline int16_t mins16(int16_t a, int16_t b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline int32_t mins32(int32_t a, int32_t b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline int64_t mins64(int64_t a, int64_t b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline uint8_t minu8(uint8_t a, uint8_t b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline uint16_t minu16(uint16_t a, uint16_t b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline uint32_t minu32(uint32_t a, uint32_t b) { return a < b ? a : b; }
-HCC_INTRINSIC static inline uint64_t minu64(uint64_t a, uint64_t b) { return a < b ? a : b; }
+static inline half min_f16(half a, half b) { return lt_f16(a, b) ? a : b; }
+static inline float min_f32(float a, float b) { return a < b ? a : b; }
+static inline double min_f64(double a, double b) { return a < b ? a : b; }
+static inline int8_t min_s8(int8_t a, int8_t b) { return a < b ? a : b; }
+static inline int16_t min_s16(int16_t a, int16_t b) { return a < b ? a : b; }
+static inline int32_t min_s32(int32_t a, int32_t b) { return a < b ? a : b; }
+static inline int64_t min_s64(int64_t a, int64_t b) { return a < b ? a : b; }
+static inline uint8_t min_u8(uint8_t a, uint8_t b) { return a < b ? a : b; }
+static inline uint16_t min_u16(uint16_t a, uint16_t b) { return a < b ? a : b; }
+static inline uint32_t min_u32(uint32_t a, uint32_t b) { return a < b ? a : b; }
+static inline uint64_t min_u64(uint64_t a, uint64_t b) { return a < b ? a : b; }
 
 //
 // returns the maximum value between 'a' and 'b'
-HCC_INTRINSIC static inline half maxf16(half a, half b) { return gtf16(a, b) ? a : b; }
-HCC_INTRINSIC static inline float maxf32(float a, float b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline double maxf64(double a, double b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline int8_t maxs8(int8_t a, int8_t b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline int16_t maxs16(int16_t a, int16_t b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline int32_t maxs32(int32_t a, int32_t b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline int64_t maxs64(int64_t a, int64_t b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline uint8_t maxu8(uint8_t a, uint8_t b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline uint16_t maxu16(uint16_t a, uint16_t b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline uint32_t maxu32(uint32_t a, uint32_t b) { return a > b ? a : b; }
-HCC_INTRINSIC static inline uint64_t maxu64(uint64_t a, uint64_t b) { return a > b ? a : b; }
+static inline half max_f16(half a, half b) { return gt_f16(a, b) ? a : b; }
+static inline float max_f32(float a, float b) { return a > b ? a : b; }
+static inline double max_f64(double a, double b) { return a > b ? a : b; }
+static inline int8_t max_s8(int8_t a, int8_t b) { return a > b ? a : b; }
+static inline int16_t max_s16(int16_t a, int16_t b) { return a > b ? a : b; }
+static inline int32_t max_s32(int32_t a, int32_t b) { return a > b ? a : b; }
+static inline int64_t max_s64(int64_t a, int64_t b) { return a > b ? a : b; }
+static inline uint8_t max_u8(uint8_t a, uint8_t b) { return a > b ? a : b; }
+static inline uint16_t max_u16(uint16_t a, uint16_t b) { return a > b ? a : b; }
+static inline uint32_t max_u32(uint32_t a, uint32_t b) { return a > b ? a : b; }
+static inline uint64_t max_u64(uint64_t a, uint64_t b) { return a > b ? a : b; }
 
 //
 // clamps 'v' so that it is inbetween 'a' and 'b'
-HCC_INTRINSIC static inline half clampf16(half v, half min, half max) { return gtf16(v, max) ? max : (gteqf16(v, min) ? v : min); }
-HCC_INTRINSIC static inline float clampf32(float v, float min, float max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline double clampf64(double v, double min, double max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline int8_t clamps8(int8_t v, int8_t min, int8_t max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline int16_t clamps16(int16_t v, int16_t min, int16_t max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline int32_t clamps32(int32_t v, int32_t min, int32_t max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline int64_t clamps64(int64_t v, int64_t min, int64_t max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline uint8_t clampu8(uint8_t v, uint8_t min, uint8_t max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline uint16_t clampu16(uint16_t v, uint16_t min, uint16_t max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline uint32_t clampu32(uint32_t v, uint32_t min, uint32_t max) { return v > max ? max : (v >= min ? v : min); }
-HCC_INTRINSIC static inline uint64_t clampu64(uint64_t v, uint64_t min, uint64_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline half clamp_f16(half v, half min, half max) { return gt_f16(v, max) ? max : (gteq_f16(v, min) ? v : min); }
+static inline float clamp_f32(float v, float min, float max) { return v > max ? max : (v >= min ? v : min); }
+static inline double clamp_f64(double v, double min, double max) { return v > max ? max : (v >= min ? v : min); }
+static inline int8_t clamp_s8(int8_t v, int8_t min, int8_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline int16_t clamp_s16(int16_t v, int16_t min, int16_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline int32_t clamp_s32(int32_t v, int32_t min, int32_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline int64_t clamp_s64(int64_t v, int64_t min, int64_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline uint8_t clamp_u8(uint8_t v, uint8_t min, uint8_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline uint16_t clamp_u16(uint16_t v, uint16_t min, uint16_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline uint32_t clamp_u32(uint32_t v, uint32_t min, uint32_t max) { return v > max ? max : (v >= min ? v : min); }
+static inline uint64_t clamp_u64(uint64_t v, uint64_t min, uint64_t max) { return v > max ? max : (v >= min ? v : min); }
 
 //
 // returns the absolute (positive) value of 'v'
-static inline int8_t abss8(int8_t v) { return (v &= ~0x80); }
-static inline int16_t abss16(int16_t v) { return (v &= ~0x8000); }
-static inline int32_t abss32(int32_t v) { return (v &= ~0x800000); }
-static inline int64_t abss64(int64_t v) { return (v &= ~0x80000000); }
+static inline half abs_f16(half v) { return f32tof16(f16tof32(v) * 1.0); }
+static inline float abs_f32(float v) { return v * 1.0; }
+static inline double abs_f64(double v) { return v * 1.0; }
+static inline int8_t abs_s8(int8_t v) { return (v &= ~0x80); }
+static inline int16_t abs_s16(int16_t v) { return (v &= ~0x8000); }
+static inline int32_t abs_s32(int32_t v) { return (v &= ~0x800000); }
+static inline int64_t abs_s64(int64_t v) { return (v &= ~0x80000000); }
 
 //
 // returns the reciprocal square root of 'v' aka. inverse square root
-HCC_INTRINSIC static inline half rsqrtf16(half v) { return f32tof16(1.f / sqrtf(f16tof32(v))); }
-HCC_INTRINSIC static inline float rsqrtf32(float v) { return 1.f / sqrtf32(v); }
-HCC_INTRINSIC static inline double rsqrtf64(double v) { return 1.f / sqrtf64(v); }
+static inline half rsqrt_f16(half v) { return f32tof16(1.f / sqrt_f32(f16tof32(v))); }
+static inline float rsqrt_f32(float v) { return 1.f / sqrt_f32(v); }
+static inline double rsqrt_f64(double v) { return 1.f / sqrt_f64(v); }
 
 //
 // returns true if 'a' and 'b' are 'epsilon' away from eachother
-static inline bool approxeqf16(half a, half b, half epsilon) { return absf32(f16tof32(a) - f16tof32(b)) <= f16tof32(epsilon); }
-static inline bool approxeqf32(float a, float b, float epsilon) { return absf32(a - b) <= epsilon; }
-static inline bool approxeqf64(double a, double b, double epsilon) { return absf64(a - b) <= epsilon; }
+static inline bool approxeq_f16(half a, half b, half epsilon) { return abs_f32(f16tof32(a) - f16tof32(b)) <= f16tof32(epsilon); }
+static inline bool approxeq_f32(float a, float b, float epsilon) { return abs_f32(a - b) <= epsilon; }
+static inline bool approxeq_f64(double a, double b, double epsilon) { return abs_f64(a - b) <= epsilon; }
 
 //
 // returns -1 if 'v' is less than 0, 1 if 'v' is greater than 0 or 0 if 'v' is 0
-HCC_INTRINSIC static inline half signf16(half v) { return f32tof16(f16tof32(v) == 0.f ? 0.f : (f16tof32(v) < 0.f ? -1.f : 1.f)); }
-HCC_INTRINSIC static inline float signf32(float v) { return v == 0.f ? 0.f : (v < 0.f ? -1.f : 1.f); }
-HCC_INTRINSIC static inline double signf64(double v) { return v == 0.f ? 0.f : (v < 0.f ? -1.f : 1.f); }
-HCC_INTRINSIC static inline int8_t signs8(int8_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
-HCC_INTRINSIC static inline int16_t signs16(int16_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
-HCC_INTRINSIC static inline int32_t signs32(int32_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
-HCC_INTRINSIC static inline int64_t signs64(int64_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
+static inline half sign_f16(half v) { return f32tof16(f16tof32(v) == 0.f ? 0.f : (f16tof32(v) < 0.f ? -1.f : 1.f)); }
+static inline float sign_f32(float v) { return v == 0.f ? 0.f : (v < 0.f ? -1.f : 1.f); }
+static inline double sign_f64(double v) { return v == 0.f ? 0.f : (v < 0.f ? -1.f : 1.f); }
+static inline int8_t sign_s8(int8_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
+static inline int16_t sign_s16(int16_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
+static inline int32_t sign_s32(int32_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
+static inline int64_t sign_s64(int64_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1); }
 
 //
 // returns a 'v' with sign copied from 'sign'
-static inline int8_t copysigns8(int8_t v, int8_t sign) { return v | (sign & 0x80); }
-static inline int16_t copysigns16(int16_t v, int16_t sign) { return v | (sign & 0x8000); }
-static inline int32_t copysigns32(int32_t v, int32_t sign) { return v | (sign & 0x800000); }
-static inline int64_t copysigns64(int64_t v, int64_t sign) { return v | (sign & 0x80000000); }
+static inline half copysign_f16(half v, half sign) { return f32tof16(f16tof32(v) * (f16tof32(sign) < 0.f ? -1.0 : 1.0)); }
+static inline float copysign_f32(float v, float sign) { return v * (sign < 0.f ? -1.0 : 1.0); }
+static inline double copysign_f64(double v, double sign) { return v * (sign < 0.f ? -1.0 : 1.0); }
+static inline int8_t copysign_s8(int8_t v, int8_t sign) { return v | (sign & 0x80); }
+static inline int16_t copysign_s16(int16_t v, int16_t sign) { return v | (sign & 0x8000); }
+static inline int32_t copysign_s32(int32_t v, int32_t sign) { return v | (sign & 0x800000); }
+static inline int64_t copysign_s64(int64_t v, int64_t sign) { return v | (sign & 0x80000000); }
 
 //
 // returns a linear interpolation from 'start' to 'end' at the point of 't' where 't' = 0.0 = 'start' and 't' = 1.0 = 'end'
-HCC_INTRINSIC static inline half lerpf16(half start, half end, half t) { return addf16(mulf16(subf16(end, start), t), start); }
-HCC_INTRINSIC static inline float lerpf32(float start, float end, float t) { return (end - start) * t + start; }
-HCC_INTRINSIC static inline double lerpf64(double start, double end, double t) { return (end - start) * t + start; }
+static inline half lerp_f16(half start, half end, half t) { return add_f16(mul_f16(sub_f16(end, start), t), start); }
+static inline float lerp_f32(float start, float end, float t) { return (end - start) * t + start; }
+static inline double lerp_f64(double start, double end, double t) { return (end - start) * t + start; }
 
 //
 // returns a value from 0.0 to 1.0 at the point where 'v' is in relation to 'start' and 'end' where 'v' = 0.0 = 'start' and 'v' = 1.0 = 'end'
-static inline half invlerpf16(half start, half end, half v) { return divf16(subf16(v, start), subf16(end, start)); }
-static inline float invlerpf32(float start, float end, float v) { return (v - start) / (end - start); }
-static inline double invlerpf64(double start, double end, double v) { return (v - start) / (end - start); }
+static inline half invlerp_f16(half start, half end, half v) { return div_f16(sub_f16(v, start), sub_f16(end, start)); }
+static inline float invlerp_f32(float start, float end, float v) { return (v - start) / (end - start); }
+static inline double invlerp_f64(double start, double end, double v) { return (v - start) / (end - start); }
 
 //
 // returns the fractional part of a 'v'
-HCC_INTRINSIC static inline half fractf16(half v) { return subf16(v, floorf16(v)); }
-HCC_INTRINSIC static inline float fractf32(float v) { return v - floorf32(v); }
-HCC_INTRINSIC static inline double fractf64(double v) { return v - floorf64(v); }
+static inline half fract_f16(half v) { return sub_f16(v, floor_f16(v)); }
+static inline float fract_f32(float v) { return v - floor_f32(v); }
+static inline double fract_f64(double v) { return v - floor_f64(v); }
 
 //
 // converts 'v' radians to degrees
-HCC_INTRINSIC static inline half degreesf16(half v) { return f32tof16(f16tof32(v) * (180.f / PIF32)); }
-HCC_INTRINSIC static inline float degreesf32(float v) { return v * (180.0 / PIF32); }
-HCC_INTRINSIC static inline double degreesf64(double v) { return v * (180.0 / PIF64); }
+static inline half degrees_f16(half v) { return f32tof16(f16tof32(v) * (180.f / PI_F32)); }
+static inline float degrees_f32(float v) { return v * (180.0 / PI_F32); }
+static inline double degrees_f64(double v) { return v * (180.0 / PI_F64); }
 
 //
 // converts 'v' degrees to radians
-HCC_INTRINSIC static inline half radiansf16(half v) { return f32tof16(f16tof32(v) * (PIF32 / 180.f)); }
-HCC_INTRINSIC static inline float radiansf32(float v) { return v * (PIF32 / 180.0); }
-HCC_INTRINSIC static inline double radiansf64(double v) { return v * (PIF64 / 180.0); }
+static inline half radians_f16(half v) { return f32tof16(f16tof32(v) * (PI_F32 / 180.f)); }
+static inline float radians_f32(float v) { return v * (PI_F32 / 180.0); }
+static inline double radians_f64(double v) { return v * (PI_F64 / 180.0); }
 
 //
 // returns 0.0 if 'v' < 'edge', otherwise 1.0 is returned
-HCC_INTRINSIC static inline half stepf16(half edge, half v) { return f32tof16(f16tof32(v) ? 0.0 : 1.0); }
-HCC_INTRINSIC static inline float stepf32(float edge, float v) { return v < edge ? 0.0 : 1.0; }
-HCC_INTRINSIC static inline double stepf64(double edge, double v) { return v < edge ? 0.0 : 1.0; }
+static inline half step_f16(half edge, half v) { return f32tof16(f16tof32(v) ? 0.0 : 1.0); }
+static inline float step_f32(float edge, float v) { return v < edge ? 0.0 : 1.0; }
+static inline double step_f64(double edge, double v) { return v < edge ? 0.0 : 1.0; }
 
 //
 // returns a smooth Hermite interpolation between 0.0 and 1.0 when 'edge0' < 'x' < 'edge1'
-HCC_INTRINSIC static inline half smoothstepf16(half edge0, half edge1, half v) { float t = clampf32((f16tof32(v) - f16tof32(edge0)) / (f16tof32(edge1) - f16tof32(edge0)), 0.f, 1.f); return f32tof16(t * t * (3.0 - 2.0 * t)); }
-HCC_INTRINSIC static inline float smoothstepf32(float edge0, float edge1, float v) { float t = clampf32((v - edge0) / (edge1 - edge0), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
-HCC_INTRINSIC static inline double smoothstepf64(double edge0, double edge1, double v) { double t = clampf64((v - edge0) / (edge1 - edge0), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
+static inline half smoothstep_f16(half edge0, half edge1, half v) { float t = clamp_f32((f16tof32(v) - f16tof32(edge0)) / (f16tof32(edge1) - f16tof32(edge0)), 0.f, 1.f); return f32tof16(t * t * (3.0 - 2.0 * t)); }
+static inline float smoothstep_f32(float edge0, float edge1, float v) { float t = clamp_f32((v - edge0) / (edge1 - edge0), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
+static inline double smoothstep_f64(double edge0, double edge1, double v) { double t = clamp_f64((v - edge0) / (edge1 - edge0), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
 
 //
 // returns 'v' remapped from a range of 'from_min' to 'from_max' to the range of 'to_min' to 'to_max'
-static inline half remapf16(half v, half from_min, half from_max, half to_min, half to_max) { return addf16(to_min, divf16(mulf16(subf16(v, from_min), subf16(to_max, to_min)), subf16(from_max, from_min))); }
-static inline float remapf32(float v, float from_min, float from_max, float to_min, float to_max) { return to_min + (v - from_min) * (to_max - to_min) / (from_max - from_min); }
-static inline double remapf64(double v, double from_min, double from_max, double to_min, double to_max) { return to_min + (v - from_min) * (to_max - to_min) / (from_max - from_min); }
+static inline half remap_f16(half v, half from_min, half from_max, half to_min, half to_max) { return add_f16(to_min, div_f16(mul_f16(sub_f16(v, from_min), sub_f16(to_max, to_min)), sub_f16(from_max, from_min))); }
+static inline float remap_f32(float v, float from_min, float from_max, float to_min, float to_max) { return to_min + (v - from_min) * (to_max - to_min) / (from_max - from_min); }
+static inline double remap_f64(double v, double from_min, double from_max, double to_min, double to_max) { return to_min + (v - from_min) * (to_max - to_min) / (from_max - from_min); }
 
 //
 // returns 'v' rounded to the nearest 'multiple'
-static inline half roundtomultiplef16(half v, half multiple) { v = fmaf16(multiple, f32tof16(0.5), v); half rem = modf16(v, multiple); if (gtf16(v, f32tof16(0.f))) { return subf16(v, rem); } else { return subf16(subf16(v, rem), multiple); } }
-static inline float roundtomultiplef32(float v, float multiple) { v = fmaf32(multiple, 0.5, v); float rem = modf32(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
-static inline double roundtomultiplef64(double v, double multiple) { v = fmaf64(multiple, 0.5, v); double rem = modf64(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
+static inline half roundtomultiple_f16(half v, half multiple) { v = fma_f16(multiple, f32tof16(0.5), v); half rem = mod_f16(v, multiple); if (gt_f16(v, f32tof16(0.f))) { return sub_f16(v, rem); } else { return sub_f16(sub_f16(v, rem), multiple); } }
+static inline float roundtomultiple_f32(float v, float multiple) { v = fma_f32(multiple, 0.5, v); float rem = mod_f32(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
+static inline double roundtomultiple_f64(double v, double multiple) { v = fma_f64(multiple, 0.5, v); double rem = mod_f64(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
 
 //
 // returns 'v' rounded _up_ to the nearest 'multiple'
-static inline half rounduptomultiplef16(half v, half multiple) { half rem = modf16(v, multiple); if (gtf16(v, f32tof16(0.f))) { return subf16(addf16(v, multiple), rem); } else { return subf16(v, rem); } }
-static inline float rounduptomultiplef32(float v, float multiple) { float rem = modf32(v, multiple); if (v > 0.0) { return v + multiple - rem; } else { return v - rem; } }
-static inline double rounduptomultiplef64(double v, double multiple) { double rem = modf64(v, multiple); if (v > 0.0) { return v + multiple - rem; } else { return v - rem; } }
+static inline half rounduptomultiple_f16(half v, half multiple) { half rem = mod_f16(v, multiple); if (gt_f16(v, f32tof16(0.f))) { return sub_f16(add_f16(v, multiple), rem); } else { return sub_f16(v, rem); } }
+static inline float rounduptomultiple_f32(float v, float multiple) { float rem = mod_f32(v, multiple); if (v > 0.0) { return v + multiple - rem; } else { return v - rem; } }
+static inline double rounduptomultiple_f64(double v, double multiple) { double rem = mod_f64(v, multiple); if (v > 0.0) { return v + multiple - rem; } else { return v - rem; } }
 
 //
 // returns 'v' rounded _down_ to the nearest 'multiple'
-static inline half rounddowntomultiplef16(half v, half multiple) { half rem = modf16(v, multiple); if (gtf16(v, f32tof16(0.f))) { return subf16(v, rem); } else { return subf16(subf16(v, rem), multiple); } }
-static inline float rounddowntomultiplef32(float v, float multiple) { float rem = modf32(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
-static inline double rounddowntomultiplef64(double v, double multiple) { double rem = modf64(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
+static inline half rounddowntomultiple_f16(half v, half multiple) { half rem = mod_f16(v, multiple); if (gt_f16(v, f32tof16(0.f))) { return sub_f16(v, rem); } else { return sub_f16(sub_f16(v, rem), multiple); } }
+static inline float rounddowntomultiple_f32(float v, float multiple) { float rem = mod_f32(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
+static inline double rounddowntomultiple_f64(double v, double multiple) { double rem = mod_f64(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
 
 //
 // returns 'v' bitcasted into a float from an integer, no convertion is performed
-HCC_INTRINSIC static inline half bitstof16(uint16_t v) { union { uint16_t u; half f; } d = { .u = v }; return d.f; }
-HCC_INTRINSIC static inline float bitstof32(uint32_t v) { union { uint32_t u; float f; } d = { .u = v }; return d.f; }
-HCC_INTRINSIC static inline double bitstof64(uint64_t v) { union { uint64_t u; double f; } d = { .u = v }; return d.f; }
+static inline half bitsto_f16(uint16_t v) { union { uint16_t u; half f; } d = { .u = v }; return d.f; }
+static inline float bitsto_f32(uint32_t v) { union { uint32_t u; float f; } d = { .u = v }; return d.f; }
+static inline double bitsto_f64(uint64_t v) { union { uint64_t u; double f; } d = { .u = v }; return d.f; }
 
 //
 // returns 'v' bitcasted into an integer from a float, no convertion is performed
-HCC_INTRINSIC static inline uint16_t bitsfromf16(half v) { union { uint16_t u; half f; } d = { .f = v }; return d.u; }
-HCC_INTRINSIC static inline uint32_t bitsfromf32(float v) { union { uint32_t u; float f; } d = { .f = v }; return d.u; }
-HCC_INTRINSIC static inline uint64_t bitsfromf64(double v) { union { uint64_t u; double f; } d = { .f = v }; return d.u; }
+static inline uint16_t bitsfrom_f16(half v) { union { uint16_t u; half f; } d = { .f = v }; return d.u; }
+static inline uint32_t bitsfrom_f32(float v) { union { uint32_t u; float f; } d = { .f = v }; return d.u; }
+static inline uint64_t bitsfrom_f64(double v) { union { uint64_t u; double f; } d = { .f = v }; return d.u; }
 
 // ===========================================
 //
@@ -330,2599 +345,2599 @@ HCC_INTRINSIC static inline uint64_t bitsfromf64(double v) { union { uint64_t u;
 //
 // returns a vector that is a a shuffled version of 'v' that is constructed like so:
 //	v4f(v.array[x], v.array[y], v.array[z], v.array[w]);
-HCC_INTRINSIC static inline f16x2 swizzlef16x2(f16x2 v, uint8_t x, uint8_t y) { return f16x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline f32x2 swizzlef32x2(f32x2 v, uint8_t x, uint8_t y) { return f32x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline f64x2 swizzlef64x2(f64x2 v, uint8_t x, uint8_t y) { return f64x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline s8x2 swizzles8x2(s8x2 v, uint8_t x, uint8_t y) { return s8x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline s16x2 swizzles16x2(s16x2 v, uint8_t x, uint8_t y) { return s16x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline s32x2 swizzles32x2(s32x2 v, uint8_t x, uint8_t y) { return s32x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline s64x2 swizzles64x2(s64x2 v, uint8_t x, uint8_t y) { return s64x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline u8x2 swizzleu8x2(u8x2 v, uint8_t x, uint8_t y) { return u8x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline u16x2 swizzleu16x2(u16x2 v, uint8_t x, uint8_t y) { return u16x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline u32x2 swizzleu32x2(u32x2 v, uint8_t x, uint8_t y) { return u32x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline u64x2 swizzleu64x2(u64x2 v, uint8_t x, uint8_t y) { return u64x2(v.array[x], v.array[y]); }
-HCC_INTRINSIC static inline f16x3 swizzlef16x3(f16x3 v, uint8_t x, uint8_t y, uint8_t z) { return f16x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline f32x3 swizzlef32x3(f32x3 v, uint8_t x, uint8_t y, uint8_t z) { return f32x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline f64x3 swizzlef64x3(f64x3 v, uint8_t x, uint8_t y, uint8_t z) { return f64x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline s8x3 swizzles8x3(s8x3 v, uint8_t x, uint8_t y, uint8_t z) { return s8x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline s16x3 swizzles16x3(s16x3 v, uint8_t x, uint8_t y, uint8_t z) { return s16x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline s32x3 swizzles32x3(s32x3 v, uint8_t x, uint8_t y, uint8_t z) { return s32x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline s64x3 swizzles64x3(s64x3 v, uint8_t x, uint8_t y, uint8_t z) { return s64x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline u8x3 swizzleu8x3(u8x3 v, uint8_t x, uint8_t y, uint8_t z) { return u8x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline u16x3 swizzleu16x3(u16x3 v, uint8_t x, uint8_t y, uint8_t z) { return u16x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline u32x3 swizzleu32x3(u32x3 v, uint8_t x, uint8_t y, uint8_t z) { return u32x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline u64x3 swizzleu64x3(u64x3 v, uint8_t x, uint8_t y, uint8_t z) { return u64x3(v.array[x], v.array[y], v.array[z]); }
-HCC_INTRINSIC static inline f16x4 swizzlef16x4(f16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline f32x4 swizzlef32x4(f32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline f64x4 swizzlef64x4(f64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline s8x4 swizzles8x4(s8x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s8x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline s16x4 swizzles16x4(s16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline s32x4 swizzles32x4(s32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline s64x4 swizzles64x4(s64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline u8x4 swizzleu8x4(u8x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u8x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline u16x4 swizzleu16x4(u16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline u32x4 swizzleu32x4(u32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-HCC_INTRINSIC static inline u64x4 swizzleu64x4(u64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline f16x2 swizzlef16x2(f16x2 v, uint8_t x, uint8_t y) { return f16x2(v.array[x], v.array[y]); }
+static inline f32x2 swizzlef32x2(f32x2 v, uint8_t x, uint8_t y) { return f32x2(v.array[x], v.array[y]); }
+static inline f64x2 swizzlef64x2(f64x2 v, uint8_t x, uint8_t y) { return f64x2(v.array[x], v.array[y]); }
+static inline s8x2 swizzles8x2(s8x2 v, uint8_t x, uint8_t y) { return s8x2(v.array[x], v.array[y]); }
+static inline s16x2 swizzles16x2(s16x2 v, uint8_t x, uint8_t y) { return s16x2(v.array[x], v.array[y]); }
+static inline s32x2 swizzles32x2(s32x2 v, uint8_t x, uint8_t y) { return s32x2(v.array[x], v.array[y]); }
+static inline s64x2 swizzles64x2(s64x2 v, uint8_t x, uint8_t y) { return s64x2(v.array[x], v.array[y]); }
+static inline u8x2 swizzleu8x2(u8x2 v, uint8_t x, uint8_t y) { return u8x2(v.array[x], v.array[y]); }
+static inline u16x2 swizzleu16x2(u16x2 v, uint8_t x, uint8_t y) { return u16x2(v.array[x], v.array[y]); }
+static inline u32x2 swizzleu32x2(u32x2 v, uint8_t x, uint8_t y) { return u32x2(v.array[x], v.array[y]); }
+static inline u64x2 swizzleu64x2(u64x2 v, uint8_t x, uint8_t y) { return u64x2(v.array[x], v.array[y]); }
+static inline f16x3 swizzlef16x3(f16x3 v, uint8_t x, uint8_t y, uint8_t z) { return f16x3(v.array[x], v.array[y], v.array[z]); }
+static inline f32x3 swizzlef32x3(f32x3 v, uint8_t x, uint8_t y, uint8_t z) { return f32x3(v.array[x], v.array[y], v.array[z]); }
+static inline f64x3 swizzlef64x3(f64x3 v, uint8_t x, uint8_t y, uint8_t z) { return f64x3(v.array[x], v.array[y], v.array[z]); }
+static inline s8x3 swizzles8x3(s8x3 v, uint8_t x, uint8_t y, uint8_t z) { return s8x3(v.array[x], v.array[y], v.array[z]); }
+static inline s16x3 swizzles16x3(s16x3 v, uint8_t x, uint8_t y, uint8_t z) { return s16x3(v.array[x], v.array[y], v.array[z]); }
+static inline s32x3 swizzles32x3(s32x3 v, uint8_t x, uint8_t y, uint8_t z) { return s32x3(v.array[x], v.array[y], v.array[z]); }
+static inline s64x3 swizzles64x3(s64x3 v, uint8_t x, uint8_t y, uint8_t z) { return s64x3(v.array[x], v.array[y], v.array[z]); }
+static inline u8x3 swizzleu8x3(u8x3 v, uint8_t x, uint8_t y, uint8_t z) { return u8x3(v.array[x], v.array[y], v.array[z]); }
+static inline u16x3 swizzleu16x3(u16x3 v, uint8_t x, uint8_t y, uint8_t z) { return u16x3(v.array[x], v.array[y], v.array[z]); }
+static inline u32x3 swizzleu32x3(u32x3 v, uint8_t x, uint8_t y, uint8_t z) { return u32x3(v.array[x], v.array[y], v.array[z]); }
+static inline u64x3 swizzleu64x3(u64x3 v, uint8_t x, uint8_t y, uint8_t z) { return u64x3(v.array[x], v.array[y], v.array[z]); }
+static inline f16x4 swizzlef16x4(f16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline f32x4 swizzlef32x4(f32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline f64x4 swizzlef64x4(f64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline s8x4 swizzles8x4(s8x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s8x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline s16x4 swizzles16x4(s16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline s32x4 swizzles32x4(s32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline s64x4 swizzles64x4(s64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline u8x4 swizzleu8x4(u8x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u8x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline u16x4 swizzleu16x4(u16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline u32x4 swizzleu32x4(u32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
+static inline u64x4 swizzleu64x4(u64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
 
 //
 // converts vector type that is natively aligned to a packed vector which is aligned to it's component alignment
-HCC_INTRINSIC static inline pboolx2 packboolx2(boolx2 v) { return pboolx2(v.x, v.y); }
-HCC_INTRINSIC static inline pf16x2 packf16x2(f16x2 v) { return pf16x2(v.x, v.y); }
-HCC_INTRINSIC static inline pf32x2 packf32x2(f32x2 v) { return pf32x2(v.x, v.y); }
-HCC_INTRINSIC static inline pf64x2 packf64x2(f64x2 v) { return pf64x2(v.x, v.y); }
-HCC_INTRINSIC static inline ps8x2 packs8x2(s8x2 v) { return ps8x2(v.x, v.y); }
-HCC_INTRINSIC static inline ps16x2 packs16x2(s16x2 v) { return ps16x2(v.x, v.y); }
-HCC_INTRINSIC static inline ps32x2 packs32x2(s32x2 v) { return ps32x2(v.x, v.y); }
-HCC_INTRINSIC static inline ps64x2 packs64x2(s64x2 v) { return ps64x2(v.x, v.y); }
-HCC_INTRINSIC static inline pu8x2 packu8x2(u8x2 v) { return pu8x2(v.x, v.y); }
-HCC_INTRINSIC static inline pu16x2 packu16x2(u16x2 v) { return pu16x2(v.x, v.y); }
-HCC_INTRINSIC static inline pu32x2 packu32x2(u32x2 v) { return pu32x2(v.x, v.y); }
-HCC_INTRINSIC static inline pu64x2 packu64x2(u64x2 v) { return pu64x2(v.x, v.y); }
-HCC_INTRINSIC static inline pboolx3 packboolx3(boolx3 v) { return pboolx3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pf16x3 packf16x3(f16x3 v) { return pf16x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pf32x3 packf32x3(f32x3 v) { return pf32x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pf64x3 packf64x3(f64x3 v) { return pf64x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline ps8x3 packs8x3(s8x3 v) { return ps8x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline ps16x3 packs16x3(s16x3 v) { return ps16x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline ps32x3 packs32x3(s32x3 v) { return ps32x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline ps64x3 packs64x3(s64x3 v) { return ps64x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pu8x3 packu8x3(u8x3 v) { return pu8x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pu16x3 packu16x3(u16x3 v) { return pu16x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pu32x3 packu32x3(u32x3 v) { return pu32x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pu64x3 packu64x3(u64x3 v) { return pu64x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline pboolx4 packboolx4(boolx4 v) { return pboolx4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline pf16x4 packf16x4(f16x4 v) { return pf16x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline pf32x4 packf32x4(f32x4 v) { return pf32x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline pf64x4 packf64x4(f64x4 v) { return pf64x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline ps8x4 packs8x4(s8x4 v) { return ps8x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline ps16x4 packs16x4(s16x4 v) { return ps16x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline ps32x4 packs32x4(s32x4 v) { return ps32x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline ps64x4 packs64x4(s64x4 v) { return ps64x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline pu8x4 packu8x4(u8x4 v) { return pu8x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline pu16x4 packu16x4(u16x4 v) { return pu16x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline pu32x4 packu32x4(u32x4 v) { return pu32x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline pu64x4 packu64x4(u64x4 v) { return pu64x4(v.x, v.y, v.z, v.w); }
+static inline pboolx2 pack_boolx2(boolx2 v) { return pboolx2(v.x, v.y); }
+static inline pf16x2 pack_f16x2(f16x2 v) { return pf16x2(v.x, v.y); }
+static inline pf32x2 pack_f32x2(f32x2 v) { return pf32x2(v.x, v.y); }
+static inline pf64x2 pack_f64x2(f64x2 v) { return pf64x2(v.x, v.y); }
+static inline ps8x2 pack_s8x2(s8x2 v) { return ps8x2(v.x, v.y); }
+static inline ps16x2 pack_s16x2(s16x2 v) { return ps16x2(v.x, v.y); }
+static inline ps32x2 pack_s32x2(s32x2 v) { return ps32x2(v.x, v.y); }
+static inline ps64x2 pack_s64x2(s64x2 v) { return ps64x2(v.x, v.y); }
+static inline pu8x2 pack_u8x2(u8x2 v) { return pu8x2(v.x, v.y); }
+static inline pu16x2 pack_u16x2(u16x2 v) { return pu16x2(v.x, v.y); }
+static inline pu32x2 pack_u32x2(u32x2 v) { return pu32x2(v.x, v.y); }
+static inline pu64x2 pack_u64x2(u64x2 v) { return pu64x2(v.x, v.y); }
+static inline pboolx3 pack_boolx3(boolx3 v) { return pboolx3(v.x, v.y, v.z); }
+static inline pf16x3 pack_f16x3(f16x3 v) { return pf16x3(v.x, v.y, v.z); }
+static inline pf32x3 pack_f32x3(f32x3 v) { return pf32x3(v.x, v.y, v.z); }
+static inline pf64x3 pack_f64x3(f64x3 v) { return pf64x3(v.x, v.y, v.z); }
+static inline ps8x3 pack_s8x3(s8x3 v) { return ps8x3(v.x, v.y, v.z); }
+static inline ps16x3 pack_s16x3(s16x3 v) { return ps16x3(v.x, v.y, v.z); }
+static inline ps32x3 pack_s32x3(s32x3 v) { return ps32x3(v.x, v.y, v.z); }
+static inline ps64x3 pack_s64x3(s64x3 v) { return ps64x3(v.x, v.y, v.z); }
+static inline pu8x3 pack_u8x3(u8x3 v) { return pu8x3(v.x, v.y, v.z); }
+static inline pu16x3 pack_u16x3(u16x3 v) { return pu16x3(v.x, v.y, v.z); }
+static inline pu32x3 pack_u32x3(u32x3 v) { return pu32x3(v.x, v.y, v.z); }
+static inline pu64x3 pack_u64x3(u64x3 v) { return pu64x3(v.x, v.y, v.z); }
+static inline pboolx4 pack_boolx4(boolx4 v) { return pboolx4(v.x, v.y, v.z, v.w); }
+static inline pf16x4 pack_f16x4(f16x4 v) { return pf16x4(v.x, v.y, v.z, v.w); }
+static inline pf32x4 pack_f32x4(f32x4 v) { return pf32x4(v.x, v.y, v.z, v.w); }
+static inline pf64x4 pack_f64x4(f64x4 v) { return pf64x4(v.x, v.y, v.z, v.w); }
+static inline ps8x4 pack_s8x4(s8x4 v) { return ps8x4(v.x, v.y, v.z, v.w); }
+static inline ps16x4 pack_s16x4(s16x4 v) { return ps16x4(v.x, v.y, v.z, v.w); }
+static inline ps32x4 pack_s32x4(s32x4 v) { return ps32x4(v.x, v.y, v.z, v.w); }
+static inline ps64x4 pack_s64x4(s64x4 v) { return ps64x4(v.x, v.y, v.z, v.w); }
+static inline pu8x4 pack_u8x4(u8x4 v) { return pu8x4(v.x, v.y, v.z, v.w); }
+static inline pu16x4 pack_u16x4(u16x4 v) { return pu16x4(v.x, v.y, v.z, v.w); }
+static inline pu32x4 pack_u32x4(u32x4 v) { return pu32x4(v.x, v.y, v.z, v.w); }
+static inline pu64x4 pack_u64x4(u64x4 v) { return pu64x4(v.x, v.y, v.z, v.w); }
 
 //
 // converts _packed_ vector type that is aligned to it's component alignment aligned to a vector which is natively aligned
-HCC_INTRINSIC static inline boolx2 unpackboolx2(pboolx2 v) { return boolx2(v.x, v.y); }
-HCC_INTRINSIC static inline f16x2 unpackf16x2(pf16x2 v) { return f16x2(v.x, v.y); }
-HCC_INTRINSIC static inline f32x2 unpackf32x2(pf32x2 v) { return f32x2(v.x, v.y); }
-HCC_INTRINSIC static inline f64x2 unpackf64x2(pf64x2 v) { return f64x2(v.x, v.y); }
-HCC_INTRINSIC static inline s8x2 unpacks8x2(ps8x2 v) { return s8x2(v.x, v.y); }
-HCC_INTRINSIC static inline s16x2 unpacks16x2(ps16x2 v) { return s16x2(v.x, v.y); }
-HCC_INTRINSIC static inline s32x2 unpacks32x2(ps32x2 v) { return s32x2(v.x, v.y); }
-HCC_INTRINSIC static inline s64x2 unpacks64x2(ps64x2 v) { return s64x2(v.x, v.y); }
-HCC_INTRINSIC static inline u8x2 unpacku8x2(pu8x2 v) { return u8x2(v.x, v.y); }
-HCC_INTRINSIC static inline u16x2 unpacku16x2(pu16x2 v) { return u16x2(v.x, v.y); }
-HCC_INTRINSIC static inline u32x2 unpacku32x2(pu32x2 v) { return u32x2(v.x, v.y); }
-HCC_INTRINSIC static inline u64x2 unpacku64x2(pu64x2 v) { return u64x2(v.x, v.y); }
-HCC_INTRINSIC static inline boolx3 unpackboolx3(pboolx3 v) { return boolx3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline f16x3 unpackf16x3(pf16x3 v) { return f16x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline f32x3 unpackf32x3(pf32x3 v) { return f32x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline f64x3 unpackf64x3(pf64x3 v) { return f64x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline s8x3 unpacks8x3(ps8x3 v) { return s8x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline s16x3 unpacks16x3(ps16x3 v) { return s16x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline s32x3 unpacks32x3(ps32x3 v) { return s32x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline s64x3 unpacks64x3(ps64x3 v) { return s64x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline u8x3 unpacku8x3(pu8x3 v) { return u8x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline u16x3 unpacku16x3(pu16x3 v) { return u16x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline u32x3 unpacku32x3(pu32x3 v) { return u32x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline u64x3 unpacku64x3(pu64x3 v) { return u64x3(v.x, v.y, v.z); }
-HCC_INTRINSIC static inline boolx4 unpackboolx4(pboolx4 v) { return boolx4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline f16x4 unpackf16x4(pf16x4 v) { return f16x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline f32x4 unpackf32x4(pf32x4 v) { return f32x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline f64x4 unpackf64x4(pf64x4 v) { return f64x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline s8x4 unpacks8x4(ps8x4 v) { return s8x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline s16x4 unpacks16x4(ps16x4 v) { return s16x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline s32x4 unpacks32x4(ps32x4 v) { return s32x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline s64x4 unpacks64x4(ps64x4 v) { return s64x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline u8x4 unpacku8x4(pu8x4 v) { return u8x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline u16x4 unpacku16x4(pu16x4 v) { return u16x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline u32x4 unpacku32x4(pu32x4 v) { return u32x4(v.x, v.y, v.z, v.w); }
-HCC_INTRINSIC static inline u64x4 unpacku64x4(pu64x4 v) { return u64x4(v.x, v.y, v.z, v.w); }
+static inline boolx2 unpack_boolx2(pboolx2 v) { return boolx2(v.x, v.y); }
+static inline f16x2 unpack_f16x2(pf16x2 v) { return f16x2(v.x, v.y); }
+static inline f32x2 unpack_f32x2(pf32x2 v) { return f32x2(v.x, v.y); }
+static inline f64x2 unpack_f64x2(pf64x2 v) { return f64x2(v.x, v.y); }
+static inline s8x2 unpack_s8x2(ps8x2 v) { return s8x2(v.x, v.y); }
+static inline s16x2 unpack_s16x2(ps16x2 v) { return s16x2(v.x, v.y); }
+static inline s32x2 unpack_s32x2(ps32x2 v) { return s32x2(v.x, v.y); }
+static inline s64x2 unpack_s64x2(ps64x2 v) { return s64x2(v.x, v.y); }
+static inline u8x2 unpack_u8x2(pu8x2 v) { return u8x2(v.x, v.y); }
+static inline u16x2 unpack_u16x2(pu16x2 v) { return u16x2(v.x, v.y); }
+static inline u32x2 unpack_u32x2(pu32x2 v) { return u32x2(v.x, v.y); }
+static inline u64x2 unpack_u64x2(pu64x2 v) { return u64x2(v.x, v.y); }
+static inline boolx3 unpack_boolx3(pboolx3 v) { return boolx3(v.x, v.y, v.z); }
+static inline f16x3 unpack_f16x3(pf16x3 v) { return f16x3(v.x, v.y, v.z); }
+static inline f32x3 unpack_f32x3(pf32x3 v) { return f32x3(v.x, v.y, v.z); }
+static inline f64x3 unpack_f64x3(pf64x3 v) { return f64x3(v.x, v.y, v.z); }
+static inline s8x3 unpack_s8x3(ps8x3 v) { return s8x3(v.x, v.y, v.z); }
+static inline s16x3 unpack_s16x3(ps16x3 v) { return s16x3(v.x, v.y, v.z); }
+static inline s32x3 unpack_s32x3(ps32x3 v) { return s32x3(v.x, v.y, v.z); }
+static inline s64x3 unpack_s64x3(ps64x3 v) { return s64x3(v.x, v.y, v.z); }
+static inline u8x3 unpack_u8x3(pu8x3 v) { return u8x3(v.x, v.y, v.z); }
+static inline u16x3 unpack_u16x3(pu16x3 v) { return u16x3(v.x, v.y, v.z); }
+static inline u32x3 unpack_u32x3(pu32x3 v) { return u32x3(v.x, v.y, v.z); }
+static inline u64x3 unpack_u64x3(pu64x3 v) { return u64x3(v.x, v.y, v.z); }
+static inline boolx4 unpack_boolx4(pboolx4 v) { return boolx4(v.x, v.y, v.z, v.w); }
+static inline f16x4 unpack_f16x4(pf16x4 v) { return f16x4(v.x, v.y, v.z, v.w); }
+static inline f32x4 unpack_f32x4(pf32x4 v) { return f32x4(v.x, v.y, v.z, v.w); }
+static inline f64x4 unpack_f64x4(pf64x4 v) { return f64x4(v.x, v.y, v.z, v.w); }
+static inline s8x4 unpack_s8x4(ps8x4 v) { return s8x4(v.x, v.y, v.z, v.w); }
+static inline s16x4 unpack_s16x4(ps16x4 v) { return s16x4(v.x, v.y, v.z, v.w); }
+static inline s32x4 unpack_s32x4(ps32x4 v) { return s32x4(v.x, v.y, v.z, v.w); }
+static inline s64x4 unpack_s64x4(ps64x4 v) { return s64x4(v.x, v.y, v.z, v.w); }
+static inline u8x4 unpack_u8x4(pu8x4 v) { return u8x4(v.x, v.y, v.z, v.w); }
+static inline u16x4 unpack_u16x4(pu16x4 v) { return u16x4(v.x, v.y, v.z, v.w); }
+static inline u32x4 unpack_u32x4(pu32x4 v) { return u32x4(v.x, v.y, v.z, v.w); }
+static inline u64x4 unpack_u64x4(pu64x4 v) { return u64x4(v.x, v.y, v.z, v.w); }
 
 //
 // returns true if _any_ of the vector components are a non-zero value, otherwise false is returned
-HCC_INTRINSIC static inline bool anyboolx2(boolx2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anyf16x2(f16x2 v) { return f16tof32(v.x) || f16tof32(v.y); }
-HCC_INTRINSIC static inline bool anyf32x2(f32x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anyf64x2(f64x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anys8x2(s8x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anys16x2(s16x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anys32x2(s32x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anys64x2(s64x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anyu8x2(u8x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anyu16x2(u16x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anyu32x2(u32x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anyu64x2(u64x2 v) { return v.x || v.y; }
-HCC_INTRINSIC static inline bool anyboolx3(boolx3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anyf16x3(f16x3 v) { return f16tof32(v.x) || f16tof32(v.y) || f16tof32(v.z); }
-HCC_INTRINSIC static inline bool anyf32x3(f32x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anyf64x3(f64x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anys8x3(s8x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anys16x3(s16x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anys32x3(s32x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anys64x3(s64x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anyu8x3(u8x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anyu16x3(u16x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anyu32x3(u32x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anyu64x3(u64x3 v) { return v.x || v.y || v.z; }
-HCC_INTRINSIC static inline bool anyboolx4(boolx4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anyf16x4(f16x4 v) { return f16tof32(v.x) || f16tof32(v.y) || f16tof32(v.z) || f16tof32(v.w); }
-HCC_INTRINSIC static inline bool anyf32x4(f32x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anyf64x4(f64x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anys8x4(s8x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anys16x4(s16x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anys32x4(s32x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anys64x4(s64x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anyu8x4(u8x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anyu16x4(u16x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anyu32x4(u32x4 v) { return v.x || v.y || v.z || v.w; }
-HCC_INTRINSIC static inline bool anyu64x4(u64x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_boolx2(boolx2 v) { return v.x || v.y; }
+static inline bool any_f16x2(f16x2 v) { return f16tof32(v.x) || f16tof32(v.y); }
+static inline bool any_f32x2(f32x2 v) { return v.x || v.y; }
+static inline bool any_f64x2(f64x2 v) { return v.x || v.y; }
+static inline bool any_s8x2(s8x2 v) { return v.x || v.y; }
+static inline bool any_s16x2(s16x2 v) { return v.x || v.y; }
+static inline bool any_s32x2(s32x2 v) { return v.x || v.y; }
+static inline bool any_s64x2(s64x2 v) { return v.x || v.y; }
+static inline bool any_u8x2(u8x2 v) { return v.x || v.y; }
+static inline bool any_u16x2(u16x2 v) { return v.x || v.y; }
+static inline bool any_u32x2(u32x2 v) { return v.x || v.y; }
+static inline bool any_u64x2(u64x2 v) { return v.x || v.y; }
+static inline bool any_boolx3(boolx3 v) { return v.x || v.y || v.z; }
+static inline bool any_f16x3(f16x3 v) { return f16tof32(v.x) || f16tof32(v.y) || f16tof32(v.z); }
+static inline bool any_f32x3(f32x3 v) { return v.x || v.y || v.z; }
+static inline bool any_f64x3(f64x3 v) { return v.x || v.y || v.z; }
+static inline bool any_s8x3(s8x3 v) { return v.x || v.y || v.z; }
+static inline bool any_s16x3(s16x3 v) { return v.x || v.y || v.z; }
+static inline bool any_s32x3(s32x3 v) { return v.x || v.y || v.z; }
+static inline bool any_s64x3(s64x3 v) { return v.x || v.y || v.z; }
+static inline bool any_u8x3(u8x3 v) { return v.x || v.y || v.z; }
+static inline bool any_u16x3(u16x3 v) { return v.x || v.y || v.z; }
+static inline bool any_u32x3(u32x3 v) { return v.x || v.y || v.z; }
+static inline bool any_u64x3(u64x3 v) { return v.x || v.y || v.z; }
+static inline bool any_boolx4(boolx4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_f16x4(f16x4 v) { return f16tof32(v.x) || f16tof32(v.y) || f16tof32(v.z) || f16tof32(v.w); }
+static inline bool any_f32x4(f32x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_f64x4(f64x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_s8x4(s8x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_s16x4(s16x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_s32x4(s32x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_s64x4(s64x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_u8x4(u8x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_u16x4(u16x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_u32x4(u32x4 v) { return v.x || v.y || v.z || v.w; }
+static inline bool any_u64x4(u64x4 v) { return v.x || v.y || v.z || v.w; }
 
 //
 // returns true if _all_ of the vector components are a non-zero value, otherwise false is returned
-HCC_INTRINSIC static inline bool allboolx2(boolx2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool allf16x2(f16x2 v) { return f16tof32(v.x) && f16tof32(v.y); }
-HCC_INTRINSIC static inline bool allf32x2(f32x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool allf64x2(f64x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool alls8x2(s8x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool alls16x2(s16x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool alls32x2(s32x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool alls64x2(s64x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool allu8x2(u8x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool allu16x2(u16x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool allu32x2(u32x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool allu64x2(u64x2 v) { return v.x && v.y; }
-HCC_INTRINSIC static inline bool allboolx3(boolx3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool allf16x3(f16x3 v) { return f16tof32(v.x) && f16tof32(v.y) && f16tof32(v.z); }
-HCC_INTRINSIC static inline bool allf32x3(f32x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool allf64x3(f64x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool alls8x3(s8x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool alls16x3(s16x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool alls32x3(s32x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool alls64x3(s64x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool allu8x3(u8x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool allu16x3(u16x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool allu32x3(u32x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool allu64x3(u64x3 v) { return v.x && v.y && v.z; }
-HCC_INTRINSIC static inline bool allboolx4(boolx4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool allf16x4(f16x4 v) { return f16tof32(v.x) && f16tof32(v.y) && f16tof32(v.z) && f16tof32(v.w); }
-HCC_INTRINSIC static inline bool allf32x4(f32x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool allf64x4(f64x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool alls8x4(s8x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool alls16x4(s16x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool alls32x4(s32x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool alls64x4(s64x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool allu8x4(u8x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool allu16x4(u16x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool allu32x4(u32x4 v) { return v.x && v.y && v.z && v.w; }
-HCC_INTRINSIC static inline bool allu64x4(u64x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_boolx2(boolx2 v) { return v.x && v.y; }
+static inline bool all_f16x2(f16x2 v) { return f16tof32(v.x) && f16tof32(v.y); }
+static inline bool all_f32x2(f32x2 v) { return v.x && v.y; }
+static inline bool all_f64x2(f64x2 v) { return v.x && v.y; }
+static inline bool all_s8x2(s8x2 v) { return v.x && v.y; }
+static inline bool all_s16x2(s16x2 v) { return v.x && v.y; }
+static inline bool all_s32x2(s32x2 v) { return v.x && v.y; }
+static inline bool all_s64x2(s64x2 v) { return v.x && v.y; }
+static inline bool all_u8x2(u8x2 v) { return v.x && v.y; }
+static inline bool all_u16x2(u16x2 v) { return v.x && v.y; }
+static inline bool all_u32x2(u32x2 v) { return v.x && v.y; }
+static inline bool all_u64x2(u64x2 v) { return v.x && v.y; }
+static inline bool all_boolx3(boolx3 v) { return v.x && v.y && v.z; }
+static inline bool all_f16x3(f16x3 v) { return f16tof32(v.x) && f16tof32(v.y) && f16tof32(v.z); }
+static inline bool all_f32x3(f32x3 v) { return v.x && v.y && v.z; }
+static inline bool all_f64x3(f64x3 v) { return v.x && v.y && v.z; }
+static inline bool all_s8x3(s8x3 v) { return v.x && v.y && v.z; }
+static inline bool all_s16x3(s16x3 v) { return v.x && v.y && v.z; }
+static inline bool all_s32x3(s32x3 v) { return v.x && v.y && v.z; }
+static inline bool all_s64x3(s64x3 v) { return v.x && v.y && v.z; }
+static inline bool all_u8x3(u8x3 v) { return v.x && v.y && v.z; }
+static inline bool all_u16x3(u16x3 v) { return v.x && v.y && v.z; }
+static inline bool all_u32x3(u32x3 v) { return v.x && v.y && v.z; }
+static inline bool all_u64x3(u64x3 v) { return v.x && v.y && v.z; }
+static inline bool all_boolx4(boolx4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_f16x4(f16x4 v) { return f16tof32(v.x) && f16tof32(v.y) && f16tof32(v.z) && f16tof32(v.w); }
+static inline bool all_f32x4(f32x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_f64x4(f64x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_s8x4(s8x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_s16x4(s16x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_s32x4(s32x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_s64x4(s64x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_u8x4(u8x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_u16x4(u16x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_u32x4(u32x4 v) { return v.x && v.y && v.z && v.w; }
+static inline bool all_u64x4(u64x4 v) { return v.x && v.y && v.z && v.w; }
 
 //
 // returns a boolean vector where each component is true if the component in 'v' is a zero value, otherwise it would be false
-HCC_INTRINSIC static inline boolx2 notboolx2(boolx2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 notf16x2(f16x2 v) { return boolx2(notf16(v.x), notf16(v.y)); }
-HCC_INTRINSIC static inline boolx2 notf32x2(f32x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 notf64x2(f64x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 nots8x2(s8x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 nots16x2(s16x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 nots32x2(s32x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 nots64x2(s64x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 notu8x2(u8x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 notu16x2(u16x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 notu32x2(u32x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx2 notu64x2(u64x2 v) { return boolx2(!v.x, !v.y); }
-HCC_INTRINSIC static inline boolx3 notboolx3(boolx3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 notf16x3(f16x3 v) { return boolx3(notf16(v.x), notf16(v.y), notf16(v.z)); }
-HCC_INTRINSIC static inline boolx3 notf32x3(f32x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 notf64x3(f64x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 nots8x3(s8x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 nots16x3(s16x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 nots32x3(s32x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 nots64x3(s64x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 notu8x3(u8x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 notu16x3(u16x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 notu32x3(u32x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx3 notu64x3(u64x3 v) { return boolx3(!v.x, !v.y, !v.z); }
-HCC_INTRINSIC static inline boolx4 notboolx4(boolx4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 notf16x4(f16x4 v) { return boolx4(notf16(v.x), notf16(v.y), notf16(v.z), notf16(v.w)); }
-HCC_INTRINSIC static inline boolx4 notf32x4(f32x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 notf64x4(f64x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 nots8x4(s8x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 nots16x4(s16x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 nots32x4(s32x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 nots64x4(s64x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 notu8x4(u8x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 notu16x4(u16x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 notu32x4(u32x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
-HCC_INTRINSIC static inline boolx4 notu64x4(u64x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx2 not_boolx2(boolx2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_f16x2(f16x2 v) { return boolx2(not_f16(v.x), not_f16(v.y)); }
+static inline boolx2 not_f32x2(f32x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_f64x2(f64x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_s8x2(s8x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_s16x2(s16x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_s32x2(s32x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_s64x2(s64x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_u8x2(u8x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_u16x2(u16x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_u32x2(u32x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx2 not_u64x2(u64x2 v) { return boolx2(!v.x, !v.y); }
+static inline boolx3 not_boolx3(boolx3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_f16x3(f16x3 v) { return boolx3(not_f16(v.x), not_f16(v.y), not_f16(v.z)); }
+static inline boolx3 not_f32x3(f32x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_f64x3(f64x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_s8x3(s8x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_s16x3(s16x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_s32x3(s32x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_s64x3(s64x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_u8x3(u8x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_u16x3(u16x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_u32x3(u32x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx3 not_u64x3(u64x3 v) { return boolx3(!v.x, !v.y, !v.z); }
+static inline boolx4 not_boolx4(boolx4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_f16x4(f16x4 v) { return boolx4(not_f16(v.x), not_f16(v.y), not_f16(v.z), not_f16(v.w)); }
+static inline boolx4 not_f32x4(f32x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_f64x4(f64x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_s8x4(s8x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_s16x4(s16x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_s32x4(s32x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_s64x4(s64x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_u8x4(u8x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_u16x4(u16x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_u32x4(u32x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
+static inline boolx4 not_u64x4(u64x4 v) { return boolx4(!v.x, !v.y, !v.z, !v.w); }
 
 //
 // returns a vector where each component is the result from adding that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline f16x2 addf16x2(f16x2 a, f16x2 b) { return f16x2(addf16(a.x, b.x), addf16(a.y, b.y)); }
-HCC_INTRINSIC static inline f32x2 addf32x2(f32x2 a, f32x2 b) { return f32x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline f64x2 addf64x2(f64x2 a, f64x2 b) { return f64x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline s8x2 adds8x2(s8x2 a, s8x2 b) { return s8x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline s16x2 adds16x2(s16x2 a, s16x2 b) { return s16x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline s32x2 adds32x2(s32x2 a, s32x2 b) { return s32x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline s64x2 adds64x2(s64x2 a, s64x2 b) { return s64x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline u8x2 addu8x2(u8x2 a, u8x2 b) { return u8x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline u16x2 addu16x2(u16x2 a, u16x2 b) { return u16x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline u32x2 addu32x2(u32x2 a, u32x2 b) { return u32x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline u64x2 addu64x2(u64x2 a, u64x2 b) { return u64x2(a.x + b.x, a.y + b.y); }
-HCC_INTRINSIC static inline f16x3 addf16x3(f16x3 a, f16x3 b) { return f16x3(addf16(a.x, b.x), addf16(a.y, b.y), addf16(a.z, b.z)); }
-HCC_INTRINSIC static inline f32x3 addf32x3(f32x3 a, f32x3 b) { return f32x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline f64x3 addf64x3(f64x3 a, f64x3 b) { return f64x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline s8x3 adds8x3(s8x3 a, s8x3 b) { return s8x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline s16x3 adds16x3(s16x3 a, s16x3 b) { return s16x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline s32x3 adds32x3(s32x3 a, s32x3 b) { return s32x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline s64x3 adds64x3(s64x3 a, s64x3 b) { return s64x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline u8x3 addu8x3(u8x3 a, u8x3 b) { return u8x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline u16x3 addu16x3(u16x3 a, u16x3 b) { return u16x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline u32x3 addu32x3(u32x3 a, u32x3 b) { return u32x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline u64x3 addu64x3(u64x3 a, u64x3 b) { return u64x3(a.x + b.x, a.y + b.y, a.z + b.z); }
-HCC_INTRINSIC static inline f16x4 addf16x4(f16x4 a, f16x4 b) { return f16x4(addf16(a.x, b.x), addf16(a.y, b.y), addf16(a.z, b.z), addf16(a.w, b.w)); }
-HCC_INTRINSIC static inline f32x4 addf32x4(f32x4 a, f32x4 b) { return f32x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline f64x4 addf64x4(f64x4 a, f64x4 b) { return f64x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline s8x4 adds8x4(s8x4 a, s8x4 b) { return s8x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline s16x4 adds16x4(s16x4 a, s16x4 b) { return s16x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline s32x4 adds32x4(s32x4 a, s32x4 b) { return s32x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline s64x4 adds64x4(s64x4 a, s64x4 b) { return s64x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline u8x4 addu8x4(u8x4 a, u8x4 b) { return u8x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline u16x4 addu16x4(u16x4 a, u16x4 b) { return u16x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline u32x4 addu32x4(u32x4 a, u32x4 b) { return u32x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-HCC_INTRINSIC static inline u64x4 addu64x4(u64x4 a, u64x4 b) { return u64x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline f16x2 add_f16x2(f16x2 a, f16x2 b) { return f16x2(add_f16(a.x, b.x), add_f16(a.y, b.y)); }
+static inline f32x2 add_f32x2(f32x2 a, f32x2 b) { return f32x2(a.x + b.x, a.y + b.y); }
+static inline f64x2 add_f64x2(f64x2 a, f64x2 b) { return f64x2(a.x + b.x, a.y + b.y); }
+static inline s8x2 add_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x + b.x, a.y + b.y); }
+static inline s16x2 add_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x + b.x, a.y + b.y); }
+static inline s32x2 add_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x + b.x, a.y + b.y); }
+static inline s64x2 add_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x + b.x, a.y + b.y); }
+static inline u8x2 add_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x + b.x, a.y + b.y); }
+static inline u16x2 add_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x + b.x, a.y + b.y); }
+static inline u32x2 add_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x + b.x, a.y + b.y); }
+static inline u64x2 add_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x + b.x, a.y + b.y); }
+static inline f16x3 add_f16x3(f16x3 a, f16x3 b) { return f16x3(add_f16(a.x, b.x), add_f16(a.y, b.y), add_f16(a.z, b.z)); }
+static inline f32x3 add_f32x3(f32x3 a, f32x3 b) { return f32x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline f64x3 add_f64x3(f64x3 a, f64x3 b) { return f64x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline s8x3 add_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline s16x3 add_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline s32x3 add_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline s64x3 add_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline u8x3 add_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline u16x3 add_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline u32x3 add_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline u64x3 add_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x + b.x, a.y + b.y, a.z + b.z); }
+static inline f16x4 add_f16x4(f16x4 a, f16x4 b) { return f16x4(add_f16(a.x, b.x), add_f16(a.y, b.y), add_f16(a.z, b.z), add_f16(a.w, b.w)); }
+static inline f32x4 add_f32x4(f32x4 a, f32x4 b) { return f32x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline f64x4 add_f64x4(f64x4 a, f64x4 b) { return f64x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline s8x4 add_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline s16x4 add_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline s32x4 add_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline s64x4 add_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline u8x4 add_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline u16x4 add_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline u32x4 add_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
+static inline u64x4 add_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
 
 //
 // returns a vector where each component is the result from adding that component in 'v' to the value of 's'
-static inline f16x2 addsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return addf16x2(v, ss); }
-static inline f32x2 addsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return addf32x2(v, ss); }
-static inline f64x2 addsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return addf64x2(v, ss); }
-static inline s8x2 addss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return adds8x2(v, ss); }
-static inline s16x2 addss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return adds16x2(v, ss); }
-static inline s32x2 addss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return adds32x2(v, ss); }
-static inline s64x2 addss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return adds64x2(v, ss); }
-static inline u8x2 addsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return addu8x2(v, ss); }
-static inline u16x2 addsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return addu16x2(v, ss); }
-static inline u32x2 addsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return addu32x2(v, ss); }
-static inline u64x2 addsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return addu64x2(v, ss); }
-static inline f16x3 addsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return addf16x3(v, ss); }
-static inline f32x3 addsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return addf32x3(v, ss); }
-static inline f64x3 addsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return addf64x3(v, ss); }
-static inline s8x3 addss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return adds8x3(v, ss); }
-static inline s16x3 addss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return adds16x3(v, ss); }
-static inline s32x3 addss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return adds32x3(v, ss); }
-static inline s64x3 addss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return adds64x3(v, ss); }
-static inline u8x3 addsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return addu8x3(v, ss); }
-static inline u16x3 addsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return addu16x3(v, ss); }
-static inline u32x3 addsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return addu32x3(v, ss); }
-static inline u64x3 addsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return addu64x3(v, ss); }
-static inline f16x4 addsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return addf16x4(v, ss); }
-static inline f32x4 addsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return addf32x4(v, ss); }
-static inline f64x4 addsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return addf64x4(v, ss); }
-static inline s8x4 addss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return adds8x4(v, ss); }
-static inline s16x4 addss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return adds16x4(v, ss); }
-static inline s32x4 addss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return adds32x4(v, ss); }
-static inline s64x4 addss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return adds64x4(v, ss); }
-static inline u8x4 addsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return addu8x4(v, ss); }
-static inline u16x4 addsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return addu16x4(v, ss); }
-static inline u32x4 addsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return addu32x4(v, ss); }
-static inline u64x4 addsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return addu64x4(v, ss); }
+static inline f16x2 adds_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return add_f16x2(v, ss); }
+static inline f32x2 adds_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return add_f32x2(v, ss); }
+static inline f64x2 adds_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return add_f64x2(v, ss); }
+static inline s8x2 adds_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return add_s8x2(v, ss); }
+static inline s16x2 adds_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return add_s16x2(v, ss); }
+static inline s32x2 adds_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return add_s32x2(v, ss); }
+static inline s64x2 adds_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return add_s64x2(v, ss); }
+static inline u8x2 adds_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return add_u8x2(v, ss); }
+static inline u16x2 adds_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return add_u16x2(v, ss); }
+static inline u32x2 adds_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return add_u32x2(v, ss); }
+static inline u64x2 adds_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return add_u64x2(v, ss); }
+static inline f16x3 adds_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return add_f16x3(v, ss); }
+static inline f32x3 adds_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return add_f32x3(v, ss); }
+static inline f64x3 adds_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return add_f64x3(v, ss); }
+static inline s8x3 adds_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return add_s8x3(v, ss); }
+static inline s16x3 adds_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return add_s16x3(v, ss); }
+static inline s32x3 adds_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return add_s32x3(v, ss); }
+static inline s64x3 adds_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return add_s64x3(v, ss); }
+static inline u8x3 adds_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return add_u8x3(v, ss); }
+static inline u16x3 adds_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return add_u16x3(v, ss); }
+static inline u32x3 adds_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return add_u32x3(v, ss); }
+static inline u64x3 adds_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return add_u64x3(v, ss); }
+static inline f16x4 adds_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return add_f16x4(v, ss); }
+static inline f32x4 adds_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return add_f32x4(v, ss); }
+static inline f64x4 adds_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return add_f64x4(v, ss); }
+static inline s8x4 adds_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return add_s8x4(v, ss); }
+static inline s16x4 adds_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return add_s16x4(v, ss); }
+static inline s32x4 adds_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return add_s32x4(v, ss); }
+static inline s64x4 adds_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return add_s64x4(v, ss); }
+static inline u8x4 adds_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return add_u8x4(v, ss); }
+static inline u16x4 adds_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return add_u16x4(v, ss); }
+static inline u32x4 adds_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return add_u32x4(v, ss); }
+static inline u64x4 adds_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return add_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from subtracting that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline f16x2 subf16x2(f16x2 a, f16x2 b) { return f16x2(subf16(a.x, b.x), subf16(a.y, b.y)); }
-HCC_INTRINSIC static inline f32x2 subf32x2(f32x2 a, f32x2 b) { return f32x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline f64x2 subf64x2(f64x2 a, f64x2 b) { return f64x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline s8x2 subs8x2(s8x2 a, s8x2 b) { return s8x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline s16x2 subs16x2(s16x2 a, s16x2 b) { return s16x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline s32x2 subs32x2(s32x2 a, s32x2 b) { return s32x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline s64x2 subs64x2(s64x2 a, s64x2 b) { return s64x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline u8x2 subu8x2(u8x2 a, u8x2 b) { return u8x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline u16x2 subu16x2(u16x2 a, u16x2 b) { return u16x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline u32x2 subu32x2(u32x2 a, u32x2 b) { return u32x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline u64x2 subu64x2(u64x2 a, u64x2 b) { return u64x2(a.x - b.x, a.y - b.y); }
-HCC_INTRINSIC static inline f16x3 subf16x3(f16x3 a, f16x3 b) { return f16x3(subf16(a.x, b.x), subf16(a.y, b.y), subf16(a.z, b.z)); }
-HCC_INTRINSIC static inline f32x3 subf32x3(f32x3 a, f32x3 b) { return f32x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline f64x3 subf64x3(f64x3 a, f64x3 b) { return f64x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline s8x3 subs8x3(s8x3 a, s8x3 b) { return s8x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline s16x3 subs16x3(s16x3 a, s16x3 b) { return s16x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline s32x3 subs32x3(s32x3 a, s32x3 b) { return s32x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline s64x3 subs64x3(s64x3 a, s64x3 b) { return s64x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline u8x3 subu8x3(u8x3 a, u8x3 b) { return u8x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline u16x3 subu16x3(u16x3 a, u16x3 b) { return u16x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline u32x3 subu32x3(u32x3 a, u32x3 b) { return u32x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline u64x3 subu64x3(u64x3 a, u64x3 b) { return u64x3(a.x - b.x, a.y - b.y, a.z - b.z); }
-HCC_INTRINSIC static inline f16x4 subf16x4(f16x4 a, f16x4 b) { return f16x4(subf16(a.x, b.x), subf16(a.y, b.y), subf16(a.z, b.z), subf16(a.w, b.w)); }
-HCC_INTRINSIC static inline f32x4 subf32x4(f32x4 a, f32x4 b) { return f32x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline f64x4 subf64x4(f64x4 a, f64x4 b) { return f64x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline s8x4 subs8x4(s8x4 a, s8x4 b) { return s8x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline s16x4 subs16x4(s16x4 a, s16x4 b) { return s16x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline s32x4 subs32x4(s32x4 a, s32x4 b) { return s32x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline s64x4 subs64x4(s64x4 a, s64x4 b) { return s64x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline u8x4 subu8x4(u8x4 a, u8x4 b) { return u8x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline u16x4 subu16x4(u16x4 a, u16x4 b) { return u16x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline u32x4 subu32x4(u32x4 a, u32x4 b) { return u32x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-HCC_INTRINSIC static inline u64x4 subu64x4(u64x4 a, u64x4 b) { return u64x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline f16x2 sub_f16x2(f16x2 a, f16x2 b) { return f16x2(sub_f16(a.x, b.x), sub_f16(a.y, b.y)); }
+static inline f32x2 sub_f32x2(f32x2 a, f32x2 b) { return f32x2(a.x - b.x, a.y - b.y); }
+static inline f64x2 sub_f64x2(f64x2 a, f64x2 b) { return f64x2(a.x - b.x, a.y - b.y); }
+static inline s8x2 sub_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x - b.x, a.y - b.y); }
+static inline s16x2 sub_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x - b.x, a.y - b.y); }
+static inline s32x2 sub_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x - b.x, a.y - b.y); }
+static inline s64x2 sub_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x - b.x, a.y - b.y); }
+static inline u8x2 sub_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x - b.x, a.y - b.y); }
+static inline u16x2 sub_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x - b.x, a.y - b.y); }
+static inline u32x2 sub_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x - b.x, a.y - b.y); }
+static inline u64x2 sub_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x - b.x, a.y - b.y); }
+static inline f16x3 sub_f16x3(f16x3 a, f16x3 b) { return f16x3(sub_f16(a.x, b.x), sub_f16(a.y, b.y), sub_f16(a.z, b.z)); }
+static inline f32x3 sub_f32x3(f32x3 a, f32x3 b) { return f32x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline f64x3 sub_f64x3(f64x3 a, f64x3 b) { return f64x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline s8x3 sub_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline s16x3 sub_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline s32x3 sub_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline s64x3 sub_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline u8x3 sub_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline u16x3 sub_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline u32x3 sub_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline u64x3 sub_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x - b.x, a.y - b.y, a.z - b.z); }
+static inline f16x4 sub_f16x4(f16x4 a, f16x4 b) { return f16x4(sub_f16(a.x, b.x), sub_f16(a.y, b.y), sub_f16(a.z, b.z), sub_f16(a.w, b.w)); }
+static inline f32x4 sub_f32x4(f32x4 a, f32x4 b) { return f32x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline f64x4 sub_f64x4(f64x4 a, f64x4 b) { return f64x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline s8x4 sub_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline s16x4 sub_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline s32x4 sub_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline s64x4 sub_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline u8x4 sub_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline u16x4 sub_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline u32x4 sub_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
+static inline u64x4 sub_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 
 //
 // returns a vector where each component is the result from subtracting that component in 'v' to the value of 's'
-static inline f16x2 subsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return subf16x2(v, ss); }
-static inline f32x2 subsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return subf32x2(v, ss); }
-static inline f64x2 subsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return subf64x2(v, ss); }
-static inline s8x2 subss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return subs8x2(v, ss); }
-static inline s16x2 subss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return subs16x2(v, ss); }
-static inline s32x2 subss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return subs32x2(v, ss); }
-static inline s64x2 subss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return subs64x2(v, ss); }
-static inline u8x2 subsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return subu8x2(v, ss); }
-static inline u16x2 subsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return subu16x2(v, ss); }
-static inline u32x2 subsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return subu32x2(v, ss); }
-static inline u64x2 subsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return subu64x2(v, ss); }
-static inline f16x3 subsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return subf16x3(v, ss); }
-static inline f32x3 subsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return subf32x3(v, ss); }
-static inline f64x3 subsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return subf64x3(v, ss); }
-static inline s8x3 subss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return subs8x3(v, ss); }
-static inline s16x3 subss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return subs16x3(v, ss); }
-static inline s32x3 subss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return subs32x3(v, ss); }
-static inline s64x3 subss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return subs64x3(v, ss); }
-static inline u8x3 subsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return subu8x3(v, ss); }
-static inline u16x3 subsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return subu16x3(v, ss); }
-static inline u32x3 subsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return subu32x3(v, ss); }
-static inline u64x3 subsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return subu64x3(v, ss); }
-static inline f16x4 subsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return subf16x4(v, ss); }
-static inline f32x4 subsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return subf32x4(v, ss); }
-static inline f64x4 subsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return subf64x4(v, ss); }
-static inline s8x4 subss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return subs8x4(v, ss); }
-static inline s16x4 subss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return subs16x4(v, ss); }
-static inline s32x4 subss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return subs32x4(v, ss); }
-static inline s64x4 subss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return subs64x4(v, ss); }
-static inline u8x4 subsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return subu8x4(v, ss); }
-static inline u16x4 subsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return subu16x4(v, ss); }
-static inline u32x4 subsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return subu32x4(v, ss); }
-static inline u64x4 subsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return subu64x4(v, ss); }
+static inline f16x2 subs_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return sub_f16x2(v, ss); }
+static inline f32x2 subs_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return sub_f32x2(v, ss); }
+static inline f64x2 subs_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return sub_f64x2(v, ss); }
+static inline s8x2 subs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return sub_s8x2(v, ss); }
+static inline s16x2 subs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return sub_s16x2(v, ss); }
+static inline s32x2 subs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return sub_s32x2(v, ss); }
+static inline s64x2 subs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return sub_s64x2(v, ss); }
+static inline u8x2 subs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return sub_u8x2(v, ss); }
+static inline u16x2 subs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return sub_u16x2(v, ss); }
+static inline u32x2 subs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return sub_u32x2(v, ss); }
+static inline u64x2 subs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return sub_u64x2(v, ss); }
+static inline f16x3 subs_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return sub_f16x3(v, ss); }
+static inline f32x3 subs_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return sub_f32x3(v, ss); }
+static inline f64x3 subs_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return sub_f64x3(v, ss); }
+static inline s8x3 subs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return sub_s8x3(v, ss); }
+static inline s16x3 subs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return sub_s16x3(v, ss); }
+static inline s32x3 subs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return sub_s32x3(v, ss); }
+static inline s64x3 subs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return sub_s64x3(v, ss); }
+static inline u8x3 subs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return sub_u8x3(v, ss); }
+static inline u16x3 subs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return sub_u16x3(v, ss); }
+static inline u32x3 subs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return sub_u32x3(v, ss); }
+static inline u64x3 subs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return sub_u64x3(v, ss); }
+static inline f16x4 subs_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return sub_f16x4(v, ss); }
+static inline f32x4 subs_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return sub_f32x4(v, ss); }
+static inline f64x4 subs_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return sub_f64x4(v, ss); }
+static inline s8x4 subs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return sub_s8x4(v, ss); }
+static inline s16x4 subs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return sub_s16x4(v, ss); }
+static inline s32x4 subs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return sub_s32x4(v, ss); }
+static inline s64x4 subs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return sub_s64x4(v, ss); }
+static inline u8x4 subs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return sub_u8x4(v, ss); }
+static inline u16x4 subs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return sub_u16x4(v, ss); }
+static inline u32x4 subs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return sub_u32x4(v, ss); }
+static inline u64x4 subs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return sub_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from multiplying that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline f16x2 mulf16x2(f16x2 a, f16x2 b) { return f16x2(mulf16(a.x, b.x), mulf16(a.y, b.y)); }
-HCC_INTRINSIC static inline f32x2 mulf32x2(f32x2 a, f32x2 b) { return f32x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline f64x2 mulf64x2(f64x2 a, f64x2 b) { return f64x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline s8x2 muls8x2(s8x2 a, s8x2 b) { return s8x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline s16x2 muls16x2(s16x2 a, s16x2 b) { return s16x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline s32x2 muls32x2(s32x2 a, s32x2 b) { return s32x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline s64x2 muls64x2(s64x2 a, s64x2 b) { return s64x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline u8x2 mulu8x2(u8x2 a, u8x2 b) { return u8x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline u16x2 mulu16x2(u16x2 a, u16x2 b) { return u16x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline u32x2 mulu32x2(u32x2 a, u32x2 b) { return u32x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline u64x2 mulu64x2(u64x2 a, u64x2 b) { return u64x2(a.x * b.x, a.y * b.y); }
-HCC_INTRINSIC static inline f16x3 mulf16x3(f16x3 a, f16x3 b) { return f16x3(mulf16(a.x, b.x), mulf16(a.y, b.y), mulf16(a.z, b.z)); }
-HCC_INTRINSIC static inline f32x3 mulf32x3(f32x3 a, f32x3 b) { return f32x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline f64x3 mulf64x3(f64x3 a, f64x3 b) { return f64x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline s8x3 muls8x3(s8x3 a, s8x3 b) { return s8x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline s16x3 muls16x3(s16x3 a, s16x3 b) { return s16x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline s32x3 muls32x3(s32x3 a, s32x3 b) { return s32x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline s64x3 muls64x3(s64x3 a, s64x3 b) { return s64x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline u8x3 mulu8x3(u8x3 a, u8x3 b) { return u8x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline u16x3 mulu16x3(u16x3 a, u16x3 b) { return u16x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline u32x3 mulu32x3(u32x3 a, u32x3 b) { return u32x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline u64x3 mulu64x3(u64x3 a, u64x3 b) { return u64x3(a.x * b.x, a.y * b.y, a.z * b.z); }
-HCC_INTRINSIC static inline f16x4 mulf16x4(f16x4 a, f16x4 b) { return f16x4(mulf16(a.x, b.x), mulf16(a.y, b.y), mulf16(a.z, b.z), mulf16(a.w, b.w)); }
-HCC_INTRINSIC static inline f32x4 mulf32x4(f32x4 a, f32x4 b) { return f32x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline f64x4 mulf64x4(f64x4 a, f64x4 b) { return f64x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline s8x4 muls8x4(s8x4 a, s8x4 b) { return s8x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline s16x4 muls16x4(s16x4 a, s16x4 b) { return s16x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline s32x4 muls32x4(s32x4 a, s32x4 b) { return s32x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline s64x4 muls64x4(s64x4 a, s64x4 b) { return s64x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline u8x4 mulu8x4(u8x4 a, u8x4 b) { return u8x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline u16x4 mulu16x4(u16x4 a, u16x4 b) { return u16x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline u32x4 mulu32x4(u32x4 a, u32x4 b) { return u32x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
-HCC_INTRINSIC static inline u64x4 mulu64x4(u64x4 a, u64x4 b) { return u64x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline f16x2 mul_f16x2(f16x2 a, f16x2 b) { return f16x2(mul_f16(a.x, b.x), mul_f16(a.y, b.y)); }
+static inline f32x2 mul_f32x2(f32x2 a, f32x2 b) { return f32x2(a.x * b.x, a.y * b.y); }
+static inline f64x2 mul_f64x2(f64x2 a, f64x2 b) { return f64x2(a.x * b.x, a.y * b.y); }
+static inline s8x2 mul_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x * b.x, a.y * b.y); }
+static inline s16x2 mul_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x * b.x, a.y * b.y); }
+static inline s32x2 mul_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x * b.x, a.y * b.y); }
+static inline s64x2 mul_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x * b.x, a.y * b.y); }
+static inline u8x2 mul_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x * b.x, a.y * b.y); }
+static inline u16x2 mul_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x * b.x, a.y * b.y); }
+static inline u32x2 mul_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x * b.x, a.y * b.y); }
+static inline u64x2 mul_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x * b.x, a.y * b.y); }
+static inline f16x3 mul_f16x3(f16x3 a, f16x3 b) { return f16x3(mul_f16(a.x, b.x), mul_f16(a.y, b.y), mul_f16(a.z, b.z)); }
+static inline f32x3 mul_f32x3(f32x3 a, f32x3 b) { return f32x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline f64x3 mul_f64x3(f64x3 a, f64x3 b) { return f64x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline s8x3 mul_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline s16x3 mul_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline s32x3 mul_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline s64x3 mul_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline u8x3 mul_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline u16x3 mul_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline u32x3 mul_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline u64x3 mul_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x * b.x, a.y * b.y, a.z * b.z); }
+static inline f16x4 mul_f16x4(f16x4 a, f16x4 b) { return f16x4(mul_f16(a.x, b.x), mul_f16(a.y, b.y), mul_f16(a.z, b.z), mul_f16(a.w, b.w)); }
+static inline f32x4 mul_f32x4(f32x4 a, f32x4 b) { return f32x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline f64x4 mul_f64x4(f64x4 a, f64x4 b) { return f64x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline s8x4 mul_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline s16x4 mul_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline s32x4 mul_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline s64x4 mul_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline u8x4 mul_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline u16x4 mul_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline u32x4 mul_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
+static inline u64x4 mul_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
 
 //
 // returns a vector where each component is the result from multiplying that component in 'v' to the value of 's'
-static inline f16x2 mulsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return mulf16x2(v, ss); }
-static inline f32x2 mulsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return mulf32x2(v, ss); }
-static inline f64x2 mulsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return mulf64x2(v, ss); }
-static inline s8x2 mulss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return muls8x2(v, ss); }
-static inline s16x2 mulss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return muls16x2(v, ss); }
-static inline s32x2 mulss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return muls32x2(v, ss); }
-static inline s64x2 mulss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return muls64x2(v, ss); }
-static inline u8x2 mulsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return mulu8x2(v, ss); }
-static inline u16x2 mulsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return mulu16x2(v, ss); }
-static inline u32x2 mulsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return mulu32x2(v, ss); }
-static inline u64x2 mulsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return mulu64x2(v, ss); }
-static inline f16x3 mulsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return mulf16x3(v, ss); }
-static inline f32x3 mulsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return mulf32x3(v, ss); }
-static inline f64x3 mulsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return mulf64x3(v, ss); }
-static inline s8x3 mulss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return muls8x3(v, ss); }
-static inline s16x3 mulss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return muls16x3(v, ss); }
-static inline s32x3 mulss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return muls32x3(v, ss); }
-static inline s64x3 mulss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return muls64x3(v, ss); }
-static inline u8x3 mulsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return mulu8x3(v, ss); }
-static inline u16x3 mulsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return mulu16x3(v, ss); }
-static inline u32x3 mulsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return mulu32x3(v, ss); }
-static inline u64x3 mulsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return mulu64x3(v, ss); }
-static inline f16x4 mulsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return mulf16x4(v, ss); }
-static inline f32x4 mulsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return mulf32x4(v, ss); }
-static inline f64x4 mulsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return mulf64x4(v, ss); }
-static inline s8x4 mulss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return muls8x4(v, ss); }
-static inline s16x4 mulss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return muls16x4(v, ss); }
-static inline s32x4 mulss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return muls32x4(v, ss); }
-static inline s64x4 mulss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return muls64x4(v, ss); }
-static inline u8x4 mulsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return mulu8x4(v, ss); }
-static inline u16x4 mulsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return mulu16x4(v, ss); }
-static inline u32x4 mulsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return mulu32x4(v, ss); }
-static inline u64x4 mulsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return mulu64x4(v, ss); }
+static inline f16x2 muls_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return mul_f16x2(v, ss); }
+static inline f32x2 muls_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return mul_f32x2(v, ss); }
+static inline f64x2 muls_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return mul_f64x2(v, ss); }
+static inline s8x2 muls_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return mul_s8x2(v, ss); }
+static inline s16x2 muls_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return mul_s16x2(v, ss); }
+static inline s32x2 muls_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return mul_s32x2(v, ss); }
+static inline s64x2 muls_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return mul_s64x2(v, ss); }
+static inline u8x2 muls_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return mul_u8x2(v, ss); }
+static inline u16x2 muls_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return mul_u16x2(v, ss); }
+static inline u32x2 muls_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return mul_u32x2(v, ss); }
+static inline u64x2 muls_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return mul_u64x2(v, ss); }
+static inline f16x3 muls_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return mul_f16x3(v, ss); }
+static inline f32x3 muls_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return mul_f32x3(v, ss); }
+static inline f64x3 muls_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return mul_f64x3(v, ss); }
+static inline s8x3 muls_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return mul_s8x3(v, ss); }
+static inline s16x3 muls_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return mul_s16x3(v, ss); }
+static inline s32x3 muls_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return mul_s32x3(v, ss); }
+static inline s64x3 muls_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return mul_s64x3(v, ss); }
+static inline u8x3 muls_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return mul_u8x3(v, ss); }
+static inline u16x3 muls_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return mul_u16x3(v, ss); }
+static inline u32x3 muls_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return mul_u32x3(v, ss); }
+static inline u64x3 muls_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return mul_u64x3(v, ss); }
+static inline f16x4 muls_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return mul_f16x4(v, ss); }
+static inline f32x4 muls_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return mul_f32x4(v, ss); }
+static inline f64x4 muls_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return mul_f64x4(v, ss); }
+static inline s8x4 muls_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return mul_s8x4(v, ss); }
+static inline s16x4 muls_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return mul_s16x4(v, ss); }
+static inline s32x4 muls_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return mul_s32x4(v, ss); }
+static inline s64x4 muls_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return mul_s64x4(v, ss); }
+static inline u8x4 muls_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return mul_u8x4(v, ss); }
+static inline u16x4 muls_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return mul_u16x4(v, ss); }
+static inline u32x4 muls_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return mul_u32x4(v, ss); }
+static inline u64x4 muls_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return mul_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from dividing that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline f16x2 divf16x2(f16x2 a, f16x2 b) { return f16x2(divf16(a.x, b.x), divf16(a.y, b.y)); }
-HCC_INTRINSIC static inline f32x2 divf32x2(f32x2 a, f32x2 b) { return f32x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline f64x2 divf64x2(f64x2 a, f64x2 b) { return f64x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline s8x2 divs8x2(s8x2 a, s8x2 b) { return s8x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline s16x2 divs16x2(s16x2 a, s16x2 b) { return s16x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline s32x2 divs32x2(s32x2 a, s32x2 b) { return s32x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline s64x2 divs64x2(s64x2 a, s64x2 b) { return s64x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline u8x2 divu8x2(u8x2 a, u8x2 b) { return u8x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline u16x2 divu16x2(u16x2 a, u16x2 b) { return u16x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline u32x2 divu32x2(u32x2 a, u32x2 b) { return u32x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline u64x2 divu64x2(u64x2 a, u64x2 b) { return u64x2(a.x / b.x, a.y / b.y); }
-HCC_INTRINSIC static inline f16x3 divf16x3(f16x3 a, f16x3 b) { return f16x3(divf16(a.x, b.x), divf16(a.y, b.y), divf16(a.z, b.z)); }
-HCC_INTRINSIC static inline f32x3 divf32x3(f32x3 a, f32x3 b) { return f32x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline f64x3 divf64x3(f64x3 a, f64x3 b) { return f64x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline s8x3 divs8x3(s8x3 a, s8x3 b) { return s8x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline s16x3 divs16x3(s16x3 a, s16x3 b) { return s16x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline s32x3 divs32x3(s32x3 a, s32x3 b) { return s32x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline s64x3 divs64x3(s64x3 a, s64x3 b) { return s64x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline u8x3 divu8x3(u8x3 a, u8x3 b) { return u8x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline u16x3 divu16x3(u16x3 a, u16x3 b) { return u16x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline u32x3 divu32x3(u32x3 a, u32x3 b) { return u32x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline u64x3 divu64x3(u64x3 a, u64x3 b) { return u64x3(a.x / b.x, a.y / b.y, a.z / b.z); }
-HCC_INTRINSIC static inline f16x4 divf16x4(f16x4 a, f16x4 b) { return f16x4(divf16(a.x, b.x), divf16(a.y, b.y), divf16(a.z, b.z), divf16(a.w, b.w)); }
-HCC_INTRINSIC static inline f32x4 divf32x4(f32x4 a, f32x4 b) { return f32x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline f64x4 divf64x4(f64x4 a, f64x4 b) { return f64x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline s8x4 divs8x4(s8x4 a, s8x4 b) { return s8x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline s16x4 divs16x4(s16x4 a, s16x4 b) { return s16x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline s32x4 divs32x4(s32x4 a, s32x4 b) { return s32x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline s64x4 divs64x4(s64x4 a, s64x4 b) { return s64x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline u8x4 divu8x4(u8x4 a, u8x4 b) { return u8x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline u16x4 divu16x4(u16x4 a, u16x4 b) { return u16x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline u32x4 divu32x4(u32x4 a, u32x4 b) { return u32x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
-HCC_INTRINSIC static inline u64x4 divu64x4(u64x4 a, u64x4 b) { return u64x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline f16x2 div_f16x2(f16x2 a, f16x2 b) { return f16x2(div_f16(a.x, b.x), div_f16(a.y, b.y)); }
+static inline f32x2 div_f32x2(f32x2 a, f32x2 b) { return f32x2(a.x / b.x, a.y / b.y); }
+static inline f64x2 div_f64x2(f64x2 a, f64x2 b) { return f64x2(a.x / b.x, a.y / b.y); }
+static inline s8x2 div_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x / b.x, a.y / b.y); }
+static inline s16x2 div_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x / b.x, a.y / b.y); }
+static inline s32x2 div_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x / b.x, a.y / b.y); }
+static inline s64x2 div_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x / b.x, a.y / b.y); }
+static inline u8x2 div_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x / b.x, a.y / b.y); }
+static inline u16x2 div_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x / b.x, a.y / b.y); }
+static inline u32x2 div_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x / b.x, a.y / b.y); }
+static inline u64x2 div_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x / b.x, a.y / b.y); }
+static inline f16x3 div_f16x3(f16x3 a, f16x3 b) { return f16x3(div_f16(a.x, b.x), div_f16(a.y, b.y), div_f16(a.z, b.z)); }
+static inline f32x3 div_f32x3(f32x3 a, f32x3 b) { return f32x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline f64x3 div_f64x3(f64x3 a, f64x3 b) { return f64x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline s8x3 div_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline s16x3 div_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline s32x3 div_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline s64x3 div_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline u8x3 div_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline u16x3 div_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline u32x3 div_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline u64x3 div_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x / b.x, a.y / b.y, a.z / b.z); }
+static inline f16x4 div_f16x4(f16x4 a, f16x4 b) { return f16x4(div_f16(a.x, b.x), div_f16(a.y, b.y), div_f16(a.z, b.z), div_f16(a.w, b.w)); }
+static inline f32x4 div_f32x4(f32x4 a, f32x4 b) { return f32x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline f64x4 div_f64x4(f64x4 a, f64x4 b) { return f64x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline s8x4 div_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline s16x4 div_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline s32x4 div_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline s64x4 div_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline u8x4 div_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline u16x4 div_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline u32x4 div_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
+static inline u64x4 div_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
 
 //
 // returns a vector where each component is the result from dividing that component in 'v' to the value of 's'
-static inline f16x2 divsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return divf16x2(v, ss); }
-static inline f32x2 divsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return divf32x2(v, ss); }
-static inline f64x2 divsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return divf64x2(v, ss); }
-static inline s8x2 divss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return divs8x2(v, ss); }
-static inline s16x2 divss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return divs16x2(v, ss); }
-static inline s32x2 divss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return divs32x2(v, ss); }
-static inline s64x2 divss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return divs64x2(v, ss); }
-static inline u8x2 divsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return divu8x2(v, ss); }
-static inline u16x2 divsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return divu16x2(v, ss); }
-static inline u32x2 divsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return divu32x2(v, ss); }
-static inline u64x2 divsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return divu64x2(v, ss); }
-static inline f16x3 divsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return divf16x3(v, ss); }
-static inline f32x3 divsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return divf32x3(v, ss); }
-static inline f64x3 divsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return divf64x3(v, ss); }
-static inline s8x3 divss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return divs8x3(v, ss); }
-static inline s16x3 divss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return divs16x3(v, ss); }
-static inline s32x3 divss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return divs32x3(v, ss); }
-static inline s64x3 divss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return divs64x3(v, ss); }
-static inline u8x3 divsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return divu8x3(v, ss); }
-static inline u16x3 divsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return divu16x3(v, ss); }
-static inline u32x3 divsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return divu32x3(v, ss); }
-static inline u64x3 divsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return divu64x3(v, ss); }
-static inline f16x4 divsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return divf16x4(v, ss); }
-static inline f32x4 divsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return divf32x4(v, ss); }
-static inline f64x4 divsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return divf64x4(v, ss); }
-static inline s8x4 divss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return divs8x4(v, ss); }
-static inline s16x4 divss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return divs16x4(v, ss); }
-static inline s32x4 divss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return divs32x4(v, ss); }
-static inline s64x4 divss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return divs64x4(v, ss); }
-static inline u8x4 divsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return divu8x4(v, ss); }
-static inline u16x4 divsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return divu16x4(v, ss); }
-static inline u32x4 divsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return divu32x4(v, ss); }
-static inline u64x4 divsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return divu64x4(v, ss); }
+static inline f16x2 divs_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return div_f16x2(v, ss); }
+static inline f32x2 divs_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return div_f32x2(v, ss); }
+static inline f64x2 divs_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return div_f64x2(v, ss); }
+static inline s8x2 divs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return div_s8x2(v, ss); }
+static inline s16x2 divs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return div_s16x2(v, ss); }
+static inline s32x2 divs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return div_s32x2(v, ss); }
+static inline s64x2 divs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return div_s64x2(v, ss); }
+static inline u8x2 divs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return div_u8x2(v, ss); }
+static inline u16x2 divs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return div_u16x2(v, ss); }
+static inline u32x2 divs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return div_u32x2(v, ss); }
+static inline u64x2 divs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return div_u64x2(v, ss); }
+static inline f16x3 divs_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return div_f16x3(v, ss); }
+static inline f32x3 divs_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return div_f32x3(v, ss); }
+static inline f64x3 divs_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return div_f64x3(v, ss); }
+static inline s8x3 divs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return div_s8x3(v, ss); }
+static inline s16x3 divs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return div_s16x3(v, ss); }
+static inline s32x3 divs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return div_s32x3(v, ss); }
+static inline s64x3 divs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return div_s64x3(v, ss); }
+static inline u8x3 divs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return div_u8x3(v, ss); }
+static inline u16x3 divs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return div_u16x3(v, ss); }
+static inline u32x3 divs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return div_u32x3(v, ss); }
+static inline u64x3 divs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return div_u64x3(v, ss); }
+static inline f16x4 divs_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return div_f16x4(v, ss); }
+static inline f32x4 divs_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return div_f32x4(v, ss); }
+static inline f64x4 divs_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return div_f64x4(v, ss); }
+static inline s8x4 divs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return div_s8x4(v, ss); }
+static inline s16x4 divs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return div_s16x4(v, ss); }
+static inline s32x4 divs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return div_s32x4(v, ss); }
+static inline s64x4 divs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return div_s64x4(v, ss); }
+static inline u8x4 divs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return div_u8x4(v, ss); }
+static inline u16x4 divs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return div_u16x4(v, ss); }
+static inline u32x4 divs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return div_u32x4(v, ss); }
+static inline u64x4 divs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return div_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from moduloing that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline f16x2 modf16x2(f16x2 a, f16x2 b) { return f16x2(modf16(a.x, b.x), modf16(a.y, b.y)); }
-HCC_INTRINSIC static inline f32x2 modf32x2(f32x2 a, f32x2 b) { return f32x2(modf32(a.x, b.x), modf32(a.y, b.y)); }
-HCC_INTRINSIC static inline f64x2 modf64x2(f64x2 a, f64x2 b) { return f64x2(modf64(a.x, b.x), modf64(a.y, b.y)); }
-HCC_INTRINSIC static inline s8x2 mods8x2(s8x2 a, s8x2 b) { return s8x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline s16x2 mods16x2(s16x2 a, s16x2 b) { return s16x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline s32x2 mods32x2(s32x2 a, s32x2 b) { return s32x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline s64x2 mods64x2(s64x2 a, s64x2 b) { return s64x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline u8x2 modu8x2(u8x2 a, u8x2 b) { return u8x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline u16x2 modu16x2(u16x2 a, u16x2 b) { return u16x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline u32x2 modu32x2(u32x2 a, u32x2 b) { return u32x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline u64x2 modu64x2(u64x2 a, u64x2 b) { return u64x2(a.x % b.x, a.y % b.y); }
-HCC_INTRINSIC static inline f16x3 modf16x3(f16x3 a, f16x3 b) { return f16x3(modf16(a.x, b.x), modf16(a.y, b.y), modf16(a.z, b.z)); }
-HCC_INTRINSIC static inline f32x3 modf32x3(f32x3 a, f32x3 b) { return f32x3(modf32(a.x, b.x), modf32(a.y, b.y), modf32(a.z, b.z)); }
-HCC_INTRINSIC static inline f64x3 modf64x3(f64x3 a, f64x3 b) { return f64x3(modf64(a.x, b.x), modf64(a.y, b.y), modf64(a.z, b.z)); }
-HCC_INTRINSIC static inline s8x3 mods8x3(s8x3 a, s8x3 b) { return s8x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline s16x3 mods16x3(s16x3 a, s16x3 b) { return s16x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline s32x3 mods32x3(s32x3 a, s32x3 b) { return s32x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline s64x3 mods64x3(s64x3 a, s64x3 b) { return s64x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline u8x3 modu8x3(u8x3 a, u8x3 b) { return u8x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline u16x3 modu16x3(u16x3 a, u16x3 b) { return u16x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline u32x3 modu32x3(u32x3 a, u32x3 b) { return u32x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline u64x3 modu64x3(u64x3 a, u64x3 b) { return u64x3(a.x % b.x, a.y % b.y, a.z % b.z); }
-HCC_INTRINSIC static inline f16x4 modf16x4(f16x4 a, f16x4 b) { return f16x4(modf16(a.x, b.x), modf16(a.y, b.y), modf16(a.z, b.z), modf16(a.w, b.w)); }
-HCC_INTRINSIC static inline f32x4 modf32x4(f32x4 a, f32x4 b) { return f32x4(modf32(a.x, b.x), modf32(a.y, b.y), modf32(a.z, b.z), modf32(a.w, b.w)); }
-HCC_INTRINSIC static inline f64x4 modf64x4(f64x4 a, f64x4 b) { return f64x4(modf64(a.x, b.x), modf64(a.y, b.y), modf64(a.z, b.z), modf64(a.w, b.w)); }
-HCC_INTRINSIC static inline s8x4 mods8x4(s8x4 a, s8x4 b) { return s8x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
-HCC_INTRINSIC static inline s16x4 mods16x4(s16x4 a, s16x4 b) { return s16x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
-HCC_INTRINSIC static inline s32x4 mods32x4(s32x4 a, s32x4 b) { return s32x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
-HCC_INTRINSIC static inline s64x4 mods64x4(s64x4 a, s64x4 b) { return s64x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
-HCC_INTRINSIC static inline u8x4 modu8x4(u8x4 a, u8x4 b) { return u8x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
-HCC_INTRINSIC static inline u16x4 modu16x4(u16x4 a, u16x4 b) { return u16x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
-HCC_INTRINSIC static inline u32x4 modu32x4(u32x4 a, u32x4 b) { return u32x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
-HCC_INTRINSIC static inline u64x4 modu64x4(u64x4 a, u64x4 b) { return u64x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline f16x2 mod_f16x2(f16x2 a, f16x2 b) { return f16x2(mod_f16(a.x, b.x), mod_f16(a.y, b.y)); }
+static inline f32x2 mod_f32x2(f32x2 a, f32x2 b) { return f32x2(mod_f32(a.x, b.x), mod_f32(a.y, b.y)); }
+static inline f64x2 mod_f64x2(f64x2 a, f64x2 b) { return f64x2(mod_f64(a.x, b.x), mod_f64(a.y, b.y)); }
+static inline s8x2 mod_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x % b.x, a.y % b.y); }
+static inline s16x2 mod_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x % b.x, a.y % b.y); }
+static inline s32x2 mod_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x % b.x, a.y % b.y); }
+static inline s64x2 mod_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x % b.x, a.y % b.y); }
+static inline u8x2 mod_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x % b.x, a.y % b.y); }
+static inline u16x2 mod_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x % b.x, a.y % b.y); }
+static inline u32x2 mod_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x % b.x, a.y % b.y); }
+static inline u64x2 mod_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x % b.x, a.y % b.y); }
+static inline f16x3 mod_f16x3(f16x3 a, f16x3 b) { return f16x3(mod_f16(a.x, b.x), mod_f16(a.y, b.y), mod_f16(a.z, b.z)); }
+static inline f32x3 mod_f32x3(f32x3 a, f32x3 b) { return f32x3(mod_f32(a.x, b.x), mod_f32(a.y, b.y), mod_f32(a.z, b.z)); }
+static inline f64x3 mod_f64x3(f64x3 a, f64x3 b) { return f64x3(mod_f64(a.x, b.x), mod_f64(a.y, b.y), mod_f64(a.z, b.z)); }
+static inline s8x3 mod_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline s16x3 mod_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline s32x3 mod_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline s64x3 mod_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline u8x3 mod_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline u16x3 mod_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline u32x3 mod_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline u64x3 mod_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x % b.x, a.y % b.y, a.z % b.z); }
+static inline f16x4 mod_f16x4(f16x4 a, f16x4 b) { return f16x4(mod_f16(a.x, b.x), mod_f16(a.y, b.y), mod_f16(a.z, b.z), mod_f16(a.w, b.w)); }
+static inline f32x4 mod_f32x4(f32x4 a, f32x4 b) { return f32x4(mod_f32(a.x, b.x), mod_f32(a.y, b.y), mod_f32(a.z, b.z), mod_f32(a.w, b.w)); }
+static inline f64x4 mod_f64x4(f64x4 a, f64x4 b) { return f64x4(mod_f64(a.x, b.x), mod_f64(a.y, b.y), mod_f64(a.z, b.z), mod_f64(a.w, b.w)); }
+static inline s8x4 mod_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline s16x4 mod_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline s32x4 mod_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline s64x4 mod_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline u8x4 mod_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline u16x4 mod_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline u32x4 mod_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
+static inline u64x4 mod_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); }
 
 //
 // returns a vector where each component is the result from moduloing that component in 'v' to the value 's'
-static inline f16x2 modsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return modf16x2(v, ss); }
-static inline f32x2 modsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return modf32x2(v, ss); }
-static inline f64x2 modsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return modf64x2(v, ss); }
-static inline s8x2 modss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return mods8x2(v, ss); }
-static inline s16x2 modss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return mods16x2(v, ss); }
-static inline s32x2 modss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return mods32x2(v, ss); }
-static inline s64x2 modss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return mods64x2(v, ss); }
-static inline u8x2 modsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return modu8x2(v, ss); }
-static inline u16x2 modsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return modu16x2(v, ss); }
-static inline u32x2 modsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return modu32x2(v, ss); }
-static inline u64x2 modsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return modu64x2(v, ss); }
-static inline f16x3 modsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return modf16x3(v, ss); }
-static inline f32x3 modsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return modf32x3(v, ss); }
-static inline f64x3 modsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return modf64x3(v, ss); }
-static inline s8x3 modss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return mods8x3(v, ss); }
-static inline s16x3 modss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return mods16x3(v, ss); }
-static inline s32x3 modss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return mods32x3(v, ss); }
-static inline s64x3 modss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return mods64x3(v, ss); }
-static inline u8x3 modsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return modu8x3(v, ss); }
-static inline u16x3 modsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return modu16x3(v, ss); }
-static inline u32x3 modsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return modu32x3(v, ss); }
-static inline u64x3 modsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return modu64x3(v, ss); }
-static inline f16x4 modsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return modf16x4(v, ss); }
-static inline f32x4 modsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return modf32x4(v, ss); }
-static inline f64x4 modsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return modf64x4(v, ss); }
-static inline s8x4 modss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return mods8x4(v, ss); }
-static inline s16x4 modss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return mods16x4(v, ss); }
-static inline s32x4 modss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return mods32x4(v, ss); }
-static inline s64x4 modss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return mods64x4(v, ss); }
-static inline u8x4 modsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return modu8x4(v, ss); }
-static inline u16x4 modsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return modu16x4(v, ss); }
-static inline u32x4 modsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return modu32x4(v, ss); }
-static inline u64x4 modsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return modu64x4(v, ss); }
+static inline f16x2 mods_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return mod_f16x2(v, ss); }
+static inline f32x2 mods_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return mod_f32x2(v, ss); }
+static inline f64x2 mods_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return mod_f64x2(v, ss); }
+static inline s8x2 mods_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return mod_s8x2(v, ss); }
+static inline s16x2 mods_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return mod_s16x2(v, ss); }
+static inline s32x2 mods_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return mod_s32x2(v, ss); }
+static inline s64x2 mods_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return mod_s64x2(v, ss); }
+static inline u8x2 mods_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return mod_u8x2(v, ss); }
+static inline u16x2 mods_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return mod_u16x2(v, ss); }
+static inline u32x2 mods_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return mod_u32x2(v, ss); }
+static inline u64x2 mods_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return mod_u64x2(v, ss); }
+static inline f16x3 mods_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return mod_f16x3(v, ss); }
+static inline f32x3 mods_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return mod_f32x3(v, ss); }
+static inline f64x3 mods_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return mod_f64x3(v, ss); }
+static inline s8x3 mods_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return mod_s8x3(v, ss); }
+static inline s16x3 mods_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return mod_s16x3(v, ss); }
+static inline s32x3 mods_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return mod_s32x3(v, ss); }
+static inline s64x3 mods_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return mod_s64x3(v, ss); }
+static inline u8x3 mods_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return mod_u8x3(v, ss); }
+static inline u16x3 mods_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return mod_u16x3(v, ss); }
+static inline u32x3 mods_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return mod_u32x3(v, ss); }
+static inline u64x3 mods_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return mod_u64x3(v, ss); }
+static inline f16x4 mods_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return mod_f16x4(v, ss); }
+static inline f32x4 mods_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return mod_f32x4(v, ss); }
+static inline f64x4 mods_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return mod_f64x4(v, ss); }
+static inline s8x4 mods_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return mod_s8x4(v, ss); }
+static inline s16x4 mods_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return mod_s16x4(v, ss); }
+static inline s32x4 mods_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return mod_s32x4(v, ss); }
+static inline s64x4 mods_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return mod_s64x4(v, ss); }
+static inline u8x4 mods_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return mod_u8x4(v, ss); }
+static inline u16x4 mods_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return mod_u16x4(v, ss); }
+static inline u32x4 mods_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return mod_u32x4(v, ss); }
+static inline u64x4 mods_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return mod_u64x4(v, ss); }
 
 //
 // returns a boolean vector where each component is true when that component in 'a' is equal to that component in 'b'
-HCC_INTRINSIC static inline boolx2 eqf16x2(f16x2 a, f16x2 b) { return boolx2(eqf16(a.x, b.x), eqf16(a.y, b.y)); }
-HCC_INTRINSIC static inline boolx2 eqf32x2(f32x2 a, f32x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 eqf64x2(f64x2 a, f64x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 eqs8x2(s8x2 a, s8x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 eqs16x2(s16x2 a, s16x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 eqs32x2(s32x2 a, s32x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 eqs64x2(s64x2 a, s64x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 equ8x2(u8x2 a, u8x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 equ16x2(u16x2 a, u16x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 equ32x2(u32x2 a, u32x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx2 equ64x2(u64x2 a, u64x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
-HCC_INTRINSIC static inline boolx3 eqf16x3(f16x3 a, f16x3 b) { return boolx3(eqf16(a.x, b.x), eqf16(a.y, b.y), eqf16(a.z, b.z)); }
-HCC_INTRINSIC static inline boolx3 eqf32x3(f32x3 a, f32x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 eqf64x3(f64x3 a, f64x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 eqs8x3(s8x3 a, s8x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 eqs16x3(s16x3 a, s16x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 eqs32x3(s32x3 a, s32x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 eqs64x3(s64x3 a, s64x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 equ8x3(u8x3 a, u8x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 equ16x3(u16x3 a, u16x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 equ32x3(u32x3 a, u32x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx3 equ64x3(u64x3 a, u64x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
-HCC_INTRINSIC static inline boolx4 eqf16x4(f16x4 a, f16x4 b) { return boolx4(eqf16(a.x, b.x), eqf16(a.y, b.y), eqf16(a.z, b.z), eqf16(a.w, b.w)); }
-HCC_INTRINSIC static inline boolx4 eqf32x4(f32x4 a, f32x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 eqf64x4(f64x4 a, f64x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 eqs8x4(s8x4 a, s8x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 eqs16x4(s16x4 a, s16x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 eqs32x4(s32x4 a, s32x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 eqs64x4(s64x4 a, s64x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 equ8x4(u8x4 a, u8x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 equ16x4(u16x4 a, u16x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 equ32x4(u32x4 a, u32x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
-HCC_INTRINSIC static inline boolx4 equ64x4(u64x4 a, u64x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx2 eq_f16x2(f16x2 a, f16x2 b) { return boolx2(eq_f16(a.x, b.x), eq_f16(a.y, b.y)); }
+static inline boolx2 eq_f32x2(f32x2 a, f32x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_f64x2(f64x2 a, f64x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_s8x2(s8x2 a, s8x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_s16x2(s16x2 a, s16x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_s32x2(s32x2 a, s32x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_s64x2(s64x2 a, s64x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_u8x2(u8x2 a, u8x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_u16x2(u16x2 a, u16x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_u32x2(u32x2 a, u32x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx2 eq_u64x2(u64x2 a, u64x2 b) { return boolx2(a.x == b.x, a.y == b.y); }
+static inline boolx3 eq_f16x3(f16x3 a, f16x3 b) { return boolx3(eq_f16(a.x, b.x), eq_f16(a.y, b.y), eq_f16(a.z, b.z)); }
+static inline boolx3 eq_f32x3(f32x3 a, f32x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_f64x3(f64x3 a, f64x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_s8x3(s8x3 a, s8x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_s16x3(s16x3 a, s16x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_s32x3(s32x3 a, s32x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_s64x3(s64x3 a, s64x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_u8x3(u8x3 a, u8x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_u16x3(u16x3 a, u16x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_u32x3(u32x3 a, u32x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx3 eq_u64x3(u64x3 a, u64x3 b) { return boolx3(a.x == b.x, a.y == b.y, a.z == b.z); }
+static inline boolx4 eq_f16x4(f16x4 a, f16x4 b) { return boolx4(eq_f16(a.x, b.x), eq_f16(a.y, b.y), eq_f16(a.z, b.z), eq_f16(a.w, b.w)); }
+static inline boolx4 eq_f32x4(f32x4 a, f32x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_f64x4(f64x4 a, f64x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_s8x4(s8x4 a, s8x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_s16x4(s16x4 a, s16x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_s32x4(s32x4 a, s32x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_s64x4(s64x4 a, s64x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_u8x4(u8x4 a, u8x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_u16x4(u16x4 a, u16x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_u32x4(u32x4 a, u32x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
+static inline boolx4 eq_u64x4(u64x4 a, u64x4 b) { return boolx4(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); }
 
 //
 // returns a boolean vector where each component is true when that component in 'v' is equal to the value 's'
-static inline boolx2 eqsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return eqf16x2(v, ss); }
-static inline boolx2 eqsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return eqf32x2(v, ss); }
-static inline boolx2 eqsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return eqf64x2(v, ss); }
-static inline boolx2 eqss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return eqs8x2(v, ss); }
-static inline boolx2 eqss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return eqs16x2(v, ss); }
-static inline boolx2 eqss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return eqs32x2(v, ss); }
-static inline boolx2 eqss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return eqs64x2(v, ss); }
-static inline boolx2 eqsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return equ8x2(v, ss); }
-static inline boolx2 eqsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return equ16x2(v, ss); }
-static inline boolx2 eqsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return equ32x2(v, ss); }
-static inline boolx2 eqsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return equ64x2(v, ss); }
-static inline boolx3 eqsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return eqf16x3(v, ss); }
-static inline boolx3 eqsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return eqf32x3(v, ss); }
-static inline boolx3 eqsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return eqf64x3(v, ss); }
-static inline boolx3 eqss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return eqs8x3(v, ss); }
-static inline boolx3 eqss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return eqs16x3(v, ss); }
-static inline boolx3 eqss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return eqs32x3(v, ss); }
-static inline boolx3 eqss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return eqs64x3(v, ss); }
-static inline boolx3 eqsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return equ8x3(v, ss); }
-static inline boolx3 eqsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return equ16x3(v, ss); }
-static inline boolx3 eqsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return equ32x3(v, ss); }
-static inline boolx3 eqsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return equ64x3(v, ss); }
-static inline boolx4 eqsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return eqf16x4(v, ss); }
-static inline boolx4 eqsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return eqf32x4(v, ss); }
-static inline boolx4 eqsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return eqf64x4(v, ss); }
-static inline boolx4 eqss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return eqs8x4(v, ss); }
-static inline boolx4 eqss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return eqs16x4(v, ss); }
-static inline boolx4 eqss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return eqs32x4(v, ss); }
-static inline boolx4 eqss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return eqs64x4(v, ss); }
-static inline boolx4 eqsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return equ8x4(v, ss); }
-static inline boolx4 eqsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return equ16x4(v, ss); }
-static inline boolx4 eqsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return equ32x4(v, ss); }
-static inline boolx4 eqsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return equ64x4(v, ss); }
+static inline boolx2 eqs_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return eq_f16x2(v, ss); }
+static inline boolx2 eqs_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return eq_f32x2(v, ss); }
+static inline boolx2 eqs_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return eq_f64x2(v, ss); }
+static inline boolx2 eqs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return eq_s8x2(v, ss); }
+static inline boolx2 eqs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return eq_s16x2(v, ss); }
+static inline boolx2 eqs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return eq_s32x2(v, ss); }
+static inline boolx2 eqs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return eq_s64x2(v, ss); }
+static inline boolx2 eqs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return eq_u8x2(v, ss); }
+static inline boolx2 eqs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return eq_u16x2(v, ss); }
+static inline boolx2 eqs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return eq_u32x2(v, ss); }
+static inline boolx2 eqs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return eq_u64x2(v, ss); }
+static inline boolx3 eqs_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return eq_f16x3(v, ss); }
+static inline boolx3 eqs_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return eq_f32x3(v, ss); }
+static inline boolx3 eqs_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return eq_f64x3(v, ss); }
+static inline boolx3 eqs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return eq_s8x3(v, ss); }
+static inline boolx3 eqs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return eq_s16x3(v, ss); }
+static inline boolx3 eqs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return eq_s32x3(v, ss); }
+static inline boolx3 eqs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return eq_s64x3(v, ss); }
+static inline boolx3 eqs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return eq_u8x3(v, ss); }
+static inline boolx3 eqs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return eq_u16x3(v, ss); }
+static inline boolx3 eqs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return eq_u32x3(v, ss); }
+static inline boolx3 eqs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return eq_u64x3(v, ss); }
+static inline boolx4 eqs_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return eq_f16x4(v, ss); }
+static inline boolx4 eqs_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return eq_f32x4(v, ss); }
+static inline boolx4 eqs_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return eq_f64x4(v, ss); }
+static inline boolx4 eqs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return eq_s8x4(v, ss); }
+static inline boolx4 eqs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return eq_s16x4(v, ss); }
+static inline boolx4 eqs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return eq_s32x4(v, ss); }
+static inline boolx4 eqs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return eq_s64x4(v, ss); }
+static inline boolx4 eqs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return eq_u8x4(v, ss); }
+static inline boolx4 eqs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return eq_u16x4(v, ss); }
+static inline boolx4 eqs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return eq_u32x4(v, ss); }
+static inline boolx4 eqs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return eq_u64x4(v, ss); }
 
 //
 // returns a boolean vector where each component is true when that component in 'a' is not equal to that component in 'b'
-HCC_INTRINSIC static inline boolx2 neqf16x2(f16x2 a, f16x2 b) { return boolx2(neqf16(a.x, b.x), neqf16(a.y, b.y)); }
-HCC_INTRINSIC static inline boolx2 neqf32x2(f32x2 a, f32x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 neqf64x2(f64x2 a, f64x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 neqs8x2(s8x2 a, s8x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 neqs16x2(s16x2 a, s16x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 neqs32x2(s32x2 a, s32x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 neqs64x2(s64x2 a, s64x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 nequ8x2(u8x2 a, u8x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 nequ16x2(u16x2 a, u16x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 nequ32x2(u32x2 a, u32x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx2 nequ64x2(u64x2 a, u64x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
-HCC_INTRINSIC static inline boolx3 neqf16x3(f16x3 a, f16x3 b) { return boolx3(neqf16(a.x, b.x), neqf16(a.y, b.y), neqf16(a.z, b.z)); }
-HCC_INTRINSIC static inline boolx3 neqf32x3(f32x3 a, f32x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 neqf64x3(f64x3 a, f64x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 neqs8x3(s8x3 a, s8x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 neqs16x3(s16x3 a, s16x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 neqs32x3(s32x3 a, s32x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 neqs64x3(s64x3 a, s64x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 nequ8x3(u8x3 a, u8x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 nequ16x3(u16x3 a, u16x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 nequ32x3(u32x3 a, u32x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx3 nequ64x3(u64x3 a, u64x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
-HCC_INTRINSIC static inline boolx4 neqf16x4(f16x4 a, f16x4 b) { return boolx4(neqf16(a.x, b.x), neqf16(a.y, b.y), neqf16(a.z, b.z), neqf16(a.w, b.w)); }
-HCC_INTRINSIC static inline boolx4 neqf32x4(f32x4 a, f32x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 neqf64x4(f64x4 a, f64x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 neqs8x4(s8x4 a, s8x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 neqs16x4(s16x4 a, s16x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 neqs32x4(s32x4 a, s32x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 neqs64x4(s64x4 a, s64x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 nequ8x4(u8x4 a, u8x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 nequ16x4(u16x4 a, u16x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 nequ32x4(u32x4 a, u32x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
-HCC_INTRINSIC static inline boolx4 nequ64x4(u64x4 a, u64x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx2 neq_f16x2(f16x2 a, f16x2 b) { return boolx2(neq_f16(a.x, b.x), neq_f16(a.y, b.y)); }
+static inline boolx2 neq_f32x2(f32x2 a, f32x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_f64x2(f64x2 a, f64x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_s8x2(s8x2 a, s8x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_s16x2(s16x2 a, s16x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_s32x2(s32x2 a, s32x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_s64x2(s64x2 a, s64x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_u8x2(u8x2 a, u8x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_u16x2(u16x2 a, u16x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_u32x2(u32x2 a, u32x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx2 neq_u64x2(u64x2 a, u64x2 b) { return boolx2(a.x != b.x, a.y != b.y); }
+static inline boolx3 neq_f16x3(f16x3 a, f16x3 b) { return boolx3(neq_f16(a.x, b.x), neq_f16(a.y, b.y), neq_f16(a.z, b.z)); }
+static inline boolx3 neq_f32x3(f32x3 a, f32x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_f64x3(f64x3 a, f64x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_s8x3(s8x3 a, s8x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_s16x3(s16x3 a, s16x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_s32x3(s32x3 a, s32x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_s64x3(s64x3 a, s64x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_u8x3(u8x3 a, u8x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_u16x3(u16x3 a, u16x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_u32x3(u32x3 a, u32x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx3 neq_u64x3(u64x3 a, u64x3 b) { return boolx3(a.x != b.x, a.y != b.y, a.z != b.z); }
+static inline boolx4 neq_f16x4(f16x4 a, f16x4 b) { return boolx4(neq_f16(a.x, b.x), neq_f16(a.y, b.y), neq_f16(a.z, b.z), neq_f16(a.w, b.w)); }
+static inline boolx4 neq_f32x4(f32x4 a, f32x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_f64x4(f64x4 a, f64x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_s8x4(s8x4 a, s8x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_s16x4(s16x4 a, s16x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_s32x4(s32x4 a, s32x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_s64x4(s64x4 a, s64x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_u8x4(u8x4 a, u8x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_u16x4(u16x4 a, u16x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_u32x4(u32x4 a, u32x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
+static inline boolx4 neq_u64x4(u64x4 a, u64x4 b) { return boolx4(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); }
 
 //
 // returns a boolean vector where each component is true when that component in 'v' is not equal to the value 's'
-static inline boolx2 neqsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return neqf16x2(v, ss); }
-static inline boolx2 neqsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return neqf32x2(v, ss); }
-static inline boolx2 neqsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return neqf64x2(v, ss); }
-static inline boolx2 neqss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return neqs8x2(v, ss); }
-static inline boolx2 neqss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return neqs16x2(v, ss); }
-static inline boolx2 neqss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return neqs32x2(v, ss); }
-static inline boolx2 neqss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return neqs64x2(v, ss); }
-static inline boolx2 neqsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return nequ8x2(v, ss); }
-static inline boolx2 neqsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return nequ16x2(v, ss); }
-static inline boolx2 neqsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return nequ32x2(v, ss); }
-static inline boolx2 neqsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return nequ64x2(v, ss); }
-static inline boolx3 neqsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return neqf16x3(v, ss); }
-static inline boolx3 neqsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return neqf32x3(v, ss); }
-static inline boolx3 neqsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return neqf64x3(v, ss); }
-static inline boolx3 neqss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return neqs8x3(v, ss); }
-static inline boolx3 neqss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return neqs16x3(v, ss); }
-static inline boolx3 neqss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return neqs32x3(v, ss); }
-static inline boolx3 neqss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return neqs64x3(v, ss); }
-static inline boolx3 neqsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return nequ8x3(v, ss); }
-static inline boolx3 neqsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return nequ16x3(v, ss); }
-static inline boolx3 neqsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return nequ32x3(v, ss); }
-static inline boolx3 neqsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return nequ64x3(v, ss); }
-static inline boolx4 neqsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return neqf16x4(v, ss); }
-static inline boolx4 neqsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return neqf32x4(v, ss); }
-static inline boolx4 neqsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return neqf64x4(v, ss); }
-static inline boolx4 neqss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return neqs8x4(v, ss); }
-static inline boolx4 neqss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return neqs16x4(v, ss); }
-static inline boolx4 neqss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return neqs32x4(v, ss); }
-static inline boolx4 neqss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return neqs64x4(v, ss); }
-static inline boolx4 neqsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return nequ8x4(v, ss); }
-static inline boolx4 neqsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return nequ16x4(v, ss); }
-static inline boolx4 neqsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return nequ32x4(v, ss); }
-static inline boolx4 neqsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return nequ64x4(v, ss); }
+static inline boolx2 neqs_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return neq_f16x2(v, ss); }
+static inline boolx2 neqs_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return neq_f32x2(v, ss); }
+static inline boolx2 neqs_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return neq_f64x2(v, ss); }
+static inline boolx2 neqs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return neq_s8x2(v, ss); }
+static inline boolx2 neqs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return neq_s16x2(v, ss); }
+static inline boolx2 neqs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return neq_s32x2(v, ss); }
+static inline boolx2 neqs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return neq_s64x2(v, ss); }
+static inline boolx2 neqs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return neq_u8x2(v, ss); }
+static inline boolx2 neqs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return neq_u16x2(v, ss); }
+static inline boolx2 neqs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return neq_u32x2(v, ss); }
+static inline boolx2 neqs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return neq_u64x2(v, ss); }
+static inline boolx3 neqs_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return neq_f16x3(v, ss); }
+static inline boolx3 neqs_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return neq_f32x3(v, ss); }
+static inline boolx3 neqs_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return neq_f64x3(v, ss); }
+static inline boolx3 neqs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return neq_s8x3(v, ss); }
+static inline boolx3 neqs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return neq_s16x3(v, ss); }
+static inline boolx3 neqs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return neq_s32x3(v, ss); }
+static inline boolx3 neqs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return neq_s64x3(v, ss); }
+static inline boolx3 neqs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return neq_u8x3(v, ss); }
+static inline boolx3 neqs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return neq_u16x3(v, ss); }
+static inline boolx3 neqs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return neq_u32x3(v, ss); }
+static inline boolx3 neqs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return neq_u64x3(v, ss); }
+static inline boolx4 neqs_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return neq_f16x4(v, ss); }
+static inline boolx4 neqs_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return neq_f32x4(v, ss); }
+static inline boolx4 neqs_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return neq_f64x4(v, ss); }
+static inline boolx4 neqs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return neq_s8x4(v, ss); }
+static inline boolx4 neqs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return neq_s16x4(v, ss); }
+static inline boolx4 neqs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return neq_s32x4(v, ss); }
+static inline boolx4 neqs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return neq_s64x4(v, ss); }
+static inline boolx4 neqs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return neq_u8x4(v, ss); }
+static inline boolx4 neqs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return neq_u16x4(v, ss); }
+static inline boolx4 neqs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return neq_u32x4(v, ss); }
+static inline boolx4 neqs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return neq_u64x4(v, ss); }
 
 //
 // returns a boolean vector where each component is true when that component in 'a' is less than to that component in 'b'
-HCC_INTRINSIC static inline boolx2 ltf16x2(f16x2 a, f16x2 b) { return boolx2(ltf16(a.x, b.x), ltf16(a.y, b.y)); }
-HCC_INTRINSIC static inline boolx2 ltf32x2(f32x2 a, f32x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 ltf64x2(f64x2 a, f64x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 lts8x2(s8x2 a, s8x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 lts16x2(s16x2 a, s16x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 lts32x2(s32x2 a, s32x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 lts64x2(s64x2 a, s64x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 ltu8x2(u8x2 a, u8x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 ltu16x2(u16x2 a, u16x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 ltu32x2(u32x2 a, u32x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx2 ltu64x2(u64x2 a, u64x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
-HCC_INTRINSIC static inline boolx3 ltf16x3(f16x3 a, f16x3 b) { return boolx3(ltf16(a.x, b.x), ltf16(a.y, b.y), ltf16(a.z, b.z)); }
-HCC_INTRINSIC static inline boolx3 ltf32x3(f32x3 a, f32x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 ltf64x3(f64x3 a, f64x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 lts8x3(s8x3 a, s8x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 lts16x3(s16x3 a, s16x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 lts32x3(s32x3 a, s32x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 lts64x3(s64x3 a, s64x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 ltu8x3(u8x3 a, u8x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 ltu16x3(u16x3 a, u16x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 ltu32x3(u32x3 a, u32x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx3 ltu64x3(u64x3 a, u64x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
-HCC_INTRINSIC static inline boolx4 ltf16x4(f16x4 a, f16x4 b) { return boolx4(ltf16(a.x, b.x), ltf16(a.y, b.y), ltf16(a.z, b.z), ltf16(a.w, b.w)); }
-HCC_INTRINSIC static inline boolx4 ltf32x4(f32x4 a, f32x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 ltf64x4(f64x4 a, f64x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 lts8x4(s8x4 a, s8x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 lts16x4(s16x4 a, s16x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 lts32x4(s32x4 a, s32x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 lts64x4(s64x4 a, s64x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 ltu8x4(u8x4 a, u8x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 ltu16x4(u16x4 a, u16x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 ltu32x4(u32x4 a, u32x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
-HCC_INTRINSIC static inline boolx4 ltu64x4(u64x4 a, u64x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx2 lt_f16x2(f16x2 a, f16x2 b) { return boolx2(lt_f16(a.x, b.x), lt_f16(a.y, b.y)); }
+static inline boolx2 lt_f32x2(f32x2 a, f32x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_f64x2(f64x2 a, f64x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_s8x2(s8x2 a, s8x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_s16x2(s16x2 a, s16x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_s32x2(s32x2 a, s32x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_s64x2(s64x2 a, s64x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_u8x2(u8x2 a, u8x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_u16x2(u16x2 a, u16x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_u32x2(u32x2 a, u32x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx2 lt_u64x2(u64x2 a, u64x2 b) { return boolx2(a.x < b.x, a.y < b.y); }
+static inline boolx3 lt_f16x3(f16x3 a, f16x3 b) { return boolx3(lt_f16(a.x, b.x), lt_f16(a.y, b.y), lt_f16(a.z, b.z)); }
+static inline boolx3 lt_f32x3(f32x3 a, f32x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_f64x3(f64x3 a, f64x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_s8x3(s8x3 a, s8x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_s16x3(s16x3 a, s16x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_s32x3(s32x3 a, s32x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_s64x3(s64x3 a, s64x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_u8x3(u8x3 a, u8x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_u16x3(u16x3 a, u16x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_u32x3(u32x3 a, u32x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx3 lt_u64x3(u64x3 a, u64x3 b) { return boolx3(a.x < b.x, a.y < b.y, a.z < b.z); }
+static inline boolx4 lt_f16x4(f16x4 a, f16x4 b) { return boolx4(lt_f16(a.x, b.x), lt_f16(a.y, b.y), lt_f16(a.z, b.z), lt_f16(a.w, b.w)); }
+static inline boolx4 lt_f32x4(f32x4 a, f32x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_f64x4(f64x4 a, f64x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_s8x4(s8x4 a, s8x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_s16x4(s16x4 a, s16x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_s32x4(s32x4 a, s32x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_s64x4(s64x4 a, s64x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_u8x4(u8x4 a, u8x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_u16x4(u16x4 a, u16x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_u32x4(u32x4 a, u32x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
+static inline boolx4 lt_u64x4(u64x4 a, u64x4 b) { return boolx4(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); }
 
 //
 // returns a boolean vector where each component is true when that component in 'v' is less than to the value 's'
-static inline boolx2 ltsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return ltf16x2(v, ss); }
-static inline boolx2 ltsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return ltf32x2(v, ss); }
-static inline boolx2 ltsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return ltf64x2(v, ss); }
-static inline boolx2 ltss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return lts8x2(v, ss); }
-static inline boolx2 ltss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return lts16x2(v, ss); }
-static inline boolx2 ltss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return lts32x2(v, ss); }
-static inline boolx2 ltss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return lts64x2(v, ss); }
-static inline boolx2 ltsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return ltu8x2(v, ss); }
-static inline boolx2 ltsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return ltu16x2(v, ss); }
-static inline boolx2 ltsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return ltu32x2(v, ss); }
-static inline boolx2 ltsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return ltu64x2(v, ss); }
-static inline boolx3 ltsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return ltf16x3(v, ss); }
-static inline boolx3 ltsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return ltf32x3(v, ss); }
-static inline boolx3 ltsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return ltf64x3(v, ss); }
-static inline boolx3 ltss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return lts8x3(v, ss); }
-static inline boolx3 ltss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return lts16x3(v, ss); }
-static inline boolx3 ltss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return lts32x3(v, ss); }
-static inline boolx3 ltss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return lts64x3(v, ss); }
-static inline boolx3 ltsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return ltu8x3(v, ss); }
-static inline boolx3 ltsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return ltu16x3(v, ss); }
-static inline boolx3 ltsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return ltu32x3(v, ss); }
-static inline boolx3 ltsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return ltu64x3(v, ss); }
-static inline boolx4 ltsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return ltf16x4(v, ss); }
-static inline boolx4 ltsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return ltf32x4(v, ss); }
-static inline boolx4 ltsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return ltf64x4(v, ss); }
-static inline boolx4 ltss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return lts8x4(v, ss); }
-static inline boolx4 ltss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return lts16x4(v, ss); }
-static inline boolx4 ltss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return lts32x4(v, ss); }
-static inline boolx4 ltss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return lts64x4(v, ss); }
-static inline boolx4 ltsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return ltu8x4(v, ss); }
-static inline boolx4 ltsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return ltu16x4(v, ss); }
-static inline boolx4 ltsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return ltu32x4(v, ss); }
-static inline boolx4 ltsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return ltu64x4(v, ss); }
+static inline boolx2 lts_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return lt_f16x2(v, ss); }
+static inline boolx2 lts_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return lt_f32x2(v, ss); }
+static inline boolx2 lts_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return lt_f64x2(v, ss); }
+static inline boolx2 lts_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return lt_s8x2(v, ss); }
+static inline boolx2 lts_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return lt_s16x2(v, ss); }
+static inline boolx2 lts_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return lt_s32x2(v, ss); }
+static inline boolx2 lts_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return lt_s64x2(v, ss); }
+static inline boolx2 lts_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return lt_u8x2(v, ss); }
+static inline boolx2 lts_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return lt_u16x2(v, ss); }
+static inline boolx2 lts_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return lt_u32x2(v, ss); }
+static inline boolx2 lts_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return lt_u64x2(v, ss); }
+static inline boolx3 lts_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return lt_f16x3(v, ss); }
+static inline boolx3 lts_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return lt_f32x3(v, ss); }
+static inline boolx3 lts_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return lt_f64x3(v, ss); }
+static inline boolx3 lts_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return lt_s8x3(v, ss); }
+static inline boolx3 lts_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return lt_s16x3(v, ss); }
+static inline boolx3 lts_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return lt_s32x3(v, ss); }
+static inline boolx3 lts_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return lt_s64x3(v, ss); }
+static inline boolx3 lts_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return lt_u8x3(v, ss); }
+static inline boolx3 lts_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return lt_u16x3(v, ss); }
+static inline boolx3 lts_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return lt_u32x3(v, ss); }
+static inline boolx3 lts_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return lt_u64x3(v, ss); }
+static inline boolx4 lts_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return lt_f16x4(v, ss); }
+static inline boolx4 lts_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return lt_f32x4(v, ss); }
+static inline boolx4 lts_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return lt_f64x4(v, ss); }
+static inline boolx4 lts_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return lt_s8x4(v, ss); }
+static inline boolx4 lts_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return lt_s16x4(v, ss); }
+static inline boolx4 lts_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return lt_s32x4(v, ss); }
+static inline boolx4 lts_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return lt_s64x4(v, ss); }
+static inline boolx4 lts_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return lt_u8x4(v, ss); }
+static inline boolx4 lts_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return lt_u16x4(v, ss); }
+static inline boolx4 lts_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return lt_u32x4(v, ss); }
+static inline boolx4 lts_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return lt_u64x4(v, ss); }
 
 //
 // returns a boolean vector where each component is true when that component in 'a' is less than or equal to that component in 'b'
-HCC_INTRINSIC static inline boolx2 lteqf16x2(f16x2 a, f16x2 b) { return boolx2(lteqf16(a.x, b.x), lteqf16(a.y, b.y)); }
-HCC_INTRINSIC static inline boolx2 lteqf32x2(f32x2 a, f32x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 lteqf64x2(f64x2 a, f64x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 lteqs8x2(s8x2 a, s8x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 lteqs16x2(s16x2 a, s16x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 lteqs32x2(s32x2 a, s32x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 lteqs64x2(s64x2 a, s64x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 ltequ8x2(u8x2 a, u8x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 ltequ16x2(u16x2 a, u16x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 ltequ32x2(u32x2 a, u32x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx2 ltequ64x2(u64x2 a, u64x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
-HCC_INTRINSIC static inline boolx3 lteqf16x3(f16x3 a, f16x3 b) { return boolx3(lteqf16(a.x, b.x), lteqf16(a.y, b.y), lteqf16(a.z, b.z)); }
-HCC_INTRINSIC static inline boolx3 lteqf32x3(f32x3 a, f32x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 lteqf64x3(f64x3 a, f64x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 lteqs8x3(s8x3 a, s8x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 lteqs16x3(s16x3 a, s16x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 lteqs32x3(s32x3 a, s32x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 lteqs64x3(s64x3 a, s64x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 ltequ8x3(u8x3 a, u8x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 ltequ16x3(u16x3 a, u16x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 ltequ32x3(u32x3 a, u32x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx3 ltequ64x3(u64x3 a, u64x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
-HCC_INTRINSIC static inline boolx4 lteqf16x4(f16x4 a, f16x4 b) { return boolx4(lteqf16(a.x, b.x), lteqf16(a.y, b.y), lteqf16(a.z, b.z), lteqf16(a.w, b.w)); }
-HCC_INTRINSIC static inline boolx4 lteqf32x4(f32x4 a, f32x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 lteqf64x4(f64x4 a, f64x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 lteqs8x4(s8x4 a, s8x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 lteqs16x4(s16x4 a, s16x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 lteqs32x4(s32x4 a, s32x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 lteqs64x4(s64x4 a, s64x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 ltequ8x4(u8x4 a, u8x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 ltequ16x4(u16x4 a, u16x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 ltequ32x4(u32x4 a, u32x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
-HCC_INTRINSIC static inline boolx4 ltequ64x4(u64x4 a, u64x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx2 lteq_f16x2(f16x2 a, f16x2 b) { return boolx2(lteq_f16(a.x, b.x), lteq_f16(a.y, b.y)); }
+static inline boolx2 lteq_f32x2(f32x2 a, f32x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_f64x2(f64x2 a, f64x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_s8x2(s8x2 a, s8x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_s16x2(s16x2 a, s16x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_s32x2(s32x2 a, s32x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_s64x2(s64x2 a, s64x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_u8x2(u8x2 a, u8x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_u16x2(u16x2 a, u16x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_u32x2(u32x2 a, u32x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx2 lteq_u64x2(u64x2 a, u64x2 b) { return boolx2(a.x <= b.x, a.y <= b.y); }
+static inline boolx3 lteq_f16x3(f16x3 a, f16x3 b) { return boolx3(lteq_f16(a.x, b.x), lteq_f16(a.y, b.y), lteq_f16(a.z, b.z)); }
+static inline boolx3 lteq_f32x3(f32x3 a, f32x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_f64x3(f64x3 a, f64x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_s8x3(s8x3 a, s8x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_s16x3(s16x3 a, s16x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_s32x3(s32x3 a, s32x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_s64x3(s64x3 a, s64x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_u8x3(u8x3 a, u8x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_u16x3(u16x3 a, u16x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_u32x3(u32x3 a, u32x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx3 lteq_u64x3(u64x3 a, u64x3 b) { return boolx3(a.x <= b.x, a.y <= b.y, a.z <= b.z); }
+static inline boolx4 lteq_f16x4(f16x4 a, f16x4 b) { return boolx4(lteq_f16(a.x, b.x), lteq_f16(a.y, b.y), lteq_f16(a.z, b.z), lteq_f16(a.w, b.w)); }
+static inline boolx4 lteq_f32x4(f32x4 a, f32x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_f64x4(f64x4 a, f64x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_s8x4(s8x4 a, s8x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_s16x4(s16x4 a, s16x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_s32x4(s32x4 a, s32x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_s64x4(s64x4 a, s64x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_u8x4(u8x4 a, u8x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_u16x4(u16x4 a, u16x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_u32x4(u32x4 a, u32x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
+static inline boolx4 lteq_u64x4(u64x4 a, u64x4 b) { return boolx4(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); }
 
 //
 // returns a boolean vector where each component is true when that component in 'v' is less than or equal to the value 's'
-static inline boolx2 lteqsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return lteqf16x2(v, ss); }
-static inline boolx2 lteqsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return lteqf32x2(v, ss); }
-static inline boolx2 lteqsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return lteqf64x2(v, ss); }
-static inline boolx2 lteqss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return lteqs8x2(v, ss); }
-static inline boolx2 lteqss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return lteqs16x2(v, ss); }
-static inline boolx2 lteqss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return lteqs32x2(v, ss); }
-static inline boolx2 lteqss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return lteqs64x2(v, ss); }
-static inline boolx2 lteqsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return ltequ8x2(v, ss); }
-static inline boolx2 lteqsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return ltequ16x2(v, ss); }
-static inline boolx2 lteqsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return ltequ32x2(v, ss); }
-static inline boolx2 lteqsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return ltequ64x2(v, ss); }
-static inline boolx3 lteqsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return lteqf16x3(v, ss); }
-static inline boolx3 lteqsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return lteqf32x3(v, ss); }
-static inline boolx3 lteqsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return lteqf64x3(v, ss); }
-static inline boolx3 lteqss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return lteqs8x3(v, ss); }
-static inline boolx3 lteqss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return lteqs16x3(v, ss); }
-static inline boolx3 lteqss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return lteqs32x3(v, ss); }
-static inline boolx3 lteqss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return lteqs64x3(v, ss); }
-static inline boolx3 lteqsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return ltequ8x3(v, ss); }
-static inline boolx3 lteqsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return ltequ16x3(v, ss); }
-static inline boolx3 lteqsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return ltequ32x3(v, ss); }
-static inline boolx3 lteqsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return ltequ64x3(v, ss); }
-static inline boolx4 lteqsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return lteqf16x4(v, ss); }
-static inline boolx4 lteqsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return lteqf32x4(v, ss); }
-static inline boolx4 lteqsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return lteqf64x4(v, ss); }
-static inline boolx4 lteqss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return lteqs8x4(v, ss); }
-static inline boolx4 lteqss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return lteqs16x4(v, ss); }
-static inline boolx4 lteqss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return lteqs32x4(v, ss); }
-static inline boolx4 lteqss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return lteqs64x4(v, ss); }
-static inline boolx4 lteqsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return ltequ8x4(v, ss); }
-static inline boolx4 lteqsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return ltequ16x4(v, ss); }
-static inline boolx4 lteqsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return ltequ32x4(v, ss); }
-static inline boolx4 lteqsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return ltequ64x4(v, ss); }
+static inline boolx2 lteqs_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return lteq_f16x2(v, ss); }
+static inline boolx2 lteqs_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return lteq_f32x2(v, ss); }
+static inline boolx2 lteqs_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return lteq_f64x2(v, ss); }
+static inline boolx2 lteqs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return lteq_s8x2(v, ss); }
+static inline boolx2 lteqs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return lteq_s16x2(v, ss); }
+static inline boolx2 lteqs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return lteq_s32x2(v, ss); }
+static inline boolx2 lteqs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return lteq_s64x2(v, ss); }
+static inline boolx2 lteqs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return lteq_u8x2(v, ss); }
+static inline boolx2 lteqs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return lteq_u16x2(v, ss); }
+static inline boolx2 lteqs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return lteq_u32x2(v, ss); }
+static inline boolx2 lteqs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return lteq_u64x2(v, ss); }
+static inline boolx3 lteqs_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return lteq_f16x3(v, ss); }
+static inline boolx3 lteqs_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return lteq_f32x3(v, ss); }
+static inline boolx3 lteqs_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return lteq_f64x3(v, ss); }
+static inline boolx3 lteqs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return lteq_s8x3(v, ss); }
+static inline boolx3 lteqs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return lteq_s16x3(v, ss); }
+static inline boolx3 lteqs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return lteq_s32x3(v, ss); }
+static inline boolx3 lteqs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return lteq_s64x3(v, ss); }
+static inline boolx3 lteqs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return lteq_u8x3(v, ss); }
+static inline boolx3 lteqs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return lteq_u16x3(v, ss); }
+static inline boolx3 lteqs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return lteq_u32x3(v, ss); }
+static inline boolx3 lteqs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return lteq_u64x3(v, ss); }
+static inline boolx4 lteqs_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return lteq_f16x4(v, ss); }
+static inline boolx4 lteqs_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return lteq_f32x4(v, ss); }
+static inline boolx4 lteqs_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return lteq_f64x4(v, ss); }
+static inline boolx4 lteqs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return lteq_s8x4(v, ss); }
+static inline boolx4 lteqs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return lteq_s16x4(v, ss); }
+static inline boolx4 lteqs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return lteq_s32x4(v, ss); }
+static inline boolx4 lteqs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return lteq_s64x4(v, ss); }
+static inline boolx4 lteqs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return lteq_u8x4(v, ss); }
+static inline boolx4 lteqs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return lteq_u16x4(v, ss); }
+static inline boolx4 lteqs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return lteq_u32x4(v, ss); }
+static inline boolx4 lteqs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return lteq_u64x4(v, ss); }
 
 //
 // returns a boolean vector where each component is true when that component in 'a' is greater than to that component in 'b'
-HCC_INTRINSIC static inline boolx2 gtf16x2(f16x2 a, f16x2 b) { return boolx2(gtf16(a.x, b.x), gtf16(a.y, b.y)); }
-HCC_INTRINSIC static inline boolx2 gtf32x2(f32x2 a, f32x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gtf64x2(f64x2 a, f64x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gts8x2(s8x2 a, s8x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gts16x2(s16x2 a, s16x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gts32x2(s32x2 a, s32x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gts64x2(s64x2 a, s64x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gtu8x2(u8x2 a, u8x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gtu16x2(u16x2 a, u16x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gtu32x2(u32x2 a, u32x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx2 gtu64x2(u64x2 a, u64x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
-HCC_INTRINSIC static inline boolx3 gtf16x3(f16x3 a, f16x3 b) { return boolx3(gtf16(a.x, b.x), gtf16(a.y, b.y), gtf16(a.z, b.z)); }
-HCC_INTRINSIC static inline boolx3 gtf32x3(f32x3 a, f32x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gtf64x3(f64x3 a, f64x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gts8x3(s8x3 a, s8x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gts16x3(s16x3 a, s16x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gts32x3(s32x3 a, s32x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gts64x3(s64x3 a, s64x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gtu8x3(u8x3 a, u8x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gtu16x3(u16x3 a, u16x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gtu32x3(u32x3 a, u32x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx3 gtu64x3(u64x3 a, u64x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
-HCC_INTRINSIC static inline boolx4 gtf16x4(f16x4 a, f16x4 b) { return boolx4(gtf16(a.x, b.x), gtf16(a.y, b.y), gtf16(a.z, b.z), gtf16(a.w, b.w)); }
-HCC_INTRINSIC static inline boolx4 gtf32x4(f32x4 a, f32x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gtf64x4(f64x4 a, f64x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gts8x4(s8x4 a, s8x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gts16x4(s16x4 a, s16x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gts32x4(s32x4 a, s32x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gts64x4(s64x4 a, s64x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gtu8x4(u8x4 a, u8x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gtu16x4(u16x4 a, u16x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gtu32x4(u32x4 a, u32x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
-HCC_INTRINSIC static inline boolx4 gtu64x4(u64x4 a, u64x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx2 gt_f16x2(f16x2 a, f16x2 b) { return boolx2(gt_f16(a.x, b.x), gt_f16(a.y, b.y)); }
+static inline boolx2 gt_f32x2(f32x2 a, f32x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_f64x2(f64x2 a, f64x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_s8x2(s8x2 a, s8x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_s16x2(s16x2 a, s16x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_s32x2(s32x2 a, s32x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_s64x2(s64x2 a, s64x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_u8x2(u8x2 a, u8x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_u16x2(u16x2 a, u16x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_u32x2(u32x2 a, u32x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx2 gt_u64x2(u64x2 a, u64x2 b) { return boolx2(a.x > b.x, a.y > b.y); }
+static inline boolx3 gt_f16x3(f16x3 a, f16x3 b) { return boolx3(gt_f16(a.x, b.x), gt_f16(a.y, b.y), gt_f16(a.z, b.z)); }
+static inline boolx3 gt_f32x3(f32x3 a, f32x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_f64x3(f64x3 a, f64x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_s8x3(s8x3 a, s8x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_s16x3(s16x3 a, s16x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_s32x3(s32x3 a, s32x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_s64x3(s64x3 a, s64x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_u8x3(u8x3 a, u8x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_u16x3(u16x3 a, u16x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_u32x3(u32x3 a, u32x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx3 gt_u64x3(u64x3 a, u64x3 b) { return boolx3(a.x > b.x, a.y > b.y, a.z > b.z); }
+static inline boolx4 gt_f16x4(f16x4 a, f16x4 b) { return boolx4(gt_f16(a.x, b.x), gt_f16(a.y, b.y), gt_f16(a.z, b.z), gt_f16(a.w, b.w)); }
+static inline boolx4 gt_f32x4(f32x4 a, f32x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_f64x4(f64x4 a, f64x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_s8x4(s8x4 a, s8x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_s16x4(s16x4 a, s16x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_s32x4(s32x4 a, s32x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_s64x4(s64x4 a, s64x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_u8x4(u8x4 a, u8x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_u16x4(u16x4 a, u16x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_u32x4(u32x4 a, u32x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
+static inline boolx4 gt_u64x4(u64x4 a, u64x4 b) { return boolx4(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); }
 
 //
 // returns a boolean vector where each component is true when that component in 'v' is greater than to the value 's'
-static inline boolx2 gtsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return gtf16x2(v, ss); }
-static inline boolx2 gtsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return gtf32x2(v, ss); }
-static inline boolx2 gtsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return gtf64x2(v, ss); }
-static inline boolx2 gtss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return gts8x2(v, ss); }
-static inline boolx2 gtss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return gts16x2(v, ss); }
-static inline boolx2 gtss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return gts32x2(v, ss); }
-static inline boolx2 gtss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return gts64x2(v, ss); }
-static inline boolx2 gtsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return gtu8x2(v, ss); }
-static inline boolx2 gtsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return gtu16x2(v, ss); }
-static inline boolx2 gtsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return gtu32x2(v, ss); }
-static inline boolx2 gtsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return gtu64x2(v, ss); }
-static inline boolx3 gtsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return gtf16x3(v, ss); }
-static inline boolx3 gtsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return gtf32x3(v, ss); }
-static inline boolx3 gtsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return gtf64x3(v, ss); }
-static inline boolx3 gtss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return gts8x3(v, ss); }
-static inline boolx3 gtss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return gts16x3(v, ss); }
-static inline boolx3 gtss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return gts32x3(v, ss); }
-static inline boolx3 gtss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return gts64x3(v, ss); }
-static inline boolx3 gtsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return gtu8x3(v, ss); }
-static inline boolx3 gtsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return gtu16x3(v, ss); }
-static inline boolx3 gtsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return gtu32x3(v, ss); }
-static inline boolx3 gtsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return gtu64x3(v, ss); }
-static inline boolx4 gtsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return gtf16x4(v, ss); }
-static inline boolx4 gtsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return gtf32x4(v, ss); }
-static inline boolx4 gtsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return gtf64x4(v, ss); }
-static inline boolx4 gtss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return gts8x4(v, ss); }
-static inline boolx4 gtss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return gts16x4(v, ss); }
-static inline boolx4 gtss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return gts32x4(v, ss); }
-static inline boolx4 gtss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return gts64x4(v, ss); }
-static inline boolx4 gtsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return gtu8x4(v, ss); }
-static inline boolx4 gtsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return gtu16x4(v, ss); }
-static inline boolx4 gtsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return gtu32x4(v, ss); }
-static inline boolx4 gtsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return gtu64x4(v, ss); }
+static inline boolx2 gts_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return gt_f16x2(v, ss); }
+static inline boolx2 gts_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return gt_f32x2(v, ss); }
+static inline boolx2 gts_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return gt_f64x2(v, ss); }
+static inline boolx2 gts_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return gt_s8x2(v, ss); }
+static inline boolx2 gts_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return gt_s16x2(v, ss); }
+static inline boolx2 gts_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return gt_s32x2(v, ss); }
+static inline boolx2 gts_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return gt_s64x2(v, ss); }
+static inline boolx2 gts_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return gt_u8x2(v, ss); }
+static inline boolx2 gts_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return gt_u16x2(v, ss); }
+static inline boolx2 gts_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return gt_u32x2(v, ss); }
+static inline boolx2 gts_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return gt_u64x2(v, ss); }
+static inline boolx3 gts_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return gt_f16x3(v, ss); }
+static inline boolx3 gts_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return gt_f32x3(v, ss); }
+static inline boolx3 gts_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return gt_f64x3(v, ss); }
+static inline boolx3 gts_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return gt_s8x3(v, ss); }
+static inline boolx3 gts_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return gt_s16x3(v, ss); }
+static inline boolx3 gts_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return gt_s32x3(v, ss); }
+static inline boolx3 gts_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return gt_s64x3(v, ss); }
+static inline boolx3 gts_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return gt_u8x3(v, ss); }
+static inline boolx3 gts_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return gt_u16x3(v, ss); }
+static inline boolx3 gts_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return gt_u32x3(v, ss); }
+static inline boolx3 gts_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return gt_u64x3(v, ss); }
+static inline boolx4 gts_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return gt_f16x4(v, ss); }
+static inline boolx4 gts_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return gt_f32x4(v, ss); }
+static inline boolx4 gts_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return gt_f64x4(v, ss); }
+static inline boolx4 gts_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return gt_s8x4(v, ss); }
+static inline boolx4 gts_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return gt_s16x4(v, ss); }
+static inline boolx4 gts_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return gt_s32x4(v, ss); }
+static inline boolx4 gts_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return gt_s64x4(v, ss); }
+static inline boolx4 gts_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return gt_u8x4(v, ss); }
+static inline boolx4 gts_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return gt_u16x4(v, ss); }
+static inline boolx4 gts_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return gt_u32x4(v, ss); }
+static inline boolx4 gts_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return gt_u64x4(v, ss); }
 
 //
 // returns a boolean vector where each component is true when that component in 'a' is greater than or equal to that component in 'b'
-HCC_INTRINSIC static inline boolx2 gteqf16x2(f16x2 a, f16x2 b) { return boolx2(gteqf16(a.x, b.x), gteqf16(a.y, b.y)); }
-HCC_INTRINSIC static inline boolx2 gteqf32x2(f32x2 a, f32x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gteqf64x2(f64x2 a, f64x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gteqs8x2(s8x2 a, s8x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gteqs16x2(s16x2 a, s16x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gteqs32x2(s32x2 a, s32x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gteqs64x2(s64x2 a, s64x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gtequ8x2(u8x2 a, u8x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gtequ16x2(u16x2 a, u16x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gtequ32x2(u32x2 a, u32x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx2 gtequ64x2(u64x2 a, u64x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
-HCC_INTRINSIC static inline boolx3 gteqf16x3(f16x3 a, f16x3 b) { return boolx3(gteqf16(a.x, b.x), gteqf16(a.y, b.y), gteqf16(a.z, b.z)); }
-HCC_INTRINSIC static inline boolx3 gteqf32x3(f32x3 a, f32x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gteqf64x3(f64x3 a, f64x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gteqs8x3(s8x3 a, s8x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gteqs16x3(s16x3 a, s16x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gteqs32x3(s32x3 a, s32x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gteqs64x3(s64x3 a, s64x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gtequ8x3(u8x3 a, u8x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gtequ16x3(u16x3 a, u16x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gtequ32x3(u32x3 a, u32x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx3 gtequ64x3(u64x3 a, u64x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
-HCC_INTRINSIC static inline boolx4 gteqf16x4(f16x4 a, f16x4 b) { return boolx4(gteqf16(a.x, b.x), gteqf16(a.y, b.y), gteqf16(a.z, b.z), gteqf16(a.w, b.w)); }
-HCC_INTRINSIC static inline boolx4 gteqf32x4(f32x4 a, f32x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gteqf64x4(f64x4 a, f64x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gteqs8x4(s8x4 a, s8x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gteqs16x4(s16x4 a, s16x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gteqs32x4(s32x4 a, s32x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gteqs64x4(s64x4 a, s64x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gtequ8x4(u8x4 a, u8x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gtequ16x4(u16x4 a, u16x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gtequ32x4(u32x4 a, u32x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
-HCC_INTRINSIC static inline boolx4 gtequ64x4(u64x4 a, u64x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx2 gteq_f16x2(f16x2 a, f16x2 b) { return boolx2(gteq_f16(a.x, b.x), gteq_f16(a.y, b.y)); }
+static inline boolx2 gteq_f32x2(f32x2 a, f32x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_f64x2(f64x2 a, f64x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_s8x2(s8x2 a, s8x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_s16x2(s16x2 a, s16x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_s32x2(s32x2 a, s32x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_s64x2(s64x2 a, s64x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_u8x2(u8x2 a, u8x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_u16x2(u16x2 a, u16x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_u32x2(u32x2 a, u32x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx2 gteq_u64x2(u64x2 a, u64x2 b) { return boolx2(a.x >= b.x, a.y >= b.y); }
+static inline boolx3 gteq_f16x3(f16x3 a, f16x3 b) { return boolx3(gteq_f16(a.x, b.x), gteq_f16(a.y, b.y), gteq_f16(a.z, b.z)); }
+static inline boolx3 gteq_f32x3(f32x3 a, f32x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_f64x3(f64x3 a, f64x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_s8x3(s8x3 a, s8x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_s16x3(s16x3 a, s16x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_s32x3(s32x3 a, s32x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_s64x3(s64x3 a, s64x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_u8x3(u8x3 a, u8x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_u16x3(u16x3 a, u16x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_u32x3(u32x3 a, u32x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx3 gteq_u64x3(u64x3 a, u64x3 b) { return boolx3(a.x >= b.x, a.y >= b.y, a.z >= b.z); }
+static inline boolx4 gteq_f16x4(f16x4 a, f16x4 b) { return boolx4(gteq_f16(a.x, b.x), gteq_f16(a.y, b.y), gteq_f16(a.z, b.z), gteq_f16(a.w, b.w)); }
+static inline boolx4 gteq_f32x4(f32x4 a, f32x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_f64x4(f64x4 a, f64x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_s8x4(s8x4 a, s8x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_s16x4(s16x4 a, s16x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_s32x4(s32x4 a, s32x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_s64x4(s64x4 a, s64x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_u8x4(u8x4 a, u8x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_u16x4(u16x4 a, u16x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_u32x4(u32x4 a, u32x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
+static inline boolx4 gteq_u64x4(u64x4 a, u64x4 b) { return boolx4(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); }
 
 //
 // returns a boolean vector where each component is true when that component in 'v' is greater than or equal to the value 's'
-static inline boolx2 gteqsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return gteqf16x2(v, ss); }
-static inline boolx2 gteqsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return gteqf32x2(v, ss); }
-static inline boolx2 gteqsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return gteqf64x2(v, ss); }
-static inline boolx2 gteqss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return gteqs8x2(v, ss); }
-static inline boolx2 gteqss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return gteqs16x2(v, ss); }
-static inline boolx2 gteqss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return gteqs32x2(v, ss); }
-static inline boolx2 gteqss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return gteqs64x2(v, ss); }
-static inline boolx2 gteqsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return gtequ8x2(v, ss); }
-static inline boolx2 gteqsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return gtequ16x2(v, ss); }
-static inline boolx2 gteqsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return gtequ32x2(v, ss); }
-static inline boolx2 gteqsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return gtequ64x2(v, ss); }
-static inline boolx3 gteqsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return gteqf16x3(v, ss); }
-static inline boolx3 gteqsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return gteqf32x3(v, ss); }
-static inline boolx3 gteqsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return gteqf64x3(v, ss); }
-static inline boolx3 gteqss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return gteqs8x3(v, ss); }
-static inline boolx3 gteqss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return gteqs16x3(v, ss); }
-static inline boolx3 gteqss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return gteqs32x3(v, ss); }
-static inline boolx3 gteqss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return gteqs64x3(v, ss); }
-static inline boolx3 gteqsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return gtequ8x3(v, ss); }
-static inline boolx3 gteqsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return gtequ16x3(v, ss); }
-static inline boolx3 gteqsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return gtequ32x3(v, ss); }
-static inline boolx3 gteqsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return gtequ64x3(v, ss); }
-static inline boolx4 gteqsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return gteqf16x4(v, ss); }
-static inline boolx4 gteqsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return gteqf32x4(v, ss); }
-static inline boolx4 gteqsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return gteqf64x4(v, ss); }
-static inline boolx4 gteqss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return gteqs8x4(v, ss); }
-static inline boolx4 gteqss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return gteqs16x4(v, ss); }
-static inline boolx4 gteqss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return gteqs32x4(v, ss); }
-static inline boolx4 gteqss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return gteqs64x4(v, ss); }
-static inline boolx4 gteqsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return gtequ8x4(v, ss); }
-static inline boolx4 gteqsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return gtequ16x4(v, ss); }
-static inline boolx4 gteqsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return gtequ32x4(v, ss); }
-static inline boolx4 gteqsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return gtequ64x4(v, ss); }
+static inline boolx2 gteqs_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return gteq_f16x2(v, ss); }
+static inline boolx2 gteqs_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return gteq_f32x2(v, ss); }
+static inline boolx2 gteqs_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return gteq_f64x2(v, ss); }
+static inline boolx2 gteqs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return gteq_s8x2(v, ss); }
+static inline boolx2 gteqs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return gteq_s16x2(v, ss); }
+static inline boolx2 gteqs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return gteq_s32x2(v, ss); }
+static inline boolx2 gteqs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return gteq_s64x2(v, ss); }
+static inline boolx2 gteqs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return gteq_u8x2(v, ss); }
+static inline boolx2 gteqs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return gteq_u16x2(v, ss); }
+static inline boolx2 gteqs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return gteq_u32x2(v, ss); }
+static inline boolx2 gteqs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return gteq_u64x2(v, ss); }
+static inline boolx3 gteqs_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return gteq_f16x3(v, ss); }
+static inline boolx3 gteqs_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return gteq_f32x3(v, ss); }
+static inline boolx3 gteqs_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return gteq_f64x3(v, ss); }
+static inline boolx3 gteqs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return gteq_s8x3(v, ss); }
+static inline boolx3 gteqs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return gteq_s16x3(v, ss); }
+static inline boolx3 gteqs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return gteq_s32x3(v, ss); }
+static inline boolx3 gteqs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return gteq_s64x3(v, ss); }
+static inline boolx3 gteqs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return gteq_u8x3(v, ss); }
+static inline boolx3 gteqs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return gteq_u16x3(v, ss); }
+static inline boolx3 gteqs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return gteq_u32x3(v, ss); }
+static inline boolx3 gteqs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return gteq_u64x3(v, ss); }
+static inline boolx4 gteqs_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return gteq_f16x4(v, ss); }
+static inline boolx4 gteqs_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return gteq_f32x4(v, ss); }
+static inline boolx4 gteqs_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return gteq_f64x4(v, ss); }
+static inline boolx4 gteqs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return gteq_s8x4(v, ss); }
+static inline boolx4 gteqs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return gteq_s16x4(v, ss); }
+static inline boolx4 gteqs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return gteq_s32x4(v, ss); }
+static inline boolx4 gteqs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return gteq_s64x4(v, ss); }
+static inline boolx4 gteqs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return gteq_u8x4(v, ss); }
+static inline boolx4 gteqs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return gteq_u16x4(v, ss); }
+static inline boolx4 gteqs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return gteq_u32x4(v, ss); }
+static inline boolx4 gteqs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return gteq_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from negating that component in 'v'
-HCC_INTRINSIC static inline f16x2 negf16x2(f16x2 v) { return f16x2(negf16(v.x), negf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 negf32x2(f32x2 v) { return f32x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline f64x2 negf64x2(f64x2 v) { return f64x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline s8x2 negs8x2(s8x2 v) { return s8x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline s16x2 negs16x2(s16x2 v) { return s16x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline s32x2 negs32x2(s32x2 v) { return s32x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline s64x2 negs64x2(s64x2 v) { return s64x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline u8x2 negu8x2(u8x2 v) { return u8x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline u16x2 negu16x2(u16x2 v) { return u16x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline u32x2 negu32x2(u32x2 v) { return u32x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline u64x2 negu64x2(u64x2 v) { return u64x2(-v.x, -v.y); }
-HCC_INTRINSIC static inline f16x3 negf16x3(f16x3 v) { return f16x3(negf16(v.x), negf16(v.y), negf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 negf32x3(f32x3 v) { return f32x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline f64x3 negf64x3(f64x3 v) { return f64x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline s8x3 negs8x3(s8x3 v) { return s8x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline s16x3 negs16x3(s16x3 v) { return s16x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline s32x3 negs32x3(s32x3 v) { return s32x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline s64x3 negs64x3(s64x3 v) { return s64x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline u8x3 negu8x3(u8x3 v) { return u8x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline u16x3 negu16x3(u16x3 v) { return u16x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline u32x3 negu32x3(u32x3 v) { return u32x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline u64x3 negu64x3(u64x3 v) { return u64x3(-v.x, -v.y, -v.z); }
-HCC_INTRINSIC static inline f16x4 negf16x4(f16x4 v) { return f16x4(negf16(v.x), negf16(v.y), negf16(v.z), negf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 negf32x4(f32x4 v) { return f32x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline f64x4 negf64x4(f64x4 v) { return f64x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline s8x4 negs8x4(s8x4 v) { return s8x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline s16x4 negs16x4(s16x4 v) { return s16x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline s32x4 negs32x4(s32x4 v) { return s32x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline s64x4 negs64x4(s64x4 v) { return s64x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline u8x4 negu8x4(u8x4 v) { return u8x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline u16x4 negu16x4(u16x4 v) { return u16x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline u32x4 negu32x4(u32x4 v) { return u32x4(-v.x, -v.y, -v.z, -v.w); }
-HCC_INTRINSIC static inline u64x4 negu64x4(u64x4 v) { return u64x4(-v.x, -v.y, -v.z, -v.w); }
+static inline f16x2 neg_f16x2(f16x2 v) { return f16x2(neg_f16(v.x), neg_f16(v.y)); }
+static inline f32x2 neg_f32x2(f32x2 v) { return f32x2(-v.x, -v.y); }
+static inline f64x2 neg_f64x2(f64x2 v) { return f64x2(-v.x, -v.y); }
+static inline s8x2 neg_s8x2(s8x2 v) { return s8x2(-v.x, -v.y); }
+static inline s16x2 neg_s16x2(s16x2 v) { return s16x2(-v.x, -v.y); }
+static inline s32x2 neg_s32x2(s32x2 v) { return s32x2(-v.x, -v.y); }
+static inline s64x2 neg_s64x2(s64x2 v) { return s64x2(-v.x, -v.y); }
+static inline u8x2 neg_u8x2(u8x2 v) { return u8x2(-v.x, -v.y); }
+static inline u16x2 neg_u16x2(u16x2 v) { return u16x2(-v.x, -v.y); }
+static inline u32x2 neg_u32x2(u32x2 v) { return u32x2(-v.x, -v.y); }
+static inline u64x2 neg_u64x2(u64x2 v) { return u64x2(-v.x, -v.y); }
+static inline f16x3 neg_f16x3(f16x3 v) { return f16x3(neg_f16(v.x), neg_f16(v.y), neg_f16(v.z)); }
+static inline f32x3 neg_f32x3(f32x3 v) { return f32x3(-v.x, -v.y, -v.z); }
+static inline f64x3 neg_f64x3(f64x3 v) { return f64x3(-v.x, -v.y, -v.z); }
+static inline s8x3 neg_s8x3(s8x3 v) { return s8x3(-v.x, -v.y, -v.z); }
+static inline s16x3 neg_s16x3(s16x3 v) { return s16x3(-v.x, -v.y, -v.z); }
+static inline s32x3 neg_s32x3(s32x3 v) { return s32x3(-v.x, -v.y, -v.z); }
+static inline s64x3 neg_s64x3(s64x3 v) { return s64x3(-v.x, -v.y, -v.z); }
+static inline u8x3 neg_u8x3(u8x3 v) { return u8x3(-v.x, -v.y, -v.z); }
+static inline u16x3 neg_u16x3(u16x3 v) { return u16x3(-v.x, -v.y, -v.z); }
+static inline u32x3 neg_u32x3(u32x3 v) { return u32x3(-v.x, -v.y, -v.z); }
+static inline u64x3 neg_u64x3(u64x3 v) { return u64x3(-v.x, -v.y, -v.z); }
+static inline f16x4 neg_f16x4(f16x4 v) { return f16x4(neg_f16(v.x), neg_f16(v.y), neg_f16(v.z), neg_f16(v.w)); }
+static inline f32x4 neg_f32x4(f32x4 v) { return f32x4(-v.x, -v.y, -v.z, -v.w); }
+static inline f64x4 neg_f64x4(f64x4 v) { return f64x4(-v.x, -v.y, -v.z, -v.w); }
+static inline s8x4 neg_s8x4(s8x4 v) { return s8x4(-v.x, -v.y, -v.z, -v.w); }
+static inline s16x4 neg_s16x4(s16x4 v) { return s16x4(-v.x, -v.y, -v.z, -v.w); }
+static inline s32x4 neg_s32x4(s32x4 v) { return s32x4(-v.x, -v.y, -v.z, -v.w); }
+static inline s64x4 neg_s64x4(s64x4 v) { return s64x4(-v.x, -v.y, -v.z, -v.w); }
+static inline u8x4 neg_u8x4(u8x4 v) { return u8x4(-v.x, -v.y, -v.z, -v.w); }
+static inline u16x4 neg_u16x4(u16x4 v) { return u16x4(-v.x, -v.y, -v.z, -v.w); }
+static inline u32x4 neg_u32x4(u32x4 v) { return u32x4(-v.x, -v.y, -v.z, -v.w); }
+static inline u64x4 neg_u64x4(u64x4 v) { return u64x4(-v.x, -v.y, -v.z, -v.w); }
 
 //
 // returns a vector where each component is the minimum between that component in 'a' and that component in 'b'
-HCC_INTRINSIC static inline f16x2 minf16x2(f16x2 a, f16x2 b) { return f16x2(minf16(a.x, b.x), minf16(a.y, b.y)); }
-HCC_INTRINSIC static inline f32x2 minf32x2(f32x2 a, f32x2 b) { return f32x2(minf32(a.x, b.x), minf32(a.y, b.y)); }
-HCC_INTRINSIC static inline f64x2 minf64x2(f64x2 a, f64x2 b) { return f64x2(minf64(a.x, b.x), minf64(a.y, b.y)); }
-HCC_INTRINSIC static inline s8x2 mins8x2(s8x2 a, s8x2 b) { return s8x2(mins8(a.x, b.x), mins8(a.y, b.y)); }
-HCC_INTRINSIC static inline s16x2 mins16x2(s16x2 a, s16x2 b) { return s16x2(mins16(a.x, b.x), mins16(a.y, b.y)); }
-HCC_INTRINSIC static inline s32x2 mins32x2(s32x2 a, s32x2 b) { return s32x2(mins32(a.x, b.x), mins32(a.y, b.y)); }
-HCC_INTRINSIC static inline s64x2 mins64x2(s64x2 a, s64x2 b) { return s64x2(mins64(a.x, b.x), mins64(a.y, b.y)); }
-HCC_INTRINSIC static inline u8x2 minu8x2(u8x2 a, u8x2 b) { return u8x2(minu8(a.x, b.x), minu8(a.y, b.y)); }
-HCC_INTRINSIC static inline u16x2 minu16x2(u16x2 a, u16x2 b) { return u16x2(minu16(a.x, b.x), minu16(a.y, b.y)); }
-HCC_INTRINSIC static inline u32x2 minu32x2(u32x2 a, u32x2 b) { return u32x2(minu32(a.x, b.x), minu32(a.y, b.y)); }
-HCC_INTRINSIC static inline u64x2 minu64x2(u64x2 a, u64x2 b) { return u64x2(minu64(a.x, b.x), minu64(a.y, b.y)); }
-HCC_INTRINSIC static inline f16x3 minf16x3(f16x3 a, f16x3 b) { return f16x3(minf16(a.x, b.x), minf16(a.y, b.y), minf16(a.z, b.z)); }
-HCC_INTRINSIC static inline f32x3 minf32x3(f32x3 a, f32x3 b) { return f32x3(minf32(a.x, b.x), minf32(a.y, b.y), minf32(a.z, b.z)); }
-HCC_INTRINSIC static inline f64x3 minf64x3(f64x3 a, f64x3 b) { return f64x3(minf64(a.x, b.x), minf64(a.y, b.y), minf64(a.z, b.z)); }
-HCC_INTRINSIC static inline s8x3 mins8x3(s8x3 a, s8x3 b) { return s8x3(mins8(a.x, b.x), mins8(a.y, b.y), mins8(a.z, b.z)); }
-HCC_INTRINSIC static inline s16x3 mins16x3(s16x3 a, s16x3 b) { return s16x3(mins16(a.x, b.x), mins16(a.y, b.y), mins16(a.z, b.z)); }
-HCC_INTRINSIC static inline s32x3 mins32x3(s32x3 a, s32x3 b) { return s32x3(mins32(a.x, b.x), mins32(a.y, b.y), mins32(a.z, b.z)); }
-HCC_INTRINSIC static inline s64x3 mins64x3(s64x3 a, s64x3 b) { return s64x3(mins64(a.x, b.x), mins64(a.y, b.y), mins64(a.z, b.z)); }
-HCC_INTRINSIC static inline u8x3 minu8x3(u8x3 a, u8x3 b) { return u8x3(minu8(a.x, b.x), minu8(a.y, b.y), minu8(a.z, b.z)); }
-HCC_INTRINSIC static inline u16x3 minu16x3(u16x3 a, u16x3 b) { return u16x3(minu16(a.x, b.x), minu16(a.y, b.y), minu16(a.z, b.z)); }
-HCC_INTRINSIC static inline u32x3 minu32x3(u32x3 a, u32x3 b) { return u32x3(minu32(a.x, b.x), minu32(a.y, b.y), minu32(a.z, b.z)); }
-HCC_INTRINSIC static inline u64x3 minu64x3(u64x3 a, u64x3 b) { return u64x3(minu64(a.x, b.x), minu64(a.y, b.y), minu64(a.z, b.z)); }
-HCC_INTRINSIC static inline f16x4 minf16x4(f16x4 a, f16x4 b) { return f16x4(minf16(a.x, b.x), minf16(a.y, b.y), minf16(a.z, b.z), minf16(a.w, b.w)); }
-HCC_INTRINSIC static inline f32x4 minf32x4(f32x4 a, f32x4 b) { return f32x4(minf32(a.x, b.x), minf32(a.y, b.y), minf32(a.z, b.z), minf32(a.w, b.w)); }
-HCC_INTRINSIC static inline f64x4 minf64x4(f64x4 a, f64x4 b) { return f64x4(minf64(a.x, b.x), minf64(a.y, b.y), minf64(a.z, b.z), minf64(a.w, b.w)); }
-HCC_INTRINSIC static inline s8x4 mins8x4(s8x4 a, s8x4 b) { return s8x4(mins8(a.x, b.x), mins8(a.y, b.y), mins8(a.z, b.z), mins8(a.w, b.w)); }
-HCC_INTRINSIC static inline s16x4 mins16x4(s16x4 a, s16x4 b) { return s16x4(mins16(a.x, b.x), mins16(a.y, b.y), mins16(a.z, b.z), mins16(a.w, b.w)); }
-HCC_INTRINSIC static inline s32x4 mins32x4(s32x4 a, s32x4 b) { return s32x4(mins32(a.x, b.x), mins32(a.y, b.y), mins32(a.z, b.z), mins32(a.w, b.w)); }
-HCC_INTRINSIC static inline s64x4 mins64x4(s64x4 a, s64x4 b) { return s64x4(mins64(a.x, b.x), mins64(a.y, b.y), mins64(a.z, b.z), mins64(a.w, b.w)); }
-HCC_INTRINSIC static inline u8x4 minu8x4(u8x4 a, u8x4 b) { return u8x4(minu8(a.x, b.x), minu8(a.y, b.y), minu8(a.z, b.z), minu8(a.w, b.w)); }
-HCC_INTRINSIC static inline u16x4 minu16x4(u16x4 a, u16x4 b) { return u16x4(minu16(a.x, b.x), minu16(a.y, b.y), minu16(a.z, b.z), minu16(a.w, b.w)); }
-HCC_INTRINSIC static inline u32x4 minu32x4(u32x4 a, u32x4 b) { return u32x4(minu32(a.x, b.x), minu32(a.y, b.y), minu32(a.z, b.z), minu32(a.w, b.w)); }
-HCC_INTRINSIC static inline u64x4 minu64x4(u64x4 a, u64x4 b) { return u64x4(minu64(a.x, b.x), minu64(a.y, b.y), minu64(a.z, b.z), minu64(a.w, b.w)); }
+static inline f16x2 min_f16x2(f16x2 a, f16x2 b) { return f16x2(min_f16(a.x, b.x), min_f16(a.y, b.y)); }
+static inline f32x2 min_f32x2(f32x2 a, f32x2 b) { return f32x2(min_f32(a.x, b.x), min_f32(a.y, b.y)); }
+static inline f64x2 min_f64x2(f64x2 a, f64x2 b) { return f64x2(min_f64(a.x, b.x), min_f64(a.y, b.y)); }
+static inline s8x2 min_s8x2(s8x2 a, s8x2 b) { return s8x2(min_s8(a.x, b.x), min_s8(a.y, b.y)); }
+static inline s16x2 min_s16x2(s16x2 a, s16x2 b) { return s16x2(min_s16(a.x, b.x), min_s16(a.y, b.y)); }
+static inline s32x2 min_s32x2(s32x2 a, s32x2 b) { return s32x2(min_s32(a.x, b.x), min_s32(a.y, b.y)); }
+static inline s64x2 min_s64x2(s64x2 a, s64x2 b) { return s64x2(min_s64(a.x, b.x), min_s64(a.y, b.y)); }
+static inline u8x2 min_u8x2(u8x2 a, u8x2 b) { return u8x2(min_u8(a.x, b.x), min_u8(a.y, b.y)); }
+static inline u16x2 min_u16x2(u16x2 a, u16x2 b) { return u16x2(min_u16(a.x, b.x), min_u16(a.y, b.y)); }
+static inline u32x2 min_u32x2(u32x2 a, u32x2 b) { return u32x2(min_u32(a.x, b.x), min_u32(a.y, b.y)); }
+static inline u64x2 min_u64x2(u64x2 a, u64x2 b) { return u64x2(min_u64(a.x, b.x), min_u64(a.y, b.y)); }
+static inline f16x3 min_f16x3(f16x3 a, f16x3 b) { return f16x3(min_f16(a.x, b.x), min_f16(a.y, b.y), min_f16(a.z, b.z)); }
+static inline f32x3 min_f32x3(f32x3 a, f32x3 b) { return f32x3(min_f32(a.x, b.x), min_f32(a.y, b.y), min_f32(a.z, b.z)); }
+static inline f64x3 min_f64x3(f64x3 a, f64x3 b) { return f64x3(min_f64(a.x, b.x), min_f64(a.y, b.y), min_f64(a.z, b.z)); }
+static inline s8x3 min_s8x3(s8x3 a, s8x3 b) { return s8x3(min_s8(a.x, b.x), min_s8(a.y, b.y), min_s8(a.z, b.z)); }
+static inline s16x3 min_s16x3(s16x3 a, s16x3 b) { return s16x3(min_s16(a.x, b.x), min_s16(a.y, b.y), min_s16(a.z, b.z)); }
+static inline s32x3 min_s32x3(s32x3 a, s32x3 b) { return s32x3(min_s32(a.x, b.x), min_s32(a.y, b.y), min_s32(a.z, b.z)); }
+static inline s64x3 min_s64x3(s64x3 a, s64x3 b) { return s64x3(min_s64(a.x, b.x), min_s64(a.y, b.y), min_s64(a.z, b.z)); }
+static inline u8x3 min_u8x3(u8x3 a, u8x3 b) { return u8x3(min_u8(a.x, b.x), min_u8(a.y, b.y), min_u8(a.z, b.z)); }
+static inline u16x3 min_u16x3(u16x3 a, u16x3 b) { return u16x3(min_u16(a.x, b.x), min_u16(a.y, b.y), min_u16(a.z, b.z)); }
+static inline u32x3 min_u32x3(u32x3 a, u32x3 b) { return u32x3(min_u32(a.x, b.x), min_u32(a.y, b.y), min_u32(a.z, b.z)); }
+static inline u64x3 min_u64x3(u64x3 a, u64x3 b) { return u64x3(min_u64(a.x, b.x), min_u64(a.y, b.y), min_u64(a.z, b.z)); }
+static inline f16x4 min_f16x4(f16x4 a, f16x4 b) { return f16x4(min_f16(a.x, b.x), min_f16(a.y, b.y), min_f16(a.z, b.z), min_f16(a.w, b.w)); }
+static inline f32x4 min_f32x4(f32x4 a, f32x4 b) { return f32x4(min_f32(a.x, b.x), min_f32(a.y, b.y), min_f32(a.z, b.z), min_f32(a.w, b.w)); }
+static inline f64x4 min_f64x4(f64x4 a, f64x4 b) { return f64x4(min_f64(a.x, b.x), min_f64(a.y, b.y), min_f64(a.z, b.z), min_f64(a.w, b.w)); }
+static inline s8x4 min_s8x4(s8x4 a, s8x4 b) { return s8x4(min_s8(a.x, b.x), min_s8(a.y, b.y), min_s8(a.z, b.z), min_s8(a.w, b.w)); }
+static inline s16x4 min_s16x4(s16x4 a, s16x4 b) { return s16x4(min_s16(a.x, b.x), min_s16(a.y, b.y), min_s16(a.z, b.z), min_s16(a.w, b.w)); }
+static inline s32x4 min_s32x4(s32x4 a, s32x4 b) { return s32x4(min_s32(a.x, b.x), min_s32(a.y, b.y), min_s32(a.z, b.z), min_s32(a.w, b.w)); }
+static inline s64x4 min_s64x4(s64x4 a, s64x4 b) { return s64x4(min_s64(a.x, b.x), min_s64(a.y, b.y), min_s64(a.z, b.z), min_s64(a.w, b.w)); }
+static inline u8x4 min_u8x4(u8x4 a, u8x4 b) { return u8x4(min_u8(a.x, b.x), min_u8(a.y, b.y), min_u8(a.z, b.z), min_u8(a.w, b.w)); }
+static inline u16x4 min_u16x4(u16x4 a, u16x4 b) { return u16x4(min_u16(a.x, b.x), min_u16(a.y, b.y), min_u16(a.z, b.z), min_u16(a.w, b.w)); }
+static inline u32x4 min_u32x4(u32x4 a, u32x4 b) { return u32x4(min_u32(a.x, b.x), min_u32(a.y, b.y), min_u32(a.z, b.z), min_u32(a.w, b.w)); }
+static inline u64x4 min_u64x4(u64x4 a, u64x4 b) { return u64x4(min_u64(a.x, b.x), min_u64(a.y, b.y), min_u64(a.z, b.z), min_u64(a.w, b.w)); }
 
 //
 // returns a vector where each component is the minimum between that component in 'a' and 's'
-static inline f16x2 minsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return minf16x2(v, ss); }
-static inline f32x2 minsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return minf32x2(v, ss); }
-static inline f64x2 minsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return minf64x2(v, ss); }
-static inline s8x2 minss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return mins8x2(v, ss); }
-static inline s16x2 minss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return mins16x2(v, ss); }
-static inline s32x2 minss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return mins32x2(v, ss); }
-static inline s64x2 minss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return mins64x2(v, ss); }
-static inline u8x2 minsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return minu8x2(v, ss); }
-static inline u16x2 minsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return minu16x2(v, ss); }
-static inline u32x2 minsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return minu32x2(v, ss); }
-static inline u64x2 minsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return minu64x2(v, ss); }
-static inline f16x3 minsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return minf16x3(v, ss); }
-static inline f32x3 minsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return minf32x3(v, ss); }
-static inline f64x3 minsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return minf64x3(v, ss); }
-static inline s8x3 minss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return mins8x3(v, ss); }
-static inline s16x3 minss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return mins16x3(v, ss); }
-static inline s32x3 minss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return mins32x3(v, ss); }
-static inline s64x3 minss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return mins64x3(v, ss); }
-static inline u8x3 minsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return minu8x3(v, ss); }
-static inline u16x3 minsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return minu16x3(v, ss); }
-static inline u32x3 minsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return minu32x3(v, ss); }
-static inline u64x3 minsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return minu64x3(v, ss); }
-static inline f16x4 minsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return minf16x4(v, ss); }
-static inline f32x4 minsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return minf32x4(v, ss); }
-static inline f64x4 minsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return minf64x4(v, ss); }
-static inline s8x4 minss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return mins8x4(v, ss); }
-static inline s16x4 minss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return mins16x4(v, ss); }
-static inline s32x4 minss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return mins32x4(v, ss); }
-static inline s64x4 minss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return mins64x4(v, ss); }
-static inline u8x4 minsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return minu8x4(v, ss); }
-static inline u16x4 minsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return minu16x4(v, ss); }
-static inline u32x4 minsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return minu32x4(v, ss); }
-static inline u64x4 minsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return minu64x4(v, ss); }
+static inline f16x2 mins_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return min_f16x2(v, ss); }
+static inline f32x2 mins_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return min_f32x2(v, ss); }
+static inline f64x2 mins_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return min_f64x2(v, ss); }
+static inline s8x2 mins_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return min_s8x2(v, ss); }
+static inline s16x2 mins_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return min_s16x2(v, ss); }
+static inline s32x2 mins_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return min_s32x2(v, ss); }
+static inline s64x2 mins_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return min_s64x2(v, ss); }
+static inline u8x2 mins_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return min_u8x2(v, ss); }
+static inline u16x2 mins_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return min_u16x2(v, ss); }
+static inline u32x2 mins_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return min_u32x2(v, ss); }
+static inline u64x2 mins_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return min_u64x2(v, ss); }
+static inline f16x3 mins_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return min_f16x3(v, ss); }
+static inline f32x3 mins_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return min_f32x3(v, ss); }
+static inline f64x3 mins_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return min_f64x3(v, ss); }
+static inline s8x3 mins_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return min_s8x3(v, ss); }
+static inline s16x3 mins_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return min_s16x3(v, ss); }
+static inline s32x3 mins_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return min_s32x3(v, ss); }
+static inline s64x3 mins_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return min_s64x3(v, ss); }
+static inline u8x3 mins_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return min_u8x3(v, ss); }
+static inline u16x3 mins_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return min_u16x3(v, ss); }
+static inline u32x3 mins_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return min_u32x3(v, ss); }
+static inline u64x3 mins_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return min_u64x3(v, ss); }
+static inline f16x4 mins_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return min_f16x4(v, ss); }
+static inline f32x4 mins_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return min_f32x4(v, ss); }
+static inline f64x4 mins_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return min_f64x4(v, ss); }
+static inline s8x4 mins_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return min_s8x4(v, ss); }
+static inline s16x4 mins_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return min_s16x4(v, ss); }
+static inline s32x4 mins_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return min_s32x4(v, ss); }
+static inline s64x4 mins_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return min_s64x4(v, ss); }
+static inline u8x4 mins_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return min_u8x4(v, ss); }
+static inline u16x4 mins_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return min_u16x4(v, ss); }
+static inline u32x4 mins_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return min_u32x4(v, ss); }
+static inline u64x4 mins_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return min_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the maximum between that component in 'a' and that component in 'b'
-HCC_INTRINSIC static inline f16x2 maxf16x2(f16x2 a, f16x2 b) { return f16x2(maxf16(a.x, b.x), maxf16(a.y, b.y)); }
-HCC_INTRINSIC static inline f32x2 maxf32x2(f32x2 a, f32x2 b) { return f32x2(maxf32(a.x, b.x), maxf32(a.y, b.y)); }
-HCC_INTRINSIC static inline f64x2 maxf64x2(f64x2 a, f64x2 b) { return f64x2(maxf64(a.x, b.x), maxf64(a.y, b.y)); }
-HCC_INTRINSIC static inline s8x2 maxs8x2(s8x2 a, s8x2 b) { return s8x2(maxs8(a.x, b.x), maxs8(a.y, b.y)); }
-HCC_INTRINSIC static inline s16x2 maxs16x2(s16x2 a, s16x2 b) { return s16x2(maxs16(a.x, b.x), maxs16(a.y, b.y)); }
-HCC_INTRINSIC static inline s32x2 maxs32x2(s32x2 a, s32x2 b) { return s32x2(maxs32(a.x, b.x), maxs32(a.y, b.y)); }
-HCC_INTRINSIC static inline s64x2 maxs64x2(s64x2 a, s64x2 b) { return s64x2(maxs64(a.x, b.x), maxs64(a.y, b.y)); }
-HCC_INTRINSIC static inline u8x2 maxu8x2(u8x2 a, u8x2 b) { return u8x2(maxu8(a.x, b.x), maxu8(a.y, b.y)); }
-HCC_INTRINSIC static inline u16x2 maxu16x2(u16x2 a, u16x2 b) { return u16x2(maxu16(a.x, b.x), maxu16(a.y, b.y)); }
-HCC_INTRINSIC static inline u32x2 maxu32x2(u32x2 a, u32x2 b) { return u32x2(maxu32(a.x, b.x), maxu32(a.y, b.y)); }
-HCC_INTRINSIC static inline u64x2 maxu64x2(u64x2 a, u64x2 b) { return u64x2(maxu64(a.x, b.x), maxu64(a.y, b.y)); }
-HCC_INTRINSIC static inline f16x3 maxf16x3(f16x3 a, f16x3 b) { return f16x3(maxf16(a.x, b.x), maxf16(a.y, b.y), maxf16(a.z, b.z)); }
-HCC_INTRINSIC static inline f32x3 maxf32x3(f32x3 a, f32x3 b) { return f32x3(maxf32(a.x, b.x), maxf32(a.y, b.y), maxf32(a.z, b.z)); }
-HCC_INTRINSIC static inline f64x3 maxf64x3(f64x3 a, f64x3 b) { return f64x3(maxf64(a.x, b.x), maxf64(a.y, b.y), maxf64(a.z, b.z)); }
-HCC_INTRINSIC static inline s8x3 maxs8x3(s8x3 a, s8x3 b) { return s8x3(maxs8(a.x, b.x), maxs8(a.y, b.y), maxs8(a.z, b.z)); }
-HCC_INTRINSIC static inline s16x3 maxs16x3(s16x3 a, s16x3 b) { return s16x3(maxs16(a.x, b.x), maxs16(a.y, b.y), maxs16(a.z, b.z)); }
-HCC_INTRINSIC static inline s32x3 maxs32x3(s32x3 a, s32x3 b) { return s32x3(maxs32(a.x, b.x), maxs32(a.y, b.y), maxs32(a.z, b.z)); }
-HCC_INTRINSIC static inline s64x3 maxs64x3(s64x3 a, s64x3 b) { return s64x3(maxs64(a.x, b.x), maxs64(a.y, b.y), maxs64(a.z, b.z)); }
-HCC_INTRINSIC static inline u8x3 maxu8x3(u8x3 a, u8x3 b) { return u8x3(maxu8(a.x, b.x), maxu8(a.y, b.y), maxu8(a.z, b.z)); }
-HCC_INTRINSIC static inline u16x3 maxu16x3(u16x3 a, u16x3 b) { return u16x3(maxu16(a.x, b.x), maxu16(a.y, b.y), maxu16(a.z, b.z)); }
-HCC_INTRINSIC static inline u32x3 maxu32x3(u32x3 a, u32x3 b) { return u32x3(maxu32(a.x, b.x), maxu32(a.y, b.y), maxu32(a.z, b.z)); }
-HCC_INTRINSIC static inline u64x3 maxu64x3(u64x3 a, u64x3 b) { return u64x3(maxu64(a.x, b.x), maxu64(a.y, b.y), maxu64(a.z, b.z)); }
-HCC_INTRINSIC static inline f16x4 maxf16x4(f16x4 a, f16x4 b) { return f16x4(maxf16(a.x, b.x), maxf16(a.y, b.y), maxf16(a.z, b.z), maxf16(a.w, b.w)); }
-HCC_INTRINSIC static inline f32x4 maxf32x4(f32x4 a, f32x4 b) { return f32x4(maxf32(a.x, b.x), maxf32(a.y, b.y), maxf32(a.z, b.z), maxf32(a.w, b.w)); }
-HCC_INTRINSIC static inline f64x4 maxf64x4(f64x4 a, f64x4 b) { return f64x4(maxf64(a.x, b.x), maxf64(a.y, b.y), maxf64(a.z, b.z), maxf64(a.w, b.w)); }
-HCC_INTRINSIC static inline s8x4 maxs8x4(s8x4 a, s8x4 b) { return s8x4(maxs8(a.x, b.x), maxs8(a.y, b.y), maxs8(a.z, b.z), maxs8(a.w, b.w)); }
-HCC_INTRINSIC static inline s16x4 maxs16x4(s16x4 a, s16x4 b) { return s16x4(maxs16(a.x, b.x), maxs16(a.y, b.y), maxs16(a.z, b.z), maxs16(a.w, b.w)); }
-HCC_INTRINSIC static inline s32x4 maxs32x4(s32x4 a, s32x4 b) { return s32x4(maxs32(a.x, b.x), maxs32(a.y, b.y), maxs32(a.z, b.z), maxs32(a.w, b.w)); }
-HCC_INTRINSIC static inline s64x4 maxs64x4(s64x4 a, s64x4 b) { return s64x4(maxs64(a.x, b.x), maxs64(a.y, b.y), maxs64(a.z, b.z), maxs64(a.w, b.w)); }
-HCC_INTRINSIC static inline u8x4 maxu8x4(u8x4 a, u8x4 b) { return u8x4(maxu8(a.x, b.x), maxu8(a.y, b.y), maxu8(a.z, b.z), maxu8(a.w, b.w)); }
-HCC_INTRINSIC static inline u16x4 maxu16x4(u16x4 a, u16x4 b) { return u16x4(maxu16(a.x, b.x), maxu16(a.y, b.y), maxu16(a.z, b.z), maxu16(a.w, b.w)); }
-HCC_INTRINSIC static inline u32x4 maxu32x4(u32x4 a, u32x4 b) { return u32x4(maxu32(a.x, b.x), maxu32(a.y, b.y), maxu32(a.z, b.z), maxu32(a.w, b.w)); }
-HCC_INTRINSIC static inline u64x4 maxu64x4(u64x4 a, u64x4 b) { return u64x4(maxu64(a.x, b.x), maxu64(a.y, b.y), maxu64(a.z, b.z), maxu64(a.w, b.w)); }
+static inline f16x2 max_f16x2(f16x2 a, f16x2 b) { return f16x2(max_f16(a.x, b.x), max_f16(a.y, b.y)); }
+static inline f32x2 max_f32x2(f32x2 a, f32x2 b) { return f32x2(max_f32(a.x, b.x), max_f32(a.y, b.y)); }
+static inline f64x2 max_f64x2(f64x2 a, f64x2 b) { return f64x2(max_f64(a.x, b.x), max_f64(a.y, b.y)); }
+static inline s8x2 max_s8x2(s8x2 a, s8x2 b) { return s8x2(max_s8(a.x, b.x), max_s8(a.y, b.y)); }
+static inline s16x2 max_s16x2(s16x2 a, s16x2 b) { return s16x2(max_s16(a.x, b.x), max_s16(a.y, b.y)); }
+static inline s32x2 max_s32x2(s32x2 a, s32x2 b) { return s32x2(max_s32(a.x, b.x), max_s32(a.y, b.y)); }
+static inline s64x2 max_s64x2(s64x2 a, s64x2 b) { return s64x2(max_s64(a.x, b.x), max_s64(a.y, b.y)); }
+static inline u8x2 max_u8x2(u8x2 a, u8x2 b) { return u8x2(max_u8(a.x, b.x), max_u8(a.y, b.y)); }
+static inline u16x2 max_u16x2(u16x2 a, u16x2 b) { return u16x2(max_u16(a.x, b.x), max_u16(a.y, b.y)); }
+static inline u32x2 max_u32x2(u32x2 a, u32x2 b) { return u32x2(max_u32(a.x, b.x), max_u32(a.y, b.y)); }
+static inline u64x2 max_u64x2(u64x2 a, u64x2 b) { return u64x2(max_u64(a.x, b.x), max_u64(a.y, b.y)); }
+static inline f16x3 max_f16x3(f16x3 a, f16x3 b) { return f16x3(max_f16(a.x, b.x), max_f16(a.y, b.y), max_f16(a.z, b.z)); }
+static inline f32x3 max_f32x3(f32x3 a, f32x3 b) { return f32x3(max_f32(a.x, b.x), max_f32(a.y, b.y), max_f32(a.z, b.z)); }
+static inline f64x3 max_f64x3(f64x3 a, f64x3 b) { return f64x3(max_f64(a.x, b.x), max_f64(a.y, b.y), max_f64(a.z, b.z)); }
+static inline s8x3 max_s8x3(s8x3 a, s8x3 b) { return s8x3(max_s8(a.x, b.x), max_s8(a.y, b.y), max_s8(a.z, b.z)); }
+static inline s16x3 max_s16x3(s16x3 a, s16x3 b) { return s16x3(max_s16(a.x, b.x), max_s16(a.y, b.y), max_s16(a.z, b.z)); }
+static inline s32x3 max_s32x3(s32x3 a, s32x3 b) { return s32x3(max_s32(a.x, b.x), max_s32(a.y, b.y), max_s32(a.z, b.z)); }
+static inline s64x3 max_s64x3(s64x3 a, s64x3 b) { return s64x3(max_s64(a.x, b.x), max_s64(a.y, b.y), max_s64(a.z, b.z)); }
+static inline u8x3 max_u8x3(u8x3 a, u8x3 b) { return u8x3(max_u8(a.x, b.x), max_u8(a.y, b.y), max_u8(a.z, b.z)); }
+static inline u16x3 max_u16x3(u16x3 a, u16x3 b) { return u16x3(max_u16(a.x, b.x), max_u16(a.y, b.y), max_u16(a.z, b.z)); }
+static inline u32x3 max_u32x3(u32x3 a, u32x3 b) { return u32x3(max_u32(a.x, b.x), max_u32(a.y, b.y), max_u32(a.z, b.z)); }
+static inline u64x3 max_u64x3(u64x3 a, u64x3 b) { return u64x3(max_u64(a.x, b.x), max_u64(a.y, b.y), max_u64(a.z, b.z)); }
+static inline f16x4 max_f16x4(f16x4 a, f16x4 b) { return f16x4(max_f16(a.x, b.x), max_f16(a.y, b.y), max_f16(a.z, b.z), max_f16(a.w, b.w)); }
+static inline f32x4 max_f32x4(f32x4 a, f32x4 b) { return f32x4(max_f32(a.x, b.x), max_f32(a.y, b.y), max_f32(a.z, b.z), max_f32(a.w, b.w)); }
+static inline f64x4 max_f64x4(f64x4 a, f64x4 b) { return f64x4(max_f64(a.x, b.x), max_f64(a.y, b.y), max_f64(a.z, b.z), max_f64(a.w, b.w)); }
+static inline s8x4 max_s8x4(s8x4 a, s8x4 b) { return s8x4(max_s8(a.x, b.x), max_s8(a.y, b.y), max_s8(a.z, b.z), max_s8(a.w, b.w)); }
+static inline s16x4 max_s16x4(s16x4 a, s16x4 b) { return s16x4(max_s16(a.x, b.x), max_s16(a.y, b.y), max_s16(a.z, b.z), max_s16(a.w, b.w)); }
+static inline s32x4 max_s32x4(s32x4 a, s32x4 b) { return s32x4(max_s32(a.x, b.x), max_s32(a.y, b.y), max_s32(a.z, b.z), max_s32(a.w, b.w)); }
+static inline s64x4 max_s64x4(s64x4 a, s64x4 b) { return s64x4(max_s64(a.x, b.x), max_s64(a.y, b.y), max_s64(a.z, b.z), max_s64(a.w, b.w)); }
+static inline u8x4 max_u8x4(u8x4 a, u8x4 b) { return u8x4(max_u8(a.x, b.x), max_u8(a.y, b.y), max_u8(a.z, b.z), max_u8(a.w, b.w)); }
+static inline u16x4 max_u16x4(u16x4 a, u16x4 b) { return u16x4(max_u16(a.x, b.x), max_u16(a.y, b.y), max_u16(a.z, b.z), max_u16(a.w, b.w)); }
+static inline u32x4 max_u32x4(u32x4 a, u32x4 b) { return u32x4(max_u32(a.x, b.x), max_u32(a.y, b.y), max_u32(a.z, b.z), max_u32(a.w, b.w)); }
+static inline u64x4 max_u64x4(u64x4 a, u64x4 b) { return u64x4(max_u64(a.x, b.x), max_u64(a.y, b.y), max_u64(a.z, b.z), max_u64(a.w, b.w)); }
 
 //
 // returns a vector where each component is the maximum between that component in 'a' and 's'
-static inline f16x2 maxsf16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return maxf16x2(v, ss); }
-static inline f32x2 maxsf32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return maxf32x2(v, ss); }
-static inline f64x2 maxsf64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return maxf64x2(v, ss); }
-static inline s8x2 maxss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return maxs8x2(v, ss); }
-static inline s16x2 maxss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return maxs16x2(v, ss); }
-static inline s32x2 maxss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return maxs32x2(v, ss); }
-static inline s64x2 maxss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return maxs64x2(v, ss); }
-static inline u8x2 maxsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return maxu8x2(v, ss); }
-static inline u16x2 maxsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return maxu16x2(v, ss); }
-static inline u32x2 maxsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return maxu32x2(v, ss); }
-static inline u64x2 maxsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return maxu64x2(v, ss); }
-static inline f16x3 maxsf16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return maxf16x3(v, ss); }
-static inline f32x3 maxsf32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return maxf32x3(v, ss); }
-static inline f64x3 maxsf64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return maxf64x3(v, ss); }
-static inline s8x3 maxss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return maxs8x3(v, ss); }
-static inline s16x3 maxss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return maxs16x3(v, ss); }
-static inline s32x3 maxss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return maxs32x3(v, ss); }
-static inline s64x3 maxss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return maxs64x3(v, ss); }
-static inline u8x3 maxsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return maxu8x3(v, ss); }
-static inline u16x3 maxsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return maxu16x3(v, ss); }
-static inline u32x3 maxsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return maxu32x3(v, ss); }
-static inline u64x3 maxsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return maxu64x3(v, ss); }
-static inline f16x4 maxsf16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return maxf16x4(v, ss); }
-static inline f32x4 maxsf32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return maxf32x4(v, ss); }
-static inline f64x4 maxsf64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return maxf64x4(v, ss); }
-static inline s8x4 maxss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return maxs8x4(v, ss); }
-static inline s16x4 maxss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return maxs16x4(v, ss); }
-static inline s32x4 maxss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return maxs32x4(v, ss); }
-static inline s64x4 maxss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return maxs64x4(v, ss); }
-static inline u8x4 maxsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return maxu8x4(v, ss); }
-static inline u16x4 maxsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return maxu16x4(v, ss); }
-static inline u32x4 maxsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return maxu32x4(v, ss); }
-static inline u64x4 maxsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return maxu64x4(v, ss); }
+static inline f16x2 maxs_f16x2(f16x2 v, half s) { f16x2 ss = f16x2s(s); return max_f16x2(v, ss); }
+static inline f32x2 maxs_f32x2(f32x2 v, float s) { f32x2 ss = f32x2s(s); return max_f32x2(v, ss); }
+static inline f64x2 maxs_f64x2(f64x2 v, double s) { f64x2 ss = f64x2s(s); return max_f64x2(v, ss); }
+static inline s8x2 maxs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return max_s8x2(v, ss); }
+static inline s16x2 maxs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return max_s16x2(v, ss); }
+static inline s32x2 maxs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return max_s32x2(v, ss); }
+static inline s64x2 maxs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return max_s64x2(v, ss); }
+static inline u8x2 maxs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return max_u8x2(v, ss); }
+static inline u16x2 maxs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return max_u16x2(v, ss); }
+static inline u32x2 maxs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return max_u32x2(v, ss); }
+static inline u64x2 maxs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return max_u64x2(v, ss); }
+static inline f16x3 maxs_f16x3(f16x3 v, half s) { f16x3 ss = f16x3s(s); return max_f16x3(v, ss); }
+static inline f32x3 maxs_f32x3(f32x3 v, float s) { f32x3 ss = f32x3s(s); return max_f32x3(v, ss); }
+static inline f64x3 maxs_f64x3(f64x3 v, double s) { f64x3 ss = f64x3s(s); return max_f64x3(v, ss); }
+static inline s8x3 maxs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return max_s8x3(v, ss); }
+static inline s16x3 maxs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return max_s16x3(v, ss); }
+static inline s32x3 maxs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return max_s32x3(v, ss); }
+static inline s64x3 maxs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return max_s64x3(v, ss); }
+static inline u8x3 maxs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return max_u8x3(v, ss); }
+static inline u16x3 maxs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return max_u16x3(v, ss); }
+static inline u32x3 maxs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return max_u32x3(v, ss); }
+static inline u64x3 maxs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return max_u64x3(v, ss); }
+static inline f16x4 maxs_f16x4(f16x4 v, half s) { f16x4 ss = f16x4s(s); return max_f16x4(v, ss); }
+static inline f32x4 maxs_f32x4(f32x4 v, float s) { f32x4 ss = f32x4s(s); return max_f32x4(v, ss); }
+static inline f64x4 maxs_f64x4(f64x4 v, double s) { f64x4 ss = f64x4s(s); return max_f64x4(v, ss); }
+static inline s8x4 maxs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return max_s8x4(v, ss); }
+static inline s16x4 maxs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return max_s16x4(v, ss); }
+static inline s32x4 maxs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return max_s32x4(v, ss); }
+static inline s64x4 maxs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return max_s64x4(v, ss); }
+static inline u8x4 maxs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return max_u8x4(v, ss); }
+static inline u16x4 maxs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return max_u16x4(v, ss); }
+static inline u32x4 maxs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return max_u32x4(v, ss); }
+static inline u64x4 maxs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return max_u64x4(v, ss); }
 
 //
 // returns a vector where each component is clamped between the minimum value that is the component in 'min' and the maximum value that is the component in 'max'
-HCC_INTRINSIC static inline f16x2 clampf16x2(f16x2 v, f16x2 min, f16x2 max) { return f16x2(clampf16(v.x, min.x, max.x), clampf16(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline f32x2 clampf32x2(f32x2 v, f32x2 min, f32x2 max) { return f32x2(clampf32(v.x, min.x, max.x), clampf32(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline f64x2 clampf64x2(f64x2 v, f64x2 min, f64x2 max) { return f64x2(clampf64(v.x, min.x, max.x), clampf64(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline s8x2 clamps8x2(s8x2 v, s8x2 min, s8x2 max) { return s8x2(clamps8(v.x, min.x, max.x), clamps8(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline s16x2 clamps16x2(s16x2 v, s16x2 min, s16x2 max) { return s16x2(clamps16(v.x, min.x, max.x), clamps16(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline s32x2 clamps32x2(s32x2 v, s32x2 min, s32x2 max) { return s32x2(clamps32(v.x, min.x, max.x), clamps32(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline s64x2 clamps64x2(s64x2 v, s64x2 min, s64x2 max) { return s64x2(clamps64(v.x, min.x, max.x), clamps64(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline u8x2 clampu8x2(u8x2 v, u8x2 min, u8x2 max) { return u8x2(clampu8(v.x, min.x, max.x), clampu8(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline u16x2 clampu16x2(u16x2 v, u16x2 min, u16x2 max) { return u16x2(clampu16(v.x, min.x, max.x), clampu16(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline u32x2 clampu32x2(u32x2 v, u32x2 min, u32x2 max) { return u32x2(clampu32(v.x, min.x, max.x), clampu32(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline u64x2 clampu64x2(u64x2 v, u64x2 min, u64x2 max) { return u64x2(clampu64(v.x, min.x, max.x), clampu64(v.y, min.y, max.y)); }
-HCC_INTRINSIC static inline f16x3 clampf16x3(f16x3 v, f16x3 min, f16x3 max) { return f16x3(clampf16(v.x, min.x, max.x), clampf16(v.y, min.y, max.y), clampf16(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline f32x3 clampf32x3(f32x3 v, f32x3 min, f32x3 max) { return f32x3(clampf32(v.x, min.x, max.x), clampf32(v.y, min.y, max.y), clampf32(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline f64x3 clampf64x3(f64x3 v, f64x3 min, f64x3 max) { return f64x3(clampf64(v.x, min.x, max.x), clampf64(v.y, min.y, max.y), clampf64(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline s8x3 clamps8x3(s8x3 v, s8x3 min, s8x3 max) { return s8x3(clamps8(v.x, min.x, max.x), clamps8(v.y, min.y, max.y), clamps8(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline s16x3 clamps16x3(s16x3 v, s16x3 min, s16x3 max) { return s16x3(clamps16(v.x, min.x, max.x), clamps16(v.y, min.y, max.y), clamps16(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline s32x3 clamps32x3(s32x3 v, s32x3 min, s32x3 max) { return s32x3(clamps32(v.x, min.x, max.x), clamps32(v.y, min.y, max.y), clamps32(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline s64x3 clamps64x3(s64x3 v, s64x3 min, s64x3 max) { return s64x3(clamps64(v.x, min.x, max.x), clamps64(v.y, min.y, max.y), clamps64(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline u8x3 clampu8x3(u8x3 v, u8x3 min, u8x3 max) { return u8x3(clampu8(v.x, min.x, max.x), clampu8(v.y, min.y, max.y), clampu8(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline u16x3 clampu16x3(u16x3 v, u16x3 min, u16x3 max) { return u16x3(clampu16(v.x, min.x, max.x), clampu16(v.y, min.y, max.y), clampu16(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline u32x3 clampu32x3(u32x3 v, u32x3 min, u32x3 max) { return u32x3(clampu32(v.x, min.x, max.x), clampu32(v.y, min.y, max.y), clampu32(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline u64x3 clampu64x3(u64x3 v, u64x3 min, u64x3 max) { return u64x3(clampu64(v.x, min.x, max.x), clampu64(v.y, min.y, max.y), clampu64(v.z, min.z, max.z)); }
-HCC_INTRINSIC static inline f16x4 clampf16x4(f16x4 v, f16x4 min, f16x4 max) { return f16x4(clampf16(v.x, min.x, max.x), clampf16(v.y, min.y, max.y), clampf16(v.z, min.z, max.z), clampf16(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline f32x4 clampf32x4(f32x4 v, f32x4 min, f32x4 max) { return f32x4(clampf32(v.x, min.x, max.x), clampf32(v.y, min.y, max.y), clampf32(v.z, min.z, max.z), clampf32(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline f64x4 clampf64x4(f64x4 v, f64x4 min, f64x4 max) { return f64x4(clampf64(v.x, min.x, max.x), clampf64(v.y, min.y, max.y), clampf64(v.z, min.z, max.z), clampf64(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline s8x4 clamps8x4(s8x4 v, s8x4 min, s8x4 max) { return s8x4(clamps8(v.x, min.x, max.x), clamps8(v.y, min.y, max.y), clamps8(v.z, min.z, max.z), clamps8(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline s16x4 clamps16x4(s16x4 v, s16x4 min, s16x4 max) { return s16x4(clamps16(v.x, min.x, max.x), clamps16(v.y, min.y, max.y), clamps16(v.z, min.z, max.z), clamps16(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline s32x4 clamps32x4(s32x4 v, s32x4 min, s32x4 max) { return s32x4(clamps32(v.x, min.x, max.x), clamps32(v.y, min.y, max.y), clamps32(v.z, min.z, max.z), clamps32(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline s64x4 clamps64x4(s64x4 v, s64x4 min, s64x4 max) { return s64x4(clamps64(v.x, min.x, max.x), clamps64(v.y, min.y, max.y), clamps64(v.z, min.z, max.z), clamps64(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline u8x4 clampu8x4(u8x4 v, u8x4 min, u8x4 max) { return u8x4(clampu8(v.x, min.x, max.x), clampu8(v.y, min.y, max.y), clampu8(v.z, min.z, max.z), clampu8(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline u16x4 clampu16x4(u16x4 v, u16x4 min, u16x4 max) { return u16x4(clampu16(v.x, min.x, max.x), clampu16(v.y, min.y, max.y), clampu16(v.z, min.z, max.z), clampu16(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline u32x4 clampu32x4(u32x4 v, u32x4 min, u32x4 max) { return u32x4(clampu32(v.x, min.x, max.x), clampu32(v.y, min.y, max.y), clampu32(v.z, min.z, max.z), clampu32(v.w, min.w, max.w)); }
-HCC_INTRINSIC static inline u64x4 clampu64x4(u64x4 v, u64x4 min, u64x4 max) { return u64x4(clampu64(v.x, min.x, max.x), clampu64(v.y, min.y, max.y), clampu64(v.z, min.z, max.z), clampu64(v.w, min.w, max.w)); }
+static inline f16x2 clamp_f16x2(f16x2 v, f16x2 min, f16x2 max) { return f16x2(clamp_f16(v.x, min.x, max.x), clamp_f16(v.y, min.y, max.y)); }
+static inline f32x2 clamp_f32x2(f32x2 v, f32x2 min, f32x2 max) { return f32x2(clamp_f32(v.x, min.x, max.x), clamp_f32(v.y, min.y, max.y)); }
+static inline f64x2 clamp_f64x2(f64x2 v, f64x2 min, f64x2 max) { return f64x2(clamp_f64(v.x, min.x, max.x), clamp_f64(v.y, min.y, max.y)); }
+static inline s8x2 clamp_s8x2(s8x2 v, s8x2 min, s8x2 max) { return s8x2(clamp_s8(v.x, min.x, max.x), clamp_s8(v.y, min.y, max.y)); }
+static inline s16x2 clamp_s16x2(s16x2 v, s16x2 min, s16x2 max) { return s16x2(clamp_s16(v.x, min.x, max.x), clamp_s16(v.y, min.y, max.y)); }
+static inline s32x2 clamp_s32x2(s32x2 v, s32x2 min, s32x2 max) { return s32x2(clamp_s32(v.x, min.x, max.x), clamp_s32(v.y, min.y, max.y)); }
+static inline s64x2 clamp_s64x2(s64x2 v, s64x2 min, s64x2 max) { return s64x2(clamp_s64(v.x, min.x, max.x), clamp_s64(v.y, min.y, max.y)); }
+static inline u8x2 clamp_u8x2(u8x2 v, u8x2 min, u8x2 max) { return u8x2(clamp_u8(v.x, min.x, max.x), clamp_u8(v.y, min.y, max.y)); }
+static inline u16x2 clamp_u16x2(u16x2 v, u16x2 min, u16x2 max) { return u16x2(clamp_u16(v.x, min.x, max.x), clamp_u16(v.y, min.y, max.y)); }
+static inline u32x2 clamp_u32x2(u32x2 v, u32x2 min, u32x2 max) { return u32x2(clamp_u32(v.x, min.x, max.x), clamp_u32(v.y, min.y, max.y)); }
+static inline u64x2 clamp_u64x2(u64x2 v, u64x2 min, u64x2 max) { return u64x2(clamp_u64(v.x, min.x, max.x), clamp_u64(v.y, min.y, max.y)); }
+static inline f16x3 clamp_f16x3(f16x3 v, f16x3 min, f16x3 max) { return f16x3(clamp_f16(v.x, min.x, max.x), clamp_f16(v.y, min.y, max.y), clamp_f16(v.z, min.z, max.z)); }
+static inline f32x3 clamp_f32x3(f32x3 v, f32x3 min, f32x3 max) { return f32x3(clamp_f32(v.x, min.x, max.x), clamp_f32(v.y, min.y, max.y), clamp_f32(v.z, min.z, max.z)); }
+static inline f64x3 clamp_f64x3(f64x3 v, f64x3 min, f64x3 max) { return f64x3(clamp_f64(v.x, min.x, max.x), clamp_f64(v.y, min.y, max.y), clamp_f64(v.z, min.z, max.z)); }
+static inline s8x3 clamp_s8x3(s8x3 v, s8x3 min, s8x3 max) { return s8x3(clamp_s8(v.x, min.x, max.x), clamp_s8(v.y, min.y, max.y), clamp_s8(v.z, min.z, max.z)); }
+static inline s16x3 clamp_s16x3(s16x3 v, s16x3 min, s16x3 max) { return s16x3(clamp_s16(v.x, min.x, max.x), clamp_s16(v.y, min.y, max.y), clamp_s16(v.z, min.z, max.z)); }
+static inline s32x3 clamp_s32x3(s32x3 v, s32x3 min, s32x3 max) { return s32x3(clamp_s32(v.x, min.x, max.x), clamp_s32(v.y, min.y, max.y), clamp_s32(v.z, min.z, max.z)); }
+static inline s64x3 clamp_s64x3(s64x3 v, s64x3 min, s64x3 max) { return s64x3(clamp_s64(v.x, min.x, max.x), clamp_s64(v.y, min.y, max.y), clamp_s64(v.z, min.z, max.z)); }
+static inline u8x3 clamp_u8x3(u8x3 v, u8x3 min, u8x3 max) { return u8x3(clamp_u8(v.x, min.x, max.x), clamp_u8(v.y, min.y, max.y), clamp_u8(v.z, min.z, max.z)); }
+static inline u16x3 clamp_u16x3(u16x3 v, u16x3 min, u16x3 max) { return u16x3(clamp_u16(v.x, min.x, max.x), clamp_u16(v.y, min.y, max.y), clamp_u16(v.z, min.z, max.z)); }
+static inline u32x3 clamp_u32x3(u32x3 v, u32x3 min, u32x3 max) { return u32x3(clamp_u32(v.x, min.x, max.x), clamp_u32(v.y, min.y, max.y), clamp_u32(v.z, min.z, max.z)); }
+static inline u64x3 clamp_u64x3(u64x3 v, u64x3 min, u64x3 max) { return u64x3(clamp_u64(v.x, min.x, max.x), clamp_u64(v.y, min.y, max.y), clamp_u64(v.z, min.z, max.z)); }
+static inline f16x4 clamp_f16x4(f16x4 v, f16x4 min, f16x4 max) { return f16x4(clamp_f16(v.x, min.x, max.x), clamp_f16(v.y, min.y, max.y), clamp_f16(v.z, min.z, max.z), clamp_f16(v.w, min.w, max.w)); }
+static inline f32x4 clamp_f32x4(f32x4 v, f32x4 min, f32x4 max) { return f32x4(clamp_f32(v.x, min.x, max.x), clamp_f32(v.y, min.y, max.y), clamp_f32(v.z, min.z, max.z), clamp_f32(v.w, min.w, max.w)); }
+static inline f64x4 clamp_f64x4(f64x4 v, f64x4 min, f64x4 max) { return f64x4(clamp_f64(v.x, min.x, max.x), clamp_f64(v.y, min.y, max.y), clamp_f64(v.z, min.z, max.z), clamp_f64(v.w, min.w, max.w)); }
+static inline s8x4 clamp_s8x4(s8x4 v, s8x4 min, s8x4 max) { return s8x4(clamp_s8(v.x, min.x, max.x), clamp_s8(v.y, min.y, max.y), clamp_s8(v.z, min.z, max.z), clamp_s8(v.w, min.w, max.w)); }
+static inline s16x4 clamp_s16x4(s16x4 v, s16x4 min, s16x4 max) { return s16x4(clamp_s16(v.x, min.x, max.x), clamp_s16(v.y, min.y, max.y), clamp_s16(v.z, min.z, max.z), clamp_s16(v.w, min.w, max.w)); }
+static inline s32x4 clamp_s32x4(s32x4 v, s32x4 min, s32x4 max) { return s32x4(clamp_s32(v.x, min.x, max.x), clamp_s32(v.y, min.y, max.y), clamp_s32(v.z, min.z, max.z), clamp_s32(v.w, min.w, max.w)); }
+static inline s64x4 clamp_s64x4(s64x4 v, s64x4 min, s64x4 max) { return s64x4(clamp_s64(v.x, min.x, max.x), clamp_s64(v.y, min.y, max.y), clamp_s64(v.z, min.z, max.z), clamp_s64(v.w, min.w, max.w)); }
+static inline u8x4 clamp_u8x4(u8x4 v, u8x4 min, u8x4 max) { return u8x4(clamp_u8(v.x, min.x, max.x), clamp_u8(v.y, min.y, max.y), clamp_u8(v.z, min.z, max.z), clamp_u8(v.w, min.w, max.w)); }
+static inline u16x4 clamp_u16x4(u16x4 v, u16x4 min, u16x4 max) { return u16x4(clamp_u16(v.x, min.x, max.x), clamp_u16(v.y, min.y, max.y), clamp_u16(v.z, min.z, max.z), clamp_u16(v.w, min.w, max.w)); }
+static inline u32x4 clamp_u32x4(u32x4 v, u32x4 min, u32x4 max) { return u32x4(clamp_u32(v.x, min.x, max.x), clamp_u32(v.y, min.y, max.y), clamp_u32(v.z, min.z, max.z), clamp_u32(v.w, min.w, max.w)); }
+static inline u64x4 clamp_u64x4(u64x4 v, u64x4 min, u64x4 max) { return u64x4(clamp_u64(v.x, min.x, max.x), clamp_u64(v.y, min.y, max.y), clamp_u64(v.z, min.z, max.z), clamp_u64(v.w, min.w, max.w)); }
 
 //
 // returns a vector where each component is clamped between the minimum value 'min' and the maximum value 'max'
-static inline f16x2 clampsf16x2(f16x2 v, half min, half max) { f16x2 mins = f16x2s(min); f16x2 maxs = f16x2s(max); return clampf16x2(v, mins, maxs); }
-static inline f32x2 clampsf32x2(f32x2 v, float min, float max) { f32x2 mins = f32x2s(min); f32x2 maxs = f32x2s(max); return clampf32x2(v, mins, maxs); }
-static inline f64x2 clampsf64x2(f64x2 v, double min, double max) { f64x2 mins = f64x2s(min); f64x2 maxs = f64x2s(max); return clampf64x2(v, mins, maxs); }
-static inline s8x2 clampss8x2(s8x2 v, int8_t min, int8_t max) { s8x2 mins = s8x2s(min); s8x2 maxs = s8x2s(max); return clamps8x2(v, mins, maxs); }
-static inline s16x2 clampss16x2(s16x2 v, int16_t min, int16_t max) { s16x2 mins = s16x2s(min); s16x2 maxs = s16x2s(max); return clamps16x2(v, mins, maxs); }
-static inline s32x2 clampss32x2(s32x2 v, int32_t min, int32_t max) { s32x2 mins = s32x2s(min); s32x2 maxs = s32x2s(max); return clamps32x2(v, mins, maxs); }
-static inline s64x2 clampss64x2(s64x2 v, int64_t min, int64_t max) { s64x2 mins = s64x2s(min); s64x2 maxs = s64x2s(max); return clamps64x2(v, mins, maxs); }
-static inline u8x2 clampsu8x2(u8x2 v, uint8_t min, uint8_t max) { u8x2 mins = u8x2s(min); u8x2 maxs = u8x2s(max); return clampu8x2(v, mins, maxs); }
-static inline u16x2 clampsu16x2(u16x2 v, uint16_t min, uint16_t max) { u16x2 mins = u16x2s(min); u16x2 maxs = u16x2s(max); return clampu16x2(v, mins, maxs); }
-static inline u32x2 clampsu32x2(u32x2 v, uint32_t min, uint32_t max) { u32x2 mins = u32x2s(min); u32x2 maxs = u32x2s(max); return clampu32x2(v, mins, maxs); }
-static inline u64x2 clampsu64x2(u64x2 v, uint64_t min, uint64_t max) { u64x2 mins = u64x2s(min); u64x2 maxs = u64x2s(max); return clampu64x2(v, mins, maxs); }
-static inline f16x3 clampsf16x3(f16x3 v, half min, half max) { f16x3 mins = f16x3s(min); f16x3 maxs = f16x3s(max); return clampf16x3(v, mins, maxs); }
-static inline f32x3 clampsf32x3(f32x3 v, float min, float max) { f32x3 mins = f32x3s(min); f32x3 maxs = f32x3s(max); return clampf32x3(v, mins, maxs); }
-static inline f64x3 clampsf64x3(f64x3 v, double min, double max) { f64x3 mins = f64x3s(min); f64x3 maxs = f64x3s(max); return clampf64x3(v, mins, maxs); }
-static inline s8x3 clampss8x3(s8x3 v, int8_t min, int8_t max) { s8x3 mins = s8x3s(min); s8x3 maxs = s8x3s(max); return clamps8x3(v, mins, maxs); }
-static inline s16x3 clampss16x3(s16x3 v, int16_t min, int16_t max) { s16x3 mins = s16x3s(min); s16x3 maxs = s16x3s(max); return clamps16x3(v, mins, maxs); }
-static inline s32x3 clampss32x3(s32x3 v, int32_t min, int32_t max) { s32x3 mins = s32x3s(min); s32x3 maxs = s32x3s(max); return clamps32x3(v, mins, maxs); }
-static inline s64x3 clampss64x3(s64x3 v, int64_t min, int64_t max) { s64x3 mins = s64x3s(min); s64x3 maxs = s64x3s(max); return clamps64x3(v, mins, maxs); }
-static inline u8x3 clampsu8x3(u8x3 v, uint8_t min, uint8_t max) { u8x3 mins = u8x3s(min); u8x3 maxs = u8x3s(max); return clampu8x3(v, mins, maxs); }
-static inline u16x3 clampsu16x3(u16x3 v, uint16_t min, uint16_t max) { u16x3 mins = u16x3s(min); u16x3 maxs = u16x3s(max); return clampu16x3(v, mins, maxs); }
-static inline u32x3 clampsu32x3(u32x3 v, uint32_t min, uint32_t max) { u32x3 mins = u32x3s(min); u32x3 maxs = u32x3s(max); return clampu32x3(v, mins, maxs); }
-static inline u64x3 clampsu64x3(u64x3 v, uint64_t min, uint64_t max) { u64x3 mins = u64x3s(min); u64x3 maxs = u64x3s(max); return clampu64x3(v, mins, maxs); }
-static inline f16x4 clampsf16x4(f16x4 v, half min, half max) { f16x4 mins = f16x4s(min); f16x4 maxs = f16x4s(max); return clampf16x4(v, mins, maxs); }
-static inline f32x4 clampsf32x4(f32x4 v, float min, float max) { f32x4 mins = f32x4s(min); f32x4 maxs = f32x4s(max); return clampf32x4(v, mins, maxs); }
-static inline f64x4 clampsf64x4(f64x4 v, double min, double max) { f64x4 mins = f64x4s(min); f64x4 maxs = f64x4s(max); return clampf64x4(v, mins, maxs); }
-static inline s8x4 clampss8x4(s8x4 v, int8_t min, int8_t max) { s8x4 mins = s8x4s(min); s8x4 maxs = s8x4s(max); return clamps8x4(v, mins, maxs); }
-static inline s16x4 clampss16x4(s16x4 v, int16_t min, int16_t max) { s16x4 mins = s16x4s(min); s16x4 maxs = s16x4s(max); return clamps16x4(v, mins, maxs); }
-static inline s32x4 clampss32x4(s32x4 v, int32_t min, int32_t max) { s32x4 mins = s32x4s(min); s32x4 maxs = s32x4s(max); return clamps32x4(v, mins, maxs); }
-static inline s64x4 clampss64x4(s64x4 v, int64_t min, int64_t max) { s64x4 mins = s64x4s(min); s64x4 maxs = s64x4s(max); return clamps64x4(v, mins, maxs); }
-static inline u8x4 clampsu8x4(u8x4 v, uint8_t min, uint8_t max) { u8x4 mins = u8x4s(min); u8x4 maxs = u8x4s(max); return clampu8x4(v, mins, maxs); }
-static inline u16x4 clampsu16x4(u16x4 v, uint16_t min, uint16_t max) { u16x4 mins = u16x4s(min); u16x4 maxs = u16x4s(max); return clampu16x4(v, mins, maxs); }
-static inline u32x4 clampsu32x4(u32x4 v, uint32_t min, uint32_t max) { u32x4 mins = u32x4s(min); u32x4 maxs = u32x4s(max); return clampu32x4(v, mins, maxs); }
-static inline u64x4 clampsu64x4(u64x4 v, uint64_t min, uint64_t max) { u64x4 mins = u64x4s(min); u64x4 maxs = u64x4s(max); return clampu64x4(v, mins, maxs); }
+static inline f16x2 clamps_f16x2(f16x2 v, half min, half max) { f16x2 mins = f16x2s(min); f16x2 maxs = f16x2s(max); return clamp_f16x2(v, mins, maxs); }
+static inline f32x2 clamps_f32x2(f32x2 v, float min, float max) { f32x2 mins = f32x2s(min); f32x2 maxs = f32x2s(max); return clamp_f32x2(v, mins, maxs); }
+static inline f64x2 clamps_f64x2(f64x2 v, double min, double max) { f64x2 mins = f64x2s(min); f64x2 maxs = f64x2s(max); return clamp_f64x2(v, mins, maxs); }
+static inline s8x2 clamps_s8x2(s8x2 v, int8_t min, int8_t max) { s8x2 mins = s8x2s(min); s8x2 maxs = s8x2s(max); return clamp_s8x2(v, mins, maxs); }
+static inline s16x2 clamps_s16x2(s16x2 v, int16_t min, int16_t max) { s16x2 mins = s16x2s(min); s16x2 maxs = s16x2s(max); return clamp_s16x2(v, mins, maxs); }
+static inline s32x2 clamps_s32x2(s32x2 v, int32_t min, int32_t max) { s32x2 mins = s32x2s(min); s32x2 maxs = s32x2s(max); return clamp_s32x2(v, mins, maxs); }
+static inline s64x2 clamps_s64x2(s64x2 v, int64_t min, int64_t max) { s64x2 mins = s64x2s(min); s64x2 maxs = s64x2s(max); return clamp_s64x2(v, mins, maxs); }
+static inline u8x2 clamps_u8x2(u8x2 v, uint8_t min, uint8_t max) { u8x2 mins = u8x2s(min); u8x2 maxs = u8x2s(max); return clamp_u8x2(v, mins, maxs); }
+static inline u16x2 clamps_u16x2(u16x2 v, uint16_t min, uint16_t max) { u16x2 mins = u16x2s(min); u16x2 maxs = u16x2s(max); return clamp_u16x2(v, mins, maxs); }
+static inline u32x2 clamps_u32x2(u32x2 v, uint32_t min, uint32_t max) { u32x2 mins = u32x2s(min); u32x2 maxs = u32x2s(max); return clamp_u32x2(v, mins, maxs); }
+static inline u64x2 clamps_u64x2(u64x2 v, uint64_t min, uint64_t max) { u64x2 mins = u64x2s(min); u64x2 maxs = u64x2s(max); return clamp_u64x2(v, mins, maxs); }
+static inline f16x3 clamps_f16x3(f16x3 v, half min, half max) { f16x3 mins = f16x3s(min); f16x3 maxs = f16x3s(max); return clamp_f16x3(v, mins, maxs); }
+static inline f32x3 clamps_f32x3(f32x3 v, float min, float max) { f32x3 mins = f32x3s(min); f32x3 maxs = f32x3s(max); return clamp_f32x3(v, mins, maxs); }
+static inline f64x3 clamps_f64x3(f64x3 v, double min, double max) { f64x3 mins = f64x3s(min); f64x3 maxs = f64x3s(max); return clamp_f64x3(v, mins, maxs); }
+static inline s8x3 clamps_s8x3(s8x3 v, int8_t min, int8_t max) { s8x3 mins = s8x3s(min); s8x3 maxs = s8x3s(max); return clamp_s8x3(v, mins, maxs); }
+static inline s16x3 clamps_s16x3(s16x3 v, int16_t min, int16_t max) { s16x3 mins = s16x3s(min); s16x3 maxs = s16x3s(max); return clamp_s16x3(v, mins, maxs); }
+static inline s32x3 clamps_s32x3(s32x3 v, int32_t min, int32_t max) { s32x3 mins = s32x3s(min); s32x3 maxs = s32x3s(max); return clamp_s32x3(v, mins, maxs); }
+static inline s64x3 clamps_s64x3(s64x3 v, int64_t min, int64_t max) { s64x3 mins = s64x3s(min); s64x3 maxs = s64x3s(max); return clamp_s64x3(v, mins, maxs); }
+static inline u8x3 clamps_u8x3(u8x3 v, uint8_t min, uint8_t max) { u8x3 mins = u8x3s(min); u8x3 maxs = u8x3s(max); return clamp_u8x3(v, mins, maxs); }
+static inline u16x3 clamps_u16x3(u16x3 v, uint16_t min, uint16_t max) { u16x3 mins = u16x3s(min); u16x3 maxs = u16x3s(max); return clamp_u16x3(v, mins, maxs); }
+static inline u32x3 clamps_u32x3(u32x3 v, uint32_t min, uint32_t max) { u32x3 mins = u32x3s(min); u32x3 maxs = u32x3s(max); return clamp_u32x3(v, mins, maxs); }
+static inline u64x3 clamps_u64x3(u64x3 v, uint64_t min, uint64_t max) { u64x3 mins = u64x3s(min); u64x3 maxs = u64x3s(max); return clamp_u64x3(v, mins, maxs); }
+static inline f16x4 clamps_f16x4(f16x4 v, half min, half max) { f16x4 mins = f16x4s(min); f16x4 maxs = f16x4s(max); return clamp_f16x4(v, mins, maxs); }
+static inline f32x4 clamps_f32x4(f32x4 v, float min, float max) { f32x4 mins = f32x4s(min); f32x4 maxs = f32x4s(max); return clamp_f32x4(v, mins, maxs); }
+static inline f64x4 clamps_f64x4(f64x4 v, double min, double max) { f64x4 mins = f64x4s(min); f64x4 maxs = f64x4s(max); return clamp_f64x4(v, mins, maxs); }
+static inline s8x4 clamps_s8x4(s8x4 v, int8_t min, int8_t max) { s8x4 mins = s8x4s(min); s8x4 maxs = s8x4s(max); return clamp_s8x4(v, mins, maxs); }
+static inline s16x4 clamps_s16x4(s16x4 v, int16_t min, int16_t max) { s16x4 mins = s16x4s(min); s16x4 maxs = s16x4s(max); return clamp_s16x4(v, mins, maxs); }
+static inline s32x4 clamps_s32x4(s32x4 v, int32_t min, int32_t max) { s32x4 mins = s32x4s(min); s32x4 maxs = s32x4s(max); return clamp_s32x4(v, mins, maxs); }
+static inline s64x4 clamps_s64x4(s64x4 v, int64_t min, int64_t max) { s64x4 mins = s64x4s(min); s64x4 maxs = s64x4s(max); return clamp_s64x4(v, mins, maxs); }
+static inline u8x4 clamps_u8x4(u8x4 v, uint8_t min, uint8_t max) { u8x4 mins = u8x4s(min); u8x4 maxs = u8x4s(max); return clamp_u8x4(v, mins, maxs); }
+static inline u16x4 clamps_u16x4(u16x4 v, uint16_t min, uint16_t max) { u16x4 mins = u16x4s(min); u16x4 maxs = u16x4s(max); return clamp_u16x4(v, mins, maxs); }
+static inline u32x4 clamps_u32x4(u32x4 v, uint32_t min, uint32_t max) { u32x4 mins = u32x4s(min); u32x4 maxs = u32x4s(max); return clamp_u32x4(v, mins, maxs); }
+static inline u64x4 clamps_u64x4(u64x4 v, uint64_t min, uint64_t max) { u64x4 mins = u64x4s(min); u64x4 maxs = u64x4s(max); return clamp_u64x4(v, mins, maxs); }
 
 //
 // returns a vector where each component is -1, 0, or 1 depending on the sign of that component that is in 'v'
-HCC_INTRINSIC static inline f16x2 signf16x2(f16x2 v) { return f16x2(signf16(v.x), signf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 signf32x2(f32x2 v) { return f32x2(signf32(v.x), signf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 signf64x2(f64x2 v) { return f64x2(signf64(v.x), signf64(v.y)); }
-HCC_INTRINSIC static inline s8x2 signs8x2(s8x2 v) { return s8x2(signs8(v.x), signs8(v.y)); }
-HCC_INTRINSIC static inline s16x2 signs16x2(s16x2 v) { return s16x2(signs16(v.x), signs16(v.y)); }
-HCC_INTRINSIC static inline s32x2 signs32x2(s32x2 v) { return s32x2(signs32(v.x), signs32(v.y)); }
-HCC_INTRINSIC static inline s64x2 signs64x2(s64x2 v) { return s64x2(signs64(v.x), signs64(v.y)); }
-HCC_INTRINSIC static inline f16x3 signf16x3(f16x3 v) { return f16x3(signf16(v.x), signf16(v.y), signf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 signf32x3(f32x3 v) { return f32x3(signf32(v.x), signf32(v.y), signf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 signf64x3(f64x3 v) { return f64x3(signf64(v.x), signf64(v.y), signf64(v.z)); }
-HCC_INTRINSIC static inline s8x3 signs8x3(s8x3 v) { return s8x3(signs8(v.x), signs8(v.y), signs8(v.z)); }
-HCC_INTRINSIC static inline s16x3 signs16x3(s16x3 v) { return s16x3(signs16(v.x), signs16(v.y), signs16(v.z)); }
-HCC_INTRINSIC static inline s32x3 signs32x3(s32x3 v) { return s32x3(signs32(v.x), signs32(v.y), signs32(v.z)); }
-HCC_INTRINSIC static inline s64x3 signs64x3(s64x3 v) { return s64x3(signs64(v.x), signs64(v.y), signs64(v.z)); }
-HCC_INTRINSIC static inline f16x4 signf16x4(f16x4 v) { return f16x4(signf16(v.x), signf16(v.y), signf16(v.z), signf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 signf32x4(f32x4 v) { return f32x4(signf32(v.x), signf32(v.y), signf32(v.z), signf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 signf64x4(f64x4 v) { return f64x4(signf64(v.x), signf64(v.y), signf64(v.z), signf64(v.w)); }
-HCC_INTRINSIC static inline s8x4 signs8x4(s8x4 v) { return s8x4(signs8(v.x), signs8(v.y), signs8(v.z), signs8(v.w)); }
-HCC_INTRINSIC static inline s16x4 signs16x4(s16x4 v) { return s16x4(signs16(v.x), signs16(v.y), signs16(v.z), signs16(v.w)); }
-HCC_INTRINSIC static inline s32x4 signs32x4(s32x4 v) { return s32x4(signs32(v.x), signs32(v.y), signs32(v.z), signs32(v.w)); }
-HCC_INTRINSIC static inline s64x4 signs64x4(s64x4 v) { return s64x4(signs64(v.x), signs64(v.y), signs64(v.z), signs64(v.w)); }
+static inline f16x2 sign_f16x2(f16x2 v) { return f16x2(sign_f16(v.x), sign_f16(v.y)); }
+static inline f32x2 sign_f32x2(f32x2 v) { return f32x2(sign_f32(v.x), sign_f32(v.y)); }
+static inline f64x2 sign_f64x2(f64x2 v) { return f64x2(sign_f64(v.x), sign_f64(v.y)); }
+static inline s8x2 sign_s8x2(s8x2 v) { return s8x2(sign_s8(v.x), sign_s8(v.y)); }
+static inline s16x2 sign_s16x2(s16x2 v) { return s16x2(sign_s16(v.x), sign_s16(v.y)); }
+static inline s32x2 sign_s32x2(s32x2 v) { return s32x2(sign_s32(v.x), sign_s32(v.y)); }
+static inline s64x2 sign_s64x2(s64x2 v) { return s64x2(sign_s64(v.x), sign_s64(v.y)); }
+static inline f16x3 sign_f16x3(f16x3 v) { return f16x3(sign_f16(v.x), sign_f16(v.y), sign_f16(v.z)); }
+static inline f32x3 sign_f32x3(f32x3 v) { return f32x3(sign_f32(v.x), sign_f32(v.y), sign_f32(v.z)); }
+static inline f64x3 sign_f64x3(f64x3 v) { return f64x3(sign_f64(v.x), sign_f64(v.y), sign_f64(v.z)); }
+static inline s8x3 sign_s8x3(s8x3 v) { return s8x3(sign_s8(v.x), sign_s8(v.y), sign_s8(v.z)); }
+static inline s16x3 sign_s16x3(s16x3 v) { return s16x3(sign_s16(v.x), sign_s16(v.y), sign_s16(v.z)); }
+static inline s32x3 sign_s32x3(s32x3 v) { return s32x3(sign_s32(v.x), sign_s32(v.y), sign_s32(v.z)); }
+static inline s64x3 sign_s64x3(s64x3 v) { return s64x3(sign_s64(v.x), sign_s64(v.y), sign_s64(v.z)); }
+static inline f16x4 sign_f16x4(f16x4 v) { return f16x4(sign_f16(v.x), sign_f16(v.y), sign_f16(v.z), sign_f16(v.w)); }
+static inline f32x4 sign_f32x4(f32x4 v) { return f32x4(sign_f32(v.x), sign_f32(v.y), sign_f32(v.z), sign_f32(v.w)); }
+static inline f64x4 sign_f64x4(f64x4 v) { return f64x4(sign_f64(v.x), sign_f64(v.y), sign_f64(v.z), sign_f64(v.w)); }
+static inline s8x4 sign_s8x4(s8x4 v) { return s8x4(sign_s8(v.x), sign_s8(v.y), sign_s8(v.z), sign_s8(v.w)); }
+static inline s16x4 sign_s16x4(s16x4 v) { return s16x4(sign_s16(v.x), sign_s16(v.y), sign_s16(v.z), sign_s16(v.w)); }
+static inline s32x4 sign_s32x4(s32x4 v) { return s32x4(sign_s32(v.x), sign_s32(v.y), sign_s32(v.z), sign_s32(v.w)); }
+static inline s64x4 sign_s64x4(s64x4 v) { return s64x4(sign_s64(v.x), sign_s64(v.y), sign_s64(v.z), sign_s64(v.w)); }
 
 //
 // returns a vector where each component is that component in 'v' with sign of that component in 'sign'
-static inline f16x2 copysignf16x2(f16x2 v, f16x2 sign) { return f16x2(copysignf16(v.x, sign.x), copysignf16(v.y, sign.y)); }
-static inline f32x2 copysignf32x2(f32x2 v, f32x2 sign) { return f32x2(copysignf32(v.x, sign.x), copysignf32(v.y, sign.y)); }
-static inline f64x2 copysignf64x2(f64x2 v, f64x2 sign) { return f64x2(copysignf64(v.x, sign.x), copysignf64(v.y, sign.y)); }
-static inline s8x2 copysigns8x2(s8x2 v, s8x2 sign) { return s8x2(copysigns8(v.x, sign.x), copysigns8(v.y, sign.y)); }
-static inline s16x2 copysigns16x2(s16x2 v, s16x2 sign) { return s16x2(copysigns16(v.x, sign.x), copysigns16(v.y, sign.y)); }
-static inline s32x2 copysigns32x2(s32x2 v, s32x2 sign) { return s32x2(copysigns32(v.x, sign.x), copysigns32(v.y, sign.y)); }
-static inline s64x2 copysigns64x2(s64x2 v, s64x2 sign) { return s64x2(copysigns64(v.x, sign.x), copysigns64(v.y, sign.y)); }
-static inline f16x3 copysignf16x3(f16x3 v, f16x3 sign) { return f16x3(copysignf16(v.x, sign.x), copysignf16(v.y, sign.y), copysignf16(v.z, sign.z)); }
-static inline f32x3 copysignf32x3(f32x3 v, f32x3 sign) { return f32x3(copysignf32(v.x, sign.x), copysignf32(v.y, sign.y), copysignf32(v.z, sign.z)); }
-static inline f64x3 copysignf64x3(f64x3 v, f64x3 sign) { return f64x3(copysignf64(v.x, sign.x), copysignf64(v.y, sign.y), copysignf64(v.z, sign.z)); }
-static inline s8x3 copysigns8x3(s8x3 v, s8x3 sign) { return s8x3(copysigns8(v.x, sign.x), copysigns8(v.y, sign.y), copysigns8(v.z, sign.z)); }
-static inline s16x3 copysigns16x3(s16x3 v, s16x3 sign) { return s16x3(copysigns16(v.x, sign.x), copysigns16(v.y, sign.y), copysigns16(v.z, sign.z)); }
-static inline s32x3 copysigns32x3(s32x3 v, s32x3 sign) { return s32x3(copysigns32(v.x, sign.x), copysigns32(v.y, sign.y), copysigns32(v.z, sign.z)); }
-static inline s64x3 copysigns64x3(s64x3 v, s64x3 sign) { return s64x3(copysigns64(v.x, sign.x), copysigns64(v.y, sign.y), copysigns64(v.z, sign.z)); }
-static inline f16x4 copysignf16x4(f16x4 v, f16x4 sign) { return f16x4(copysignf16(v.x, sign.x), copysignf16(v.y, sign.y), copysignf16(v.z, sign.z), copysignf16(v.w, sign.w)); }
-static inline f32x4 copysignf32x4(f32x4 v, f32x4 sign) { return f32x4(copysignf32(v.x, sign.x), copysignf32(v.y, sign.y), copysignf32(v.z, sign.z), copysignf32(v.w, sign.w)); }
-static inline f64x4 copysignf64x4(f64x4 v, f64x4 sign) { return f64x4(copysignf64(v.x, sign.x), copysignf64(v.y, sign.y), copysignf64(v.z, sign.z), copysignf64(v.w, sign.w)); }
-static inline s8x4 copysigns8x4(s8x4 v, s8x4 sign) { return s8x4(copysigns8(v.x, sign.x), copysigns8(v.y, sign.y), copysigns8(v.z, sign.z), copysigns8(v.w, sign.w)); }
-static inline s16x4 copysigns16x4(s16x4 v, s16x4 sign) { return s16x4(copysigns16(v.x, sign.x), copysigns16(v.y, sign.y), copysigns16(v.z, sign.z), copysigns16(v.w, sign.w)); }
-static inline s32x4 copysigns32x4(s32x4 v, s32x4 sign) { return s32x4(copysigns32(v.x, sign.x), copysigns32(v.y, sign.y), copysigns32(v.z, sign.z), copysigns32(v.w, sign.w)); }
-static inline s64x4 copysigns64x4(s64x4 v, s64x4 sign) { return s64x4(copysigns64(v.x, sign.x), copysigns64(v.y, sign.y), copysigns64(v.z, sign.z), copysigns64(v.w, sign.w)); }
+static inline f16x2 copysign_f16x2(f16x2 v, f16x2 sign) { return f16x2(copysign_f16(v.x, sign.x), copysign_f16(v.y, sign.y)); }
+static inline f32x2 copysign_f32x2(f32x2 v, f32x2 sign) { return f32x2(copysign_f32(v.x, sign.x), copysign_f32(v.y, sign.y)); }
+static inline f64x2 copysign_f64x2(f64x2 v, f64x2 sign) { return f64x2(copysign_f64(v.x, sign.x), copysign_f64(v.y, sign.y)); }
+static inline s8x2 copysign_s8x2(s8x2 v, s8x2 sign) { return s8x2(copysign_s8(v.x, sign.x), copysign_s8(v.y, sign.y)); }
+static inline s16x2 copysign_s16x2(s16x2 v, s16x2 sign) { return s16x2(copysign_s16(v.x, sign.x), copysign_s16(v.y, sign.y)); }
+static inline s32x2 copysign_s32x2(s32x2 v, s32x2 sign) { return s32x2(copysign_s32(v.x, sign.x), copysign_s32(v.y, sign.y)); }
+static inline s64x2 copysign_s64x2(s64x2 v, s64x2 sign) { return s64x2(copysign_s64(v.x, sign.x), copysign_s64(v.y, sign.y)); }
+static inline f16x3 copysign_f16x3(f16x3 v, f16x3 sign) { return f16x3(copysign_f16(v.x, sign.x), copysign_f16(v.y, sign.y), copysign_f16(v.z, sign.z)); }
+static inline f32x3 copysign_f32x3(f32x3 v, f32x3 sign) { return f32x3(copysign_f32(v.x, sign.x), copysign_f32(v.y, sign.y), copysign_f32(v.z, sign.z)); }
+static inline f64x3 copysign_f64x3(f64x3 v, f64x3 sign) { return f64x3(copysign_f64(v.x, sign.x), copysign_f64(v.y, sign.y), copysign_f64(v.z, sign.z)); }
+static inline s8x3 copysign_s8x3(s8x3 v, s8x3 sign) { return s8x3(copysign_s8(v.x, sign.x), copysign_s8(v.y, sign.y), copysign_s8(v.z, sign.z)); }
+static inline s16x3 copysign_s16x3(s16x3 v, s16x3 sign) { return s16x3(copysign_s16(v.x, sign.x), copysign_s16(v.y, sign.y), copysign_s16(v.z, sign.z)); }
+static inline s32x3 copysign_s32x3(s32x3 v, s32x3 sign) { return s32x3(copysign_s32(v.x, sign.x), copysign_s32(v.y, sign.y), copysign_s32(v.z, sign.z)); }
+static inline s64x3 copysign_s64x3(s64x3 v, s64x3 sign) { return s64x3(copysign_s64(v.x, sign.x), copysign_s64(v.y, sign.y), copysign_s64(v.z, sign.z)); }
+static inline f16x4 copysign_f16x4(f16x4 v, f16x4 sign) { return f16x4(copysign_f16(v.x, sign.x), copysign_f16(v.y, sign.y), copysign_f16(v.z, sign.z), copysign_f16(v.w, sign.w)); }
+static inline f32x4 copysign_f32x4(f32x4 v, f32x4 sign) { return f32x4(copysign_f32(v.x, sign.x), copysign_f32(v.y, sign.y), copysign_f32(v.z, sign.z), copysign_f32(v.w, sign.w)); }
+static inline f64x4 copysign_f64x4(f64x4 v, f64x4 sign) { return f64x4(copysign_f64(v.x, sign.x), copysign_f64(v.y, sign.y), copysign_f64(v.z, sign.z), copysign_f64(v.w, sign.w)); }
+static inline s8x4 copysign_s8x4(s8x4 v, s8x4 sign) { return s8x4(copysign_s8(v.x, sign.x), copysign_s8(v.y, sign.y), copysign_s8(v.z, sign.z), copysign_s8(v.w, sign.w)); }
+static inline s16x4 copysign_s16x4(s16x4 v, s16x4 sign) { return s16x4(copysign_s16(v.x, sign.x), copysign_s16(v.y, sign.y), copysign_s16(v.z, sign.z), copysign_s16(v.w, sign.w)); }
+static inline s32x4 copysign_s32x4(s32x4 v, s32x4 sign) { return s32x4(copysign_s32(v.x, sign.x), copysign_s32(v.y, sign.y), copysign_s32(v.z, sign.z), copysign_s32(v.w, sign.w)); }
+static inline s64x4 copysign_s64x4(s64x4 v, s64x4 sign) { return s64x4(copysign_s64(v.x, sign.x), copysign_s64(v.y, sign.y), copysign_s64(v.z, sign.z), copysign_s64(v.w, sign.w)); }
 
 //
 // returns a vector where each component is that component in 'v' with sign of 'sign'
-static inline f16x2 copysignsf16x2(f16x2 v, half sign) { return f16x2(copysignf16(v.x, sign), copysignf16(v.y, sign)); }
-static inline f32x2 copysignsf32x2(f32x2 v, float sign) { return f32x2(copysignf32(v.x, sign), copysignf32(v.y, sign)); }
-static inline f64x2 copysignsf64x2(f64x2 v, double sign) { return f64x2(copysignf64(v.x, sign), copysignf64(v.y, sign)); }
-static inline s8x2 copysignss8x2(s8x2 v, int8_t sign) { return s8x2(copysigns8(v.x, sign), copysigns8(v.y, sign)); }
-static inline s16x2 copysignss16x2(s16x2 v, int16_t sign) { return s16x2(copysigns16(v.x, sign), copysigns16(v.y, sign)); }
-static inline s32x2 copysignss32x2(s32x2 v, int32_t sign) { return s32x2(copysigns32(v.x, sign), copysigns32(v.y, sign)); }
-static inline s64x2 copysignss64x2(s64x2 v, int64_t sign) { return s64x2(copysigns64(v.x, sign), copysigns64(v.y, sign)); }
-static inline f16x3 copysignsf16x3(f16x3 v, half sign) { return f16x3(copysignf16(v.x, sign), copysignf16(v.y, sign), copysignf16(v.z, sign)); }
-static inline f32x3 copysignsf32x3(f32x3 v, float sign) { return f32x3(copysignf32(v.x, sign), copysignf32(v.y, sign), copysignf32(v.z, sign)); }
-static inline f64x3 copysignsf64x3(f64x3 v, double sign) { return f64x3(copysignf64(v.x, sign), copysignf64(v.y, sign), copysignf64(v.z, sign)); }
-static inline s8x3 copysignss8x3(s8x3 v, int8_t sign) { return s8x3(copysigns8(v.x, sign), copysigns8(v.y, sign), copysigns8(v.z, sign)); }
-static inline s16x3 copysignss16x3(s16x3 v, int16_t sign) { return s16x3(copysigns16(v.x, sign), copysigns16(v.y, sign), copysigns16(v.z, sign)); }
-static inline s32x3 copysignss32x3(s32x3 v, int32_t sign) { return s32x3(copysigns32(v.x, sign), copysigns32(v.y, sign), copysigns32(v.z, sign)); }
-static inline s64x3 copysignss64x3(s64x3 v, int64_t sign) { return s64x3(copysigns64(v.x, sign), copysigns64(v.y, sign), copysigns64(v.z, sign)); }
-static inline f16x4 copysignsf16x4(f16x4 v, half sign) { return f16x4(copysignf16(v.x, sign), copysignf16(v.y, sign), copysignf16(v.z, sign), copysignf16(v.w, sign)); }
-static inline f32x4 copysignsf32x4(f32x4 v, float sign) { return f32x4(copysignf32(v.x, sign), copysignf32(v.y, sign), copysignf32(v.z, sign), copysignf32(v.w, sign)); }
-static inline f64x4 copysignsf64x4(f64x4 v, double sign) { return f64x4(copysignf64(v.x, sign), copysignf64(v.y, sign), copysignf64(v.z, sign), copysignf64(v.w, sign)); }
-static inline s8x4 copysignss8x4(s8x4 v, int8_t sign) { return s8x4(copysigns8(v.x, sign), copysigns8(v.y, sign), copysigns8(v.z, sign), copysigns8(v.w, sign)); }
-static inline s16x4 copysignss16x4(s16x4 v, int16_t sign) { return s16x4(copysigns16(v.x, sign), copysigns16(v.y, sign), copysigns16(v.z, sign), copysigns16(v.w, sign)); }
-static inline s32x4 copysignss32x4(s32x4 v, int32_t sign) { return s32x4(copysigns32(v.x, sign), copysigns32(v.y, sign), copysigns32(v.z, sign), copysigns32(v.w, sign)); }
-static inline s64x4 copysignss64x4(s64x4 v, int64_t sign) { return s64x4(copysigns64(v.x, sign), copysigns64(v.y, sign), copysigns64(v.z, sign), copysigns64(v.w, sign)); }
+static inline f16x2 copysigns_f16x2(f16x2 v, half sign) { return f16x2(copysign_f16(v.x, sign), copysign_f16(v.y, sign)); }
+static inline f32x2 copysigns_f32x2(f32x2 v, float sign) { return f32x2(copysign_f32(v.x, sign), copysign_f32(v.y, sign)); }
+static inline f64x2 copysigns_f64x2(f64x2 v, double sign) { return f64x2(copysign_f64(v.x, sign), copysign_f64(v.y, sign)); }
+static inline s8x2 copysigns_s8x2(s8x2 v, int8_t sign) { return s8x2(copysign_s8(v.x, sign), copysign_s8(v.y, sign)); }
+static inline s16x2 copysigns_s16x2(s16x2 v, int16_t sign) { return s16x2(copysign_s16(v.x, sign), copysign_s16(v.y, sign)); }
+static inline s32x2 copysigns_s32x2(s32x2 v, int32_t sign) { return s32x2(copysign_s32(v.x, sign), copysign_s32(v.y, sign)); }
+static inline s64x2 copysigns_s64x2(s64x2 v, int64_t sign) { return s64x2(copysign_s64(v.x, sign), copysign_s64(v.y, sign)); }
+static inline f16x3 copysigns_f16x3(f16x3 v, half sign) { return f16x3(copysign_f16(v.x, sign), copysign_f16(v.y, sign), copysign_f16(v.z, sign)); }
+static inline f32x3 copysigns_f32x3(f32x3 v, float sign) { return f32x3(copysign_f32(v.x, sign), copysign_f32(v.y, sign), copysign_f32(v.z, sign)); }
+static inline f64x3 copysigns_f64x3(f64x3 v, double sign) { return f64x3(copysign_f64(v.x, sign), copysign_f64(v.y, sign), copysign_f64(v.z, sign)); }
+static inline s8x3 copysigns_s8x3(s8x3 v, int8_t sign) { return s8x3(copysign_s8(v.x, sign), copysign_s8(v.y, sign), copysign_s8(v.z, sign)); }
+static inline s16x3 copysigns_s16x3(s16x3 v, int16_t sign) { return s16x3(copysign_s16(v.x, sign), copysign_s16(v.y, sign), copysign_s16(v.z, sign)); }
+static inline s32x3 copysigns_s32x3(s32x3 v, int32_t sign) { return s32x3(copysign_s32(v.x, sign), copysign_s32(v.y, sign), copysign_s32(v.z, sign)); }
+static inline s64x3 copysigns_s64x3(s64x3 v, int64_t sign) { return s64x3(copysign_s64(v.x, sign), copysign_s64(v.y, sign), copysign_s64(v.z, sign)); }
+static inline f16x4 copysigns_f16x4(f16x4 v, half sign) { return f16x4(copysign_f16(v.x, sign), copysign_f16(v.y, sign), copysign_f16(v.z, sign), copysign_f16(v.w, sign)); }
+static inline f32x4 copysigns_f32x4(f32x4 v, float sign) { return f32x4(copysign_f32(v.x, sign), copysign_f32(v.y, sign), copysign_f32(v.z, sign), copysign_f32(v.w, sign)); }
+static inline f64x4 copysigns_f64x4(f64x4 v, double sign) { return f64x4(copysign_f64(v.x, sign), copysign_f64(v.y, sign), copysign_f64(v.z, sign), copysign_f64(v.w, sign)); }
+static inline s8x4 copysigns_s8x4(s8x4 v, int8_t sign) { return s8x4(copysign_s8(v.x, sign), copysign_s8(v.y, sign), copysign_s8(v.z, sign), copysign_s8(v.w, sign)); }
+static inline s16x4 copysigns_s16x4(s16x4 v, int16_t sign) { return s16x4(copysign_s16(v.x, sign), copysign_s16(v.y, sign), copysign_s16(v.z, sign), copysign_s16(v.w, sign)); }
+static inline s32x4 copysigns_s32x4(s32x4 v, int32_t sign) { return s32x4(copysign_s32(v.x, sign), copysign_s32(v.y, sign), copysign_s32(v.z, sign), copysign_s32(v.w, sign)); }
+static inline s64x4 copysigns_s64x4(s64x4 v, int64_t sign) { return s64x4(copysign_s64(v.x, sign), copysign_s64(v.y, sign), copysign_s64(v.z, sign), copysign_s64(v.w, sign)); }
 
 //
 // returns a vector where each component is the absolute of that component in 'v'
-HCC_INTRINSIC static inline f16x2 absf16x2(f16x2 v) { return f16x2(absf16(v.x), absf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 absf32x2(f32x2 v) { return f32x2(absf32(v.x), absf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 absf64x2(f64x2 v) { return f64x2(absf64(v.x), absf64(v.y)); }
-HCC_INTRINSIC static inline s8x2 abss8x2(s8x2 v) { return s8x2(abss8(v.x), abss8(v.y)); }
-HCC_INTRINSIC static inline s16x2 abss16x2(s16x2 v) { return s16x2(abss16(v.x), abss16(v.y)); }
-HCC_INTRINSIC static inline s32x2 abss32x2(s32x2 v) { return s32x2(abss32(v.x), abss32(v.y)); }
-HCC_INTRINSIC static inline s64x2 abss64x2(s64x2 v) { return s64x2(abss64(v.x), abss64(v.y)); }
-HCC_INTRINSIC static inline f16x3 absf16x3(f16x3 v) { return f16x3(absf16(v.x), absf16(v.y), absf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 absf32x3(f32x3 v) { return f32x3(absf32(v.x), absf32(v.y), absf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 absf64x3(f64x3 v) { return f64x3(absf64(v.x), absf64(v.y), absf64(v.z)); }
-HCC_INTRINSIC static inline s8x3 abss8x3(s8x3 v) { return s8x3(abss8(v.x), abss8(v.y), abss8(v.z)); }
-HCC_INTRINSIC static inline s16x3 abss16x3(s16x3 v) { return s16x3(abss16(v.x), abss16(v.y), abss16(v.z)); }
-HCC_INTRINSIC static inline s32x3 abss32x3(s32x3 v) { return s32x3(abss32(v.x), abss32(v.y), abss32(v.z)); }
-HCC_INTRINSIC static inline s64x3 abss64x3(s64x3 v) { return s64x3(abss64(v.x), abss64(v.y), abss64(v.z)); }
-HCC_INTRINSIC static inline f16x4 absf16x4(f16x4 v) { return f16x4(absf16(v.x), absf16(v.y), absf16(v.z), absf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 absf32x4(f32x4 v) { return f32x4(absf32(v.x), absf32(v.y), absf32(v.z), absf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 absf64x4(f64x4 v) { return f64x4(absf64(v.x), absf64(v.y), absf64(v.z), absf64(v.w)); }
-HCC_INTRINSIC static inline s8x4 abss8x4(s8x4 v) { return s8x4(abss8(v.x), abss8(v.y), abss8(v.z), abss8(v.w)); }
-HCC_INTRINSIC static inline s16x4 abss16x4(s16x4 v) { return s16x4(abss16(v.x), abss16(v.y), abss16(v.z), abss16(v.w)); }
-HCC_INTRINSIC static inline s32x4 abss32x4(s32x4 v) { return s32x4(abss32(v.x), abss32(v.y), abss32(v.z), abss32(v.w)); }
-HCC_INTRINSIC static inline s64x4 abss64x4(s64x4 v) { return s64x4(abss64(v.x), abss64(v.y), abss64(v.z), abss64(v.w)); }
+static inline f16x2 abs_f16x2(f16x2 v) { return f16x2(abs_f16(v.x), abs_f16(v.y)); }
+static inline f32x2 abs_f32x2(f32x2 v) { return f32x2(abs_f32(v.x), abs_f32(v.y)); }
+static inline f64x2 abs_f64x2(f64x2 v) { return f64x2(abs_f64(v.x), abs_f64(v.y)); }
+static inline s8x2 abs_s8x2(s8x2 v) { return s8x2(abs_s8(v.x), abs_s8(v.y)); }
+static inline s16x2 abs_s16x2(s16x2 v) { return s16x2(abs_s16(v.x), abs_s16(v.y)); }
+static inline s32x2 abs_s32x2(s32x2 v) { return s32x2(abs_s32(v.x), abs_s32(v.y)); }
+static inline s64x2 abs_s64x2(s64x2 v) { return s64x2(abs_s64(v.x), abs_s64(v.y)); }
+static inline f16x3 abs_f16x3(f16x3 v) { return f16x3(abs_f16(v.x), abs_f16(v.y), abs_f16(v.z)); }
+static inline f32x3 abs_f32x3(f32x3 v) { return f32x3(abs_f32(v.x), abs_f32(v.y), abs_f32(v.z)); }
+static inline f64x3 abs_f64x3(f64x3 v) { return f64x3(abs_f64(v.x), abs_f64(v.y), abs_f64(v.z)); }
+static inline s8x3 abs_s8x3(s8x3 v) { return s8x3(abs_s8(v.x), abs_s8(v.y), abs_s8(v.z)); }
+static inline s16x3 abs_s16x3(s16x3 v) { return s16x3(abs_s16(v.x), abs_s16(v.y), abs_s16(v.z)); }
+static inline s32x3 abs_s32x3(s32x3 v) { return s32x3(abs_s32(v.x), abs_s32(v.y), abs_s32(v.z)); }
+static inline s64x3 abs_s64x3(s64x3 v) { return s64x3(abs_s64(v.x), abs_s64(v.y), abs_s64(v.z)); }
+static inline f16x4 abs_f16x4(f16x4 v) { return f16x4(abs_f16(v.x), abs_f16(v.y), abs_f16(v.z), abs_f16(v.w)); }
+static inline f32x4 abs_f32x4(f32x4 v) { return f32x4(abs_f32(v.x), abs_f32(v.y), abs_f32(v.z), abs_f32(v.w)); }
+static inline f64x4 abs_f64x4(f64x4 v) { return f64x4(abs_f64(v.x), abs_f64(v.y), abs_f64(v.z), abs_f64(v.w)); }
+static inline s8x4 abs_s8x4(s8x4 v) { return s8x4(abs_s8(v.x), abs_s8(v.y), abs_s8(v.z), abs_s8(v.w)); }
+static inline s16x4 abs_s16x4(s16x4 v) { return s16x4(abs_s16(v.x), abs_s16(v.y), abs_s16(v.z), abs_s16(v.w)); }
+static inline s32x4 abs_s32x4(s32x4 v) { return s32x4(abs_s32(v.x), abs_s32(v.y), abs_s32(v.z), abs_s32(v.w)); }
+static inline s64x4 abs_s64x4(s64x4 v) { return s64x4(abs_s64(v.x), abs_s64(v.y), abs_s64(v.z), abs_s64(v.w)); }
 
 //
 // returns a vector where each component is the result from bitwise anding that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline s8x2 bitands8x2(s8x2 a, s8x2 b) { return s8x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline s16x2 bitands16x2(s16x2 a, s16x2 b) { return s16x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline s32x2 bitands32x2(s32x2 a, s32x2 b) { return s32x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline s64x2 bitands64x2(s64x2 a, s64x2 b) { return s64x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline u8x2 bitandu8x2(u8x2 a, u8x2 b) { return u8x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline u16x2 bitandu16x2(u16x2 a, u16x2 b) { return u16x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline u32x2 bitandu32x2(u32x2 a, u32x2 b) { return u32x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline u64x2 bitandu64x2(u64x2 a, u64x2 b) { return u64x2(a.x & b.x, a.y & b.y); }
-HCC_INTRINSIC static inline s8x3 bitands8x3(s8x3 a, s8x3 b) { return s8x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline s16x3 bitands16x3(s16x3 a, s16x3 b) { return s16x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline s32x3 bitands32x3(s32x3 a, s32x3 b) { return s32x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline s64x3 bitands64x3(s64x3 a, s64x3 b) { return s64x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline u8x3 bitandu8x3(u8x3 a, u8x3 b) { return u8x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline u16x3 bitandu16x3(u16x3 a, u16x3 b) { return u16x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline u32x3 bitandu32x3(u32x3 a, u32x3 b) { return u32x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline u64x3 bitandu64x3(u64x3 a, u64x3 b) { return u64x3(a.x & b.x, a.y & b.y, a.z & b.z); }
-HCC_INTRINSIC static inline s8x4 bitands8x4(s8x4 a, s8x4 b) { return s8x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
-HCC_INTRINSIC static inline s16x4 bitands16x4(s16x4 a, s16x4 b) { return s16x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
-HCC_INTRINSIC static inline s32x4 bitands32x4(s32x4 a, s32x4 b) { return s32x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
-HCC_INTRINSIC static inline s64x4 bitands64x4(s64x4 a, s64x4 b) { return s64x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
-HCC_INTRINSIC static inline u8x4 bitandu8x4(u8x4 a, u8x4 b) { return u8x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
-HCC_INTRINSIC static inline u16x4 bitandu16x4(u16x4 a, u16x4 b) { return u16x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
-HCC_INTRINSIC static inline u32x4 bitandu32x4(u32x4 a, u32x4 b) { return u32x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
-HCC_INTRINSIC static inline u64x4 bitandu64x4(u64x4 a, u64x4 b) { return u64x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline s8x2 bitand_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x & b.x, a.y & b.y); }
+static inline s16x2 bitand_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x & b.x, a.y & b.y); }
+static inline s32x2 bitand_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x & b.x, a.y & b.y); }
+static inline s64x2 bitand_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x & b.x, a.y & b.y); }
+static inline u8x2 bitand_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x & b.x, a.y & b.y); }
+static inline u16x2 bitand_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x & b.x, a.y & b.y); }
+static inline u32x2 bitand_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x & b.x, a.y & b.y); }
+static inline u64x2 bitand_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x & b.x, a.y & b.y); }
+static inline s8x3 bitand_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline s16x3 bitand_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline s32x3 bitand_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline s64x3 bitand_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline u8x3 bitand_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline u16x3 bitand_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline u32x3 bitand_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline u64x3 bitand_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x & b.x, a.y & b.y, a.z & b.z); }
+static inline s8x4 bitand_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline s16x4 bitand_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline s32x4 bitand_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline s64x4 bitand_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline u8x4 bitand_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline u16x4 bitand_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline u32x4 bitand_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
+static inline u64x4 bitand_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); }
 
 //
 // returns a vector where each component is the result from bitwise anding that component in 'v' to the value 's'
-static inline s8x2 bitandss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitands8x2(v, ss); }
-static inline s16x2 bitandss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitands16x2(v, ss); }
-static inline s32x2 bitandss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitands32x2(v, ss); }
-static inline s64x2 bitandss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitands64x2(v, ss); }
-static inline u8x2 bitandsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitandu8x2(v, ss); }
-static inline u16x2 bitandsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitandu16x2(v, ss); }
-static inline u32x2 bitandsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitandu32x2(v, ss); }
-static inline u64x2 bitandsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitandu64x2(v, ss); }
-static inline s8x3 bitandss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitands8x3(v, ss); }
-static inline s16x3 bitandss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitands16x3(v, ss); }
-static inline s32x3 bitandss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitands32x3(v, ss); }
-static inline s64x3 bitandss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitands64x3(v, ss); }
-static inline u8x3 bitandsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitandu8x3(v, ss); }
-static inline u16x3 bitandsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitandu16x3(v, ss); }
-static inline u32x3 bitandsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitandu32x3(v, ss); }
-static inline u64x3 bitandsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitandu64x3(v, ss); }
-static inline s8x4 bitandss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitands8x4(v, ss); }
-static inline s16x4 bitandss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitands16x4(v, ss); }
-static inline s32x4 bitandss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitands32x4(v, ss); }
-static inline s64x4 bitandss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitands64x4(v, ss); }
-static inline u8x4 bitandsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitandu8x4(v, ss); }
-static inline u16x4 bitandsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitandu16x4(v, ss); }
-static inline u32x4 bitandsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitandu32x4(v, ss); }
-static inline u64x4 bitandsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitandu64x4(v, ss); }
+static inline s8x2 bitands_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitand_s8x2(v, ss); }
+static inline s16x2 bitands_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitand_s16x2(v, ss); }
+static inline s32x2 bitands_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitand_s32x2(v, ss); }
+static inline s64x2 bitands_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitand_s64x2(v, ss); }
+static inline u8x2 bitands_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitand_u8x2(v, ss); }
+static inline u16x2 bitands_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitand_u16x2(v, ss); }
+static inline u32x2 bitands_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitand_u32x2(v, ss); }
+static inline u64x2 bitands_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitand_u64x2(v, ss); }
+static inline s8x3 bitands_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitand_s8x3(v, ss); }
+static inline s16x3 bitands_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitand_s16x3(v, ss); }
+static inline s32x3 bitands_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitand_s32x3(v, ss); }
+static inline s64x3 bitands_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitand_s64x3(v, ss); }
+static inline u8x3 bitands_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitand_u8x3(v, ss); }
+static inline u16x3 bitands_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitand_u16x3(v, ss); }
+static inline u32x3 bitands_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitand_u32x3(v, ss); }
+static inline u64x3 bitands_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitand_u64x3(v, ss); }
+static inline s8x4 bitands_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitand_s8x4(v, ss); }
+static inline s16x4 bitands_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitand_s16x4(v, ss); }
+static inline s32x4 bitands_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitand_s32x4(v, ss); }
+static inline s64x4 bitands_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitand_s64x4(v, ss); }
+static inline u8x4 bitands_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitand_u8x4(v, ss); }
+static inline u16x4 bitands_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitand_u16x4(v, ss); }
+static inline u32x4 bitands_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitand_u32x4(v, ss); }
+static inline u64x4 bitands_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitand_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from bitwise oring that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline s8x2 bitors8x2(s8x2 a, s8x2 b) { return s8x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline s16x2 bitors16x2(s16x2 a, s16x2 b) { return s16x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline s32x2 bitors32x2(s32x2 a, s32x2 b) { return s32x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline s64x2 bitors64x2(s64x2 a, s64x2 b) { return s64x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline u8x2 bitoru8x2(u8x2 a, u8x2 b) { return u8x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline u16x2 bitoru16x2(u16x2 a, u16x2 b) { return u16x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline u32x2 bitoru32x2(u32x2 a, u32x2 b) { return u32x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline u64x2 bitoru64x2(u64x2 a, u64x2 b) { return u64x2(a.x | b.x, a.y | b.y); }
-HCC_INTRINSIC static inline s8x3 bitors8x3(s8x3 a, s8x3 b) { return s8x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline s16x3 bitors16x3(s16x3 a, s16x3 b) { return s16x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline s32x3 bitors32x3(s32x3 a, s32x3 b) { return s32x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline s64x3 bitors64x3(s64x3 a, s64x3 b) { return s64x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline u8x3 bitoru8x3(u8x3 a, u8x3 b) { return u8x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline u16x3 bitoru16x3(u16x3 a, u16x3 b) { return u16x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline u32x3 bitoru32x3(u32x3 a, u32x3 b) { return u32x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline u64x3 bitoru64x3(u64x3 a, u64x3 b) { return u64x3(a.x | b.x, a.y | b.y, a.z | b.z); }
-HCC_INTRINSIC static inline s8x4 bitors8x4(s8x4 a, s8x4 b) { return s8x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
-HCC_INTRINSIC static inline s16x4 bitors16x4(s16x4 a, s16x4 b) { return s16x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
-HCC_INTRINSIC static inline s32x4 bitors32x4(s32x4 a, s32x4 b) { return s32x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
-HCC_INTRINSIC static inline s64x4 bitors64x4(s64x4 a, s64x4 b) { return s64x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
-HCC_INTRINSIC static inline u8x4 bitoru8x4(u8x4 a, u8x4 b) { return u8x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
-HCC_INTRINSIC static inline u16x4 bitoru16x4(u16x4 a, u16x4 b) { return u16x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
-HCC_INTRINSIC static inline u32x4 bitoru32x4(u32x4 a, u32x4 b) { return u32x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
-HCC_INTRINSIC static inline u64x4 bitoru64x4(u64x4 a, u64x4 b) { return u64x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline s8x2 bitor_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x | b.x, a.y | b.y); }
+static inline s16x2 bitor_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x | b.x, a.y | b.y); }
+static inline s32x2 bitor_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x | b.x, a.y | b.y); }
+static inline s64x2 bitor_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x | b.x, a.y | b.y); }
+static inline u8x2 bitor_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x | b.x, a.y | b.y); }
+static inline u16x2 bitor_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x | b.x, a.y | b.y); }
+static inline u32x2 bitor_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x | b.x, a.y | b.y); }
+static inline u64x2 bitor_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x | b.x, a.y | b.y); }
+static inline s8x3 bitor_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline s16x3 bitor_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline s32x3 bitor_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline s64x3 bitor_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline u8x3 bitor_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline u16x3 bitor_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline u32x3 bitor_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline u64x3 bitor_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x | b.x, a.y | b.y, a.z | b.z); }
+static inline s8x4 bitor_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline s16x4 bitor_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline s32x4 bitor_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline s64x4 bitor_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline u8x4 bitor_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline u16x4 bitor_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline u32x4 bitor_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
+static inline u64x4 bitor_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); }
 
 //
 // returns a vector where each component is the result from bitwise oring that component in 'v' to the value 's'
-static inline s8x2 bitorss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitors8x2(v, ss); }
-static inline s16x2 bitorss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitors16x2(v, ss); }
-static inline s32x2 bitorss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitors32x2(v, ss); }
-static inline s64x2 bitorss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitors64x2(v, ss); }
-static inline u8x2 bitorsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitoru8x2(v, ss); }
-static inline u16x2 bitorsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitoru16x2(v, ss); }
-static inline u32x2 bitorsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitoru32x2(v, ss); }
-static inline u64x2 bitorsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitoru64x2(v, ss); }
-static inline s8x3 bitorss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitors8x3(v, ss); }
-static inline s16x3 bitorss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitors16x3(v, ss); }
-static inline s32x3 bitorss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitors32x3(v, ss); }
-static inline s64x3 bitorss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitors64x3(v, ss); }
-static inline u8x3 bitorsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitoru8x3(v, ss); }
-static inline u16x3 bitorsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitoru16x3(v, ss); }
-static inline u32x3 bitorsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitoru32x3(v, ss); }
-static inline u64x3 bitorsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitoru64x3(v, ss); }
-static inline s8x4 bitorss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitors8x4(v, ss); }
-static inline s16x4 bitorss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitors16x4(v, ss); }
-static inline s32x4 bitorss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitors32x4(v, ss); }
-static inline s64x4 bitorss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitors64x4(v, ss); }
-static inline u8x4 bitorsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitoru8x4(v, ss); }
-static inline u16x4 bitorsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitoru16x4(v, ss); }
-static inline u32x4 bitorsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitoru32x4(v, ss); }
-static inline u64x4 bitorsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitoru64x4(v, ss); }
+static inline s8x2 bitors_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitor_s8x2(v, ss); }
+static inline s16x2 bitors_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitor_s16x2(v, ss); }
+static inline s32x2 bitors_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitor_s32x2(v, ss); }
+static inline s64x2 bitors_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitor_s64x2(v, ss); }
+static inline u8x2 bitors_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitor_u8x2(v, ss); }
+static inline u16x2 bitors_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitor_u16x2(v, ss); }
+static inline u32x2 bitors_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitor_u32x2(v, ss); }
+static inline u64x2 bitors_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitor_u64x2(v, ss); }
+static inline s8x3 bitors_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitor_s8x3(v, ss); }
+static inline s16x3 bitors_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitor_s16x3(v, ss); }
+static inline s32x3 bitors_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitor_s32x3(v, ss); }
+static inline s64x3 bitors_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitor_s64x3(v, ss); }
+static inline u8x3 bitors_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitor_u8x3(v, ss); }
+static inline u16x3 bitors_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitor_u16x3(v, ss); }
+static inline u32x3 bitors_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitor_u32x3(v, ss); }
+static inline u64x3 bitors_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitor_u64x3(v, ss); }
+static inline s8x4 bitors_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitor_s8x4(v, ss); }
+static inline s16x4 bitors_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitor_s16x4(v, ss); }
+static inline s32x4 bitors_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitor_s32x4(v, ss); }
+static inline s64x4 bitors_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitor_s64x4(v, ss); }
+static inline u8x4 bitors_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitor_u8x4(v, ss); }
+static inline u16x4 bitors_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitor_u16x4(v, ss); }
+static inline u32x4 bitors_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitor_u32x4(v, ss); }
+static inline u64x4 bitors_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitor_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from bitwise xoring that component in 'a' to that component in 'b'
-HCC_INTRINSIC static inline s8x2 bitxors8x2(s8x2 a, s8x2 b) { return s8x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline s16x2 bitxors16x2(s16x2 a, s16x2 b) { return s16x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline s32x2 bitxors32x2(s32x2 a, s32x2 b) { return s32x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline s64x2 bitxors64x2(s64x2 a, s64x2 b) { return s64x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline u8x2 bitxoru8x2(u8x2 a, u8x2 b) { return u8x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline u16x2 bitxoru16x2(u16x2 a, u16x2 b) { return u16x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline u32x2 bitxoru32x2(u32x2 a, u32x2 b) { return u32x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline u64x2 bitxoru64x2(u64x2 a, u64x2 b) { return u64x2(a.x ^ b.x, a.y ^ b.y); }
-HCC_INTRINSIC static inline s8x3 bitxors8x3(s8x3 a, s8x3 b) { return s8x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline s16x3 bitxors16x3(s16x3 a, s16x3 b) { return s16x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline s32x3 bitxors32x3(s32x3 a, s32x3 b) { return s32x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline s64x3 bitxors64x3(s64x3 a, s64x3 b) { return s64x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline u8x3 bitxoru8x3(u8x3 a, u8x3 b) { return u8x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline u16x3 bitxoru16x3(u16x3 a, u16x3 b) { return u16x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline u32x3 bitxoru32x3(u32x3 a, u32x3 b) { return u32x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline u64x3 bitxoru64x3(u64x3 a, u64x3 b) { return u64x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
-HCC_INTRINSIC static inline s8x4 bitxors8x4(s8x4 a, s8x4 b) { return s8x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
-HCC_INTRINSIC static inline s16x4 bitxors16x4(s16x4 a, s16x4 b) { return s16x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
-HCC_INTRINSIC static inline s32x4 bitxors32x4(s32x4 a, s32x4 b) { return s32x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
-HCC_INTRINSIC static inline s64x4 bitxors64x4(s64x4 a, s64x4 b) { return s64x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
-HCC_INTRINSIC static inline u8x4 bitxoru8x4(u8x4 a, u8x4 b) { return u8x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
-HCC_INTRINSIC static inline u16x4 bitxoru16x4(u16x4 a, u16x4 b) { return u16x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
-HCC_INTRINSIC static inline u32x4 bitxoru32x4(u32x4 a, u32x4 b) { return u32x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
-HCC_INTRINSIC static inline u64x4 bitxoru64x4(u64x4 a, u64x4 b) { return u64x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline s8x2 bitxor_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x ^ b.x, a.y ^ b.y); }
+static inline s16x2 bitxor_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x ^ b.x, a.y ^ b.y); }
+static inline s32x2 bitxor_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x ^ b.x, a.y ^ b.y); }
+static inline s64x2 bitxor_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x ^ b.x, a.y ^ b.y); }
+static inline u8x2 bitxor_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x ^ b.x, a.y ^ b.y); }
+static inline u16x2 bitxor_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x ^ b.x, a.y ^ b.y); }
+static inline u32x2 bitxor_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x ^ b.x, a.y ^ b.y); }
+static inline u64x2 bitxor_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x ^ b.x, a.y ^ b.y); }
+static inline s8x3 bitxor_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline s16x3 bitxor_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline s32x3 bitxor_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline s64x3 bitxor_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline u8x3 bitxor_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline u16x3 bitxor_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline u32x3 bitxor_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline u64x3 bitxor_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z); }
+static inline s8x4 bitxor_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline s16x4 bitxor_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline s32x4 bitxor_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline s64x4 bitxor_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline u8x4 bitxor_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline u16x4 bitxor_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline u32x4 bitxor_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
+static inline u64x4 bitxor_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); }
 
 //
 // returns a vector where each component is the result from bitwise xoring that component in 'v' to the value 's'
-static inline s8x2 bitxorss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitxors8x2(v, ss); }
-static inline s16x2 bitxorss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitxors16x2(v, ss); }
-static inline s32x2 bitxorss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitxors32x2(v, ss); }
-static inline s64x2 bitxorss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitxors64x2(v, ss); }
-static inline u8x2 bitxorsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitxoru8x2(v, ss); }
-static inline u16x2 bitxorsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitxoru16x2(v, ss); }
-static inline u32x2 bitxorsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitxoru32x2(v, ss); }
-static inline u64x2 bitxorsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitxoru64x2(v, ss); }
-static inline s8x3 bitxorss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitxors8x3(v, ss); }
-static inline s16x3 bitxorss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitxors16x3(v, ss); }
-static inline s32x3 bitxorss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitxors32x3(v, ss); }
-static inline s64x3 bitxorss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitxors64x3(v, ss); }
-static inline u8x3 bitxorsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitxoru8x3(v, ss); }
-static inline u16x3 bitxorsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitxoru16x3(v, ss); }
-static inline u32x3 bitxorsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitxoru32x3(v, ss); }
-static inline u64x3 bitxorsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitxoru64x3(v, ss); }
-static inline s8x4 bitxorss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitxors8x4(v, ss); }
-static inline s16x4 bitxorss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitxors16x4(v, ss); }
-static inline s32x4 bitxorss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitxors32x4(v, ss); }
-static inline s64x4 bitxorss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitxors64x4(v, ss); }
-static inline u8x4 bitxorsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitxoru8x4(v, ss); }
-static inline u16x4 bitxorsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitxoru16x4(v, ss); }
-static inline u32x4 bitxorsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitxoru32x4(v, ss); }
-static inline u64x4 bitxorsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitxoru64x4(v, ss); }
+static inline s8x2 bitxors_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitxor_s8x2(v, ss); }
+static inline s16x2 bitxors_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitxor_s16x2(v, ss); }
+static inline s32x2 bitxors_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitxor_s32x2(v, ss); }
+static inline s64x2 bitxors_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitxor_s64x2(v, ss); }
+static inline u8x2 bitxors_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitxor_u8x2(v, ss); }
+static inline u16x2 bitxors_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitxor_u16x2(v, ss); }
+static inline u32x2 bitxors_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitxor_u32x2(v, ss); }
+static inline u64x2 bitxors_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitxor_u64x2(v, ss); }
+static inline s8x3 bitxors_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitxor_s8x3(v, ss); }
+static inline s16x3 bitxors_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitxor_s16x3(v, ss); }
+static inline s32x3 bitxors_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitxor_s32x3(v, ss); }
+static inline s64x3 bitxors_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitxor_s64x3(v, ss); }
+static inline u8x3 bitxors_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitxor_u8x3(v, ss); }
+static inline u16x3 bitxors_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitxor_u16x3(v, ss); }
+static inline u32x3 bitxors_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitxor_u32x3(v, ss); }
+static inline u64x3 bitxors_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitxor_u64x3(v, ss); }
+static inline s8x4 bitxors_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitxor_s8x4(v, ss); }
+static inline s16x4 bitxors_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitxor_s16x4(v, ss); }
+static inline s32x4 bitxors_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitxor_s32x4(v, ss); }
+static inline s64x4 bitxors_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitxor_s64x4(v, ss); }
+static inline u8x4 bitxors_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitxor_u8x4(v, ss); }
+static inline u16x4 bitxors_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitxor_u16x4(v, ss); }
+static inline u32x4 bitxors_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitxor_u32x4(v, ss); }
+static inline u64x4 bitxors_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitxor_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from bitwise shifting that component in 'v' to the left by the component in 'b'
-HCC_INTRINSIC static inline s8x2 bitshls8x2(s8x2 a, s8x2 b) { return s8x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline s16x2 bitshls16x2(s16x2 a, s16x2 b) { return s16x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline s32x2 bitshls32x2(s32x2 a, s32x2 b) { return s32x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline s64x2 bitshls64x2(s64x2 a, s64x2 b) { return s64x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline u8x2 bitshlu8x2(u8x2 a, u8x2 b) { return u8x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline u16x2 bitshlu16x2(u16x2 a, u16x2 b) { return u16x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline u32x2 bitshlu32x2(u32x2 a, u32x2 b) { return u32x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline u64x2 bitshlu64x2(u64x2 a, u64x2 b) { return u64x2(a.x << b.x, a.y << b.y); }
-HCC_INTRINSIC static inline s8x3 bitshls8x3(s8x3 a, s8x3 b) { return s8x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline s16x3 bitshls16x3(s16x3 a, s16x3 b) { return s16x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline s32x3 bitshls32x3(s32x3 a, s32x3 b) { return s32x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline s64x3 bitshls64x3(s64x3 a, s64x3 b) { return s64x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline u8x3 bitshlu8x3(u8x3 a, u8x3 b) { return u8x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline u16x3 bitshlu16x3(u16x3 a, u16x3 b) { return u16x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline u32x3 bitshlu32x3(u32x3 a, u32x3 b) { return u32x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline u64x3 bitshlu64x3(u64x3 a, u64x3 b) { return u64x3(a.x << b.x, a.y << b.y, a.z << b.z); }
-HCC_INTRINSIC static inline s8x4 bitshls8x4(s8x4 a, s8x4 b) { return s8x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
-HCC_INTRINSIC static inline s16x4 bitshls16x4(s16x4 a, s16x4 b) { return s16x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
-HCC_INTRINSIC static inline s32x4 bitshls32x4(s32x4 a, s32x4 b) { return s32x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
-HCC_INTRINSIC static inline s64x4 bitshls64x4(s64x4 a, s64x4 b) { return s64x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
-HCC_INTRINSIC static inline u8x4 bitshlu8x4(u8x4 a, u8x4 b) { return u8x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
-HCC_INTRINSIC static inline u16x4 bitshlu16x4(u16x4 a, u16x4 b) { return u16x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
-HCC_INTRINSIC static inline u32x4 bitshlu32x4(u32x4 a, u32x4 b) { return u32x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
-HCC_INTRINSIC static inline u64x4 bitshlu64x4(u64x4 a, u64x4 b) { return u64x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline s8x2 bitshl_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x << b.x, a.y << b.y); }
+static inline s16x2 bitshl_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x << b.x, a.y << b.y); }
+static inline s32x2 bitshl_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x << b.x, a.y << b.y); }
+static inline s64x2 bitshl_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x << b.x, a.y << b.y); }
+static inline u8x2 bitshl_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x << b.x, a.y << b.y); }
+static inline u16x2 bitshl_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x << b.x, a.y << b.y); }
+static inline u32x2 bitshl_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x << b.x, a.y << b.y); }
+static inline u64x2 bitshl_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x << b.x, a.y << b.y); }
+static inline s8x3 bitshl_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline s16x3 bitshl_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline s32x3 bitshl_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline s64x3 bitshl_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline u8x3 bitshl_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline u16x3 bitshl_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline u32x3 bitshl_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline u64x3 bitshl_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x << b.x, a.y << b.y, a.z << b.z); }
+static inline s8x4 bitshl_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline s16x4 bitshl_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline s32x4 bitshl_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline s64x4 bitshl_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline u8x4 bitshl_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline u16x4 bitshl_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline u32x4 bitshl_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
+static inline u64x4 bitshl_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); }
 
 //
 // returns a vector where each component is the result from bitwise shifting that component in 'v' to the left by the value 's'
-static inline s8x2 bitshlss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitshls8x2(v, ss); }
-static inline s16x2 bitshlss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitshls16x2(v, ss); }
-static inline s32x2 bitshlss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitshls32x2(v, ss); }
-static inline s64x2 bitshlss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitshls64x2(v, ss); }
-static inline u8x2 bitshlsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitshlu8x2(v, ss); }
-static inline u16x2 bitshlsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitshlu16x2(v, ss); }
-static inline u32x2 bitshlsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitshlu32x2(v, ss); }
-static inline u64x2 bitshlsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitshlu64x2(v, ss); }
-static inline s8x3 bitshlss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitshls8x3(v, ss); }
-static inline s16x3 bitshlss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitshls16x3(v, ss); }
-static inline s32x3 bitshlss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitshls32x3(v, ss); }
-static inline s64x3 bitshlss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitshls64x3(v, ss); }
-static inline u8x3 bitshlsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitshlu8x3(v, ss); }
-static inline u16x3 bitshlsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitshlu16x3(v, ss); }
-static inline u32x3 bitshlsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitshlu32x3(v, ss); }
-static inline u64x3 bitshlsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitshlu64x3(v, ss); }
-static inline s8x4 bitshlss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitshls8x4(v, ss); }
-static inline s16x4 bitshlss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitshls16x4(v, ss); }
-static inline s32x4 bitshlss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitshls32x4(v, ss); }
-static inline s64x4 bitshlss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitshls64x4(v, ss); }
-static inline u8x4 bitshlsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitshlu8x4(v, ss); }
-static inline u16x4 bitshlsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitshlu16x4(v, ss); }
-static inline u32x4 bitshlsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitshlu32x4(v, ss); }
-static inline u64x4 bitshlsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitshlu64x4(v, ss); }
+static inline s8x2 bitshls_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitshl_s8x2(v, ss); }
+static inline s16x2 bitshls_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitshl_s16x2(v, ss); }
+static inline s32x2 bitshls_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitshl_s32x2(v, ss); }
+static inline s64x2 bitshls_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitshl_s64x2(v, ss); }
+static inline u8x2 bitshls_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitshl_u8x2(v, ss); }
+static inline u16x2 bitshls_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitshl_u16x2(v, ss); }
+static inline u32x2 bitshls_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitshl_u32x2(v, ss); }
+static inline u64x2 bitshls_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitshl_u64x2(v, ss); }
+static inline s8x3 bitshls_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitshl_s8x3(v, ss); }
+static inline s16x3 bitshls_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitshl_s16x3(v, ss); }
+static inline s32x3 bitshls_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitshl_s32x3(v, ss); }
+static inline s64x3 bitshls_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitshl_s64x3(v, ss); }
+static inline u8x3 bitshls_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitshl_u8x3(v, ss); }
+static inline u16x3 bitshls_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitshl_u16x3(v, ss); }
+static inline u32x3 bitshls_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitshl_u32x3(v, ss); }
+static inline u64x3 bitshls_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitshl_u64x3(v, ss); }
+static inline s8x4 bitshls_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitshl_s8x4(v, ss); }
+static inline s16x4 bitshls_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitshl_s16x4(v, ss); }
+static inline s32x4 bitshls_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitshl_s32x4(v, ss); }
+static inline s64x4 bitshls_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitshl_s64x4(v, ss); }
+static inline u8x4 bitshls_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitshl_u8x4(v, ss); }
+static inline u16x4 bitshls_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitshl_u16x4(v, ss); }
+static inline u32x4 bitshls_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitshl_u32x4(v, ss); }
+static inline u64x4 bitshls_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitshl_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from bitwise shifting that component in 'v' to the right by the component in 'b'
-HCC_INTRINSIC static inline s8x2 bitshrs8x2(s8x2 a, s8x2 b) { return s8x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline s16x2 bitshrs16x2(s16x2 a, s16x2 b) { return s16x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline s32x2 bitshrs32x2(s32x2 a, s32x2 b) { return s32x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline s64x2 bitshrs64x2(s64x2 a, s64x2 b) { return s64x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline u8x2 bitshru8x2(u8x2 a, u8x2 b) { return u8x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline u16x2 bitshru16x2(u16x2 a, u16x2 b) { return u16x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline u32x2 bitshru32x2(u32x2 a, u32x2 b) { return u32x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline u64x2 bitshru64x2(u64x2 a, u64x2 b) { return u64x2(a.x >> b.x, a.y >> b.y); }
-HCC_INTRINSIC static inline s8x3 bitshrs8x3(s8x3 a, s8x3 b) { return s8x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline s16x3 bitshrs16x3(s16x3 a, s16x3 b) { return s16x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline s32x3 bitshrs32x3(s32x3 a, s32x3 b) { return s32x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline s64x3 bitshrs64x3(s64x3 a, s64x3 b) { return s64x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline u8x3 bitshru8x3(u8x3 a, u8x3 b) { return u8x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline u16x3 bitshru16x3(u16x3 a, u16x3 b) { return u16x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline u32x3 bitshru32x3(u32x3 a, u32x3 b) { return u32x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline u64x3 bitshru64x3(u64x3 a, u64x3 b) { return u64x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
-HCC_INTRINSIC static inline s8x4 bitshrs8x4(s8x4 a, s8x4 b) { return s8x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
-HCC_INTRINSIC static inline s16x4 bitshrs16x4(s16x4 a, s16x4 b) { return s16x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
-HCC_INTRINSIC static inline s32x4 bitshrs32x4(s32x4 a, s32x4 b) { return s32x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
-HCC_INTRINSIC static inline s64x4 bitshrs64x4(s64x4 a, s64x4 b) { return s64x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
-HCC_INTRINSIC static inline u8x4 bitshru8x4(u8x4 a, u8x4 b) { return u8x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
-HCC_INTRINSIC static inline u16x4 bitshru16x4(u16x4 a, u16x4 b) { return u16x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
-HCC_INTRINSIC static inline u32x4 bitshru32x4(u32x4 a, u32x4 b) { return u32x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
-HCC_INTRINSIC static inline u64x4 bitshru64x4(u64x4 a, u64x4 b) { return u64x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline s8x2 bitshr_s8x2(s8x2 a, s8x2 b) { return s8x2(a.x >> b.x, a.y >> b.y); }
+static inline s16x2 bitshr_s16x2(s16x2 a, s16x2 b) { return s16x2(a.x >> b.x, a.y >> b.y); }
+static inline s32x2 bitshr_s32x2(s32x2 a, s32x2 b) { return s32x2(a.x >> b.x, a.y >> b.y); }
+static inline s64x2 bitshr_s64x2(s64x2 a, s64x2 b) { return s64x2(a.x >> b.x, a.y >> b.y); }
+static inline u8x2 bitshr_u8x2(u8x2 a, u8x2 b) { return u8x2(a.x >> b.x, a.y >> b.y); }
+static inline u16x2 bitshr_u16x2(u16x2 a, u16x2 b) { return u16x2(a.x >> b.x, a.y >> b.y); }
+static inline u32x2 bitshr_u32x2(u32x2 a, u32x2 b) { return u32x2(a.x >> b.x, a.y >> b.y); }
+static inline u64x2 bitshr_u64x2(u64x2 a, u64x2 b) { return u64x2(a.x >> b.x, a.y >> b.y); }
+static inline s8x3 bitshr_s8x3(s8x3 a, s8x3 b) { return s8x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline s16x3 bitshr_s16x3(s16x3 a, s16x3 b) { return s16x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline s32x3 bitshr_s32x3(s32x3 a, s32x3 b) { return s32x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline s64x3 bitshr_s64x3(s64x3 a, s64x3 b) { return s64x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline u8x3 bitshr_u8x3(u8x3 a, u8x3 b) { return u8x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline u16x3 bitshr_u16x3(u16x3 a, u16x3 b) { return u16x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline u32x3 bitshr_u32x3(u32x3 a, u32x3 b) { return u32x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline u64x3 bitshr_u64x3(u64x3 a, u64x3 b) { return u64x3(a.x >> b.x, a.y >> b.y, a.z >> b.z); }
+static inline s8x4 bitshr_s8x4(s8x4 a, s8x4 b) { return s8x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline s16x4 bitshr_s16x4(s16x4 a, s16x4 b) { return s16x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline s32x4 bitshr_s32x4(s32x4 a, s32x4 b) { return s32x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline s64x4 bitshr_s64x4(s64x4 a, s64x4 b) { return s64x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline u8x4 bitshr_u8x4(u8x4 a, u8x4 b) { return u8x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline u16x4 bitshr_u16x4(u16x4 a, u16x4 b) { return u16x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline u32x4 bitshr_u32x4(u32x4 a, u32x4 b) { return u32x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
+static inline u64x4 bitshr_u64x4(u64x4 a, u64x4 b) { return u64x4(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); }
 
 //
 // returns a vector where each component is the result from bitwise shifting that component in 'v' to the right by the value 's'
-static inline s8x2 bitshrss8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitshrs8x2(v, ss); }
-static inline s16x2 bitshrss16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitshrs16x2(v, ss); }
-static inline s32x2 bitshrss32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitshrs32x2(v, ss); }
-static inline s64x2 bitshrss64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitshrs64x2(v, ss); }
-static inline u8x2 bitshrsu8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitshru8x2(v, ss); }
-static inline u16x2 bitshrsu16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitshru16x2(v, ss); }
-static inline u32x2 bitshrsu32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitshru32x2(v, ss); }
-static inline u64x2 bitshrsu64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitshru64x2(v, ss); }
-static inline s8x3 bitshrss8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitshrs8x3(v, ss); }
-static inline s16x3 bitshrss16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitshrs16x3(v, ss); }
-static inline s32x3 bitshrss32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitshrs32x3(v, ss); }
-static inline s64x3 bitshrss64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitshrs64x3(v, ss); }
-static inline u8x3 bitshrsu8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitshru8x3(v, ss); }
-static inline u16x3 bitshrsu16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitshru16x3(v, ss); }
-static inline u32x3 bitshrsu32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitshru32x3(v, ss); }
-static inline u64x3 bitshrsu64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitshru64x3(v, ss); }
-static inline s8x4 bitshrss8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitshrs8x4(v, ss); }
-static inline s16x4 bitshrss16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitshrs16x4(v, ss); }
-static inline s32x4 bitshrss32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitshrs32x4(v, ss); }
-static inline s64x4 bitshrss64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitshrs64x4(v, ss); }
-static inline u8x4 bitshrsu8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitshru8x4(v, ss); }
-static inline u16x4 bitshrsu16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitshru16x4(v, ss); }
-static inline u32x4 bitshrsu32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitshru32x4(v, ss); }
-static inline u64x4 bitshrsu64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitshru64x4(v, ss); }
+static inline s8x2 bitshrs_s8x2(s8x2 v, int8_t s) { s8x2 ss = s8x2s(s); return bitshr_s8x2(v, ss); }
+static inline s16x2 bitshrs_s16x2(s16x2 v, int16_t s) { s16x2 ss = s16x2s(s); return bitshr_s16x2(v, ss); }
+static inline s32x2 bitshrs_s32x2(s32x2 v, int32_t s) { s32x2 ss = s32x2s(s); return bitshr_s32x2(v, ss); }
+static inline s64x2 bitshrs_s64x2(s64x2 v, int64_t s) { s64x2 ss = s64x2s(s); return bitshr_s64x2(v, ss); }
+static inline u8x2 bitshrs_u8x2(u8x2 v, uint8_t s) { u8x2 ss = u8x2s(s); return bitshr_u8x2(v, ss); }
+static inline u16x2 bitshrs_u16x2(u16x2 v, uint16_t s) { u16x2 ss = u16x2s(s); return bitshr_u16x2(v, ss); }
+static inline u32x2 bitshrs_u32x2(u32x2 v, uint32_t s) { u32x2 ss = u32x2s(s); return bitshr_u32x2(v, ss); }
+static inline u64x2 bitshrs_u64x2(u64x2 v, uint64_t s) { u64x2 ss = u64x2s(s); return bitshr_u64x2(v, ss); }
+static inline s8x3 bitshrs_s8x3(s8x3 v, int8_t s) { s8x3 ss = s8x3s(s); return bitshr_s8x3(v, ss); }
+static inline s16x3 bitshrs_s16x3(s16x3 v, int16_t s) { s16x3 ss = s16x3s(s); return bitshr_s16x3(v, ss); }
+static inline s32x3 bitshrs_s32x3(s32x3 v, int32_t s) { s32x3 ss = s32x3s(s); return bitshr_s32x3(v, ss); }
+static inline s64x3 bitshrs_s64x3(s64x3 v, int64_t s) { s64x3 ss = s64x3s(s); return bitshr_s64x3(v, ss); }
+static inline u8x3 bitshrs_u8x3(u8x3 v, uint8_t s) { u8x3 ss = u8x3s(s); return bitshr_u8x3(v, ss); }
+static inline u16x3 bitshrs_u16x3(u16x3 v, uint16_t s) { u16x3 ss = u16x3s(s); return bitshr_u16x3(v, ss); }
+static inline u32x3 bitshrs_u32x3(u32x3 v, uint32_t s) { u32x3 ss = u32x3s(s); return bitshr_u32x3(v, ss); }
+static inline u64x3 bitshrs_u64x3(u64x3 v, uint64_t s) { u64x3 ss = u64x3s(s); return bitshr_u64x3(v, ss); }
+static inline s8x4 bitshrs_s8x4(s8x4 v, int8_t s) { s8x4 ss = s8x4s(s); return bitshr_s8x4(v, ss); }
+static inline s16x4 bitshrs_s16x4(s16x4 v, int16_t s) { s16x4 ss = s16x4s(s); return bitshr_s16x4(v, ss); }
+static inline s32x4 bitshrs_s32x4(s32x4 v, int32_t s) { s32x4 ss = s32x4s(s); return bitshr_s32x4(v, ss); }
+static inline s64x4 bitshrs_s64x4(s64x4 v, int64_t s) { s64x4 ss = s64x4s(s); return bitshr_s64x4(v, ss); }
+static inline u8x4 bitshrs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return bitshr_u8x4(v, ss); }
+static inline u16x4 bitshrs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return bitshr_u16x4(v, ss); }
+static inline u32x4 bitshrs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return bitshr_u32x4(v, ss); }
+static inline u64x4 bitshrs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return bitshr_u64x4(v, ss); }
 
 //
 // returns a vector where each component is the result from bitwise noting that component in 'v'
-HCC_INTRINSIC static inline s8x2 bitnots8x2(s8x2 v) { return s8x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline s16x2 bitnots16x2(s16x2 v) { return s16x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline s32x2 bitnots32x2(s32x2 v) { return s32x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline s64x2 bitnots64x2(s64x2 v) { return s64x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline u8x2 bitnotu8x2(u8x2 v) { return u8x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline u16x2 bitnotu16x2(u16x2 v) { return u16x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline u32x2 bitnotu32x2(u32x2 v) { return u32x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline u64x2 bitnotu64x2(u64x2 v) { return u64x2(~v.x, ~v.y); }
-HCC_INTRINSIC static inline s8x3 bitnots8x3(s8x3 v) { return s8x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline s16x3 bitnots16x3(s16x3 v) { return s16x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline s32x3 bitnots32x3(s32x3 v) { return s32x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline s64x3 bitnots64x3(s64x3 v) { return s64x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline u8x3 bitnotu8x3(u8x3 v) { return u8x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline u16x3 bitnotu16x3(u16x3 v) { return u16x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline u32x3 bitnotu32x3(u32x3 v) { return u32x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline u64x3 bitnotu64x3(u64x3 v) { return u64x3(~v.x, ~v.y, ~v.z); }
-HCC_INTRINSIC static inline s8x4 bitnots8x4(s8x4 v) { return s8x4(~v.x, ~v.y, ~v.z, ~v.w); }
-HCC_INTRINSIC static inline s16x4 bitnots16x4(s16x4 v) { return s16x4(~v.x, ~v.y, ~v.z, ~v.w); }
-HCC_INTRINSIC static inline s32x4 bitnots32x4(s32x4 v) { return s32x4(~v.x, ~v.y, ~v.z, ~v.w); }
-HCC_INTRINSIC static inline s64x4 bitnots64x4(s64x4 v) { return s64x4(~v.x, ~v.y, ~v.z, ~v.w); }
-HCC_INTRINSIC static inline u8x4 bitnotu8x4(u8x4 v) { return u8x4(~v.x, ~v.y, ~v.z, ~v.w); }
-HCC_INTRINSIC static inline u16x4 bitnotu16x4(u16x4 v) { return u16x4(~v.x, ~v.y, ~v.z, ~v.w); }
-HCC_INTRINSIC static inline u32x4 bitnotu32x4(u32x4 v) { return u32x4(~v.x, ~v.y, ~v.z, ~v.w); }
-HCC_INTRINSIC static inline u64x4 bitnotu64x4(u64x4 v) { return u64x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline s8x2 bitnot_s8x2(s8x2 v) { return s8x2(~v.x, ~v.y); }
+static inline s16x2 bitnot_s16x2(s16x2 v) { return s16x2(~v.x, ~v.y); }
+static inline s32x2 bitnot_s32x2(s32x2 v) { return s32x2(~v.x, ~v.y); }
+static inline s64x2 bitnot_s64x2(s64x2 v) { return s64x2(~v.x, ~v.y); }
+static inline u8x2 bitnot_u8x2(u8x2 v) { return u8x2(~v.x, ~v.y); }
+static inline u16x2 bitnot_u16x2(u16x2 v) { return u16x2(~v.x, ~v.y); }
+static inline u32x2 bitnot_u32x2(u32x2 v) { return u32x2(~v.x, ~v.y); }
+static inline u64x2 bitnot_u64x2(u64x2 v) { return u64x2(~v.x, ~v.y); }
+static inline s8x3 bitnot_s8x3(s8x3 v) { return s8x3(~v.x, ~v.y, ~v.z); }
+static inline s16x3 bitnot_s16x3(s16x3 v) { return s16x3(~v.x, ~v.y, ~v.z); }
+static inline s32x3 bitnot_s32x3(s32x3 v) { return s32x3(~v.x, ~v.y, ~v.z); }
+static inline s64x3 bitnot_s64x3(s64x3 v) { return s64x3(~v.x, ~v.y, ~v.z); }
+static inline u8x3 bitnot_u8x3(u8x3 v) { return u8x3(~v.x, ~v.y, ~v.z); }
+static inline u16x3 bitnot_u16x3(u16x3 v) { return u16x3(~v.x, ~v.y, ~v.z); }
+static inline u32x3 bitnot_u32x3(u32x3 v) { return u32x3(~v.x, ~v.y, ~v.z); }
+static inline u64x3 bitnot_u64x3(u64x3 v) { return u64x3(~v.x, ~v.y, ~v.z); }
+static inline s8x4 bitnot_s8x4(s8x4 v) { return s8x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline s16x4 bitnot_s16x4(s16x4 v) { return s16x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline s32x4 bitnot_s32x4(s32x4 v) { return s32x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline s64x4 bitnot_s64x4(s64x4 v) { return s64x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline u8x4 bitnot_u8x4(u8x4 v) { return u8x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline u16x4 bitnot_u16x4(u16x4 v) { return u16x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline u32x4 bitnot_u32x4(u32x4 v) { return u32x4(~v.x, ~v.y, ~v.z, ~v.w); }
+static inline u64x4 bitnot_u64x4(u64x4 v) { return u64x4(~v.x, ~v.y, ~v.z, ~v.w); }
 
 //
 // returns a vector where each component (x) is calculated like so x = (a.x * b.x) + c.x
-HCC_INTRINSIC static inline f16x2 fmaf16x2(f16x2 a, f16x2 b, f16x2 c) { return f16x2(fmaf16(a.x, b.x, c.x), fmaf16(a.y, b.y, c.y)); }
-HCC_INTRINSIC static inline f32x2 fmaf32x2(f32x2 a, f32x2 b, f32x2 c) { return f32x2(fmaf32(a.x, b.x, c.x), fmaf32(a.y, b.y, c.y)); }
-HCC_INTRINSIC static inline f64x2 fmaf64x2(f64x2 a, f64x2 b, f64x2 c) { return f64x2(fmaf64(a.x, b.x, c.x), fmaf64(a.y, b.y, c.y)); }
-HCC_INTRINSIC static inline f16x3 fmaf16x3(f16x3 a, f16x3 b, f16x3 c) { return f16x3(fmaf16(a.x, b.x, c.x), fmaf16(a.y, b.y, c.y), fmaf16(a.z, b.z, c.z)); }
-HCC_INTRINSIC static inline f32x3 fmaf32x3(f32x3 a, f32x3 b, f32x3 c) { return f32x3(fmaf32(a.x, b.x, c.x), fmaf32(a.y, b.y, c.y), fmaf32(a.z, b.z, c.z)); }
-HCC_INTRINSIC static inline f64x3 fmaf64x3(f64x3 a, f64x3 b, f64x3 c) { return f64x3(fmaf64(a.x, b.x, c.x), fmaf64(a.y, b.y, c.y), fmaf64(a.z, b.z, c.z)); }
-HCC_INTRINSIC static inline f16x4 fmaf16x4(f16x4 a, f16x4 b, f16x4 c) { return f16x4(fmaf16(a.x, b.x, c.x), fmaf16(a.y, b.y, c.y), fmaf16(a.z, b.z, c.z), fmaf16(a.w, b.w, c.w)); }
-HCC_INTRINSIC static inline f32x4 fmaf32x4(f32x4 a, f32x4 b, f32x4 c) { return f32x4(fmaf32(a.x, b.x, c.x), fmaf32(a.y, b.y, c.y), fmaf32(a.z, b.z, c.z), fmaf32(a.w, b.w, c.w)); }
-HCC_INTRINSIC static inline f64x4 fmaf64x4(f64x4 a, f64x4 b, f64x4 c) { return f64x4(fmaf64(a.x, b.x, c.x), fmaf64(a.y, b.y, c.y), fmaf64(a.z, b.z, c.z), fmaf64(a.w, b.w, c.w)); }
+static inline f16x2 fma_f16x2(f16x2 a, f16x2 b, f16x2 c) { return f16x2(fma_f16(a.x, b.x, c.x), fma_f16(a.y, b.y, c.y)); }
+static inline f32x2 fma_f32x2(f32x2 a, f32x2 b, f32x2 c) { return f32x2(fma_f32(a.x, b.x, c.x), fma_f32(a.y, b.y, c.y)); }
+static inline f64x2 fma_f64x2(f64x2 a, f64x2 b, f64x2 c) { return f64x2(fma_f64(a.x, b.x, c.x), fma_f64(a.y, b.y, c.y)); }
+static inline f16x3 fma_f16x3(f16x3 a, f16x3 b, f16x3 c) { return f16x3(fma_f16(a.x, b.x, c.x), fma_f16(a.y, b.y, c.y), fma_f16(a.z, b.z, c.z)); }
+static inline f32x3 fma_f32x3(f32x3 a, f32x3 b, f32x3 c) { return f32x3(fma_f32(a.x, b.x, c.x), fma_f32(a.y, b.y, c.y), fma_f32(a.z, b.z, c.z)); }
+static inline f64x3 fma_f64x3(f64x3 a, f64x3 b, f64x3 c) { return f64x3(fma_f64(a.x, b.x, c.x), fma_f64(a.y, b.y, c.y), fma_f64(a.z, b.z, c.z)); }
+static inline f16x4 fma_f16x4(f16x4 a, f16x4 b, f16x4 c) { return f16x4(fma_f16(a.x, b.x, c.x), fma_f16(a.y, b.y, c.y), fma_f16(a.z, b.z, c.z), fma_f16(a.w, b.w, c.w)); }
+static inline f32x4 fma_f32x4(f32x4 a, f32x4 b, f32x4 c) { return f32x4(fma_f32(a.x, b.x, c.x), fma_f32(a.y, b.y, c.y), fma_f32(a.z, b.z, c.z), fma_f32(a.w, b.w, c.w)); }
+static inline f64x4 fma_f64x4(f64x4 a, f64x4 b, f64x4 c) { return f64x4(fma_f64(a.x, b.x, c.x), fma_f64(a.y, b.y, c.y), fma_f64(a.z, b.z, c.z), fma_f64(a.w, b.w, c.w)); }
 
 //
 // returns a vector where each component (x) is calculated like so x = (a.x * b.x) + c
-static inline f16x2 fmasf16x2(f16x2 a, f16x2 b, half c) { f16x2 cs = f16x2s(c); return fmaf16x2(a, b, cs); }
-static inline f32x2 fmasf32x2(f32x2 a, f32x2 b, float c) { f32x2 cs = f32x2s(c); return fmaf32x2(a, b, cs); }
-static inline f64x2 fmasf64x2(f64x2 a, f64x2 b, double c) { f64x2 cs = f64x2s(c); return fmaf64x2(a, b, cs); }
-static inline f16x3 fmasf16x3(f16x3 a, f16x3 b, half c) { f16x3 cs = f16x3s(c); return fmaf16x3(a, b, cs); }
-static inline f32x3 fmasf32x3(f32x3 a, f32x3 b, float c) { f32x3 cs = f32x3s(c); return fmaf32x3(a, b, cs); }
-static inline f64x3 fmasf64x3(f64x3 a, f64x3 b, double c) { f64x3 cs = f64x3s(c); return fmaf64x3(a, b, cs); }
-static inline f16x4 fmasf16x4(f16x4 a, f16x4 b, half c) { f16x4 cs = f16x4s(c); return fmaf16x4(a, b, cs); }
-static inline f32x4 fmasf32x4(f32x4 a, f32x4 b, float c) { f32x4 cs = f32x4s(c); return fmaf32x4(a, b, cs); }
-static inline f64x4 fmasf64x4(f64x4 a, f64x4 b, double c) { f64x4 cs = f64x4s(c); return fmaf64x4(a, b, cs); }
+static inline f16x2 fmas_f16x2(f16x2 a, f16x2 b, half c) { f16x2 cs = f16x2s(c); return fma_f16x2(a, b, cs); }
+static inline f32x2 fmas_f32x2(f32x2 a, f32x2 b, float c) { f32x2 cs = f32x2s(c); return fma_f32x2(a, b, cs); }
+static inline f64x2 fmas_f64x2(f64x2 a, f64x2 b, double c) { f64x2 cs = f64x2s(c); return fma_f64x2(a, b, cs); }
+static inline f16x3 fmas_f16x3(f16x3 a, f16x3 b, half c) { f16x3 cs = f16x3s(c); return fma_f16x3(a, b, cs); }
+static inline f32x3 fmas_f32x3(f32x3 a, f32x3 b, float c) { f32x3 cs = f32x3s(c); return fma_f32x3(a, b, cs); }
+static inline f64x3 fmas_f64x3(f64x3 a, f64x3 b, double c) { f64x3 cs = f64x3s(c); return fma_f64x3(a, b, cs); }
+static inline f16x4 fmas_f16x4(f16x4 a, f16x4 b, half c) { f16x4 cs = f16x4s(c); return fma_f16x4(a, b, cs); }
+static inline f32x4 fmas_f32x4(f32x4 a, f32x4 b, float c) { f32x4 cs = f32x4s(c); return fma_f32x4(a, b, cs); }
+static inline f64x4 fmas_f64x4(f64x4 a, f64x4 b, double c) { f64x4 cs = f64x4s(c); return fma_f64x4(a, b, cs); }
 
 //
 // returns a vector where each component (x) is calculated like so x = (a.x * b) + c
-static inline f16x2 fmassf16x2(f16x2 a, half b, half c) { f16x2 bs = f16x2s(b); f16x2 cs = f16x2s(c); return fmaf16x2(a, bs, cs); }
-static inline f32x2 fmassf32x2(f32x2 a, float b, float c) { f32x2 bs = f32x2s(b); f32x2 cs = f32x2s(c); return fmaf32x2(a, bs, cs); }
-static inline f64x2 fmassf64x2(f64x2 a, double b, double c) { f64x2 bs = f64x2s(b); f64x2 cs = f64x2s(c); return fmaf64x2(a, bs, cs); }
-static inline f16x3 fmassf16x3(f16x3 a, half b, half c) { f16x3 bs = f16x3s(b); f16x3 cs = f16x3s(c); return fmaf16x3(a, bs, cs); }
-static inline f32x3 fmassf32x3(f32x3 a, float b, float c) { f32x3 bs = f32x3s(b); f32x3 cs = f32x3s(c); return fmaf32x3(a, bs, cs); }
-static inline f64x3 fmassf64x3(f64x3 a, double b, double c) { f64x3 bs = f64x3s(b); f64x3 cs = f64x3s(c); return fmaf64x3(a, bs, cs); }
-static inline f16x4 fmassf16x4(f16x4 a, half b, half c) { f16x4 bs = f16x4s(b); f16x4 cs = f16x4s(c); return fmaf16x4(a, bs, cs); }
-static inline f32x4 fmassf32x4(f32x4 a, float b, float c) { f32x4 bs = f32x4s(b); f32x4 cs = f32x4s(c); return fmaf32x4(a, bs, cs); }
-static inline f64x4 fmassf64x4(f64x4 a, double b, double c) { f64x4 bs = f64x4s(b); f64x4 cs = f64x4s(c); return fmaf64x4(a, bs, cs); }
+static inline f16x2 fmass_f16x2(f16x2 a, half b, half c) { f16x2 bs = f16x2s(b); f16x2 cs = f16x2s(c); return fma_f16x2(a, bs, cs); }
+static inline f32x2 fmass_f32x2(f32x2 a, float b, float c) { f32x2 bs = f32x2s(b); f32x2 cs = f32x2s(c); return fma_f32x2(a, bs, cs); }
+static inline f64x2 fmass_f64x2(f64x2 a, double b, double c) { f64x2 bs = f64x2s(b); f64x2 cs = f64x2s(c); return fma_f64x2(a, bs, cs); }
+static inline f16x3 fmass_f16x3(f16x3 a, half b, half c) { f16x3 bs = f16x3s(b); f16x3 cs = f16x3s(c); return fma_f16x3(a, bs, cs); }
+static inline f32x3 fmass_f32x3(f32x3 a, float b, float c) { f32x3 bs = f32x3s(b); f32x3 cs = f32x3s(c); return fma_f32x3(a, bs, cs); }
+static inline f64x3 fmass_f64x3(f64x3 a, double b, double c) { f64x3 bs = f64x3s(b); f64x3 cs = f64x3s(c); return fma_f64x3(a, bs, cs); }
+static inline f16x4 fmass_f16x4(f16x4 a, half b, half c) { f16x4 bs = f16x4s(b); f16x4 cs = f16x4s(c); return fma_f16x4(a, bs, cs); }
+static inline f32x4 fmass_f32x4(f32x4 a, float b, float c) { f32x4 bs = f32x4s(b); f32x4 cs = f32x4s(c); return fma_f32x4(a, bs, cs); }
+static inline f64x4 fmass_f64x4(f64x4 a, double b, double c) { f64x4 bs = f64x4s(b); f64x4 cs = f64x4s(c); return fma_f64x4(a, bs, cs); }
 
 //
 // return a vector where each component is the result of appling 'floor' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 floorf16x2(f16x2 v) { return f16x2(floorf16(v.x), floorf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 floorf32x2(f32x2 v) { return f32x2(floorf32(v.x), floorf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 floorf64x2(f64x2 v) { return f64x2(floorf64(v.x), floorf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 floorf16x3(f16x3 v) { return f16x3(floorf16(v.x), floorf16(v.y), floorf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 floorf32x3(f32x3 v) { return f32x3(floorf32(v.x), floorf32(v.y), floorf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 floorf64x3(f64x3 v) { return f64x3(floorf64(v.x), floorf64(v.y), floorf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 floorf16x4(f16x4 v) { return f16x4(floorf16(v.x), floorf16(v.y), floorf16(v.z), floorf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 floorf32x4(f32x4 v) { return f32x4(floorf32(v.x), floorf32(v.y), floorf32(v.z), floorf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 floorf64x4(f64x4 v) { return f64x4(floorf64(v.x), floorf64(v.y), floorf64(v.z), floorf64(v.w)); }
+static inline f16x2 floor_f16x2(f16x2 v) { return f16x2(floor_f16(v.x), floor_f16(v.y)); }
+static inline f32x2 floor_f32x2(f32x2 v) { return f32x2(floor_f32(v.x), floor_f32(v.y)); }
+static inline f64x2 floor_f64x2(f64x2 v) { return f64x2(floor_f64(v.x), floor_f64(v.y)); }
+static inline f16x3 floor_f16x3(f16x3 v) { return f16x3(floor_f16(v.x), floor_f16(v.y), floor_f16(v.z)); }
+static inline f32x3 floor_f32x3(f32x3 v) { return f32x3(floor_f32(v.x), floor_f32(v.y), floor_f32(v.z)); }
+static inline f64x3 floor_f64x3(f64x3 v) { return f64x3(floor_f64(v.x), floor_f64(v.y), floor_f64(v.z)); }
+static inline f16x4 floor_f16x4(f16x4 v) { return f16x4(floor_f16(v.x), floor_f16(v.y), floor_f16(v.z), floor_f16(v.w)); }
+static inline f32x4 floor_f32x4(f32x4 v) { return f32x4(floor_f32(v.x), floor_f32(v.y), floor_f32(v.z), floor_f32(v.w)); }
+static inline f64x4 floor_f64x4(f64x4 v) { return f64x4(floor_f64(v.x), floor_f64(v.y), floor_f64(v.z), floor_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'ceil' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 ceilf16x2(f16x2 v) { return f16x2(ceilf16(v.x), ceilf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 ceilf32x2(f32x2 v) { return f32x2(ceilf32(v.x), ceilf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 ceilf64x2(f64x2 v) { return f64x2(ceilf64(v.x), ceilf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 ceilf16x3(f16x3 v) { return f16x3(ceilf16(v.x), ceilf16(v.y), ceilf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 ceilf32x3(f32x3 v) { return f32x3(ceilf32(v.x), ceilf32(v.y), ceilf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 ceilf64x3(f64x3 v) { return f64x3(ceilf64(v.x), ceilf64(v.y), ceilf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 ceilf16x4(f16x4 v) { return f16x4(ceilf16(v.x), ceilf16(v.y), ceilf16(v.z), ceilf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 ceilf32x4(f32x4 v) { return f32x4(ceilf32(v.x), ceilf32(v.y), ceilf32(v.z), ceilf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 ceilf64x4(f64x4 v) { return f64x4(ceilf64(v.x), ceilf64(v.y), ceilf64(v.z), ceilf64(v.w)); }
+static inline f16x2 ceil_f16x2(f16x2 v) { return f16x2(ceil_f16(v.x), ceil_f16(v.y)); }
+static inline f32x2 ceil_f32x2(f32x2 v) { return f32x2(ceil_f32(v.x), ceil_f32(v.y)); }
+static inline f64x2 ceil_f64x2(f64x2 v) { return f64x2(ceil_f64(v.x), ceil_f64(v.y)); }
+static inline f16x3 ceil_f16x3(f16x3 v) { return f16x3(ceil_f16(v.x), ceil_f16(v.y), ceil_f16(v.z)); }
+static inline f32x3 ceil_f32x3(f32x3 v) { return f32x3(ceil_f32(v.x), ceil_f32(v.y), ceil_f32(v.z)); }
+static inline f64x3 ceil_f64x3(f64x3 v) { return f64x3(ceil_f64(v.x), ceil_f64(v.y), ceil_f64(v.z)); }
+static inline f16x4 ceil_f16x4(f16x4 v) { return f16x4(ceil_f16(v.x), ceil_f16(v.y), ceil_f16(v.z), ceil_f16(v.w)); }
+static inline f32x4 ceil_f32x4(f32x4 v) { return f32x4(ceil_f32(v.x), ceil_f32(v.y), ceil_f32(v.z), ceil_f32(v.w)); }
+static inline f64x4 ceil_f64x4(f64x4 v) { return f64x4(ceil_f64(v.x), ceil_f64(v.y), ceil_f64(v.z), ceil_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'round' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 roundf16x2(f16x2 v) { return f16x2(roundf16(v.x), roundf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 roundf32x2(f32x2 v) { return f32x2(roundf32(v.x), roundf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 roundf64x2(f64x2 v) { return f64x2(roundf64(v.x), roundf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 roundf16x3(f16x3 v) { return f16x3(roundf16(v.x), roundf16(v.y), roundf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 roundf32x3(f32x3 v) { return f32x3(roundf32(v.x), roundf32(v.y), roundf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 roundf64x3(f64x3 v) { return f64x3(roundf64(v.x), roundf64(v.y), roundf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 roundf16x4(f16x4 v) { return f16x4(roundf16(v.x), roundf16(v.y), roundf16(v.z), roundf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 roundf32x4(f32x4 v) { return f32x4(roundf32(v.x), roundf32(v.y), roundf32(v.z), roundf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 roundf64x4(f64x4 v) { return f64x4(roundf64(v.x), roundf64(v.y), roundf64(v.z), roundf64(v.w)); }
+static inline f16x2 round_f16x2(f16x2 v) { return f16x2(round_f16(v.x), round_f16(v.y)); }
+static inline f32x2 round_f32x2(f32x2 v) { return f32x2(round_f32(v.x), round_f32(v.y)); }
+static inline f64x2 round_f64x2(f64x2 v) { return f64x2(round_f64(v.x), round_f64(v.y)); }
+static inline f16x3 round_f16x3(f16x3 v) { return f16x3(round_f16(v.x), round_f16(v.y), round_f16(v.z)); }
+static inline f32x3 round_f32x3(f32x3 v) { return f32x3(round_f32(v.x), round_f32(v.y), round_f32(v.z)); }
+static inline f64x3 round_f64x3(f64x3 v) { return f64x3(round_f64(v.x), round_f64(v.y), round_f64(v.z)); }
+static inline f16x4 round_f16x4(f16x4 v) { return f16x4(round_f16(v.x), round_f16(v.y), round_f16(v.z), round_f16(v.w)); }
+static inline f32x4 round_f32x4(f32x4 v) { return f32x4(round_f32(v.x), round_f32(v.y), round_f32(v.z), round_f32(v.w)); }
+static inline f64x4 round_f64x4(f64x4 v) { return f64x4(round_f64(v.x), round_f64(v.y), round_f64(v.z), round_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'trunc' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 truncf16x2(f16x2 v) { return f16x2(truncf16(v.x), truncf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 truncf32x2(f32x2 v) { return f32x2(truncf32(v.x), truncf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 truncf64x2(f64x2 v) { return f64x2(truncf64(v.x), truncf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 truncf16x3(f16x3 v) { return f16x3(truncf16(v.x), truncf16(v.y), truncf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 truncf32x3(f32x3 v) { return f32x3(truncf32(v.x), truncf32(v.y), truncf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 truncf64x3(f64x3 v) { return f64x3(truncf64(v.x), truncf64(v.y), truncf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 truncf16x4(f16x4 v) { return f16x4(truncf16(v.x), truncf16(v.y), truncf16(v.z), truncf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 truncf32x4(f32x4 v) { return f32x4(truncf32(v.x), truncf32(v.y), truncf32(v.z), truncf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 truncf64x4(f64x4 v) { return f64x4(truncf64(v.x), truncf64(v.y), truncf64(v.z), truncf64(v.w)); }
+static inline f16x2 trunc_f16x2(f16x2 v) { return f16x2(trunc_f16(v.x), trunc_f16(v.y)); }
+static inline f32x2 trunc_f32x2(f32x2 v) { return f32x2(trunc_f32(v.x), trunc_f32(v.y)); }
+static inline f64x2 trunc_f64x2(f64x2 v) { return f64x2(trunc_f64(v.x), trunc_f64(v.y)); }
+static inline f16x3 trunc_f16x3(f16x3 v) { return f16x3(trunc_f16(v.x), trunc_f16(v.y), trunc_f16(v.z)); }
+static inline f32x3 trunc_f32x3(f32x3 v) { return f32x3(trunc_f32(v.x), trunc_f32(v.y), trunc_f32(v.z)); }
+static inline f64x3 trunc_f64x3(f64x3 v) { return f64x3(trunc_f64(v.x), trunc_f64(v.y), trunc_f64(v.z)); }
+static inline f16x4 trunc_f16x4(f16x4 v) { return f16x4(trunc_f16(v.x), trunc_f16(v.y), trunc_f16(v.z), trunc_f16(v.w)); }
+static inline f32x4 trunc_f32x4(f32x4 v) { return f32x4(trunc_f32(v.x), trunc_f32(v.y), trunc_f32(v.z), trunc_f32(v.w)); }
+static inline f64x4 trunc_f64x4(f64x4 v) { return f64x4(trunc_f64(v.x), trunc_f64(v.y), trunc_f64(v.z), trunc_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'fract' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 fractf16x2(f16x2 v) { return f16x2(fractf16(v.x), fractf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 fractf32x2(f32x2 v) { return f32x2(fractf32(v.x), fractf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 fractf64x2(f64x2 v) { return f64x2(fractf64(v.x), fractf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 fractf16x3(f16x3 v) { return f16x3(fractf16(v.x), fractf16(v.y), fractf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 fractf32x3(f32x3 v) { return f32x3(fractf32(v.x), fractf32(v.y), fractf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 fractf64x3(f64x3 v) { return f64x3(fractf64(v.x), fractf64(v.y), fractf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 fractf16x4(f16x4 v) { return f16x4(fractf16(v.x), fractf16(v.y), fractf16(v.z), fractf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 fractf32x4(f32x4 v) { return f32x4(fractf32(v.x), fractf32(v.y), fractf32(v.z), fractf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 fractf64x4(f64x4 v) { return f64x4(fractf64(v.x), fractf64(v.y), fractf64(v.z), fractf64(v.w)); }
+static inline f16x2 fract_f16x2(f16x2 v) { return f16x2(fract_f16(v.x), fract_f16(v.y)); }
+static inline f32x2 fract_f32x2(f32x2 v) { return f32x2(fract_f32(v.x), fract_f32(v.y)); }
+static inline f64x2 fract_f64x2(f64x2 v) { return f64x2(fract_f64(v.x), fract_f64(v.y)); }
+static inline f16x3 fract_f16x3(f16x3 v) { return f16x3(fract_f16(v.x), fract_f16(v.y), fract_f16(v.z)); }
+static inline f32x3 fract_f32x3(f32x3 v) { return f32x3(fract_f32(v.x), fract_f32(v.y), fract_f32(v.z)); }
+static inline f64x3 fract_f64x3(f64x3 v) { return f64x3(fract_f64(v.x), fract_f64(v.y), fract_f64(v.z)); }
+static inline f16x4 fract_f16x4(f16x4 v) { return f16x4(fract_f16(v.x), fract_f16(v.y), fract_f16(v.z), fract_f16(v.w)); }
+static inline f32x4 fract_f32x4(f32x4 v) { return f32x4(fract_f32(v.x), fract_f32(v.y), fract_f32(v.z), fract_f32(v.w)); }
+static inline f64x4 fract_f64x4(f64x4 v) { return f64x4(fract_f64(v.x), fract_f64(v.y), fract_f64(v.z), fract_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'radians' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 radiansf16x2(f16x2 v) { return f16x2(radiansf16(v.x), radiansf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 radiansf32x2(f32x2 v) { return f32x2(radiansf32(v.x), radiansf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 radiansf64x2(f64x2 v) { return f64x2(radiansf64(v.x), radiansf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 radiansf16x3(f16x3 v) { return f16x3(radiansf16(v.x), radiansf16(v.y), radiansf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 radiansf32x3(f32x3 v) { return f32x3(radiansf32(v.x), radiansf32(v.y), radiansf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 radiansf64x3(f64x3 v) { return f64x3(radiansf64(v.x), radiansf64(v.y), radiansf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 radiansf16x4(f16x4 v) { return f16x4(radiansf16(v.x), radiansf16(v.y), radiansf16(v.z), radiansf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 radiansf32x4(f32x4 v) { return f32x4(radiansf32(v.x), radiansf32(v.y), radiansf32(v.z), radiansf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 radiansf64x4(f64x4 v) { return f64x4(radiansf64(v.x), radiansf64(v.y), radiansf64(v.z), radiansf64(v.w)); }
+static inline f16x2 radians_f16x2(f16x2 v) { return f16x2(radians_f16(v.x), radians_f16(v.y)); }
+static inline f32x2 radians_f32x2(f32x2 v) { return f32x2(radians_f32(v.x), radians_f32(v.y)); }
+static inline f64x2 radians_f64x2(f64x2 v) { return f64x2(radians_f64(v.x), radians_f64(v.y)); }
+static inline f16x3 radians_f16x3(f16x3 v) { return f16x3(radians_f16(v.x), radians_f16(v.y), radians_f16(v.z)); }
+static inline f32x3 radians_f32x3(f32x3 v) { return f32x3(radians_f32(v.x), radians_f32(v.y), radians_f32(v.z)); }
+static inline f64x3 radians_f64x3(f64x3 v) { return f64x3(radians_f64(v.x), radians_f64(v.y), radians_f64(v.z)); }
+static inline f16x4 radians_f16x4(f16x4 v) { return f16x4(radians_f16(v.x), radians_f16(v.y), radians_f16(v.z), radians_f16(v.w)); }
+static inline f32x4 radians_f32x4(f32x4 v) { return f32x4(radians_f32(v.x), radians_f32(v.y), radians_f32(v.z), radians_f32(v.w)); }
+static inline f64x4 radians_f64x4(f64x4 v) { return f64x4(radians_f64(v.x), radians_f64(v.y), radians_f64(v.z), radians_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'degrees' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 degreesf16x2(f16x2 v) { return f16x2(degreesf16(v.x), degreesf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 degreesf32x2(f32x2 v) { return f32x2(degreesf32(v.x), degreesf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 degreesf64x2(f64x2 v) { return f64x2(degreesf64(v.x), degreesf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 degreesf16x3(f16x3 v) { return f16x3(degreesf16(v.x), degreesf16(v.y), degreesf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 degreesf32x3(f32x3 v) { return f32x3(degreesf32(v.x), degreesf32(v.y), degreesf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 degreesf64x3(f64x3 v) { return f64x3(degreesf64(v.x), degreesf64(v.y), degreesf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 degreesf16x4(f16x4 v) { return f16x4(degreesf16(v.x), degreesf16(v.y), degreesf16(v.z), degreesf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 degreesf32x4(f32x4 v) { return f32x4(degreesf32(v.x), degreesf32(v.y), degreesf32(v.z), degreesf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 degreesf64x4(f64x4 v) { return f64x4(degreesf64(v.x), degreesf64(v.y), degreesf64(v.z), degreesf64(v.w)); }
+static inline f16x2 degrees_f16x2(f16x2 v) { return f16x2(degrees_f16(v.x), degrees_f16(v.y)); }
+static inline f32x2 degrees_f32x2(f32x2 v) { return f32x2(degrees_f32(v.x), degrees_f32(v.y)); }
+static inline f64x2 degrees_f64x2(f64x2 v) { return f64x2(degrees_f64(v.x), degrees_f64(v.y)); }
+static inline f16x3 degrees_f16x3(f16x3 v) { return f16x3(degrees_f16(v.x), degrees_f16(v.y), degrees_f16(v.z)); }
+static inline f32x3 degrees_f32x3(f32x3 v) { return f32x3(degrees_f32(v.x), degrees_f32(v.y), degrees_f32(v.z)); }
+static inline f64x3 degrees_f64x3(f64x3 v) { return f64x3(degrees_f64(v.x), degrees_f64(v.y), degrees_f64(v.z)); }
+static inline f16x4 degrees_f16x4(f16x4 v) { return f16x4(degrees_f16(v.x), degrees_f16(v.y), degrees_f16(v.z), degrees_f16(v.w)); }
+static inline f32x4 degrees_f32x4(f32x4 v) { return f32x4(degrees_f32(v.x), degrees_f32(v.y), degrees_f32(v.z), degrees_f32(v.w)); }
+static inline f64x4 degrees_f64x4(f64x4 v) { return f64x4(degrees_f64(v.x), degrees_f64(v.y), degrees_f64(v.z), degrees_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'step' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 stepf16x2(f16x2 v, f16x2 edge) { return f16x2(stepf16(v.x, edge.x), stepf16(v.y, edge.y)); }
-HCC_INTRINSIC static inline f32x2 stepf32x2(f32x2 v, f32x2 edge) { return f32x2(stepf32(v.x, edge.x), stepf32(v.y, edge.y)); }
-HCC_INTRINSIC static inline f64x2 stepf64x2(f64x2 v, f64x2 edge) { return f64x2(stepf64(v.x, edge.x), stepf64(v.y, edge.y)); }
-HCC_INTRINSIC static inline f16x3 stepf16x3(f16x3 v, f16x3 edge) { return f16x3(stepf16(v.x, edge.x), stepf16(v.y, edge.y), stepf16(v.z, edge.z)); }
-HCC_INTRINSIC static inline f32x3 stepf32x3(f32x3 v, f32x3 edge) { return f32x3(stepf32(v.x, edge.x), stepf32(v.y, edge.y), stepf32(v.z, edge.z)); }
-HCC_INTRINSIC static inline f64x3 stepf64x3(f64x3 v, f64x3 edge) { return f64x3(stepf64(v.x, edge.x), stepf64(v.y, edge.y), stepf64(v.z, edge.z)); }
-HCC_INTRINSIC static inline f16x4 stepf16x4(f16x4 v, f16x4 edge) { return f16x4(stepf16(v.x, edge.x), stepf16(v.y, edge.y), stepf16(v.z, edge.z), stepf16(v.w, edge.w)); }
-HCC_INTRINSIC static inline f32x4 stepf32x4(f32x4 v, f32x4 edge) { return f32x4(stepf32(v.x, edge.x), stepf32(v.y, edge.y), stepf32(v.z, edge.z), stepf32(v.w, edge.w)); }
-HCC_INTRINSIC static inline f64x4 stepf64x4(f64x4 v, f64x4 edge) { return f64x4(stepf64(v.x, edge.x), stepf64(v.y, edge.y), stepf64(v.z, edge.z), stepf64(v.w, edge.w)); }
+static inline f16x2 step_f16x2(f16x2 v, f16x2 edge) { return f16x2(step_f16(v.x, edge.x), step_f16(v.y, edge.y)); }
+static inline f32x2 step_f32x2(f32x2 v, f32x2 edge) { return f32x2(step_f32(v.x, edge.x), step_f32(v.y, edge.y)); }
+static inline f64x2 step_f64x2(f64x2 v, f64x2 edge) { return f64x2(step_f64(v.x, edge.x), step_f64(v.y, edge.y)); }
+static inline f16x3 step_f16x3(f16x3 v, f16x3 edge) { return f16x3(step_f16(v.x, edge.x), step_f16(v.y, edge.y), step_f16(v.z, edge.z)); }
+static inline f32x3 step_f32x3(f32x3 v, f32x3 edge) { return f32x3(step_f32(v.x, edge.x), step_f32(v.y, edge.y), step_f32(v.z, edge.z)); }
+static inline f64x3 step_f64x3(f64x3 v, f64x3 edge) { return f64x3(step_f64(v.x, edge.x), step_f64(v.y, edge.y), step_f64(v.z, edge.z)); }
+static inline f16x4 step_f16x4(f16x4 v, f16x4 edge) { return f16x4(step_f16(v.x, edge.x), step_f16(v.y, edge.y), step_f16(v.z, edge.z), step_f16(v.w, edge.w)); }
+static inline f32x4 step_f32x4(f32x4 v, f32x4 edge) { return f32x4(step_f32(v.x, edge.x), step_f32(v.y, edge.y), step_f32(v.z, edge.z), step_f32(v.w, edge.w)); }
+static inline f64x4 step_f64x4(f64x4 v, f64x4 edge) { return f64x4(step_f64(v.x, edge.x), step_f64(v.y, edge.y), step_f64(v.z, edge.z), step_f64(v.w, edge.w)); }
 
 //
 // return a vector where each component is the result of appling 'step' to that component in 'v'
-static inline f16x2 stepsf16x2(f16x2 v, half edge) { f16x2 edges = f16x2s(edge); return stepf16x2(v, edges); }
-static inline f32x2 stepsf32x2(f32x2 v, float edge) { f32x2 edges = f32x2s(edge); return stepf32x2(v, edges); }
-static inline f64x2 stepsf64x2(f64x2 v, double edge) { f64x2 edges = f64x2s(edge); return stepf64x2(v, edges); }
-static inline f16x3 stepsf16x3(f16x3 v, half edge) { f16x3 edges = f16x3s(edge); return stepf16x3(v, edges); }
-static inline f32x3 stepsf32x3(f32x3 v, float edge) { f32x3 edges = f32x3s(edge); return stepf32x3(v, edges); }
-static inline f64x3 stepsf64x3(f64x3 v, double edge) { f64x3 edges = f64x3s(edge); return stepf64x3(v, edges); }
-static inline f16x4 stepsf16x4(f16x4 v, half edge) { f16x4 edges = f16x4s(edge); return stepf16x4(v, edges); }
-static inline f32x4 stepsf32x4(f32x4 v, float edge) { f32x4 edges = f32x4s(edge); return stepf32x4(v, edges); }
-static inline f64x4 stepsf64x4(f64x4 v, double edge) { f64x4 edges = f64x4s(edge); return stepf64x4(v, edges); }
+static inline f16x2 steps_f16x2(f16x2 v, half edge) { f16x2 edges = f16x2s(edge); return step_f16x2(v, edges); }
+static inline f32x2 steps_f32x2(f32x2 v, float edge) { f32x2 edges = f32x2s(edge); return step_f32x2(v, edges); }
+static inline f64x2 steps_f64x2(f64x2 v, double edge) { f64x2 edges = f64x2s(edge); return step_f64x2(v, edges); }
+static inline f16x3 steps_f16x3(f16x3 v, half edge) { f16x3 edges = f16x3s(edge); return step_f16x3(v, edges); }
+static inline f32x3 steps_f32x3(f32x3 v, float edge) { f32x3 edges = f32x3s(edge); return step_f32x3(v, edges); }
+static inline f64x3 steps_f64x3(f64x3 v, double edge) { f64x3 edges = f64x3s(edge); return step_f64x3(v, edges); }
+static inline f16x4 steps_f16x4(f16x4 v, half edge) { f16x4 edges = f16x4s(edge); return step_f16x4(v, edges); }
+static inline f32x4 steps_f32x4(f32x4 v, float edge) { f32x4 edges = f32x4s(edge); return step_f32x4(v, edges); }
+static inline f64x4 steps_f64x4(f64x4 v, double edge) { f64x4 edges = f64x4s(edge); return step_f64x4(v, edges); }
 
 //
 // return a vector where each component is the result of appling 'smoothstep' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 smoothstepf16x2(f16x2 edge0, f16x2 edge1, f16x2 v) { return f16x2(smoothstepf16(edge0.x, edge1.x, v.x), smoothstepf16(edge0.y, edge1.y, v.y)); }
-HCC_INTRINSIC static inline f32x2 smoothstepf32x2(f32x2 edge0, f32x2 edge1, f32x2 v) { return f32x2(smoothstepf32(edge0.x, edge1.x, v.x), smoothstepf32(edge0.y, edge1.y, v.y)); }
-HCC_INTRINSIC static inline f64x2 smoothstepf64x2(f64x2 edge0, f64x2 edge1, f64x2 v) { return f64x2(smoothstepf64(edge0.x, edge1.x, v.x), smoothstepf64(edge0.y, edge1.y, v.y)); }
-HCC_INTRINSIC static inline f16x3 smoothstepf16x3(f16x3 edge0, f16x3 edge1, f16x3 v) { return f16x3(smoothstepf16(edge0.x, edge1.x, v.x), smoothstepf16(edge0.y, edge1.y, v.y), smoothstepf16(edge0.z, edge1.z, v.z)); }
-HCC_INTRINSIC static inline f32x3 smoothstepf32x3(f32x3 edge0, f32x3 edge1, f32x3 v) { return f32x3(smoothstepf32(edge0.x, edge1.x, v.x), smoothstepf32(edge0.y, edge1.y, v.y), smoothstepf32(edge0.z, edge1.z, v.z)); }
-HCC_INTRINSIC static inline f64x3 smoothstepf64x3(f64x3 edge0, f64x3 edge1, f64x3 v) { return f64x3(smoothstepf64(edge0.x, edge1.x, v.x), smoothstepf64(edge0.y, edge1.y, v.y), smoothstepf64(edge0.z, edge1.z, v.z)); }
-HCC_INTRINSIC static inline f16x4 smoothstepf16x4(f16x4 edge0, f16x4 edge1, f16x4 v) { return f16x4(smoothstepf16(edge0.x, edge1.x, v.x), smoothstepf16(edge0.y, edge1.y, v.y), smoothstepf16(edge0.z, edge1.z, v.z), smoothstepf16(edge0.w, edge1.w, v.w)); }
-HCC_INTRINSIC static inline f32x4 smoothstepf32x4(f32x4 edge0, f32x4 edge1, f32x4 v) { return f32x4(smoothstepf32(edge0.x, edge1.x, v.x), smoothstepf32(edge0.y, edge1.y, v.y), smoothstepf32(edge0.z, edge1.z, v.z), smoothstepf32(edge0.w, edge1.w, v.w)); }
-HCC_INTRINSIC static inline f64x4 smoothstepf64x4(f64x4 edge0, f64x4 edge1, f64x4 v) { return f64x4(smoothstepf64(edge0.x, edge1.x, v.x), smoothstepf64(edge0.y, edge1.y, v.y), smoothstepf64(edge0.z, edge1.z, v.z), smoothstepf64(edge0.w, edge1.w, v.w)); }
+static inline f16x2 smoothstep_f16x2(f16x2 edge0, f16x2 edge1, f16x2 v) { return f16x2(smoothstep_f16(edge0.x, edge1.x, v.x), smoothstep_f16(edge0.y, edge1.y, v.y)); }
+static inline f32x2 smoothstep_f32x2(f32x2 edge0, f32x2 edge1, f32x2 v) { return f32x2(smoothstep_f32(edge0.x, edge1.x, v.x), smoothstep_f32(edge0.y, edge1.y, v.y)); }
+static inline f64x2 smoothstep_f64x2(f64x2 edge0, f64x2 edge1, f64x2 v) { return f64x2(smoothstep_f64(edge0.x, edge1.x, v.x), smoothstep_f64(edge0.y, edge1.y, v.y)); }
+static inline f16x3 smoothstep_f16x3(f16x3 edge0, f16x3 edge1, f16x3 v) { return f16x3(smoothstep_f16(edge0.x, edge1.x, v.x), smoothstep_f16(edge0.y, edge1.y, v.y), smoothstep_f16(edge0.z, edge1.z, v.z)); }
+static inline f32x3 smoothstep_f32x3(f32x3 edge0, f32x3 edge1, f32x3 v) { return f32x3(smoothstep_f32(edge0.x, edge1.x, v.x), smoothstep_f32(edge0.y, edge1.y, v.y), smoothstep_f32(edge0.z, edge1.z, v.z)); }
+static inline f64x3 smoothstep_f64x3(f64x3 edge0, f64x3 edge1, f64x3 v) { return f64x3(smoothstep_f64(edge0.x, edge1.x, v.x), smoothstep_f64(edge0.y, edge1.y, v.y), smoothstep_f64(edge0.z, edge1.z, v.z)); }
+static inline f16x4 smoothstep_f16x4(f16x4 edge0, f16x4 edge1, f16x4 v) { return f16x4(smoothstep_f16(edge0.x, edge1.x, v.x), smoothstep_f16(edge0.y, edge1.y, v.y), smoothstep_f16(edge0.z, edge1.z, v.z), smoothstep_f16(edge0.w, edge1.w, v.w)); }
+static inline f32x4 smoothstep_f32x4(f32x4 edge0, f32x4 edge1, f32x4 v) { return f32x4(smoothstep_f32(edge0.x, edge1.x, v.x), smoothstep_f32(edge0.y, edge1.y, v.y), smoothstep_f32(edge0.z, edge1.z, v.z), smoothstep_f32(edge0.w, edge1.w, v.w)); }
+static inline f64x4 smoothstep_f64x4(f64x4 edge0, f64x4 edge1, f64x4 v) { return f64x4(smoothstep_f64(edge0.x, edge1.x, v.x), smoothstep_f64(edge0.y, edge1.y, v.y), smoothstep_f64(edge0.z, edge1.z, v.z), smoothstep_f64(edge0.w, edge1.w, v.w)); }
 
 //
 // return a vector where each component is the result of appling 'smoothstep' to that component in 'v'
-static inline f16x2 smoothstepsf16x2(f16x2 edge0, f16x2 edge1, half v) { f16x2 vs = f16x2s(v); return smoothstepf16x2(edge0, edge1, vs); }
-static inline f32x2 smoothstepsf32x2(f32x2 edge0, f32x2 edge1, float v) { f32x2 vs = f32x2s(v); return smoothstepf32x2(edge0, edge1, vs); }
-static inline f64x2 smoothstepsf64x2(f64x2 edge0, f64x2 edge1, double v) { f64x2 vs = f64x2s(v); return smoothstepf64x2(edge0, edge1, vs); }
-static inline f16x3 smoothstepsf16x3(f16x3 edge0, f16x3 edge1, half v) { f16x3 vs = f16x3s(v); return smoothstepf16x3(edge0, edge1, vs); }
-static inline f32x3 smoothstepsf32x3(f32x3 edge0, f32x3 edge1, float v) { f32x3 vs = f32x3s(v); return smoothstepf32x3(edge0, edge1, vs); }
-static inline f64x3 smoothstepsf64x3(f64x3 edge0, f64x3 edge1, double v) { f64x3 vs = f64x3s(v); return smoothstepf64x3(edge0, edge1, vs); }
-static inline f16x4 smoothstepsf16x4(f16x4 edge0, f16x4 edge1, half v) { f16x4 vs = f16x4s(v); return smoothstepf16x4(edge0, edge1, vs); }
-static inline f32x4 smoothstepsf32x4(f32x4 edge0, f32x4 edge1, float v) { f32x4 vs = f32x4s(v); return smoothstepf32x4(edge0, edge1, vs); }
-static inline f64x4 smoothstepsf64x4(f64x4 edge0, f64x4 edge1, double v) { f64x4 vs = f64x4s(v); return smoothstepf64x4(edge0, edge1, vs); }
+static inline f16x2 smoothsteps_f16x2(f16x2 edge0, f16x2 edge1, half v) { f16x2 vs = f16x2s(v); return smoothstep_f16x2(edge0, edge1, vs); }
+static inline f32x2 smoothsteps_f32x2(f32x2 edge0, f32x2 edge1, float v) { f32x2 vs = f32x2s(v); return smoothstep_f32x2(edge0, edge1, vs); }
+static inline f64x2 smoothsteps_f64x2(f64x2 edge0, f64x2 edge1, double v) { f64x2 vs = f64x2s(v); return smoothstep_f64x2(edge0, edge1, vs); }
+static inline f16x3 smoothsteps_f16x3(f16x3 edge0, f16x3 edge1, half v) { f16x3 vs = f16x3s(v); return smoothstep_f16x3(edge0, edge1, vs); }
+static inline f32x3 smoothsteps_f32x3(f32x3 edge0, f32x3 edge1, float v) { f32x3 vs = f32x3s(v); return smoothstep_f32x3(edge0, edge1, vs); }
+static inline f64x3 smoothsteps_f64x3(f64x3 edge0, f64x3 edge1, double v) { f64x3 vs = f64x3s(v); return smoothstep_f64x3(edge0, edge1, vs); }
+static inline f16x4 smoothsteps_f16x4(f16x4 edge0, f16x4 edge1, half v) { f16x4 vs = f16x4s(v); return smoothstep_f16x4(edge0, edge1, vs); }
+static inline f32x4 smoothsteps_f32x4(f32x4 edge0, f32x4 edge1, float v) { f32x4 vs = f32x4s(v); return smoothstep_f32x4(edge0, edge1, vs); }
+static inline f64x4 smoothsteps_f64x4(f64x4 edge0, f64x4 edge1, double v) { f64x4 vs = f64x4s(v); return smoothstep_f64x4(edge0, edge1, vs); }
 
 //
 // return a vector where each component is the result of appling 'smoothstep' to that component in 'v'
-static inline f16x2 smoothstepssf16x2(f16x2 edge0, half edge1, half v) { f16x2 edge1s = f16x2s(edge1); f16x2 vs = f16x2s(v); return smoothstepf16x2(edge0, edge1s, vs); }
-static inline f32x2 smoothstepssf32x2(f32x2 edge0, float edge1, float v) { f32x2 edge1s = f32x2s(edge1); f32x2 vs = f32x2s(v); return smoothstepf32x2(edge0, edge1s, vs); }
-static inline f64x2 smoothstepssf64x2(f64x2 edge0, double edge1, double v) { f64x2 edge1s = f64x2s(edge1); f64x2 vs = f64x2s(v); return smoothstepf64x2(edge0, edge1s, vs); }
-static inline f16x3 smoothstepssf16x3(f16x3 edge0, half edge1, half v) { f16x3 edge1s = f16x3s(edge1); f16x3 vs = f16x3s(v); return smoothstepf16x3(edge0, edge1s, vs); }
-static inline f32x3 smoothstepssf32x3(f32x3 edge0, float edge1, float v) { f32x3 edge1s = f32x3s(edge1); f32x3 vs = f32x3s(v); return smoothstepf32x3(edge0, edge1s, vs); }
-static inline f64x3 smoothstepssf64x3(f64x3 edge0, double edge1, double v) { f64x3 edge1s = f64x3s(edge1); f64x3 vs = f64x3s(v); return smoothstepf64x3(edge0, edge1s, vs); }
-static inline f16x4 smoothstepssf16x4(f16x4 edge0, half edge1, half v) { f16x4 edge1s = f16x4s(edge1); f16x4 vs = f16x4s(v); return smoothstepf16x4(edge0, edge1s, vs); }
-static inline f32x4 smoothstepssf32x4(f32x4 edge0, float edge1, float v) { f32x4 edge1s = f32x4s(edge1); f32x4 vs = f32x4s(v); return smoothstepf32x4(edge0, edge1s, vs); }
-static inline f64x4 smoothstepssf64x4(f64x4 edge0, double edge1, double v) { f64x4 edge1s = f64x4s(edge1); f64x4 vs = f64x4s(v); return smoothstepf64x4(edge0, edge1s, vs); }
+static inline f16x2 smoothstepss_f16x2(f16x2 edge0, half edge1, half v) { f16x2 edge1s = f16x2s(edge1); f16x2 vs = f16x2s(v); return smoothstep_f16x2(edge0, edge1s, vs); }
+static inline f32x2 smoothstepss_f32x2(f32x2 edge0, float edge1, float v) { f32x2 edge1s = f32x2s(edge1); f32x2 vs = f32x2s(v); return smoothstep_f32x2(edge0, edge1s, vs); }
+static inline f64x2 smoothstepss_f64x2(f64x2 edge0, double edge1, double v) { f64x2 edge1s = f64x2s(edge1); f64x2 vs = f64x2s(v); return smoothstep_f64x2(edge0, edge1s, vs); }
+static inline f16x3 smoothstepss_f16x3(f16x3 edge0, half edge1, half v) { f16x3 edge1s = f16x3s(edge1); f16x3 vs = f16x3s(v); return smoothstep_f16x3(edge0, edge1s, vs); }
+static inline f32x3 smoothstepss_f32x3(f32x3 edge0, float edge1, float v) { f32x3 edge1s = f32x3s(edge1); f32x3 vs = f32x3s(v); return smoothstep_f32x3(edge0, edge1s, vs); }
+static inline f64x3 smoothstepss_f64x3(f64x3 edge0, double edge1, double v) { f64x3 edge1s = f64x3s(edge1); f64x3 vs = f64x3s(v); return smoothstep_f64x3(edge0, edge1s, vs); }
+static inline f16x4 smoothstepss_f16x4(f16x4 edge0, half edge1, half v) { f16x4 edge1s = f16x4s(edge1); f16x4 vs = f16x4s(v); return smoothstep_f16x4(edge0, edge1s, vs); }
+static inline f32x4 smoothstepss_f32x4(f32x4 edge0, float edge1, float v) { f32x4 edge1s = f32x4s(edge1); f32x4 vs = f32x4s(v); return smoothstep_f32x4(edge0, edge1s, vs); }
+static inline f64x4 smoothstepss_f64x4(f64x4 edge0, double edge1, double v) { f64x4 edge1s = f64x4s(edge1); f64x4 vs = f64x4s(v); return smoothstep_f64x4(edge0, edge1s, vs); }
 
 //
 // return a vector where each component is the result of appling 'remap' to that component in 'v', 'from_min', 'from_max', 'to_min' and 'to_max'
-static inline f16x2 remapf16x2(f16x2 v, f16x2 from_min, f16x2 from_max, f16x2 to_min, f16x2 to_max) { return f16x2(remapf16(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf16(v.y, from_min.y, from_max.y, to_min.y, to_max.y)); }
-static inline f32x2 remapf32x2(f32x2 v, f32x2 from_min, f32x2 from_max, f32x2 to_min, f32x2 to_max) { return f32x2(remapf32(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf32(v.y, from_min.y, from_max.y, to_min.y, to_max.y)); }
-static inline f64x2 remapf64x2(f64x2 v, f64x2 from_min, f64x2 from_max, f64x2 to_min, f64x2 to_max) { return f64x2(remapf64(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf64(v.y, from_min.y, from_max.y, to_min.y, to_max.y)); }
-static inline f16x3 remapf16x3(f16x3 v, f16x3 from_min, f16x3 from_max, f16x3 to_min, f16x3 to_max) { return f16x3(remapf16(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf16(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remapf16(v.z, from_min.z, from_max.z, to_min.z, to_max.z)); }
-static inline f32x3 remapf32x3(f32x3 v, f32x3 from_min, f32x3 from_max, f32x3 to_min, f32x3 to_max) { return f32x3(remapf32(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf32(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remapf32(v.z, from_min.z, from_max.z, to_min.z, to_max.z)); }
-static inline f64x3 remapf64x3(f64x3 v, f64x3 from_min, f64x3 from_max, f64x3 to_min, f64x3 to_max) { return f64x3(remapf64(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf64(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remapf64(v.z, from_min.z, from_max.z, to_min.z, to_max.z)); }
-static inline f16x4 remapf16x4(f16x4 v, f16x4 from_min, f16x4 from_max, f16x4 to_min, f16x4 to_max) { return f16x4(remapf16(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf16(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remapf16(v.z, from_min.z, from_max.z, to_min.z, to_max.z), remapf16(v.w, from_min.w, from_max.w, to_min.w, to_max.w)); }
-static inline f32x4 remapf32x4(f32x4 v, f32x4 from_min, f32x4 from_max, f32x4 to_min, f32x4 to_max) { return f32x4(remapf32(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf32(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remapf32(v.z, from_min.z, from_max.z, to_min.z, to_max.z), remapf32(v.w, from_min.w, from_max.w, to_min.w, to_max.w)); }
-static inline f64x4 remapf64x4(f64x4 v, f64x4 from_min, f64x4 from_max, f64x4 to_min, f64x4 to_max) { return f64x4(remapf64(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remapf64(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remapf64(v.z, from_min.z, from_max.z, to_min.z, to_max.z), remapf64(v.w, from_min.w, from_max.w, to_min.w, to_max.w)); }
+static inline f16x2 remap_f16x2(f16x2 v, f16x2 from_min, f16x2 from_max, f16x2 to_min, f16x2 to_max) { return f16x2(remap_f16(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f16(v.y, from_min.y, from_max.y, to_min.y, to_max.y)); }
+static inline f32x2 remap_f32x2(f32x2 v, f32x2 from_min, f32x2 from_max, f32x2 to_min, f32x2 to_max) { return f32x2(remap_f32(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f32(v.y, from_min.y, from_max.y, to_min.y, to_max.y)); }
+static inline f64x2 remap_f64x2(f64x2 v, f64x2 from_min, f64x2 from_max, f64x2 to_min, f64x2 to_max) { return f64x2(remap_f64(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f64(v.y, from_min.y, from_max.y, to_min.y, to_max.y)); }
+static inline f16x3 remap_f16x3(f16x3 v, f16x3 from_min, f16x3 from_max, f16x3 to_min, f16x3 to_max) { return f16x3(remap_f16(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f16(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remap_f16(v.z, from_min.z, from_max.z, to_min.z, to_max.z)); }
+static inline f32x3 remap_f32x3(f32x3 v, f32x3 from_min, f32x3 from_max, f32x3 to_min, f32x3 to_max) { return f32x3(remap_f32(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f32(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remap_f32(v.z, from_min.z, from_max.z, to_min.z, to_max.z)); }
+static inline f64x3 remap_f64x3(f64x3 v, f64x3 from_min, f64x3 from_max, f64x3 to_min, f64x3 to_max) { return f64x3(remap_f64(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f64(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remap_f64(v.z, from_min.z, from_max.z, to_min.z, to_max.z)); }
+static inline f16x4 remap_f16x4(f16x4 v, f16x4 from_min, f16x4 from_max, f16x4 to_min, f16x4 to_max) { return f16x4(remap_f16(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f16(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remap_f16(v.z, from_min.z, from_max.z, to_min.z, to_max.z), remap_f16(v.w, from_min.w, from_max.w, to_min.w, to_max.w)); }
+static inline f32x4 remap_f32x4(f32x4 v, f32x4 from_min, f32x4 from_max, f32x4 to_min, f32x4 to_max) { return f32x4(remap_f32(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f32(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remap_f32(v.z, from_min.z, from_max.z, to_min.z, to_max.z), remap_f32(v.w, from_min.w, from_max.w, to_min.w, to_max.w)); }
+static inline f64x4 remap_f64x4(f64x4 v, f64x4 from_min, f64x4 from_max, f64x4 to_min, f64x4 to_max) { return f64x4(remap_f64(v.x, from_min.x, from_max.x, to_min.x, to_max.x), remap_f64(v.y, from_min.y, from_max.y, to_min.y, to_max.y), remap_f64(v.z, from_min.z, from_max.z, to_min.z, to_max.z), remap_f64(v.w, from_min.w, from_max.w, to_min.w, to_max.w)); }
 
 //
 // return a vector where each component is the result of appling 'remap' to that component in 'v' with scalar 'from_min', 'from_max', 'to_min' and 'to_max'
-static inline f16x2 remapsf16x2(f16x2 v, half from_min, half from_max, half to_min, half to_max) { return f16x2(remapf16(v.x, from_min, from_max, to_min, to_max), remapf16(v.y, from_min, from_max, to_min, to_max)); }
-static inline f32x2 remapsf32x2(f32x2 v, float from_min, float from_max, float to_min, float to_max) { return f32x2(remapf32(v.x, from_min, from_max, to_min, to_max), remapf32(v.y, from_min, from_max, to_min, to_max)); }
-static inline f64x2 remapsf64x2(f64x2 v, double from_min, double from_max, double to_min, double to_max) { return f64x2(remapf64(v.x, from_min, from_max, to_min, to_max), remapf64(v.y, from_min, from_max, to_min, to_max)); }
-static inline f16x3 remapsf16x3(f16x3 v, half from_min, half from_max, half to_min, half to_max) { return f16x3(remapf16(v.x, from_min, from_max, to_min, to_max), remapf16(v.y, from_min, from_max, to_min, to_max), remapf16(v.z, from_min, from_max, to_min, to_max)); }
-static inline f32x3 remapsf32x3(f32x3 v, float from_min, float from_max, float to_min, float to_max) { return f32x3(remapf32(v.x, from_min, from_max, to_min, to_max), remapf32(v.y, from_min, from_max, to_min, to_max), remapf32(v.z, from_min, from_max, to_min, to_max)); }
-static inline f64x3 remapsf64x3(f64x3 v, double from_min, double from_max, double to_min, double to_max) { return f64x3(remapf64(v.x, from_min, from_max, to_min, to_max), remapf64(v.y, from_min, from_max, to_min, to_max), remapf64(v.z, from_min, from_max, to_min, to_max)); }
-static inline f16x4 remapsf16x4(f16x4 v, half from_min, half from_max, half to_min, half to_max) { return f16x4(remapf16(v.x, from_min, from_max, to_min, to_max), remapf16(v.y, from_min, from_max, to_min, to_max), remapf16(v.z, from_min, from_max, to_min, to_max), remapf16(v.w, from_min, from_max, to_min, to_max)); }
-static inline f32x4 remapsf32x4(f32x4 v, float from_min, float from_max, float to_min, float to_max) { return f32x4(remapf32(v.x, from_min, from_max, to_min, to_max), remapf32(v.y, from_min, from_max, to_min, to_max), remapf32(v.z, from_min, from_max, to_min, to_max), remapf32(v.w, from_min, from_max, to_min, to_max)); }
-static inline f64x4 remapsf64x4(f64x4 v, double from_min, double from_max, double to_min, double to_max) { return f64x4(remapf64(v.x, from_min, from_max, to_min, to_max), remapf64(v.y, from_min, from_max, to_min, to_max), remapf64(v.z, from_min, from_max, to_min, to_max), remapf64(v.w, from_min, from_max, to_min, to_max)); }
+static inline f16x2 remaps_f16x2(f16x2 v, half from_min, half from_max, half to_min, half to_max) { return f16x2(remap_f16(v.x, from_min, from_max, to_min, to_max), remap_f16(v.y, from_min, from_max, to_min, to_max)); }
+static inline f32x2 remaps_f32x2(f32x2 v, float from_min, float from_max, float to_min, float to_max) { return f32x2(remap_f32(v.x, from_min, from_max, to_min, to_max), remap_f32(v.y, from_min, from_max, to_min, to_max)); }
+static inline f64x2 remaps_f64x2(f64x2 v, double from_min, double from_max, double to_min, double to_max) { return f64x2(remap_f64(v.x, from_min, from_max, to_min, to_max), remap_f64(v.y, from_min, from_max, to_min, to_max)); }
+static inline f16x3 remaps_f16x3(f16x3 v, half from_min, half from_max, half to_min, half to_max) { return f16x3(remap_f16(v.x, from_min, from_max, to_min, to_max), remap_f16(v.y, from_min, from_max, to_min, to_max), remap_f16(v.z, from_min, from_max, to_min, to_max)); }
+static inline f32x3 remaps_f32x3(f32x3 v, float from_min, float from_max, float to_min, float to_max) { return f32x3(remap_f32(v.x, from_min, from_max, to_min, to_max), remap_f32(v.y, from_min, from_max, to_min, to_max), remap_f32(v.z, from_min, from_max, to_min, to_max)); }
+static inline f64x3 remaps_f64x3(f64x3 v, double from_min, double from_max, double to_min, double to_max) { return f64x3(remap_f64(v.x, from_min, from_max, to_min, to_max), remap_f64(v.y, from_min, from_max, to_min, to_max), remap_f64(v.z, from_min, from_max, to_min, to_max)); }
+static inline f16x4 remaps_f16x4(f16x4 v, half from_min, half from_max, half to_min, half to_max) { return f16x4(remap_f16(v.x, from_min, from_max, to_min, to_max), remap_f16(v.y, from_min, from_max, to_min, to_max), remap_f16(v.z, from_min, from_max, to_min, to_max), remap_f16(v.w, from_min, from_max, to_min, to_max)); }
+static inline f32x4 remaps_f32x4(f32x4 v, float from_min, float from_max, float to_min, float to_max) { return f32x4(remap_f32(v.x, from_min, from_max, to_min, to_max), remap_f32(v.y, from_min, from_max, to_min, to_max), remap_f32(v.z, from_min, from_max, to_min, to_max), remap_f32(v.w, from_min, from_max, to_min, to_max)); }
+static inline f64x4 remaps_f64x4(f64x4 v, double from_min, double from_max, double to_min, double to_max) { return f64x4(remap_f64(v.x, from_min, from_max, to_min, to_max), remap_f64(v.y, from_min, from_max, to_min, to_max), remap_f64(v.z, from_min, from_max, to_min, to_max), remap_f64(v.w, from_min, from_max, to_min, to_max)); }
 
 //
 // return a vector where each component is the result of appling 'roundtomultiple' to that component in 'v' and 'multiple'
-static inline f16x2 roundtomultiplef16x2(f16x2 a, f16x2 b) { return f16x2(roundtomultiplef16(a.x, b.x), roundtomultiplef16(a.y, b.y)); }
-static inline f32x2 roundtomultiplef32x2(f32x2 a, f32x2 b) { return f32x2(roundtomultiplef32(a.x, b.x), roundtomultiplef32(a.y, b.y)); }
-static inline f64x2 roundtomultiplef64x2(f64x2 a, f64x2 b) { return f64x2(roundtomultiplef64(a.x, b.x), roundtomultiplef64(a.y, b.y)); }
-static inline f16x3 roundtomultiplef16x3(f16x3 a, f16x3 b) { return f16x3(roundtomultiplef16(a.x, b.x), roundtomultiplef16(a.y, b.y), roundtomultiplef16(a.z, b.z)); }
-static inline f32x3 roundtomultiplef32x3(f32x3 a, f32x3 b) { return f32x3(roundtomultiplef32(a.x, b.x), roundtomultiplef32(a.y, b.y), roundtomultiplef32(a.z, b.z)); }
-static inline f64x3 roundtomultiplef64x3(f64x3 a, f64x3 b) { return f64x3(roundtomultiplef64(a.x, b.x), roundtomultiplef64(a.y, b.y), roundtomultiplef64(a.z, b.z)); }
-static inline f16x4 roundtomultiplef16x4(f16x4 a, f16x4 b) { return f16x4(roundtomultiplef16(a.x, b.x), roundtomultiplef16(a.y, b.y), roundtomultiplef16(a.z, b.z), roundtomultiplef16(a.w, b.w)); }
-static inline f32x4 roundtomultiplef32x4(f32x4 a, f32x4 b) { return f32x4(roundtomultiplef32(a.x, b.x), roundtomultiplef32(a.y, b.y), roundtomultiplef32(a.z, b.z), roundtomultiplef32(a.w, b.w)); }
-static inline f64x4 roundtomultiplef64x4(f64x4 a, f64x4 b) { return f64x4(roundtomultiplef64(a.x, b.x), roundtomultiplef64(a.y, b.y), roundtomultiplef64(a.z, b.z), roundtomultiplef64(a.w, b.w)); }
+static inline f16x2 roundtomultiple_f16x2(f16x2 a, f16x2 b) { return f16x2(roundtomultiple_f16(a.x, b.x), roundtomultiple_f16(a.y, b.y)); }
+static inline f32x2 roundtomultiple_f32x2(f32x2 a, f32x2 b) { return f32x2(roundtomultiple_f32(a.x, b.x), roundtomultiple_f32(a.y, b.y)); }
+static inline f64x2 roundtomultiple_f64x2(f64x2 a, f64x2 b) { return f64x2(roundtomultiple_f64(a.x, b.x), roundtomultiple_f64(a.y, b.y)); }
+static inline f16x3 roundtomultiple_f16x3(f16x3 a, f16x3 b) { return f16x3(roundtomultiple_f16(a.x, b.x), roundtomultiple_f16(a.y, b.y), roundtomultiple_f16(a.z, b.z)); }
+static inline f32x3 roundtomultiple_f32x3(f32x3 a, f32x3 b) { return f32x3(roundtomultiple_f32(a.x, b.x), roundtomultiple_f32(a.y, b.y), roundtomultiple_f32(a.z, b.z)); }
+static inline f64x3 roundtomultiple_f64x3(f64x3 a, f64x3 b) { return f64x3(roundtomultiple_f64(a.x, b.x), roundtomultiple_f64(a.y, b.y), roundtomultiple_f64(a.z, b.z)); }
+static inline f16x4 roundtomultiple_f16x4(f16x4 a, f16x4 b) { return f16x4(roundtomultiple_f16(a.x, b.x), roundtomultiple_f16(a.y, b.y), roundtomultiple_f16(a.z, b.z), roundtomultiple_f16(a.w, b.w)); }
+static inline f32x4 roundtomultiple_f32x4(f32x4 a, f32x4 b) { return f32x4(roundtomultiple_f32(a.x, b.x), roundtomultiple_f32(a.y, b.y), roundtomultiple_f32(a.z, b.z), roundtomultiple_f32(a.w, b.w)); }
+static inline f64x4 roundtomultiple_f64x4(f64x4 a, f64x4 b) { return f64x4(roundtomultiple_f64(a.x, b.x), roundtomultiple_f64(a.y, b.y), roundtomultiple_f64(a.z, b.z), roundtomultiple_f64(a.w, b.w)); }
 
 //
 // return a vector where each component is the result of appling 'roundtomultiple' to that component in 'v' with scalar 'multiple'
-static inline f16x2 roundtomultiplesf16x2(f16x2 v, half s) { return f16x2(roundtomultiplef16(v.x, s), roundtomultiplef16(v.y, s)); }
-static inline f32x2 roundtomultiplesf32x2(f32x2 v, float s) { return f32x2(roundtomultiplef32(v.x, s), roundtomultiplef32(v.y, s)); }
-static inline f64x2 roundtomultiplesf64x2(f64x2 v, double s) { return f64x2(roundtomultiplef64(v.x, s), roundtomultiplef64(v.y, s)); }
-static inline f16x3 roundtomultiplesf16x3(f16x3 v, half s) { return f16x3(roundtomultiplef16(v.x, s), roundtomultiplef16(v.y, s), roundtomultiplef16(v.z, s)); }
-static inline f32x3 roundtomultiplesf32x3(f32x3 v, float s) { return f32x3(roundtomultiplef32(v.x, s), roundtomultiplef32(v.y, s), roundtomultiplef32(v.z, s)); }
-static inline f64x3 roundtomultiplesf64x3(f64x3 v, double s) { return f64x3(roundtomultiplef64(v.x, s), roundtomultiplef64(v.y, s), roundtomultiplef64(v.z, s)); }
-static inline f16x4 roundtomultiplesf16x4(f16x4 v, half s) { return f16x4(roundtomultiplef16(v.x, s), roundtomultiplef16(v.y, s), roundtomultiplef16(v.z, s), roundtomultiplef16(v.w, s)); }
-static inline f32x4 roundtomultiplesf32x4(f32x4 v, float s) { return f32x4(roundtomultiplef32(v.x, s), roundtomultiplef32(v.y, s), roundtomultiplef32(v.z, s), roundtomultiplef32(v.w, s)); }
-static inline f64x4 roundtomultiplesf64x4(f64x4 v, double s) { return f64x4(roundtomultiplef64(v.x, s), roundtomultiplef64(v.y, s), roundtomultiplef64(v.z, s), roundtomultiplef64(v.w, s)); }
+static inline f16x2 roundtomultiples_f16x2(f16x2 v, half s) { return f16x2(roundtomultiple_f16(v.x, s), roundtomultiple_f16(v.y, s)); }
+static inline f32x2 roundtomultiples_f32x2(f32x2 v, float s) { return f32x2(roundtomultiple_f32(v.x, s), roundtomultiple_f32(v.y, s)); }
+static inline f64x2 roundtomultiples_f64x2(f64x2 v, double s) { return f64x2(roundtomultiple_f64(v.x, s), roundtomultiple_f64(v.y, s)); }
+static inline f16x3 roundtomultiples_f16x3(f16x3 v, half s) { return f16x3(roundtomultiple_f16(v.x, s), roundtomultiple_f16(v.y, s), roundtomultiple_f16(v.z, s)); }
+static inline f32x3 roundtomultiples_f32x3(f32x3 v, float s) { return f32x3(roundtomultiple_f32(v.x, s), roundtomultiple_f32(v.y, s), roundtomultiple_f32(v.z, s)); }
+static inline f64x3 roundtomultiples_f64x3(f64x3 v, double s) { return f64x3(roundtomultiple_f64(v.x, s), roundtomultiple_f64(v.y, s), roundtomultiple_f64(v.z, s)); }
+static inline f16x4 roundtomultiples_f16x4(f16x4 v, half s) { return f16x4(roundtomultiple_f16(v.x, s), roundtomultiple_f16(v.y, s), roundtomultiple_f16(v.z, s), roundtomultiple_f16(v.w, s)); }
+static inline f32x4 roundtomultiples_f32x4(f32x4 v, float s) { return f32x4(roundtomultiple_f32(v.x, s), roundtomultiple_f32(v.y, s), roundtomultiple_f32(v.z, s), roundtomultiple_f32(v.w, s)); }
+static inline f64x4 roundtomultiples_f64x4(f64x4 v, double s) { return f64x4(roundtomultiple_f64(v.x, s), roundtomultiple_f64(v.y, s), roundtomultiple_f64(v.z, s), roundtomultiple_f64(v.w, s)); }
 
 //
 // return a vector where each component is the result of appling 'rounduptomultiple' to that component in 'v' and 'multiple'
-static inline f16x2 rounduptomultiplef16x2(f16x2 a, f16x2 b) { return f16x2(rounduptomultiplef16(a.x, b.x), rounduptomultiplef16(a.y, b.y)); }
-static inline f32x2 rounduptomultiplef32x2(f32x2 a, f32x2 b) { return f32x2(rounduptomultiplef32(a.x, b.x), rounduptomultiplef32(a.y, b.y)); }
-static inline f64x2 rounduptomultiplef64x2(f64x2 a, f64x2 b) { return f64x2(rounduptomultiplef64(a.x, b.x), rounduptomultiplef64(a.y, b.y)); }
-static inline f16x3 rounduptomultiplef16x3(f16x3 a, f16x3 b) { return f16x3(rounduptomultiplef16(a.x, b.x), rounduptomultiplef16(a.y, b.y), rounduptomultiplef16(a.z, b.z)); }
-static inline f32x3 rounduptomultiplef32x3(f32x3 a, f32x3 b) { return f32x3(rounduptomultiplef32(a.x, b.x), rounduptomultiplef32(a.y, b.y), rounduptomultiplef32(a.z, b.z)); }
-static inline f64x3 rounduptomultiplef64x3(f64x3 a, f64x3 b) { return f64x3(rounduptomultiplef64(a.x, b.x), rounduptomultiplef64(a.y, b.y), rounduptomultiplef64(a.z, b.z)); }
-static inline f16x4 rounduptomultiplef16x4(f16x4 a, f16x4 b) { return f16x4(rounduptomultiplef16(a.x, b.x), rounduptomultiplef16(a.y, b.y), rounduptomultiplef16(a.z, b.z), rounduptomultiplef16(a.w, b.w)); }
-static inline f32x4 rounduptomultiplef32x4(f32x4 a, f32x4 b) { return f32x4(rounduptomultiplef32(a.x, b.x), rounduptomultiplef32(a.y, b.y), rounduptomultiplef32(a.z, b.z), rounduptomultiplef32(a.w, b.w)); }
-static inline f64x4 rounduptomultiplef64x4(f64x4 a, f64x4 b) { return f64x4(rounduptomultiplef64(a.x, b.x), rounduptomultiplef64(a.y, b.y), rounduptomultiplef64(a.z, b.z), rounduptomultiplef64(a.w, b.w)); }
+static inline f16x2 rounduptomultiple_f16x2(f16x2 a, f16x2 b) { return f16x2(rounduptomultiple_f16(a.x, b.x), rounduptomultiple_f16(a.y, b.y)); }
+static inline f32x2 rounduptomultiple_f32x2(f32x2 a, f32x2 b) { return f32x2(rounduptomultiple_f32(a.x, b.x), rounduptomultiple_f32(a.y, b.y)); }
+static inline f64x2 rounduptomultiple_f64x2(f64x2 a, f64x2 b) { return f64x2(rounduptomultiple_f64(a.x, b.x), rounduptomultiple_f64(a.y, b.y)); }
+static inline f16x3 rounduptomultiple_f16x3(f16x3 a, f16x3 b) { return f16x3(rounduptomultiple_f16(a.x, b.x), rounduptomultiple_f16(a.y, b.y), rounduptomultiple_f16(a.z, b.z)); }
+static inline f32x3 rounduptomultiple_f32x3(f32x3 a, f32x3 b) { return f32x3(rounduptomultiple_f32(a.x, b.x), rounduptomultiple_f32(a.y, b.y), rounduptomultiple_f32(a.z, b.z)); }
+static inline f64x3 rounduptomultiple_f64x3(f64x3 a, f64x3 b) { return f64x3(rounduptomultiple_f64(a.x, b.x), rounduptomultiple_f64(a.y, b.y), rounduptomultiple_f64(a.z, b.z)); }
+static inline f16x4 rounduptomultiple_f16x4(f16x4 a, f16x4 b) { return f16x4(rounduptomultiple_f16(a.x, b.x), rounduptomultiple_f16(a.y, b.y), rounduptomultiple_f16(a.z, b.z), rounduptomultiple_f16(a.w, b.w)); }
+static inline f32x4 rounduptomultiple_f32x4(f32x4 a, f32x4 b) { return f32x4(rounduptomultiple_f32(a.x, b.x), rounduptomultiple_f32(a.y, b.y), rounduptomultiple_f32(a.z, b.z), rounduptomultiple_f32(a.w, b.w)); }
+static inline f64x4 rounduptomultiple_f64x4(f64x4 a, f64x4 b) { return f64x4(rounduptomultiple_f64(a.x, b.x), rounduptomultiple_f64(a.y, b.y), rounduptomultiple_f64(a.z, b.z), rounduptomultiple_f64(a.w, b.w)); }
 
 //
 // return a vector where each component is the result of appling 'rounduptomultiple' to that component in 'v' with scalar 'multiple'
-static inline f16x2 rounduptomultiplesf16x2(f16x2 v, half s) { return f16x2(rounduptomultiplef16(v.x, s), rounduptomultiplef16(v.y, s)); }
-static inline f32x2 rounduptomultiplesf32x2(f32x2 v, float s) { return f32x2(rounduptomultiplef32(v.x, s), rounduptomultiplef32(v.y, s)); }
-static inline f64x2 rounduptomultiplesf64x2(f64x2 v, double s) { return f64x2(rounduptomultiplef64(v.x, s), rounduptomultiplef64(v.y, s)); }
-static inline f16x3 rounduptomultiplesf16x3(f16x3 v, half s) { return f16x3(rounduptomultiplef16(v.x, s), rounduptomultiplef16(v.y, s), rounduptomultiplef16(v.z, s)); }
-static inline f32x3 rounduptomultiplesf32x3(f32x3 v, float s) { return f32x3(rounduptomultiplef32(v.x, s), rounduptomultiplef32(v.y, s), rounduptomultiplef32(v.z, s)); }
-static inline f64x3 rounduptomultiplesf64x3(f64x3 v, double s) { return f64x3(rounduptomultiplef64(v.x, s), rounduptomultiplef64(v.y, s), rounduptomultiplef64(v.z, s)); }
-static inline f16x4 rounduptomultiplesf16x4(f16x4 v, half s) { return f16x4(rounduptomultiplef16(v.x, s), rounduptomultiplef16(v.y, s), rounduptomultiplef16(v.z, s), rounduptomultiplef16(v.w, s)); }
-static inline f32x4 rounduptomultiplesf32x4(f32x4 v, float s) { return f32x4(rounduptomultiplef32(v.x, s), rounduptomultiplef32(v.y, s), rounduptomultiplef32(v.z, s), rounduptomultiplef32(v.w, s)); }
-static inline f64x4 rounduptomultiplesf64x4(f64x4 v, double s) { return f64x4(rounduptomultiplef64(v.x, s), rounduptomultiplef64(v.y, s), rounduptomultiplef64(v.z, s), rounduptomultiplef64(v.w, s)); }
+static inline f16x2 rounduptomultiples_f16x2(f16x2 v, half s) { return f16x2(rounduptomultiple_f16(v.x, s), rounduptomultiple_f16(v.y, s)); }
+static inline f32x2 rounduptomultiples_f32x2(f32x2 v, float s) { return f32x2(rounduptomultiple_f32(v.x, s), rounduptomultiple_f32(v.y, s)); }
+static inline f64x2 rounduptomultiples_f64x2(f64x2 v, double s) { return f64x2(rounduptomultiple_f64(v.x, s), rounduptomultiple_f64(v.y, s)); }
+static inline f16x3 rounduptomultiples_f16x3(f16x3 v, half s) { return f16x3(rounduptomultiple_f16(v.x, s), rounduptomultiple_f16(v.y, s), rounduptomultiple_f16(v.z, s)); }
+static inline f32x3 rounduptomultiples_f32x3(f32x3 v, float s) { return f32x3(rounduptomultiple_f32(v.x, s), rounduptomultiple_f32(v.y, s), rounduptomultiple_f32(v.z, s)); }
+static inline f64x3 rounduptomultiples_f64x3(f64x3 v, double s) { return f64x3(rounduptomultiple_f64(v.x, s), rounduptomultiple_f64(v.y, s), rounduptomultiple_f64(v.z, s)); }
+static inline f16x4 rounduptomultiples_f16x4(f16x4 v, half s) { return f16x4(rounduptomultiple_f16(v.x, s), rounduptomultiple_f16(v.y, s), rounduptomultiple_f16(v.z, s), rounduptomultiple_f16(v.w, s)); }
+static inline f32x4 rounduptomultiples_f32x4(f32x4 v, float s) { return f32x4(rounduptomultiple_f32(v.x, s), rounduptomultiple_f32(v.y, s), rounduptomultiple_f32(v.z, s), rounduptomultiple_f32(v.w, s)); }
+static inline f64x4 rounduptomultiples_f64x4(f64x4 v, double s) { return f64x4(rounduptomultiple_f64(v.x, s), rounduptomultiple_f64(v.y, s), rounduptomultiple_f64(v.z, s), rounduptomultiple_f64(v.w, s)); }
 
 //
 // return a vector where each component is the result of appling 'rounddowntomultiple' to that component in 'v' and 'multiple'
-static inline f16x2 rounddowntomultiplef16x2(f16x2 a, f16x2 b) { return f16x2(rounddowntomultiplef16(a.x, b.x), rounddowntomultiplef16(a.y, b.y)); }
-static inline f32x2 rounddowntomultiplef32x2(f32x2 a, f32x2 b) { return f32x2(rounddowntomultiplef32(a.x, b.x), rounddowntomultiplef32(a.y, b.y)); }
-static inline f64x2 rounddowntomultiplef64x2(f64x2 a, f64x2 b) { return f64x2(rounddowntomultiplef64(a.x, b.x), rounddowntomultiplef64(a.y, b.y)); }
-static inline f16x3 rounddowntomultiplef16x3(f16x3 a, f16x3 b) { return f16x3(rounddowntomultiplef16(a.x, b.x), rounddowntomultiplef16(a.y, b.y), rounddowntomultiplef16(a.z, b.z)); }
-static inline f32x3 rounddowntomultiplef32x3(f32x3 a, f32x3 b) { return f32x3(rounddowntomultiplef32(a.x, b.x), rounddowntomultiplef32(a.y, b.y), rounddowntomultiplef32(a.z, b.z)); }
-static inline f64x3 rounddowntomultiplef64x3(f64x3 a, f64x3 b) { return f64x3(rounddowntomultiplef64(a.x, b.x), rounddowntomultiplef64(a.y, b.y), rounddowntomultiplef64(a.z, b.z)); }
-static inline f16x4 rounddowntomultiplef16x4(f16x4 a, f16x4 b) { return f16x4(rounddowntomultiplef16(a.x, b.x), rounddowntomultiplef16(a.y, b.y), rounddowntomultiplef16(a.z, b.z), rounddowntomultiplef16(a.w, b.w)); }
-static inline f32x4 rounddowntomultiplef32x4(f32x4 a, f32x4 b) { return f32x4(rounddowntomultiplef32(a.x, b.x), rounddowntomultiplef32(a.y, b.y), rounddowntomultiplef32(a.z, b.z), rounddowntomultiplef32(a.w, b.w)); }
-static inline f64x4 rounddowntomultiplef64x4(f64x4 a, f64x4 b) { return f64x4(rounddowntomultiplef64(a.x, b.x), rounddowntomultiplef64(a.y, b.y), rounddowntomultiplef64(a.z, b.z), rounddowntomultiplef64(a.w, b.w)); }
+static inline f16x2 rounddowntomultiple_f16x2(f16x2 a, f16x2 b) { return f16x2(rounddowntomultiple_f16(a.x, b.x), rounddowntomultiple_f16(a.y, b.y)); }
+static inline f32x2 rounddowntomultiple_f32x2(f32x2 a, f32x2 b) { return f32x2(rounddowntomultiple_f32(a.x, b.x), rounddowntomultiple_f32(a.y, b.y)); }
+static inline f64x2 rounddowntomultiple_f64x2(f64x2 a, f64x2 b) { return f64x2(rounddowntomultiple_f64(a.x, b.x), rounddowntomultiple_f64(a.y, b.y)); }
+static inline f16x3 rounddowntomultiple_f16x3(f16x3 a, f16x3 b) { return f16x3(rounddowntomultiple_f16(a.x, b.x), rounddowntomultiple_f16(a.y, b.y), rounddowntomultiple_f16(a.z, b.z)); }
+static inline f32x3 rounddowntomultiple_f32x3(f32x3 a, f32x3 b) { return f32x3(rounddowntomultiple_f32(a.x, b.x), rounddowntomultiple_f32(a.y, b.y), rounddowntomultiple_f32(a.z, b.z)); }
+static inline f64x3 rounddowntomultiple_f64x3(f64x3 a, f64x3 b) { return f64x3(rounddowntomultiple_f64(a.x, b.x), rounddowntomultiple_f64(a.y, b.y), rounddowntomultiple_f64(a.z, b.z)); }
+static inline f16x4 rounddowntomultiple_f16x4(f16x4 a, f16x4 b) { return f16x4(rounddowntomultiple_f16(a.x, b.x), rounddowntomultiple_f16(a.y, b.y), rounddowntomultiple_f16(a.z, b.z), rounddowntomultiple_f16(a.w, b.w)); }
+static inline f32x4 rounddowntomultiple_f32x4(f32x4 a, f32x4 b) { return f32x4(rounddowntomultiple_f32(a.x, b.x), rounddowntomultiple_f32(a.y, b.y), rounddowntomultiple_f32(a.z, b.z), rounddowntomultiple_f32(a.w, b.w)); }
+static inline f64x4 rounddowntomultiple_f64x4(f64x4 a, f64x4 b) { return f64x4(rounddowntomultiple_f64(a.x, b.x), rounddowntomultiple_f64(a.y, b.y), rounddowntomultiple_f64(a.z, b.z), rounddowntomultiple_f64(a.w, b.w)); }
 
 //
 // return a vector where each component is the result of appling 'rounddowntomultiple' to that component in 'v' with scalar 'multiple'
-static inline f16x2 rounddowntomultiplesf16x2(f16x2 v, half s) { return f16x2(rounddowntomultiplef16(v.x, s), rounddowntomultiplef16(v.y, s)); }
-static inline f32x2 rounddowntomultiplesf32x2(f32x2 v, float s) { return f32x2(rounddowntomultiplef32(v.x, s), rounddowntomultiplef32(v.y, s)); }
-static inline f64x2 rounddowntomultiplesf64x2(f64x2 v, double s) { return f64x2(rounddowntomultiplef64(v.x, s), rounddowntomultiplef64(v.y, s)); }
-static inline f16x3 rounddowntomultiplesf16x3(f16x3 v, half s) { return f16x3(rounddowntomultiplef16(v.x, s), rounddowntomultiplef16(v.y, s), rounddowntomultiplef16(v.z, s)); }
-static inline f32x3 rounddowntomultiplesf32x3(f32x3 v, float s) { return f32x3(rounddowntomultiplef32(v.x, s), rounddowntomultiplef32(v.y, s), rounddowntomultiplef32(v.z, s)); }
-static inline f64x3 rounddowntomultiplesf64x3(f64x3 v, double s) { return f64x3(rounddowntomultiplef64(v.x, s), rounddowntomultiplef64(v.y, s), rounddowntomultiplef64(v.z, s)); }
-static inline f16x4 rounddowntomultiplesf16x4(f16x4 v, half s) { return f16x4(rounddowntomultiplef16(v.x, s), rounddowntomultiplef16(v.y, s), rounddowntomultiplef16(v.z, s), rounddowntomultiplef16(v.w, s)); }
-static inline f32x4 rounddowntomultiplesf32x4(f32x4 v, float s) { return f32x4(rounddowntomultiplef32(v.x, s), rounddowntomultiplef32(v.y, s), rounddowntomultiplef32(v.z, s), rounddowntomultiplef32(v.w, s)); }
-static inline f64x4 rounddowntomultiplesf64x4(f64x4 v, double s) { return f64x4(rounddowntomultiplef64(v.x, s), rounddowntomultiplef64(v.y, s), rounddowntomultiplef64(v.z, s), rounddowntomultiplef64(v.w, s)); }
+static inline f16x2 rounddowntomultiples_f16x2(f16x2 v, half s) { return f16x2(rounddowntomultiple_f16(v.x, s), rounddowntomultiple_f16(v.y, s)); }
+static inline f32x2 rounddowntomultiples_f32x2(f32x2 v, float s) { return f32x2(rounddowntomultiple_f32(v.x, s), rounddowntomultiple_f32(v.y, s)); }
+static inline f64x2 rounddowntomultiples_f64x2(f64x2 v, double s) { return f64x2(rounddowntomultiple_f64(v.x, s), rounddowntomultiple_f64(v.y, s)); }
+static inline f16x3 rounddowntomultiples_f16x3(f16x3 v, half s) { return f16x3(rounddowntomultiple_f16(v.x, s), rounddowntomultiple_f16(v.y, s), rounddowntomultiple_f16(v.z, s)); }
+static inline f32x3 rounddowntomultiples_f32x3(f32x3 v, float s) { return f32x3(rounddowntomultiple_f32(v.x, s), rounddowntomultiple_f32(v.y, s), rounddowntomultiple_f32(v.z, s)); }
+static inline f64x3 rounddowntomultiples_f64x3(f64x3 v, double s) { return f64x3(rounddowntomultiple_f64(v.x, s), rounddowntomultiple_f64(v.y, s), rounddowntomultiple_f64(v.z, s)); }
+static inline f16x4 rounddowntomultiples_f16x4(f16x4 v, half s) { return f16x4(rounddowntomultiple_f16(v.x, s), rounddowntomultiple_f16(v.y, s), rounddowntomultiple_f16(v.z, s), rounddowntomultiple_f16(v.w, s)); }
+static inline f32x4 rounddowntomultiples_f32x4(f32x4 v, float s) { return f32x4(rounddowntomultiple_f32(v.x, s), rounddowntomultiple_f32(v.y, s), rounddowntomultiple_f32(v.z, s), rounddowntomultiple_f32(v.w, s)); }
+static inline f64x4 rounddowntomultiples_f64x4(f64x4 v, double s) { return f64x4(rounddowntomultiple_f64(v.x, s), rounddowntomultiple_f64(v.y, s), rounddowntomultiple_f64(v.z, s), rounddowntomultiple_f64(v.w, s)); }
 
 //
 // return a vector where each component is the result of appling 'bitsto' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 bitstof16x2(s16x2 v) { return f16x2(bitstof16(v.x), bitstof16(v.y)); }
-HCC_INTRINSIC static inline f32x2 bitstof32x2(s32x2 v) { return f32x2(bitstof32(v.x), bitstof32(v.y)); }
-HCC_INTRINSIC static inline f64x2 bitstof64x2(s64x2 v) { return f64x2(bitstof64(v.x), bitstof64(v.y)); }
-HCC_INTRINSIC static inline f16x3 bitstof16x3(s16x3 v) { return f16x3(bitstof16(v.x), bitstof16(v.y), bitstof16(v.z)); }
-HCC_INTRINSIC static inline f32x3 bitstof32x3(s32x3 v) { return f32x3(bitstof32(v.x), bitstof32(v.y), bitstof32(v.z)); }
-HCC_INTRINSIC static inline f64x3 bitstof64x3(s64x3 v) { return f64x3(bitstof64(v.x), bitstof64(v.y), bitstof64(v.z)); }
-HCC_INTRINSIC static inline f16x4 bitstof16x4(s16x4 v) { return f16x4(bitstof16(v.x), bitstof16(v.y), bitstof16(v.z), bitstof16(v.w)); }
-HCC_INTRINSIC static inline f32x4 bitstof32x4(s32x4 v) { return f32x4(bitstof32(v.x), bitstof32(v.y), bitstof32(v.z), bitstof32(v.w)); }
-HCC_INTRINSIC static inline f64x4 bitstof64x4(s64x4 v) { return f64x4(bitstof64(v.x), bitstof64(v.y), bitstof64(v.z), bitstof64(v.w)); }
+static inline f16x2 bitsto_f16x2(s16x2 v) { return f16x2(bitsto_f16(v.x), bitsto_f16(v.y)); }
+static inline f32x2 bitsto_f32x2(s32x2 v) { return f32x2(bitsto_f32(v.x), bitsto_f32(v.y)); }
+static inline f64x2 bitsto_f64x2(s64x2 v) { return f64x2(bitsto_f64(v.x), bitsto_f64(v.y)); }
+static inline f16x3 bitsto_f16x3(s16x3 v) { return f16x3(bitsto_f16(v.x), bitsto_f16(v.y), bitsto_f16(v.z)); }
+static inline f32x3 bitsto_f32x3(s32x3 v) { return f32x3(bitsto_f32(v.x), bitsto_f32(v.y), bitsto_f32(v.z)); }
+static inline f64x3 bitsto_f64x3(s64x3 v) { return f64x3(bitsto_f64(v.x), bitsto_f64(v.y), bitsto_f64(v.z)); }
+static inline f16x4 bitsto_f16x4(s16x4 v) { return f16x4(bitsto_f16(v.x), bitsto_f16(v.y), bitsto_f16(v.z), bitsto_f16(v.w)); }
+static inline f32x4 bitsto_f32x4(s32x4 v) { return f32x4(bitsto_f32(v.x), bitsto_f32(v.y), bitsto_f32(v.z), bitsto_f32(v.w)); }
+static inline f64x4 bitsto_f64x4(s64x4 v) { return f64x4(bitsto_f64(v.x), bitsto_f64(v.y), bitsto_f64(v.z), bitsto_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'bitsfrom' to that component in 'v'
-HCC_INTRINSIC static inline s16x2 bitsfromf16x2(f16x2 v) { return s16x2(bitsfromf16(v.x), bitsfromf16(v.y)); }
-HCC_INTRINSIC static inline s32x2 bitsfromf32x2(f32x2 v) { return s32x2(bitsfromf32(v.x), bitsfromf32(v.y)); }
-HCC_INTRINSIC static inline s64x2 bitsfromf64x2(f64x2 v) { return s64x2(bitsfromf64(v.x), bitsfromf64(v.y)); }
-HCC_INTRINSIC static inline s16x3 bitsfromf16x3(f16x3 v) { return s16x3(bitsfromf16(v.x), bitsfromf16(v.y), bitsfromf16(v.z)); }
-HCC_INTRINSIC static inline s32x3 bitsfromf32x3(f32x3 v) { return s32x3(bitsfromf32(v.x), bitsfromf32(v.y), bitsfromf32(v.z)); }
-HCC_INTRINSIC static inline s64x3 bitsfromf64x3(f64x3 v) { return s64x3(bitsfromf64(v.x), bitsfromf64(v.y), bitsfromf64(v.z)); }
-HCC_INTRINSIC static inline s16x4 bitsfromf16x4(f16x4 v) { return s16x4(bitsfromf16(v.x), bitsfromf16(v.y), bitsfromf16(v.z), bitsfromf16(v.w)); }
-HCC_INTRINSIC static inline s32x4 bitsfromf32x4(f32x4 v) { return s32x4(bitsfromf32(v.x), bitsfromf32(v.y), bitsfromf32(v.z), bitsfromf32(v.w)); }
-HCC_INTRINSIC static inline s64x4 bitsfromf64x4(f64x4 v) { return s64x4(bitsfromf64(v.x), bitsfromf64(v.y), bitsfromf64(v.z), bitsfromf64(v.w)); }
+static inline s16x2 bitsfrom_f16x2(f16x2 v) { return s16x2(bitsfrom_f16(v.x), bitsfrom_f16(v.y)); }
+static inline s32x2 bitsfrom_f32x2(f32x2 v) { return s32x2(bitsfrom_f32(v.x), bitsfrom_f32(v.y)); }
+static inline s64x2 bitsfrom_f64x2(f64x2 v) { return s64x2(bitsfrom_f64(v.x), bitsfrom_f64(v.y)); }
+static inline s16x3 bitsfrom_f16x3(f16x3 v) { return s16x3(bitsfrom_f16(v.x), bitsfrom_f16(v.y), bitsfrom_f16(v.z)); }
+static inline s32x3 bitsfrom_f32x3(f32x3 v) { return s32x3(bitsfrom_f32(v.x), bitsfrom_f32(v.y), bitsfrom_f32(v.z)); }
+static inline s64x3 bitsfrom_f64x3(f64x3 v) { return s64x3(bitsfrom_f64(v.x), bitsfrom_f64(v.y), bitsfrom_f64(v.z)); }
+static inline s16x4 bitsfrom_f16x4(f16x4 v) { return s16x4(bitsfrom_f16(v.x), bitsfrom_f16(v.y), bitsfrom_f16(v.z), bitsfrom_f16(v.w)); }
+static inline s32x4 bitsfrom_f32x4(f32x4 v) { return s32x4(bitsfrom_f32(v.x), bitsfrom_f32(v.y), bitsfrom_f32(v.z), bitsfrom_f32(v.w)); }
+static inline s64x4 bitsfrom_f64x4(f64x4 v) { return s64x4(bitsfrom_f64(v.x), bitsfrom_f64(v.y), bitsfrom_f64(v.z), bitsfrom_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'sin' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 sinf16x2(f16x2 v) { return f16x2(sinf16(v.x), sinf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 sinf32x2(f32x2 v) { return f32x2(sinf32(v.x), sinf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 sinf64x2(f64x2 v) { return f64x2(sinf64(v.x), sinf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 sinf16x3(f16x3 v) { return f16x3(sinf16(v.x), sinf16(v.y), sinf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 sinf32x3(f32x3 v) { return f32x3(sinf32(v.x), sinf32(v.y), sinf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 sinf64x3(f64x3 v) { return f64x3(sinf64(v.x), sinf64(v.y), sinf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 sinf16x4(f16x4 v) { return f16x4(sinf16(v.x), sinf16(v.y), sinf16(v.z), sinf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 sinf32x4(f32x4 v) { return f32x4(sinf32(v.x), sinf32(v.y), sinf32(v.z), sinf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 sinf64x4(f64x4 v) { return f64x4(sinf64(v.x), sinf64(v.y), sinf64(v.z), sinf64(v.w)); }
+static inline f16x2 sin_f16x2(f16x2 v) { return f16x2(sin_f16(v.x), sin_f16(v.y)); }
+static inline f32x2 sin_f32x2(f32x2 v) { return f32x2(sin_f32(v.x), sin_f32(v.y)); }
+static inline f64x2 sin_f64x2(f64x2 v) { return f64x2(sin_f64(v.x), sin_f64(v.y)); }
+static inline f16x3 sin_f16x3(f16x3 v) { return f16x3(sin_f16(v.x), sin_f16(v.y), sin_f16(v.z)); }
+static inline f32x3 sin_f32x3(f32x3 v) { return f32x3(sin_f32(v.x), sin_f32(v.y), sin_f32(v.z)); }
+static inline f64x3 sin_f64x3(f64x3 v) { return f64x3(sin_f64(v.x), sin_f64(v.y), sin_f64(v.z)); }
+static inline f16x4 sin_f16x4(f16x4 v) { return f16x4(sin_f16(v.x), sin_f16(v.y), sin_f16(v.z), sin_f16(v.w)); }
+static inline f32x4 sin_f32x4(f32x4 v) { return f32x4(sin_f32(v.x), sin_f32(v.y), sin_f32(v.z), sin_f32(v.w)); }
+static inline f64x4 sin_f64x4(f64x4 v) { return f64x4(sin_f64(v.x), sin_f64(v.y), sin_f64(v.z), sin_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'cos' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 cosf16x2(f16x2 v) { return f16x2(cosf16(v.x), cosf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 cosf32x2(f32x2 v) { return f32x2(cosf32(v.x), cosf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 cosf64x2(f64x2 v) { return f64x2(cosf64(v.x), cosf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 cosf16x3(f16x3 v) { return f16x3(cosf16(v.x), cosf16(v.y), cosf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 cosf32x3(f32x3 v) { return f32x3(cosf32(v.x), cosf32(v.y), cosf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 cosf64x3(f64x3 v) { return f64x3(cosf64(v.x), cosf64(v.y), cosf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 cosf16x4(f16x4 v) { return f16x4(cosf16(v.x), cosf16(v.y), cosf16(v.z), cosf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 cosf32x4(f32x4 v) { return f32x4(cosf32(v.x), cosf32(v.y), cosf32(v.z), cosf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 cosf64x4(f64x4 v) { return f64x4(cosf64(v.x), cosf64(v.y), cosf64(v.z), cosf64(v.w)); }
+static inline f16x2 cos_f16x2(f16x2 v) { return f16x2(cos_f16(v.x), cos_f16(v.y)); }
+static inline f32x2 cos_f32x2(f32x2 v) { return f32x2(cos_f32(v.x), cos_f32(v.y)); }
+static inline f64x2 cos_f64x2(f64x2 v) { return f64x2(cos_f64(v.x), cos_f64(v.y)); }
+static inline f16x3 cos_f16x3(f16x3 v) { return f16x3(cos_f16(v.x), cos_f16(v.y), cos_f16(v.z)); }
+static inline f32x3 cos_f32x3(f32x3 v) { return f32x3(cos_f32(v.x), cos_f32(v.y), cos_f32(v.z)); }
+static inline f64x3 cos_f64x3(f64x3 v) { return f64x3(cos_f64(v.x), cos_f64(v.y), cos_f64(v.z)); }
+static inline f16x4 cos_f16x4(f16x4 v) { return f16x4(cos_f16(v.x), cos_f16(v.y), cos_f16(v.z), cos_f16(v.w)); }
+static inline f32x4 cos_f32x4(f32x4 v) { return f32x4(cos_f32(v.x), cos_f32(v.y), cos_f32(v.z), cos_f32(v.w)); }
+static inline f64x4 cos_f64x4(f64x4 v) { return f64x4(cos_f64(v.x), cos_f64(v.y), cos_f64(v.z), cos_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'tan' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 tanf16x2(f16x2 v) { return f16x2(tanf16(v.x), tanf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 tanf32x2(f32x2 v) { return f32x2(tanf32(v.x), tanf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 tanf64x2(f64x2 v) { return f64x2(tanf64(v.x), tanf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 tanf16x3(f16x3 v) { return f16x3(tanf16(v.x), tanf16(v.y), tanf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 tanf32x3(f32x3 v) { return f32x3(tanf32(v.x), tanf32(v.y), tanf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 tanf64x3(f64x3 v) { return f64x3(tanf64(v.x), tanf64(v.y), tanf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 tanf16x4(f16x4 v) { return f16x4(tanf16(v.x), tanf16(v.y), tanf16(v.z), tanf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 tanf32x4(f32x4 v) { return f32x4(tanf32(v.x), tanf32(v.y), tanf32(v.z), tanf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 tanf64x4(f64x4 v) { return f64x4(tanf64(v.x), tanf64(v.y), tanf64(v.z), tanf64(v.w)); }
+static inline f16x2 tan_f16x2(f16x2 v) { return f16x2(tan_f16(v.x), tan_f16(v.y)); }
+static inline f32x2 tan_f32x2(f32x2 v) { return f32x2(tan_f32(v.x), tan_f32(v.y)); }
+static inline f64x2 tan_f64x2(f64x2 v) { return f64x2(tan_f64(v.x), tan_f64(v.y)); }
+static inline f16x3 tan_f16x3(f16x3 v) { return f16x3(tan_f16(v.x), tan_f16(v.y), tan_f16(v.z)); }
+static inline f32x3 tan_f32x3(f32x3 v) { return f32x3(tan_f32(v.x), tan_f32(v.y), tan_f32(v.z)); }
+static inline f64x3 tan_f64x3(f64x3 v) { return f64x3(tan_f64(v.x), tan_f64(v.y), tan_f64(v.z)); }
+static inline f16x4 tan_f16x4(f16x4 v) { return f16x4(tan_f16(v.x), tan_f16(v.y), tan_f16(v.z), tan_f16(v.w)); }
+static inline f32x4 tan_f32x4(f32x4 v) { return f32x4(tan_f32(v.x), tan_f32(v.y), tan_f32(v.z), tan_f32(v.w)); }
+static inline f64x4 tan_f64x4(f64x4 v) { return f64x4(tan_f64(v.x), tan_f64(v.y), tan_f64(v.z), tan_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'asin' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 asinf16x2(f16x2 v) { return f16x2(asinf16(v.x), asinf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 asinf32x2(f32x2 v) { return f32x2(asinf32(v.x), asinf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 asinf64x2(f64x2 v) { return f64x2(asinf64(v.x), asinf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 asinf16x3(f16x3 v) { return f16x3(asinf16(v.x), asinf16(v.y), asinf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 asinf32x3(f32x3 v) { return f32x3(asinf32(v.x), asinf32(v.y), asinf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 asinf64x3(f64x3 v) { return f64x3(asinf64(v.x), asinf64(v.y), asinf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 asinf16x4(f16x4 v) { return f16x4(asinf16(v.x), asinf16(v.y), asinf16(v.z), asinf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 asinf32x4(f32x4 v) { return f32x4(asinf32(v.x), asinf32(v.y), asinf32(v.z), asinf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 asinf64x4(f64x4 v) { return f64x4(asinf64(v.x), asinf64(v.y), asinf64(v.z), asinf64(v.w)); }
+static inline f16x2 asin_f16x2(f16x2 v) { return f16x2(asin_f16(v.x), asin_f16(v.y)); }
+static inline f32x2 asin_f32x2(f32x2 v) { return f32x2(asin_f32(v.x), asin_f32(v.y)); }
+static inline f64x2 asin_f64x2(f64x2 v) { return f64x2(asin_f64(v.x), asin_f64(v.y)); }
+static inline f16x3 asin_f16x3(f16x3 v) { return f16x3(asin_f16(v.x), asin_f16(v.y), asin_f16(v.z)); }
+static inline f32x3 asin_f32x3(f32x3 v) { return f32x3(asin_f32(v.x), asin_f32(v.y), asin_f32(v.z)); }
+static inline f64x3 asin_f64x3(f64x3 v) { return f64x3(asin_f64(v.x), asin_f64(v.y), asin_f64(v.z)); }
+static inline f16x4 asin_f16x4(f16x4 v) { return f16x4(asin_f16(v.x), asin_f16(v.y), asin_f16(v.z), asin_f16(v.w)); }
+static inline f32x4 asin_f32x4(f32x4 v) { return f32x4(asin_f32(v.x), asin_f32(v.y), asin_f32(v.z), asin_f32(v.w)); }
+static inline f64x4 asin_f64x4(f64x4 v) { return f64x4(asin_f64(v.x), asin_f64(v.y), asin_f64(v.z), asin_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'acos' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 acosf16x2(f16x2 v) { return f16x2(acosf16(v.x), acosf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 acosf32x2(f32x2 v) { return f32x2(acosf32(v.x), acosf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 acosf64x2(f64x2 v) { return f64x2(acosf64(v.x), acosf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 acosf16x3(f16x3 v) { return f16x3(acosf16(v.x), acosf16(v.y), acosf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 acosf32x3(f32x3 v) { return f32x3(acosf32(v.x), acosf32(v.y), acosf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 acosf64x3(f64x3 v) { return f64x3(acosf64(v.x), acosf64(v.y), acosf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 acosf16x4(f16x4 v) { return f16x4(acosf16(v.x), acosf16(v.y), acosf16(v.z), acosf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 acosf32x4(f32x4 v) { return f32x4(acosf32(v.x), acosf32(v.y), acosf32(v.z), acosf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 acosf64x4(f64x4 v) { return f64x4(acosf64(v.x), acosf64(v.y), acosf64(v.z), acosf64(v.w)); }
+static inline f16x2 acos_f16x2(f16x2 v) { return f16x2(acos_f16(v.x), acos_f16(v.y)); }
+static inline f32x2 acos_f32x2(f32x2 v) { return f32x2(acos_f32(v.x), acos_f32(v.y)); }
+static inline f64x2 acos_f64x2(f64x2 v) { return f64x2(acos_f64(v.x), acos_f64(v.y)); }
+static inline f16x3 acos_f16x3(f16x3 v) { return f16x3(acos_f16(v.x), acos_f16(v.y), acos_f16(v.z)); }
+static inline f32x3 acos_f32x3(f32x3 v) { return f32x3(acos_f32(v.x), acos_f32(v.y), acos_f32(v.z)); }
+static inline f64x3 acos_f64x3(f64x3 v) { return f64x3(acos_f64(v.x), acos_f64(v.y), acos_f64(v.z)); }
+static inline f16x4 acos_f16x4(f16x4 v) { return f16x4(acos_f16(v.x), acos_f16(v.y), acos_f16(v.z), acos_f16(v.w)); }
+static inline f32x4 acos_f32x4(f32x4 v) { return f32x4(acos_f32(v.x), acos_f32(v.y), acos_f32(v.z), acos_f32(v.w)); }
+static inline f64x4 acos_f64x4(f64x4 v) { return f64x4(acos_f64(v.x), acos_f64(v.y), acos_f64(v.z), acos_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'atan' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 atanf16x2(f16x2 v) { return f16x2(atanf16(v.x), atanf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 atanf32x2(f32x2 v) { return f32x2(atanf32(v.x), atanf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 atanf64x2(f64x2 v) { return f64x2(atanf64(v.x), atanf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 atanf16x3(f16x3 v) { return f16x3(atanf16(v.x), atanf16(v.y), atanf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 atanf32x3(f32x3 v) { return f32x3(atanf32(v.x), atanf32(v.y), atanf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 atanf64x3(f64x3 v) { return f64x3(atanf64(v.x), atanf64(v.y), atanf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 atanf16x4(f16x4 v) { return f16x4(atanf16(v.x), atanf16(v.y), atanf16(v.z), atanf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 atanf32x4(f32x4 v) { return f32x4(atanf32(v.x), atanf32(v.y), atanf32(v.z), atanf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 atanf64x4(f64x4 v) { return f64x4(atanf64(v.x), atanf64(v.y), atanf64(v.z), atanf64(v.w)); }
+static inline f16x2 atan_f16x2(f16x2 v) { return f16x2(atan_f16(v.x), atan_f16(v.y)); }
+static inline f32x2 atan_f32x2(f32x2 v) { return f32x2(atan_f32(v.x), atan_f32(v.y)); }
+static inline f64x2 atan_f64x2(f64x2 v) { return f64x2(atan_f64(v.x), atan_f64(v.y)); }
+static inline f16x3 atan_f16x3(f16x3 v) { return f16x3(atan_f16(v.x), atan_f16(v.y), atan_f16(v.z)); }
+static inline f32x3 atan_f32x3(f32x3 v) { return f32x3(atan_f32(v.x), atan_f32(v.y), atan_f32(v.z)); }
+static inline f64x3 atan_f64x3(f64x3 v) { return f64x3(atan_f64(v.x), atan_f64(v.y), atan_f64(v.z)); }
+static inline f16x4 atan_f16x4(f16x4 v) { return f16x4(atan_f16(v.x), atan_f16(v.y), atan_f16(v.z), atan_f16(v.w)); }
+static inline f32x4 atan_f32x4(f32x4 v) { return f32x4(atan_f32(v.x), atan_f32(v.y), atan_f32(v.z), atan_f32(v.w)); }
+static inline f64x4 atan_f64x4(f64x4 v) { return f64x4(atan_f64(v.x), atan_f64(v.y), atan_f64(v.z), atan_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'sinh' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 sinhf16x2(f16x2 v) { return f16x2(sinhf16(v.x), sinhf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 sinhf32x2(f32x2 v) { return f32x2(sinhf32(v.x), sinhf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 sinhf64x2(f64x2 v) { return f64x2(sinhf64(v.x), sinhf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 sinhf16x3(f16x3 v) { return f16x3(sinhf16(v.x), sinhf16(v.y), sinhf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 sinhf32x3(f32x3 v) { return f32x3(sinhf32(v.x), sinhf32(v.y), sinhf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 sinhf64x3(f64x3 v) { return f64x3(sinhf64(v.x), sinhf64(v.y), sinhf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 sinhf16x4(f16x4 v) { return f16x4(sinhf16(v.x), sinhf16(v.y), sinhf16(v.z), sinhf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 sinhf32x4(f32x4 v) { return f32x4(sinhf32(v.x), sinhf32(v.y), sinhf32(v.z), sinhf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 sinhf64x4(f64x4 v) { return f64x4(sinhf64(v.x), sinhf64(v.y), sinhf64(v.z), sinhf64(v.w)); }
+static inline f16x2 sinh_f16x2(f16x2 v) { return f16x2(sinh_f16(v.x), sinh_f16(v.y)); }
+static inline f32x2 sinh_f32x2(f32x2 v) { return f32x2(sinh_f32(v.x), sinh_f32(v.y)); }
+static inline f64x2 sinh_f64x2(f64x2 v) { return f64x2(sinh_f64(v.x), sinh_f64(v.y)); }
+static inline f16x3 sinh_f16x3(f16x3 v) { return f16x3(sinh_f16(v.x), sinh_f16(v.y), sinh_f16(v.z)); }
+static inline f32x3 sinh_f32x3(f32x3 v) { return f32x3(sinh_f32(v.x), sinh_f32(v.y), sinh_f32(v.z)); }
+static inline f64x3 sinh_f64x3(f64x3 v) { return f64x3(sinh_f64(v.x), sinh_f64(v.y), sinh_f64(v.z)); }
+static inline f16x4 sinh_f16x4(f16x4 v) { return f16x4(sinh_f16(v.x), sinh_f16(v.y), sinh_f16(v.z), sinh_f16(v.w)); }
+static inline f32x4 sinh_f32x4(f32x4 v) { return f32x4(sinh_f32(v.x), sinh_f32(v.y), sinh_f32(v.z), sinh_f32(v.w)); }
+static inline f64x4 sinh_f64x4(f64x4 v) { return f64x4(sinh_f64(v.x), sinh_f64(v.y), sinh_f64(v.z), sinh_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'cosh' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 coshf16x2(f16x2 v) { return f16x2(coshf16(v.x), coshf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 coshf32x2(f32x2 v) { return f32x2(coshf32(v.x), coshf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 coshf64x2(f64x2 v) { return f64x2(coshf64(v.x), coshf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 coshf16x3(f16x3 v) { return f16x3(coshf16(v.x), coshf16(v.y), coshf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 coshf32x3(f32x3 v) { return f32x3(coshf32(v.x), coshf32(v.y), coshf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 coshf64x3(f64x3 v) { return f64x3(coshf64(v.x), coshf64(v.y), coshf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 coshf16x4(f16x4 v) { return f16x4(coshf16(v.x), coshf16(v.y), coshf16(v.z), coshf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 coshf32x4(f32x4 v) { return f32x4(coshf32(v.x), coshf32(v.y), coshf32(v.z), coshf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 coshf64x4(f64x4 v) { return f64x4(coshf64(v.x), coshf64(v.y), coshf64(v.z), coshf64(v.w)); }
+static inline f16x2 cosh_f16x2(f16x2 v) { return f16x2(cosh_f16(v.x), cosh_f16(v.y)); }
+static inline f32x2 cosh_f32x2(f32x2 v) { return f32x2(cosh_f32(v.x), cosh_f32(v.y)); }
+static inline f64x2 cosh_f64x2(f64x2 v) { return f64x2(cosh_f64(v.x), cosh_f64(v.y)); }
+static inline f16x3 cosh_f16x3(f16x3 v) { return f16x3(cosh_f16(v.x), cosh_f16(v.y), cosh_f16(v.z)); }
+static inline f32x3 cosh_f32x3(f32x3 v) { return f32x3(cosh_f32(v.x), cosh_f32(v.y), cosh_f32(v.z)); }
+static inline f64x3 cosh_f64x3(f64x3 v) { return f64x3(cosh_f64(v.x), cosh_f64(v.y), cosh_f64(v.z)); }
+static inline f16x4 cosh_f16x4(f16x4 v) { return f16x4(cosh_f16(v.x), cosh_f16(v.y), cosh_f16(v.z), cosh_f16(v.w)); }
+static inline f32x4 cosh_f32x4(f32x4 v) { return f32x4(cosh_f32(v.x), cosh_f32(v.y), cosh_f32(v.z), cosh_f32(v.w)); }
+static inline f64x4 cosh_f64x4(f64x4 v) { return f64x4(cosh_f64(v.x), cosh_f64(v.y), cosh_f64(v.z), cosh_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'tanh' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 tanhf16x2(f16x2 v) { return f16x2(tanhf16(v.x), tanhf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 tanhf32x2(f32x2 v) { return f32x2(tanhf32(v.x), tanhf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 tanhf64x2(f64x2 v) { return f64x2(tanhf64(v.x), tanhf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 tanhf16x3(f16x3 v) { return f16x3(tanhf16(v.x), tanhf16(v.y), tanhf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 tanhf32x3(f32x3 v) { return f32x3(tanhf32(v.x), tanhf32(v.y), tanhf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 tanhf64x3(f64x3 v) { return f64x3(tanhf64(v.x), tanhf64(v.y), tanhf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 tanhf16x4(f16x4 v) { return f16x4(tanhf16(v.x), tanhf16(v.y), tanhf16(v.z), tanhf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 tanhf32x4(f32x4 v) { return f32x4(tanhf32(v.x), tanhf32(v.y), tanhf32(v.z), tanhf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 tanhf64x4(f64x4 v) { return f64x4(tanhf64(v.x), tanhf64(v.y), tanhf64(v.z), tanhf64(v.w)); }
+static inline f16x2 tanh_f16x2(f16x2 v) { return f16x2(tanh_f16(v.x), tanh_f16(v.y)); }
+static inline f32x2 tanh_f32x2(f32x2 v) { return f32x2(tanh_f32(v.x), tanh_f32(v.y)); }
+static inline f64x2 tanh_f64x2(f64x2 v) { return f64x2(tanh_f64(v.x), tanh_f64(v.y)); }
+static inline f16x3 tanh_f16x3(f16x3 v) { return f16x3(tanh_f16(v.x), tanh_f16(v.y), tanh_f16(v.z)); }
+static inline f32x3 tanh_f32x3(f32x3 v) { return f32x3(tanh_f32(v.x), tanh_f32(v.y), tanh_f32(v.z)); }
+static inline f64x3 tanh_f64x3(f64x3 v) { return f64x3(tanh_f64(v.x), tanh_f64(v.y), tanh_f64(v.z)); }
+static inline f16x4 tanh_f16x4(f16x4 v) { return f16x4(tanh_f16(v.x), tanh_f16(v.y), tanh_f16(v.z), tanh_f16(v.w)); }
+static inline f32x4 tanh_f32x4(f32x4 v) { return f32x4(tanh_f32(v.x), tanh_f32(v.y), tanh_f32(v.z), tanh_f32(v.w)); }
+static inline f64x4 tanh_f64x4(f64x4 v) { return f64x4(tanh_f64(v.x), tanh_f64(v.y), tanh_f64(v.z), tanh_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'asinh' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 asinhf16x2(f16x2 v) { return f16x2(asinhf16(v.x), asinhf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 asinhf32x2(f32x2 v) { return f32x2(asinhf32(v.x), asinhf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 asinhf64x2(f64x2 v) { return f64x2(asinhf64(v.x), asinhf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 asinhf16x3(f16x3 v) { return f16x3(asinhf16(v.x), asinhf16(v.y), asinhf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 asinhf32x3(f32x3 v) { return f32x3(asinhf32(v.x), asinhf32(v.y), asinhf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 asinhf64x3(f64x3 v) { return f64x3(asinhf64(v.x), asinhf64(v.y), asinhf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 asinhf16x4(f16x4 v) { return f16x4(asinhf16(v.x), asinhf16(v.y), asinhf16(v.z), asinhf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 asinhf32x4(f32x4 v) { return f32x4(asinhf32(v.x), asinhf32(v.y), asinhf32(v.z), asinhf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 asinhf64x4(f64x4 v) { return f64x4(asinhf64(v.x), asinhf64(v.y), asinhf64(v.z), asinhf64(v.w)); }
+static inline f16x2 asinh_f16x2(f16x2 v) { return f16x2(asinh_f16(v.x), asinh_f16(v.y)); }
+static inline f32x2 asinh_f32x2(f32x2 v) { return f32x2(asinh_f32(v.x), asinh_f32(v.y)); }
+static inline f64x2 asinh_f64x2(f64x2 v) { return f64x2(asinh_f64(v.x), asinh_f64(v.y)); }
+static inline f16x3 asinh_f16x3(f16x3 v) { return f16x3(asinh_f16(v.x), asinh_f16(v.y), asinh_f16(v.z)); }
+static inline f32x3 asinh_f32x3(f32x3 v) { return f32x3(asinh_f32(v.x), asinh_f32(v.y), asinh_f32(v.z)); }
+static inline f64x3 asinh_f64x3(f64x3 v) { return f64x3(asinh_f64(v.x), asinh_f64(v.y), asinh_f64(v.z)); }
+static inline f16x4 asinh_f16x4(f16x4 v) { return f16x4(asinh_f16(v.x), asinh_f16(v.y), asinh_f16(v.z), asinh_f16(v.w)); }
+static inline f32x4 asinh_f32x4(f32x4 v) { return f32x4(asinh_f32(v.x), asinh_f32(v.y), asinh_f32(v.z), asinh_f32(v.w)); }
+static inline f64x4 asinh_f64x4(f64x4 v) { return f64x4(asinh_f64(v.x), asinh_f64(v.y), asinh_f64(v.z), asinh_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'acosh' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 acoshf16x2(f16x2 v) { return f16x2(acoshf16(v.x), acoshf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 acoshf32x2(f32x2 v) { return f32x2(acoshf32(v.x), acoshf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 acoshf64x2(f64x2 v) { return f64x2(acoshf64(v.x), acoshf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 acoshf16x3(f16x3 v) { return f16x3(acoshf16(v.x), acoshf16(v.y), acoshf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 acoshf32x3(f32x3 v) { return f32x3(acoshf32(v.x), acoshf32(v.y), acoshf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 acoshf64x3(f64x3 v) { return f64x3(acoshf64(v.x), acoshf64(v.y), acoshf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 acoshf16x4(f16x4 v) { return f16x4(acoshf16(v.x), acoshf16(v.y), acoshf16(v.z), acoshf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 acoshf32x4(f32x4 v) { return f32x4(acoshf32(v.x), acoshf32(v.y), acoshf32(v.z), acoshf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 acoshf64x4(f64x4 v) { return f64x4(acoshf64(v.x), acoshf64(v.y), acoshf64(v.z), acoshf64(v.w)); }
+static inline f16x2 acosh_f16x2(f16x2 v) { return f16x2(acosh_f16(v.x), acosh_f16(v.y)); }
+static inline f32x2 acosh_f32x2(f32x2 v) { return f32x2(acosh_f32(v.x), acosh_f32(v.y)); }
+static inline f64x2 acosh_f64x2(f64x2 v) { return f64x2(acosh_f64(v.x), acosh_f64(v.y)); }
+static inline f16x3 acosh_f16x3(f16x3 v) { return f16x3(acosh_f16(v.x), acosh_f16(v.y), acosh_f16(v.z)); }
+static inline f32x3 acosh_f32x3(f32x3 v) { return f32x3(acosh_f32(v.x), acosh_f32(v.y), acosh_f32(v.z)); }
+static inline f64x3 acosh_f64x3(f64x3 v) { return f64x3(acosh_f64(v.x), acosh_f64(v.y), acosh_f64(v.z)); }
+static inline f16x4 acosh_f16x4(f16x4 v) { return f16x4(acosh_f16(v.x), acosh_f16(v.y), acosh_f16(v.z), acosh_f16(v.w)); }
+static inline f32x4 acosh_f32x4(f32x4 v) { return f32x4(acosh_f32(v.x), acosh_f32(v.y), acosh_f32(v.z), acosh_f32(v.w)); }
+static inline f64x4 acosh_f64x4(f64x4 v) { return f64x4(acosh_f64(v.x), acosh_f64(v.y), acosh_f64(v.z), acosh_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'atanh' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 atanhf16x2(f16x2 v) { return f16x2(atanhf16(v.x), atanhf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 atanhf32x2(f32x2 v) { return f32x2(atanhf32(v.x), atanhf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 atanhf64x2(f64x2 v) { return f64x2(atanhf64(v.x), atanhf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 atanhf16x3(f16x3 v) { return f16x3(atanhf16(v.x), atanhf16(v.y), atanhf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 atanhf32x3(f32x3 v) { return f32x3(atanhf32(v.x), atanhf32(v.y), atanhf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 atanhf64x3(f64x3 v) { return f64x3(atanhf64(v.x), atanhf64(v.y), atanhf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 atanhf16x4(f16x4 v) { return f16x4(atanhf16(v.x), atanhf16(v.y), atanhf16(v.z), atanhf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 atanhf32x4(f32x4 v) { return f32x4(atanhf32(v.x), atanhf32(v.y), atanhf32(v.z), atanhf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 atanhf64x4(f64x4 v) { return f64x4(atanhf64(v.x), atanhf64(v.y), atanhf64(v.z), atanhf64(v.w)); }
+static inline f16x2 atanh_f16x2(f16x2 v) { return f16x2(atanh_f16(v.x), atanh_f16(v.y)); }
+static inline f32x2 atanh_f32x2(f32x2 v) { return f32x2(atanh_f32(v.x), atanh_f32(v.y)); }
+static inline f64x2 atanh_f64x2(f64x2 v) { return f64x2(atanh_f64(v.x), atanh_f64(v.y)); }
+static inline f16x3 atanh_f16x3(f16x3 v) { return f16x3(atanh_f16(v.x), atanh_f16(v.y), atanh_f16(v.z)); }
+static inline f32x3 atanh_f32x3(f32x3 v) { return f32x3(atanh_f32(v.x), atanh_f32(v.y), atanh_f32(v.z)); }
+static inline f64x3 atanh_f64x3(f64x3 v) { return f64x3(atanh_f64(v.x), atanh_f64(v.y), atanh_f64(v.z)); }
+static inline f16x4 atanh_f16x4(f16x4 v) { return f16x4(atanh_f16(v.x), atanh_f16(v.y), atanh_f16(v.z), atanh_f16(v.w)); }
+static inline f32x4 atanh_f32x4(f32x4 v) { return f32x4(atanh_f32(v.x), atanh_f32(v.y), atanh_f32(v.z), atanh_f32(v.w)); }
+static inline f64x4 atanh_f64x4(f64x4 v) { return f64x4(atanh_f64(v.x), atanh_f64(v.y), atanh_f64(v.z), atanh_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'atan2' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 atan2f16x2(f16x2 y, f16x2 x) { return f16x2(atan2f16(y.x, x.x), atan2f16(y.y, x.y)); }
-HCC_INTRINSIC static inline f32x2 atan2f32x2(f32x2 y, f32x2 x) { return f32x2(atan2f32(y.x, x.x), atan2f32(y.y, x.y)); }
-HCC_INTRINSIC static inline f64x2 atan2f64x2(f64x2 y, f64x2 x) { return f64x2(atan2f64(y.x, x.x), atan2f64(y.y, x.y)); }
-HCC_INTRINSIC static inline f16x3 atan2f16x3(f16x3 y, f16x3 x) { return f16x3(atan2f16(y.x, x.x), atan2f16(y.y, x.y), atan2f16(y.z, x.z)); }
-HCC_INTRINSIC static inline f32x3 atan2f32x3(f32x3 y, f32x3 x) { return f32x3(atan2f32(y.x, x.x), atan2f32(y.y, x.y), atan2f32(y.z, x.z)); }
-HCC_INTRINSIC static inline f64x3 atan2f64x3(f64x3 y, f64x3 x) { return f64x3(atan2f64(y.x, x.x), atan2f64(y.y, x.y), atan2f64(y.z, x.z)); }
-HCC_INTRINSIC static inline f16x4 atan2f16x4(f16x4 y, f16x4 x) { return f16x4(atan2f16(y.x, x.x), atan2f16(y.y, x.y), atan2f16(y.z, x.z), atan2f16(y.w, x.w)); }
-HCC_INTRINSIC static inline f32x4 atan2f32x4(f32x4 y, f32x4 x) { return f32x4(atan2f32(y.x, x.x), atan2f32(y.y, x.y), atan2f32(y.z, x.z), atan2f32(y.w, x.w)); }
-HCC_INTRINSIC static inline f64x4 atan2f64x4(f64x4 y, f64x4 x) { return f64x4(atan2f64(y.x, x.x), atan2f64(y.y, x.y), atan2f64(y.z, x.z), atan2f64(y.w, x.w)); }
+static inline f16x2 atan2_f16x2(f16x2 y, f16x2 x) { return f16x2(atan2_f16(y.x, x.x), atan2_f16(y.y, x.y)); }
+static inline f32x2 atan2_f32x2(f32x2 y, f32x2 x) { return f32x2(atan2_f32(y.x, x.x), atan2_f32(y.y, x.y)); }
+static inline f64x2 atan2_f64x2(f64x2 y, f64x2 x) { return f64x2(atan2_f64(y.x, x.x), atan2_f64(y.y, x.y)); }
+static inline f16x3 atan2_f16x3(f16x3 y, f16x3 x) { return f16x3(atan2_f16(y.x, x.x), atan2_f16(y.y, x.y), atan2_f16(y.z, x.z)); }
+static inline f32x3 atan2_f32x3(f32x3 y, f32x3 x) { return f32x3(atan2_f32(y.x, x.x), atan2_f32(y.y, x.y), atan2_f32(y.z, x.z)); }
+static inline f64x3 atan2_f64x3(f64x3 y, f64x3 x) { return f64x3(atan2_f64(y.x, x.x), atan2_f64(y.y, x.y), atan2_f64(y.z, x.z)); }
+static inline f16x4 atan2_f16x4(f16x4 y, f16x4 x) { return f16x4(atan2_f16(y.x, x.x), atan2_f16(y.y, x.y), atan2_f16(y.z, x.z), atan2_f16(y.w, x.w)); }
+static inline f32x4 atan2_f32x4(f32x4 y, f32x4 x) { return f32x4(atan2_f32(y.x, x.x), atan2_f32(y.y, x.y), atan2_f32(y.z, x.z), atan2_f32(y.w, x.w)); }
+static inline f64x4 atan2_f64x4(f64x4 y, f64x4 x) { return f64x4(atan2_f64(y.x, x.x), atan2_f64(y.y, x.y), atan2_f64(y.z, x.z), atan2_f64(y.w, x.w)); }
 
 //
 // return a vector where each component is the result of appling 'pow' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 powf16x2(f16x2 v) { return f16x2(powf16(v.x), powf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 powf32x2(f32x2 v) { return f32x2(powf32(v.x), powf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 powf64x2(f64x2 v) { return f64x2(powf64(v.x), powf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 powf16x3(f16x3 v) { return f16x3(powf16(v.x), powf16(v.y), powf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 powf32x3(f32x3 v) { return f32x3(powf32(v.x), powf32(v.y), powf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 powf64x3(f64x3 v) { return f64x3(powf64(v.x), powf64(v.y), powf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 powf16x4(f16x4 v) { return f16x4(powf16(v.x), powf16(v.y), powf16(v.z), powf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 powf32x4(f32x4 v) { return f32x4(powf32(v.x), powf32(v.y), powf32(v.z), powf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 powf64x4(f64x4 v) { return f64x4(powf64(v.x), powf64(v.y), powf64(v.z), powf64(v.w)); }
+static inline f16x2 pow_f16x2(f16x2 v) { return f16x2(pow_f16(v.x), pow_f16(v.y)); }
+static inline f32x2 pow_f32x2(f32x2 v) { return f32x2(pow_f32(v.x), pow_f32(v.y)); }
+static inline f64x2 pow_f64x2(f64x2 v) { return f64x2(pow_f64(v.x), pow_f64(v.y)); }
+static inline f16x3 pow_f16x3(f16x3 v) { return f16x3(pow_f16(v.x), pow_f16(v.y), pow_f16(v.z)); }
+static inline f32x3 pow_f32x3(f32x3 v) { return f32x3(pow_f32(v.x), pow_f32(v.y), pow_f32(v.z)); }
+static inline f64x3 pow_f64x3(f64x3 v) { return f64x3(pow_f64(v.x), pow_f64(v.y), pow_f64(v.z)); }
+static inline f16x4 pow_f16x4(f16x4 v) { return f16x4(pow_f16(v.x), pow_f16(v.y), pow_f16(v.z), pow_f16(v.w)); }
+static inline f32x4 pow_f32x4(f32x4 v) { return f32x4(pow_f32(v.x), pow_f32(v.y), pow_f32(v.z), pow_f32(v.w)); }
+static inline f64x4 pow_f64x4(f64x4 v) { return f64x4(pow_f64(v.x), pow_f64(v.y), pow_f64(v.z), pow_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'exp' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 expf16x2(f16x2 v) { return f16x2(expf16(v.x), expf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 expf32x2(f32x2 v) { return f32x2(expf32(v.x), expf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 expf64x2(f64x2 v) { return f64x2(expf64(v.x), expf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 expf16x3(f16x3 v) { return f16x3(expf16(v.x), expf16(v.y), expf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 expf32x3(f32x3 v) { return f32x3(expf32(v.x), expf32(v.y), expf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 expf64x3(f64x3 v) { return f64x3(expf64(v.x), expf64(v.y), expf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 expf16x4(f16x4 v) { return f16x4(expf16(v.x), expf16(v.y), expf16(v.z), expf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 expf32x4(f32x4 v) { return f32x4(expf32(v.x), expf32(v.y), expf32(v.z), expf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 expf64x4(f64x4 v) { return f64x4(expf64(v.x), expf64(v.y), expf64(v.z), expf64(v.w)); }
+static inline f16x2 exp_f16x2(f16x2 v) { return f16x2(exp_f16(v.x), exp_f16(v.y)); }
+static inline f32x2 exp_f32x2(f32x2 v) { return f32x2(exp_f32(v.x), exp_f32(v.y)); }
+static inline f64x2 exp_f64x2(f64x2 v) { return f64x2(exp_f64(v.x), exp_f64(v.y)); }
+static inline f16x3 exp_f16x3(f16x3 v) { return f16x3(exp_f16(v.x), exp_f16(v.y), exp_f16(v.z)); }
+static inline f32x3 exp_f32x3(f32x3 v) { return f32x3(exp_f32(v.x), exp_f32(v.y), exp_f32(v.z)); }
+static inline f64x3 exp_f64x3(f64x3 v) { return f64x3(exp_f64(v.x), exp_f64(v.y), exp_f64(v.z)); }
+static inline f16x4 exp_f16x4(f16x4 v) { return f16x4(exp_f16(v.x), exp_f16(v.y), exp_f16(v.z), exp_f16(v.w)); }
+static inline f32x4 exp_f32x4(f32x4 v) { return f32x4(exp_f32(v.x), exp_f32(v.y), exp_f32(v.z), exp_f32(v.w)); }
+static inline f64x4 exp_f64x4(f64x4 v) { return f64x4(exp_f64(v.x), exp_f64(v.y), exp_f64(v.z), exp_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'log' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 logf16x2(f16x2 v) { return f16x2(logf16(v.x), logf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 logf32x2(f32x2 v) { return f32x2(logf32(v.x), logf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 logf64x2(f64x2 v) { return f64x2(logf64(v.x), logf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 logf16x3(f16x3 v) { return f16x3(logf16(v.x), logf16(v.y), logf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 logf32x3(f32x3 v) { return f32x3(logf32(v.x), logf32(v.y), logf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 logf64x3(f64x3 v) { return f64x3(logf64(v.x), logf64(v.y), logf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 logf16x4(f16x4 v) { return f16x4(logf16(v.x), logf16(v.y), logf16(v.z), logf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 logf32x4(f32x4 v) { return f32x4(logf32(v.x), logf32(v.y), logf32(v.z), logf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 logf64x4(f64x4 v) { return f64x4(logf64(v.x), logf64(v.y), logf64(v.z), logf64(v.w)); }
+static inline f16x2 log_f16x2(f16x2 v) { return f16x2(log_f16(v.x), log_f16(v.y)); }
+static inline f32x2 log_f32x2(f32x2 v) { return f32x2(log_f32(v.x), log_f32(v.y)); }
+static inline f64x2 log_f64x2(f64x2 v) { return f64x2(log_f64(v.x), log_f64(v.y)); }
+static inline f16x3 log_f16x3(f16x3 v) { return f16x3(log_f16(v.x), log_f16(v.y), log_f16(v.z)); }
+static inline f32x3 log_f32x3(f32x3 v) { return f32x3(log_f32(v.x), log_f32(v.y), log_f32(v.z)); }
+static inline f64x3 log_f64x3(f64x3 v) { return f64x3(log_f64(v.x), log_f64(v.y), log_f64(v.z)); }
+static inline f16x4 log_f16x4(f16x4 v) { return f16x4(log_f16(v.x), log_f16(v.y), log_f16(v.z), log_f16(v.w)); }
+static inline f32x4 log_f32x4(f32x4 v) { return f32x4(log_f32(v.x), log_f32(v.y), log_f32(v.z), log_f32(v.w)); }
+static inline f64x4 log_f64x4(f64x4 v) { return f64x4(log_f64(v.x), log_f64(v.y), log_f64(v.z), log_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'exp2' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 exp2f16x2(f16x2 v) { return f16x2(exp2f16(v.x), exp2f16(v.y)); }
-HCC_INTRINSIC static inline f32x2 exp2f32x2(f32x2 v) { return f32x2(exp2f32(v.x), exp2f32(v.y)); }
-HCC_INTRINSIC static inline f64x2 exp2f64x2(f64x2 v) { return f64x2(exp2f64(v.x), exp2f64(v.y)); }
-HCC_INTRINSIC static inline f16x3 exp2f16x3(f16x3 v) { return f16x3(exp2f16(v.x), exp2f16(v.y), exp2f16(v.z)); }
-HCC_INTRINSIC static inline f32x3 exp2f32x3(f32x3 v) { return f32x3(exp2f32(v.x), exp2f32(v.y), exp2f32(v.z)); }
-HCC_INTRINSIC static inline f64x3 exp2f64x3(f64x3 v) { return f64x3(exp2f64(v.x), exp2f64(v.y), exp2f64(v.z)); }
-HCC_INTRINSIC static inline f16x4 exp2f16x4(f16x4 v) { return f16x4(exp2f16(v.x), exp2f16(v.y), exp2f16(v.z), exp2f16(v.w)); }
-HCC_INTRINSIC static inline f32x4 exp2f32x4(f32x4 v) { return f32x4(exp2f32(v.x), exp2f32(v.y), exp2f32(v.z), exp2f32(v.w)); }
-HCC_INTRINSIC static inline f64x4 exp2f64x4(f64x4 v) { return f64x4(exp2f64(v.x), exp2f64(v.y), exp2f64(v.z), exp2f64(v.w)); }
+static inline f16x2 exp2_f16x2(f16x2 v) { return f16x2(exp2_f16(v.x), exp2_f16(v.y)); }
+static inline f32x2 exp2_f32x2(f32x2 v) { return f32x2(exp2_f32(v.x), exp2_f32(v.y)); }
+static inline f64x2 exp2_f64x2(f64x2 v) { return f64x2(exp2_f64(v.x), exp2_f64(v.y)); }
+static inline f16x3 exp2_f16x3(f16x3 v) { return f16x3(exp2_f16(v.x), exp2_f16(v.y), exp2_f16(v.z)); }
+static inline f32x3 exp2_f32x3(f32x3 v) { return f32x3(exp2_f32(v.x), exp2_f32(v.y), exp2_f32(v.z)); }
+static inline f64x3 exp2_f64x3(f64x3 v) { return f64x3(exp2_f64(v.x), exp2_f64(v.y), exp2_f64(v.z)); }
+static inline f16x4 exp2_f16x4(f16x4 v) { return f16x4(exp2_f16(v.x), exp2_f16(v.y), exp2_f16(v.z), exp2_f16(v.w)); }
+static inline f32x4 exp2_f32x4(f32x4 v) { return f32x4(exp2_f32(v.x), exp2_f32(v.y), exp2_f32(v.z), exp2_f32(v.w)); }
+static inline f64x4 exp2_f64x4(f64x4 v) { return f64x4(exp2_f64(v.x), exp2_f64(v.y), exp2_f64(v.z), exp2_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'log2' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 log2f16x2(f16x2 v) { return f16x2(log2f16(v.x), log2f16(v.y)); }
-HCC_INTRINSIC static inline f32x2 log2f32x2(f32x2 v) { return f32x2(log2f32(v.x), log2f32(v.y)); }
-HCC_INTRINSIC static inline f64x2 log2f64x2(f64x2 v) { return f64x2(log2f64(v.x), log2f64(v.y)); }
-HCC_INTRINSIC static inline f16x3 log2f16x3(f16x3 v) { return f16x3(log2f16(v.x), log2f16(v.y), log2f16(v.z)); }
-HCC_INTRINSIC static inline f32x3 log2f32x3(f32x3 v) { return f32x3(log2f32(v.x), log2f32(v.y), log2f32(v.z)); }
-HCC_INTRINSIC static inline f64x3 log2f64x3(f64x3 v) { return f64x3(log2f64(v.x), log2f64(v.y), log2f64(v.z)); }
-HCC_INTRINSIC static inline f16x4 log2f16x4(f16x4 v) { return f16x4(log2f16(v.x), log2f16(v.y), log2f16(v.z), log2f16(v.w)); }
-HCC_INTRINSIC static inline f32x4 log2f32x4(f32x4 v) { return f32x4(log2f32(v.x), log2f32(v.y), log2f32(v.z), log2f32(v.w)); }
-HCC_INTRINSIC static inline f64x4 log2f64x4(f64x4 v) { return f64x4(log2f64(v.x), log2f64(v.y), log2f64(v.z), log2f64(v.w)); }
+static inline f16x2 log2_f16x2(f16x2 v) { return f16x2(log2_f16(v.x), log2_f16(v.y)); }
+static inline f32x2 log2_f32x2(f32x2 v) { return f32x2(log2_f32(v.x), log2_f32(v.y)); }
+static inline f64x2 log2_f64x2(f64x2 v) { return f64x2(log2_f64(v.x), log2_f64(v.y)); }
+static inline f16x3 log2_f16x3(f16x3 v) { return f16x3(log2_f16(v.x), log2_f16(v.y), log2_f16(v.z)); }
+static inline f32x3 log2_f32x3(f32x3 v) { return f32x3(log2_f32(v.x), log2_f32(v.y), log2_f32(v.z)); }
+static inline f64x3 log2_f64x3(f64x3 v) { return f64x3(log2_f64(v.x), log2_f64(v.y), log2_f64(v.z)); }
+static inline f16x4 log2_f16x4(f16x4 v) { return f16x4(log2_f16(v.x), log2_f16(v.y), log2_f16(v.z), log2_f16(v.w)); }
+static inline f32x4 log2_f32x4(f32x4 v) { return f32x4(log2_f32(v.x), log2_f32(v.y), log2_f32(v.z), log2_f32(v.w)); }
+static inline f64x4 log2_f64x4(f64x4 v) { return f64x4(log2_f64(v.x), log2_f64(v.y), log2_f64(v.z), log2_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'sqrt' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 sqrtf16x2(f16x2 v) { return f16x2(sqrtf16(v.x), sqrtf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 sqrtf32x2(f32x2 v) { return f32x2(sqrtf32(v.x), sqrtf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 sqrtf64x2(f64x2 v) { return f64x2(sqrtf64(v.x), sqrtf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 sqrtf16x3(f16x3 v) { return f16x3(sqrtf16(v.x), sqrtf16(v.y), sqrtf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 sqrtf32x3(f32x3 v) { return f32x3(sqrtf32(v.x), sqrtf32(v.y), sqrtf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 sqrtf64x3(f64x3 v) { return f64x3(sqrtf64(v.x), sqrtf64(v.y), sqrtf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 sqrtf16x4(f16x4 v) { return f16x4(sqrtf16(v.x), sqrtf16(v.y), sqrtf16(v.z), sqrtf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 sqrtf32x4(f32x4 v) { return f32x4(sqrtf32(v.x), sqrtf32(v.y), sqrtf32(v.z), sqrtf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 sqrtf64x4(f64x4 v) { return f64x4(sqrtf64(v.x), sqrtf64(v.y), sqrtf64(v.z), sqrtf64(v.w)); }
+static inline f16x2 sqrt_f16x2(f16x2 v) { return f16x2(sqrt_f16(v.x), sqrt_f16(v.y)); }
+static inline f32x2 sqrt_f32x2(f32x2 v) { return f32x2(sqrt_f32(v.x), sqrt_f32(v.y)); }
+static inline f64x2 sqrt_f64x2(f64x2 v) { return f64x2(sqrt_f64(v.x), sqrt_f64(v.y)); }
+static inline f16x3 sqrt_f16x3(f16x3 v) { return f16x3(sqrt_f16(v.x), sqrt_f16(v.y), sqrt_f16(v.z)); }
+static inline f32x3 sqrt_f32x3(f32x3 v) { return f32x3(sqrt_f32(v.x), sqrt_f32(v.y), sqrt_f32(v.z)); }
+static inline f64x3 sqrt_f64x3(f64x3 v) { return f64x3(sqrt_f64(v.x), sqrt_f64(v.y), sqrt_f64(v.z)); }
+static inline f16x4 sqrt_f16x4(f16x4 v) { return f16x4(sqrt_f16(v.x), sqrt_f16(v.y), sqrt_f16(v.z), sqrt_f16(v.w)); }
+static inline f32x4 sqrt_f32x4(f32x4 v) { return f32x4(sqrt_f32(v.x), sqrt_f32(v.y), sqrt_f32(v.z), sqrt_f32(v.w)); }
+static inline f64x4 sqrt_f64x4(f64x4 v) { return f64x4(sqrt_f64(v.x), sqrt_f64(v.y), sqrt_f64(v.z), sqrt_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'rsqrt' to that component in 'v'
-HCC_INTRINSIC static inline f16x2 rsqrtf16x2(f16x2 v) { return f16x2(rsqrtf16(v.x), rsqrtf16(v.y)); }
-HCC_INTRINSIC static inline f32x2 rsqrtf32x2(f32x2 v) { return f32x2(rsqrtf32(v.x), rsqrtf32(v.y)); }
-HCC_INTRINSIC static inline f64x2 rsqrtf64x2(f64x2 v) { return f64x2(rsqrtf64(v.x), rsqrtf64(v.y)); }
-HCC_INTRINSIC static inline f16x3 rsqrtf16x3(f16x3 v) { return f16x3(rsqrtf16(v.x), rsqrtf16(v.y), rsqrtf16(v.z)); }
-HCC_INTRINSIC static inline f32x3 rsqrtf32x3(f32x3 v) { return f32x3(rsqrtf32(v.x), rsqrtf32(v.y), rsqrtf32(v.z)); }
-HCC_INTRINSIC static inline f64x3 rsqrtf64x3(f64x3 v) { return f64x3(rsqrtf64(v.x), rsqrtf64(v.y), rsqrtf64(v.z)); }
-HCC_INTRINSIC static inline f16x4 rsqrtf16x4(f16x4 v) { return f16x4(rsqrtf16(v.x), rsqrtf16(v.y), rsqrtf16(v.z), rsqrtf16(v.w)); }
-HCC_INTRINSIC static inline f32x4 rsqrtf32x4(f32x4 v) { return f32x4(rsqrtf32(v.x), rsqrtf32(v.y), rsqrtf32(v.z), rsqrtf32(v.w)); }
-HCC_INTRINSIC static inline f64x4 rsqrtf64x4(f64x4 v) { return f64x4(rsqrtf64(v.x), rsqrtf64(v.y), rsqrtf64(v.z), rsqrtf64(v.w)); }
+static inline f16x2 rsqrt_f16x2(f16x2 v) { return f16x2(rsqrt_f16(v.x), rsqrt_f16(v.y)); }
+static inline f32x2 rsqrt_f32x2(f32x2 v) { return f32x2(rsqrt_f32(v.x), rsqrt_f32(v.y)); }
+static inline f64x2 rsqrt_f64x2(f64x2 v) { return f64x2(rsqrt_f64(v.x), rsqrt_f64(v.y)); }
+static inline f16x3 rsqrt_f16x3(f16x3 v) { return f16x3(rsqrt_f16(v.x), rsqrt_f16(v.y), rsqrt_f16(v.z)); }
+static inline f32x3 rsqrt_f32x3(f32x3 v) { return f32x3(rsqrt_f32(v.x), rsqrt_f32(v.y), rsqrt_f32(v.z)); }
+static inline f64x3 rsqrt_f64x3(f64x3 v) { return f64x3(rsqrt_f64(v.x), rsqrt_f64(v.y), rsqrt_f64(v.z)); }
+static inline f16x4 rsqrt_f16x4(f16x4 v) { return f16x4(rsqrt_f16(v.x), rsqrt_f16(v.y), rsqrt_f16(v.z), rsqrt_f16(v.w)); }
+static inline f32x4 rsqrt_f32x4(f32x4 v) { return f32x4(rsqrt_f32(v.x), rsqrt_f32(v.y), rsqrt_f32(v.z), rsqrt_f32(v.w)); }
+static inline f64x4 rsqrt_f64x4(f64x4 v) { return f64x4(rsqrt_f64(v.x), rsqrt_f64(v.y), rsqrt_f64(v.z), rsqrt_f64(v.w)); }
 
 //
 // returns true if each component in 'a' is 'epsilon' away from that component that is in 'b'
-static inline boolx2 approxeqf16x2(f16x2 a, f16x2 b, half epsilon) { return boolx2(approxeqf16(a.x, b.x, epsilon), approxeqf16(a.y, b.y, epsilon)); }
-static inline boolx2 approxeqf32x2(f32x2 a, f32x2 b, float epsilon) { return boolx2(approxeqf32(a.x, b.x, epsilon), approxeqf32(a.y, b.y, epsilon)); }
-static inline boolx2 approxeqf64x2(f64x2 a, f64x2 b, double epsilon) { return boolx2(approxeqf64(a.x, b.x, epsilon), approxeqf64(a.y, b.y, epsilon)); }
-static inline boolx3 approxeqf16x3(f16x3 a, f16x3 b, half epsilon) { return boolx3(approxeqf16(a.x, b.x, epsilon), approxeqf16(a.y, b.y, epsilon), approxeqf16(a.z, b.z, epsilon)); }
-static inline boolx3 approxeqf32x3(f32x3 a, f32x3 b, float epsilon) { return boolx3(approxeqf32(a.x, b.x, epsilon), approxeqf32(a.y, b.y, epsilon), approxeqf32(a.z, b.z, epsilon)); }
-static inline boolx3 approxeqf64x3(f64x3 a, f64x3 b, double epsilon) { return boolx3(approxeqf64(a.x, b.x, epsilon), approxeqf64(a.y, b.y, epsilon), approxeqf64(a.z, b.z, epsilon)); }
-static inline boolx4 approxeqf16x4(f16x4 a, f16x4 b, half epsilon) { return boolx4(approxeqf16(a.x, b.x, epsilon), approxeqf16(a.y, b.y, epsilon), approxeqf16(a.z, b.z, epsilon), approxeqf16(a.w, b.w, epsilon)); }
-static inline boolx4 approxeqf32x4(f32x4 a, f32x4 b, float epsilon) { return boolx4(approxeqf32(a.x, b.x, epsilon), approxeqf32(a.y, b.y, epsilon), approxeqf32(a.z, b.z, epsilon), approxeqf32(a.w, b.w, epsilon)); }
-static inline boolx4 approxeqf64x4(f64x4 a, f64x4 b, double epsilon) { return boolx4(approxeqf64(a.x, b.x, epsilon), approxeqf64(a.y, b.y, epsilon), approxeqf64(a.z, b.z, epsilon), approxeqf64(a.w, b.w, epsilon)); }
+static inline boolx2 approxeq_f16x2(f16x2 a, f16x2 b, half epsilon) { return boolx2(approxeq_f16(a.x, b.x, epsilon), approxeq_f16(a.y, b.y, epsilon)); }
+static inline boolx2 approxeq_f32x2(f32x2 a, f32x2 b, float epsilon) { return boolx2(approxeq_f32(a.x, b.x, epsilon), approxeq_f32(a.y, b.y, epsilon)); }
+static inline boolx2 approxeq_f64x2(f64x2 a, f64x2 b, double epsilon) { return boolx2(approxeq_f64(a.x, b.x, epsilon), approxeq_f64(a.y, b.y, epsilon)); }
+static inline boolx3 approxeq_f16x3(f16x3 a, f16x3 b, half epsilon) { return boolx3(approxeq_f16(a.x, b.x, epsilon), approxeq_f16(a.y, b.y, epsilon), approxeq_f16(a.z, b.z, epsilon)); }
+static inline boolx3 approxeq_f32x3(f32x3 a, f32x3 b, float epsilon) { return boolx3(approxeq_f32(a.x, b.x, epsilon), approxeq_f32(a.y, b.y, epsilon), approxeq_f32(a.z, b.z, epsilon)); }
+static inline boolx3 approxeq_f64x3(f64x3 a, f64x3 b, double epsilon) { return boolx3(approxeq_f64(a.x, b.x, epsilon), approxeq_f64(a.y, b.y, epsilon), approxeq_f64(a.z, b.z, epsilon)); }
+static inline boolx4 approxeq_f16x4(f16x4 a, f16x4 b, half epsilon) { return boolx4(approxeq_f16(a.x, b.x, epsilon), approxeq_f16(a.y, b.y, epsilon), approxeq_f16(a.z, b.z, epsilon), approxeq_f16(a.w, b.w, epsilon)); }
+static inline boolx4 approxeq_f32x4(f32x4 a, f32x4 b, float epsilon) { return boolx4(approxeq_f32(a.x, b.x, epsilon), approxeq_f32(a.y, b.y, epsilon), approxeq_f32(a.z, b.z, epsilon), approxeq_f32(a.w, b.w, epsilon)); }
+static inline boolx4 approxeq_f64x4(f64x4 a, f64x4 b, double epsilon) { return boolx4(approxeq_f64(a.x, b.x, epsilon), approxeq_f64(a.y, b.y, epsilon), approxeq_f64(a.z, b.z, epsilon), approxeq_f64(a.w, b.w, epsilon)); }
 
 //
 // returns true if each component in 'v' is 'epsilon' away from 's'
-static inline boolx2 approxeqsf16x2(f16x2 v, half s, half epsilon) { return boolx2(approxeqf16(v.x, s, epsilon), approxeqf16(v.y, s, epsilon)); }
-static inline boolx2 approxeqsf32x2(f32x2 v, float s, float epsilon) { return boolx2(approxeqf32(v.x, s, epsilon), approxeqf32(v.y, s, epsilon)); }
-static inline boolx2 approxeqsf64x2(f64x2 v, double s, double epsilon) { return boolx2(approxeqf64(v.x, s, epsilon), approxeqf64(v.y, s, epsilon)); }
-static inline boolx3 approxeqsf16x3(f16x3 v, half s, half epsilon) { return boolx3(approxeqf16(v.x, s, epsilon), approxeqf16(v.y, s, epsilon), approxeqf16(v.z, s, epsilon)); }
-static inline boolx3 approxeqsf32x3(f32x3 v, float s, float epsilon) { return boolx3(approxeqf32(v.x, s, epsilon), approxeqf32(v.y, s, epsilon), approxeqf32(v.z, s, epsilon)); }
-static inline boolx3 approxeqsf64x3(f64x3 v, double s, double epsilon) { return boolx3(approxeqf64(v.x, s, epsilon), approxeqf64(v.y, s, epsilon), approxeqf64(v.z, s, epsilon)); }
-static inline boolx4 approxeqsf16x4(f16x4 v, half s, half epsilon) { return boolx4(approxeqf16(v.x, s, epsilon), approxeqf16(v.y, s, epsilon), approxeqf16(v.z, s, epsilon), approxeqf16(v.w, s, epsilon)); }
-static inline boolx4 approxeqsf32x4(f32x4 v, float s, float epsilon) { return boolx4(approxeqf32(v.x, s, epsilon), approxeqf32(v.y, s, epsilon), approxeqf32(v.z, s, epsilon), approxeqf32(v.w, s, epsilon)); }
-static inline boolx4 approxeqsf64x4(f64x4 v, double s, double epsilon) { return boolx4(approxeqf64(v.x, s, epsilon), approxeqf64(v.y, s, epsilon), approxeqf64(v.z, s, epsilon), approxeqf64(v.w, s, epsilon)); }
+static inline boolx2 approxeqs_f16x2(f16x2 v, half s, half epsilon) { return boolx2(approxeq_f16(v.x, s, epsilon), approxeq_f16(v.y, s, epsilon)); }
+static inline boolx2 approxeqs_f32x2(f32x2 v, float s, float epsilon) { return boolx2(approxeq_f32(v.x, s, epsilon), approxeq_f32(v.y, s, epsilon)); }
+static inline boolx2 approxeqs_f64x2(f64x2 v, double s, double epsilon) { return boolx2(approxeq_f64(v.x, s, epsilon), approxeq_f64(v.y, s, epsilon)); }
+static inline boolx3 approxeqs_f16x3(f16x3 v, half s, half epsilon) { return boolx3(approxeq_f16(v.x, s, epsilon), approxeq_f16(v.y, s, epsilon), approxeq_f16(v.z, s, epsilon)); }
+static inline boolx3 approxeqs_f32x3(f32x3 v, float s, float epsilon) { return boolx3(approxeq_f32(v.x, s, epsilon), approxeq_f32(v.y, s, epsilon), approxeq_f32(v.z, s, epsilon)); }
+static inline boolx3 approxeqs_f64x3(f64x3 v, double s, double epsilon) { return boolx3(approxeq_f64(v.x, s, epsilon), approxeq_f64(v.y, s, epsilon), approxeq_f64(v.z, s, epsilon)); }
+static inline boolx4 approxeqs_f16x4(f16x4 v, half s, half epsilon) { return boolx4(approxeq_f16(v.x, s, epsilon), approxeq_f16(v.y, s, epsilon), approxeq_f16(v.z, s, epsilon), approxeq_f16(v.w, s, epsilon)); }
+static inline boolx4 approxeqs_f32x4(f32x4 v, float s, float epsilon) { return boolx4(approxeq_f32(v.x, s, epsilon), approxeq_f32(v.y, s, epsilon), approxeq_f32(v.z, s, epsilon), approxeq_f32(v.w, s, epsilon)); }
+static inline boolx4 approxeqs_f64x4(f64x4 v, double s, double epsilon) { return boolx4(approxeq_f64(v.x, s, epsilon), approxeq_f64(v.y, s, epsilon), approxeq_f64(v.z, s, epsilon), approxeq_f64(v.w, s, epsilon)); }
 
 //
 // return a vector where each component is the result of appling 'isinf' to that component in 'v'
-HCC_INTRINSIC static inline boolx2 isinff16x2(f16x2 v) { return boolx2(isinff16(v.x), isinff16(v.y)); }
-HCC_INTRINSIC static inline boolx2 isinff32x2(f32x2 v) { return boolx2(isinff32(v.x), isinff32(v.y)); }
-HCC_INTRINSIC static inline boolx2 isinff64x2(f64x2 v) { return boolx2(isinff64(v.x), isinff64(v.y)); }
-HCC_INTRINSIC static inline boolx3 isinff16x3(f16x3 v) { return boolx3(isinff16(v.x), isinff16(v.y), isinff16(v.z)); }
-HCC_INTRINSIC static inline boolx3 isinff32x3(f32x3 v) { return boolx3(isinff32(v.x), isinff32(v.y), isinff32(v.z)); }
-HCC_INTRINSIC static inline boolx3 isinff64x3(f64x3 v) { return boolx3(isinff64(v.x), isinff64(v.y), isinff64(v.z)); }
-HCC_INTRINSIC static inline boolx4 isinff16x4(f16x4 v) { return boolx4(isinff16(v.x), isinff16(v.y), isinff16(v.z), isinff16(v.w)); }
-HCC_INTRINSIC static inline boolx4 isinff32x4(f32x4 v) { return boolx4(isinff32(v.x), isinff32(v.y), isinff32(v.z), isinff32(v.w)); }
-HCC_INTRINSIC static inline boolx4 isinff64x4(f64x4 v) { return boolx4(isinff64(v.x), isinff64(v.y), isinff64(v.z), isinff64(v.w)); }
+static inline boolx2 isinf_f16x2(f16x2 v) { return boolx2(isinf_f16(v.x), isinf_f16(v.y)); }
+static inline boolx2 isinf_f32x2(f32x2 v) { return boolx2(isinf_f32(v.x), isinf_f32(v.y)); }
+static inline boolx2 isinf_f64x2(f64x2 v) { return boolx2(isinf_f64(v.x), isinf_f64(v.y)); }
+static inline boolx3 isinf_f16x3(f16x3 v) { return boolx3(isinf_f16(v.x), isinf_f16(v.y), isinf_f16(v.z)); }
+static inline boolx3 isinf_f32x3(f32x3 v) { return boolx3(isinf_f32(v.x), isinf_f32(v.y), isinf_f32(v.z)); }
+static inline boolx3 isinf_f64x3(f64x3 v) { return boolx3(isinf_f64(v.x), isinf_f64(v.y), isinf_f64(v.z)); }
+static inline boolx4 isinf_f16x4(f16x4 v) { return boolx4(isinf_f16(v.x), isinf_f16(v.y), isinf_f16(v.z), isinf_f16(v.w)); }
+static inline boolx4 isinf_f32x4(f32x4 v) { return boolx4(isinf_f32(v.x), isinf_f32(v.y), isinf_f32(v.z), isinf_f32(v.w)); }
+static inline boolx4 isinf_f64x4(f64x4 v) { return boolx4(isinf_f64(v.x), isinf_f64(v.y), isinf_f64(v.z), isinf_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'isnan' to that component in 'v'
-HCC_INTRINSIC static inline boolx2 isnanf16x2(f16x2 v) { return boolx2(isnanf16(v.x), isnanf16(v.y)); }
-HCC_INTRINSIC static inline boolx2 isnanf32x2(f32x2 v) { return boolx2(isnanf32(v.x), isnanf32(v.y)); }
-HCC_INTRINSIC static inline boolx2 isnanf64x2(f64x2 v) { return boolx2(isnanf64(v.x), isnanf64(v.y)); }
-HCC_INTRINSIC static inline boolx3 isnanf16x3(f16x3 v) { return boolx3(isnanf16(v.x), isnanf16(v.y), isnanf16(v.z)); }
-HCC_INTRINSIC static inline boolx3 isnanf32x3(f32x3 v) { return boolx3(isnanf32(v.x), isnanf32(v.y), isnanf32(v.z)); }
-HCC_INTRINSIC static inline boolx3 isnanf64x3(f64x3 v) { return boolx3(isnanf64(v.x), isnanf64(v.y), isnanf64(v.z)); }
-HCC_INTRINSIC static inline boolx4 isnanf16x4(f16x4 v) { return boolx4(isnanf16(v.x), isnanf16(v.y), isnanf16(v.z), isnanf16(v.w)); }
-HCC_INTRINSIC static inline boolx4 isnanf32x4(f32x4 v) { return boolx4(isnanf32(v.x), isnanf32(v.y), isnanf32(v.z), isnanf32(v.w)); }
-HCC_INTRINSIC static inline boolx4 isnanf64x4(f64x4 v) { return boolx4(isnanf64(v.x), isnanf64(v.y), isnanf64(v.z), isnanf64(v.w)); }
+static inline boolx2 isnan_f16x2(f16x2 v) { return boolx2(isnan_f16(v.x), isnan_f16(v.y)); }
+static inline boolx2 isnan_f32x2(f32x2 v) { return boolx2(isnan_f32(v.x), isnan_f32(v.y)); }
+static inline boolx2 isnan_f64x2(f64x2 v) { return boolx2(isnan_f64(v.x), isnan_f64(v.y)); }
+static inline boolx3 isnan_f16x3(f16x3 v) { return boolx3(isnan_f16(v.x), isnan_f16(v.y), isnan_f16(v.z)); }
+static inline boolx3 isnan_f32x3(f32x3 v) { return boolx3(isnan_f32(v.x), isnan_f32(v.y), isnan_f32(v.z)); }
+static inline boolx3 isnan_f64x3(f64x3 v) { return boolx3(isnan_f64(v.x), isnan_f64(v.y), isnan_f64(v.z)); }
+static inline boolx4 isnan_f16x4(f16x4 v) { return boolx4(isnan_f16(v.x), isnan_f16(v.y), isnan_f16(v.z), isnan_f16(v.w)); }
+static inline boolx4 isnan_f32x4(f32x4 v) { return boolx4(isnan_f32(v.x), isnan_f32(v.y), isnan_f32(v.z), isnan_f32(v.w)); }
+static inline boolx4 isnan_f64x4(f64x4 v) { return boolx4(isnan_f64(v.x), isnan_f64(v.y), isnan_f64(v.z), isnan_f64(v.w)); }
 
 //
 // return a vector where each component is the result of appling 'lerp' to that component in 'start', 'end' and 't'
-HCC_INTRINSIC static inline f16x2 lerpf16x2(f16x2 start, f16x2 end, f16x2 t) { return f16x2(lerpf16(start.x, end.x, t.x), lerpf16(start.y, end.y, t.y)); }
-HCC_INTRINSIC static inline f32x2 lerpf32x2(f32x2 start, f32x2 end, f32x2 t) { return f32x2(lerpf32(start.x, end.x, t.x), lerpf32(start.y, end.y, t.y)); }
-HCC_INTRINSIC static inline f64x2 lerpf64x2(f64x2 start, f64x2 end, f64x2 t) { return f64x2(lerpf64(start.x, end.x, t.x), lerpf64(start.y, end.y, t.y)); }
-HCC_INTRINSIC static inline f16x3 lerpf16x3(f16x3 start, f16x3 end, f16x3 t) { return f16x3(lerpf16(start.x, end.x, t.x), lerpf16(start.y, end.y, t.y), lerpf16(start.z, end.z, t.z)); }
-HCC_INTRINSIC static inline f32x3 lerpf32x3(f32x3 start, f32x3 end, f32x3 t) { return f32x3(lerpf32(start.x, end.x, t.x), lerpf32(start.y, end.y, t.y), lerpf32(start.z, end.z, t.z)); }
-HCC_INTRINSIC static inline f64x3 lerpf64x3(f64x3 start, f64x3 end, f64x3 t) { return f64x3(lerpf64(start.x, end.x, t.x), lerpf64(start.y, end.y, t.y), lerpf64(start.z, end.z, t.z)); }
-HCC_INTRINSIC static inline f16x4 lerpf16x4(f16x4 start, f16x4 end, f16x4 t) { return f16x4(lerpf16(start.x, end.x, t.x), lerpf16(start.y, end.y, t.y), lerpf16(start.z, end.z, t.z), lerpf16(start.w, end.w, t.w)); }
-HCC_INTRINSIC static inline f32x4 lerpf32x4(f32x4 start, f32x4 end, f32x4 t) { return f32x4(lerpf32(start.x, end.x, t.x), lerpf32(start.y, end.y, t.y), lerpf32(start.z, end.z, t.z), lerpf32(start.w, end.w, t.w)); }
-HCC_INTRINSIC static inline f64x4 lerpf64x4(f64x4 start, f64x4 end, f64x4 t) { return f64x4(lerpf64(start.x, end.x, t.x), lerpf64(start.y, end.y, t.y), lerpf64(start.z, end.z, t.z), lerpf64(start.w, end.w, t.w)); }
+static inline f16x2 lerp_f16x2(f16x2 start, f16x2 end, f16x2 t) { return f16x2(lerp_f16(start.x, end.x, t.x), lerp_f16(start.y, end.y, t.y)); }
+static inline f32x2 lerp_f32x2(f32x2 start, f32x2 end, f32x2 t) { return f32x2(lerp_f32(start.x, end.x, t.x), lerp_f32(start.y, end.y, t.y)); }
+static inline f64x2 lerp_f64x2(f64x2 start, f64x2 end, f64x2 t) { return f64x2(lerp_f64(start.x, end.x, t.x), lerp_f64(start.y, end.y, t.y)); }
+static inline f16x3 lerp_f16x3(f16x3 start, f16x3 end, f16x3 t) { return f16x3(lerp_f16(start.x, end.x, t.x), lerp_f16(start.y, end.y, t.y), lerp_f16(start.z, end.z, t.z)); }
+static inline f32x3 lerp_f32x3(f32x3 start, f32x3 end, f32x3 t) { return f32x3(lerp_f32(start.x, end.x, t.x), lerp_f32(start.y, end.y, t.y), lerp_f32(start.z, end.z, t.z)); }
+static inline f64x3 lerp_f64x3(f64x3 start, f64x3 end, f64x3 t) { return f64x3(lerp_f64(start.x, end.x, t.x), lerp_f64(start.y, end.y, t.y), lerp_f64(start.z, end.z, t.z)); }
+static inline f16x4 lerp_f16x4(f16x4 start, f16x4 end, f16x4 t) { return f16x4(lerp_f16(start.x, end.x, t.x), lerp_f16(start.y, end.y, t.y), lerp_f16(start.z, end.z, t.z), lerp_f16(start.w, end.w, t.w)); }
+static inline f32x4 lerp_f32x4(f32x4 start, f32x4 end, f32x4 t) { return f32x4(lerp_f32(start.x, end.x, t.x), lerp_f32(start.y, end.y, t.y), lerp_f32(start.z, end.z, t.z), lerp_f32(start.w, end.w, t.w)); }
+static inline f64x4 lerp_f64x4(f64x4 start, f64x4 end, f64x4 t) { return f64x4(lerp_f64(start.x, end.x, t.x), lerp_f64(start.y, end.y, t.y), lerp_f64(start.z, end.z, t.z), lerp_f64(start.w, end.w, t.w)); }
 
 //
 // return a vector where each component is the result of appling 'invlerp' to that component in 'start', 'end' and 't'
-static inline f16x2 invlerpf16x2(f16x2 start, f16x2 end, f16x2 v) { return f16x2(invlerpf16(start.x, end.x, v.x), invlerpf16(start.y, end.y, v.y)); }
-static inline f32x2 invlerpf32x2(f32x2 start, f32x2 end, f32x2 v) { return f32x2(invlerpf32(start.x, end.x, v.x), invlerpf32(start.y, end.y, v.y)); }
-static inline f64x2 invlerpf64x2(f64x2 start, f64x2 end, f64x2 v) { return f64x2(invlerpf64(start.x, end.x, v.x), invlerpf64(start.y, end.y, v.y)); }
-static inline f16x3 invlerpf16x3(f16x3 start, f16x3 end, f16x3 v) { return f16x3(invlerpf16(start.x, end.x, v.x), invlerpf16(start.y, end.y, v.y), invlerpf16(start.z, end.z, v.z)); }
-static inline f32x3 invlerpf32x3(f32x3 start, f32x3 end, f32x3 v) { return f32x3(invlerpf32(start.x, end.x, v.x), invlerpf32(start.y, end.y, v.y), invlerpf32(start.z, end.z, v.z)); }
-static inline f64x3 invlerpf64x3(f64x3 start, f64x3 end, f64x3 v) { return f64x3(invlerpf64(start.x, end.x, v.x), invlerpf64(start.y, end.y, v.y), invlerpf64(start.z, end.z, v.z)); }
-static inline f16x4 invlerpf16x4(f16x4 start, f16x4 end, f16x4 v) { return f16x4(invlerpf16(start.x, end.x, v.x), invlerpf16(start.y, end.y, v.y), invlerpf16(start.z, end.z, v.z), invlerpf16(start.w, end.w, v.w)); }
-static inline f32x4 invlerpf32x4(f32x4 start, f32x4 end, f32x4 v) { return f32x4(invlerpf32(start.x, end.x, v.x), invlerpf32(start.y, end.y, v.y), invlerpf32(start.z, end.z, v.z), invlerpf32(start.w, end.w, v.w)); }
-static inline f64x4 invlerpf64x4(f64x4 start, f64x4 end, f64x4 v) { return f64x4(invlerpf64(start.x, end.x, v.x), invlerpf64(start.y, end.y, v.y), invlerpf64(start.z, end.z, v.z), invlerpf64(start.w, end.w, v.w)); }
+static inline f16x2 invlerp_f16x2(f16x2 start, f16x2 end, f16x2 v) { return f16x2(invlerp_f16(start.x, end.x, v.x), invlerp_f16(start.y, end.y, v.y)); }
+static inline f32x2 invlerp_f32x2(f32x2 start, f32x2 end, f32x2 v) { return f32x2(invlerp_f32(start.x, end.x, v.x), invlerp_f32(start.y, end.y, v.y)); }
+static inline f64x2 invlerp_f64x2(f64x2 start, f64x2 end, f64x2 v) { return f64x2(invlerp_f64(start.x, end.x, v.x), invlerp_f64(start.y, end.y, v.y)); }
+static inline f16x3 invlerp_f16x3(f16x3 start, f16x3 end, f16x3 v) { return f16x3(invlerp_f16(start.x, end.x, v.x), invlerp_f16(start.y, end.y, v.y), invlerp_f16(start.z, end.z, v.z)); }
+static inline f32x3 invlerp_f32x3(f32x3 start, f32x3 end, f32x3 v) { return f32x3(invlerp_f32(start.x, end.x, v.x), invlerp_f32(start.y, end.y, v.y), invlerp_f32(start.z, end.z, v.z)); }
+static inline f64x3 invlerp_f64x3(f64x3 start, f64x3 end, f64x3 v) { return f64x3(invlerp_f64(start.x, end.x, v.x), invlerp_f64(start.y, end.y, v.y), invlerp_f64(start.z, end.z, v.z)); }
+static inline f16x4 invlerp_f16x4(f16x4 start, f16x4 end, f16x4 v) { return f16x4(invlerp_f16(start.x, end.x, v.x), invlerp_f16(start.y, end.y, v.y), invlerp_f16(start.z, end.z, v.z), invlerp_f16(start.w, end.w, v.w)); }
+static inline f32x4 invlerp_f32x4(f32x4 start, f32x4 end, f32x4 v) { return f32x4(invlerp_f32(start.x, end.x, v.x), invlerp_f32(start.y, end.y, v.y), invlerp_f32(start.z, end.z, v.z), invlerp_f32(start.w, end.w, v.w)); }
+static inline f64x4 invlerp_f64x4(f64x4 start, f64x4 end, f64x4 v) { return f64x4(invlerp_f64(start.x, end.x, v.x), invlerp_f64(start.y, end.y, v.y), invlerp_f64(start.z, end.z, v.z), invlerp_f64(start.w, end.w, v.w)); }
 
 //
 // returns a vector which is the dot product of 'a' and 'b'
-HCC_INTRINSIC static inline half dotv2f16(f16x2 a, f16x2 b) { return addf16(mulf16(a.x, b.x), mulf16(a.y, b.y)); }
-HCC_INTRINSIC static inline float dotf32x2(f32x2 a, f32x2 b) { return (a.x * b.x) + (a.y * b.y); }
-HCC_INTRINSIC static inline double dotf64x2(f64x2 a, f64x2 b) { return (a.x * b.x) + (a.y * b.y); }
-HCC_INTRINSIC static inline half dotv3f16(f16x3 a, f16x3 b) { return addf16(mulf16(a.x, b.x), addf16(mulf16(a.y, b.y), mulf16(a.z, b.z))); }
-HCC_INTRINSIC static inline float dotf32x3(f32x3 a, f32x3 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z); }
-HCC_INTRINSIC static inline double dotf64x3(f64x3 a, f64x3 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z); }
-HCC_INTRINSIC static inline half dotv4f16(f16x4 a, f16x4 b) { return addf16(mulf16(a.x, b.x), addf16(mulf16(a.y, b.y), addf16(mulf16(a.z, b.z), mulf16(a.w, b.w)))); }
-HCC_INTRINSIC static inline float dotf32x4(f32x4 a, f32x4 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w); }
-HCC_INTRINSIC static inline double dotf64x4(f64x4 a, f64x4 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w); }
+static inline half dot_f16x2(f16x2 a, f16x2 b) { return add_f16(mul_f16(a.x, b.x), mul_f16(a.y, b.y)); }
+static inline float dot_f32x2(f32x2 a, f32x2 b) { return (a.x * b.x) + (a.y * b.y); }
+static inline double dot_f64x2(f64x2 a, f64x2 b) { return (a.x * b.x) + (a.y * b.y); }
+static inline half dot_f16x3(f16x3 a, f16x3 b) { return add_f16(mul_f16(a.x, b.x), add_f16(mul_f16(a.y, b.y), mul_f16(a.z, b.z))); }
+static inline float dot_f32x3(f32x3 a, f32x3 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z); }
+static inline double dot_f64x3(f64x3 a, f64x3 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z); }
+static inline half dot_f16x4(f16x4 a, f16x4 b) { return add_f16(mul_f16(a.x, b.x), add_f16(mul_f16(a.y, b.y), add_f16(mul_f16(a.z, b.z), mul_f16(a.w, b.w)))); }
+static inline float dot_f32x4(f32x4 a, f32x4 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w); }
+static inline double dot_f64x4(f64x4 a, f64x4 b) { return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w); }
 
 //
 // returns a euclidean length of the vector 'v' aka. L2 norm
-HCC_INTRINSIC static inline half lenv2f16(f16x2 v) { return sqrtf16(addf16(mulf16(v.x, v.x), mulf16(v.y, v.y))); }
-HCC_INTRINSIC static inline float lenf32x2(f32x2 v) { return sqrtf32((v.x * v.x) + (v.y * v.y)); }
-HCC_INTRINSIC static inline double lenf64x2(f64x2 v) { return sqrtf64((v.x * v.x) + (v.y * v.y)); }
-HCC_INTRINSIC static inline half lenv3f16(f16x3 v) { return sqrtf16(addf16(mulf16(v.x, v.x), addf16(mulf16(v.y, v.y), mulf16(v.z, v.z)))); }
-HCC_INTRINSIC static inline float lenf32x3(f32x3 v) { return sqrtf32((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); }
-HCC_INTRINSIC static inline double lenf64x3(f64x3 v) { return sqrtf64((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); }
-HCC_INTRINSIC static inline half lenv4f16(f16x4 v) { return sqrtf16(addf16(mulf16(v.x, v.x), addf16(mulf16(v.y, v.y), addf16(mulf16(v.z, v.z), mulf16(v.w, v.w))))); }
-HCC_INTRINSIC static inline float lenf32x4(f32x4 v) { return sqrtf32((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); }
-HCC_INTRINSIC static inline double lenf64x4(f64x4 v) { return sqrtf64((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); }
+static inline half len_f16x2(f16x2 v) { return sqrt_f16(add_f16(mul_f16(v.x, v.x), mul_f16(v.y, v.y))); }
+static inline float len_f32x2(f32x2 v) { return sqrt_f32((v.x * v.x) + (v.y * v.y)); }
+static inline double len_f64x2(f64x2 v) { return sqrt_f64((v.x * v.x) + (v.y * v.y)); }
+static inline half len_f16x3(f16x3 v) { return sqrt_f16(add_f16(mul_f16(v.x, v.x), add_f16(mul_f16(v.y, v.y), mul_f16(v.z, v.z)))); }
+static inline float len_f32x3(f32x3 v) { return sqrt_f32((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); }
+static inline double len_f64x3(f64x3 v) { return sqrt_f64((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); }
+static inline half len_f16x4(f16x4 v) { return sqrt_f16(add_f16(mul_f16(v.x, v.x), add_f16(mul_f16(v.y, v.y), add_f16(mul_f16(v.z, v.z), mul_f16(v.w, v.w))))); }
+static inline float len_f32x4(f32x4 v) { return sqrt_f32((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); }
+static inline double len_f64x4(f64x4 v) { return sqrt_f64((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); }
 
 //
 // returns the squared euclidean length of the vector 'v', this avoids doing the square root. useful when you want to compare of one length is less than another vector length without paying the cost of a sqrt instruction
-static inline half lensqf16x2(f16x2 v) { return dotf16x2(v, v); }
-static inline float lensqf32x2(f32x2 v) { return dotf32x2(v, v); }
-static inline double lensqf64x2(f64x2 v) { return dotf64x2(v, v); }
-static inline int8_t lensqs8x2(s8x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline int16_t lensqs16x2(s16x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline int32_t lensqs32x2(s32x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline int64_t lensqs64x2(s64x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline uint8_t lensqu8x2(u8x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline uint16_t lensqu16x2(u16x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline uint32_t lensqu32x2(u32x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline uint64_t lensqu64x2(u64x2 v) { return (v.x * v.x) + (v.y * v.y); }
-static inline half lensqf16x3(f16x3 v) { return dotf16x3(v, v); }
-static inline float lensqf32x3(f32x3 v) { return dotf32x3(v, v); }
-static inline double lensqf64x3(f64x3 v) { return dotf64x3(v, v); }
-static inline int8_t lensqs8x3(s8x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline int16_t lensqs16x3(s16x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline int32_t lensqs32x3(s32x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline int64_t lensqs64x3(s64x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline uint8_t lensqu8x3(u8x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline uint16_t lensqu16x3(u16x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline uint32_t lensqu32x3(u32x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline uint64_t lensqu64x3(u64x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
-static inline half lensqf16x4(f16x4 v) { return dotf16x4(v, v); }
-static inline float lensqf32x4(f32x4 v) { return dotf32x4(v, v); }
-static inline double lensqf64x4(f64x4 v) { return dotf64x4(v, v); }
-static inline int8_t lensqs8x4(s8x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
-static inline int16_t lensqs16x4(s16x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
-static inline int32_t lensqs32x4(s32x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
-static inline int64_t lensqs64x4(s64x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
-static inline uint8_t lensqu8x4(u8x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
-static inline uint16_t lensqu16x4(u16x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
-static inline uint32_t lensqu32x4(u32x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
-static inline uint64_t lensqu64x4(u64x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline half lensq_f16x2(f16x2 v) { return dot_f16x2(v, v); }
+static inline float lensq_f32x2(f32x2 v) { return dot_f32x2(v, v); }
+static inline double lensq_f64x2(f64x2 v) { return dot_f64x2(v, v); }
+static inline int8_t lensq_s8x2(s8x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline int16_t lensq_s16x2(s16x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline int32_t lensq_s32x2(s32x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline int64_t lensq_s64x2(s64x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline uint8_t lensq_u8x2(u8x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline uint16_t lensq_u16x2(u16x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline uint32_t lensq_u32x2(u32x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline uint64_t lensq_u64x2(u64x2 v) { return (v.x * v.x) + (v.y * v.y); }
+static inline half lensq_f16x3(f16x3 v) { return dot_f16x3(v, v); }
+static inline float lensq_f32x3(f32x3 v) { return dot_f32x3(v, v); }
+static inline double lensq_f64x3(f64x3 v) { return dot_f64x3(v, v); }
+static inline int8_t lensq_s8x3(s8x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline int16_t lensq_s16x3(s16x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline int32_t lensq_s32x3(s32x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline int64_t lensq_s64x3(s64x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline uint8_t lensq_u8x3(u8x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline uint16_t lensq_u16x3(u16x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline uint32_t lensq_u32x3(u32x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline uint64_t lensq_u64x3(u64x3 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z); }
+static inline half lensq_f16x4(f16x4 v) { return dot_f16x4(v, v); }
+static inline float lensq_f32x4(f32x4 v) { return dot_f32x4(v, v); }
+static inline double lensq_f64x4(f64x4 v) { return dot_f64x4(v, v); }
+static inline int8_t lensq_s8x4(s8x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline int16_t lensq_s16x4(s16x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline int32_t lensq_s32x4(s32x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline int64_t lensq_s64x4(s64x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline uint8_t lensq_u8x4(u8x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline uint16_t lensq_u16x4(u16x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline uint32_t lensq_u32x4(u32x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
+static inline uint64_t lensq_u64x4(u64x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
 
 //
 // returns a version of 'v' where the magnatude is a unit length of 1.0
-HCC_INTRINSIC static inline f16x2 normv2f16(f16x2 v) { half k = rsqrtf16(addf16(mulf16(v.x, v.x), mulf16(v.y, v.y))); return v2f16(mulf16(v.x, k), mulf16(v.y, k)); }
-HCC_INTRINSIC static inline f32x2 normf32x2(f32x2 v) { float k = rsqrtf32((v.x * v.x) + (v.y * v.y)); return f32x2(v.x * k, v.y * k); }
-HCC_INTRINSIC static inline f64x2 normf64x2(f64x2 v) { double k = rsqrtf64((v.x * v.x) + (v.y * v.y)); return f64x2(v.x * k, v.y * k); }
-HCC_INTRINSIC static inline f16x3 normv3f16(f16x3 v) { half k = rsqrtf16(addf16(mulf16(v.x, v.x), addf16(mulf16(v.y, v.y), mulf16(v.z, v.z)))); return v3f16(mulf16(v.x, k), mulf16(v.y, k), mulf16(v.z, k)); }
-HCC_INTRINSIC static inline f32x3 normf32x3(f32x3 v) { float k = rsqrtf32((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); return f32x3(v.x * k, v.y * k, v.z * k); }
-HCC_INTRINSIC static inline f64x3 normf64x3(f64x3 v) { double k = rsqrtf64((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); return f64x3(v.x * k, v.y * k, v.z * k); }
-HCC_INTRINSIC static inline f16x4 normv4f16(f16x4 v) { half k = rsqrtf16(addf16(mulf16(v.x, v.x), addf16(mulf16(v.y, v.y), addf16(mulf16(v.z, v.z), mulf16(v.w, v.w))))); return v4f16(mulf16(v.x, k), mulf16(v.y, k), mulf16(v.z, k), mulf16(v.w, k)); }
-HCC_INTRINSIC static inline f32x4 normf32x4(f32x4 v) { float k = rsqrtf32((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); return f32x4(v.x * k, v.y * k, v.z * k, v.w * k); }
-HCC_INTRINSIC static inline f64x4 normf64x4(f64x4 v) { double k = rsqrtf64((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); return f64x4(v.x * k, v.y * k, v.z * k, v.w * k); }
+static inline f16x2 norm_f16x2(f16x2 v) { half k = rsqrt_f16(add_f16(mul_f16(v.x, v.x), mul_f16(v.y, v.y))); return f16x2(mul_f16(v.x, k), mul_f16(v.y, k)); }
+static inline f32x2 norm_f32x2(f32x2 v) { float k = rsqrt_f32((v.x * v.x) + (v.y * v.y)); return f32x2(v.x * k, v.y * k); }
+static inline f64x2 norm_f64x2(f64x2 v) { double k = rsqrt_f64((v.x * v.x) + (v.y * v.y)); return f64x2(v.x * k, v.y * k); }
+static inline f16x3 norm_f16x3(f16x3 v) { half k = rsqrt_f16(add_f16(mul_f16(v.x, v.x), add_f16(mul_f16(v.y, v.y), mul_f16(v.z, v.z)))); return f16x3(mul_f16(v.x, k), mul_f16(v.y, k), mul_f16(v.z, k)); }
+static inline f32x3 norm_f32x3(f32x3 v) { float k = rsqrt_f32((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); return f32x3(v.x * k, v.y * k, v.z * k); }
+static inline f64x3 norm_f64x3(f64x3 v) { double k = rsqrt_f64((v.x * v.x) + (v.y * v.y) + (v.z * v.z)); return f64x3(v.x * k, v.y * k, v.z * k); }
+static inline f16x4 norm_f16x4(f16x4 v) { half k = rsqrt_f16(add_f16(mul_f16(v.x, v.x), add_f16(mul_f16(v.y, v.y), add_f16(mul_f16(v.z, v.z), mul_f16(v.w, v.w))))); return f16x4(mul_f16(v.x, k), mul_f16(v.y, k), mul_f16(v.z, k), mul_f16(v.w, k)); }
+static inline f32x4 norm_f32x4(f32x4 v) { float k = rsqrt_f32((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); return f32x4(v.x * k, v.y * k, v.z * k, v.w * k); }
+static inline f64x4 norm_f64x4(f64x4 v) { double k = rsqrt_f64((v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w)); return f64x4(v.x * k, v.y * k, v.z * k, v.w * k); }
 
 //
 // returns a vector that is vector 'v' reflected against surface 'normal'
-HCC_INTRINSIC f16x2 reflectf16x2(f16x2 v, f16x2 normal);
-HCC_INTRINSIC f32x2 reflectf32x2(f32x2 v, f32x2 normal);
-HCC_INTRINSIC f64x2 reflectf64x2(f64x2 v, f64x2 normal);
-HCC_INTRINSIC f16x3 reflectf16x3(f16x3 v, f16x3 normal);
-HCC_INTRINSIC f32x3 reflectf32x3(f32x3 v, f32x3 normal);
-HCC_INTRINSIC f64x3 reflectf64x3(f64x3 v, f64x3 normal);
-HCC_INTRINSIC f16x4 reflectf16x4(f16x4 v, f16x4 normal);
-HCC_INTRINSIC f32x4 reflectf32x4(f32x4 v, f32x4 normal);
-HCC_INTRINSIC f64x4 reflectf64x4(f64x4 v, f64x4 normal);
+f16x2 reflect_f16x2(f16x2 v, f16x2 normal);
+f32x2 reflect_f32x2(f32x2 v, f32x2 normal);
+f64x2 reflect_f64x2(f64x2 v, f64x2 normal);
+f16x3 reflect_f16x3(f16x3 v, f16x3 normal);
+f32x3 reflect_f32x3(f32x3 v, f32x3 normal);
+f64x3 reflect_f64x3(f64x3 v, f64x3 normal);
+f16x4 reflect_f16x4(f16x4 v, f16x4 normal);
+f32x4 reflect_f32x4(f32x4 v, f32x4 normal);
+f64x4 reflect_f64x4(f64x4 v, f64x4 normal);
 
 //
 // returns the refraction vector for vector 'v' against surface 'normal' with the ratio 'eta'
-HCC_INTRINSIC f16x2 refractf16x2(f16x2 v, f16x2 normal, float eta);
-HCC_INTRINSIC f32x2 refractf32x2(f32x2 v, f32x2 normal, float eta);
-HCC_INTRINSIC f64x2 refractf64x2(f64x2 v, f64x2 normal, float eta);
-HCC_INTRINSIC f16x3 refractf16x3(f16x3 v, f16x3 normal, float eta);
-HCC_INTRINSIC f32x3 refractf32x3(f32x3 v, f32x3 normal, float eta);
-HCC_INTRINSIC f64x3 refractf64x3(f64x3 v, f64x3 normal, float eta);
-HCC_INTRINSIC f16x4 refractf16x4(f16x4 v, f16x4 normal, float eta);
-HCC_INTRINSIC f32x4 refractf32x4(f32x4 v, f32x4 normal, float eta);
-HCC_INTRINSIC f64x4 refractf64x4(f64x4 v, f64x4 normal, float eta);
+f16x2 refract_f16x2(f16x2 v, f16x2 normal, float eta);
+f32x2 refract_f32x2(f32x2 v, f32x2 normal, float eta);
+f64x2 refract_f64x2(f64x2 v, f64x2 normal, float eta);
+f16x3 refract_f16x3(f16x3 v, f16x3 normal, float eta);
+f32x3 refract_f32x3(f32x3 v, f32x3 normal, float eta);
+f64x3 refract_f64x3(f64x3 v, f64x3 normal, float eta);
+f16x4 refract_f16x4(f16x4 v, f16x4 normal, float eta);
+f32x4 refract_f32x4(f32x4 v, f32x4 normal, float eta);
+f64x4 refract_f64x4(f64x4 v, f64x4 normal, float eta);
 
 //
 // returns the minimum value from each of the components in 'v'
-static inline half minelmtf16x2(f16x2 v) { return minf16(v.x, v.y); }
-static inline float minelmtf32x2(f32x2 v) { return minf32(v.x, v.y); }
-static inline double minelmtf64x2(f64x2 v) { return minf64(v.x, v.y); }
-static inline int8_t minelmts8x2(s8x2 v) { return mins8(v.x, v.y); }
-static inline int16_t minelmts16x2(s16x2 v) { return mins16(v.x, v.y); }
-static inline int32_t minelmts32x2(s32x2 v) { return mins32(v.x, v.y); }
-static inline int64_t minelmts64x2(s64x2 v) { return mins64(v.x, v.y); }
-static inline uint8_t minelmtu8x2(u8x2 v) { return minu8(v.x, v.y); }
-static inline uint16_t minelmtu16x2(u16x2 v) { return minu16(v.x, v.y); }
-static inline uint32_t minelmtu32x2(u32x2 v) { return minu32(v.x, v.y); }
-static inline uint64_t minelmtu64x2(u64x2 v) { return minu64(v.x, v.y); }
-static inline half minelmtf16x3(f16x3 v) { return minf16(v.x, minf16(v.y, v.z)); }
-static inline float minelmtf32x3(f32x3 v) { return minf32(v.x, minf32(v.y, v.z)); }
-static inline double minelmtf64x3(f64x3 v) { return minf64(v.x, minf64(v.y, v.z)); }
-static inline int8_t minelmts8x3(s8x3 v) { return mins8(v.x, mins8(v.y, v.z)); }
-static inline int16_t minelmts16x3(s16x3 v) { return mins16(v.x, mins16(v.y, v.z)); }
-static inline int32_t minelmts32x3(s32x3 v) { return mins32(v.x, mins32(v.y, v.z)); }
-static inline int64_t minelmts64x3(s64x3 v) { return mins64(v.x, mins64(v.y, v.z)); }
-static inline uint8_t minelmtu8x3(u8x3 v) { return minu8(v.x, minu8(v.y, v.z)); }
-static inline uint16_t minelmtu16x3(u16x3 v) { return minu16(v.x, minu16(v.y, v.z)); }
-static inline uint32_t minelmtu32x3(u32x3 v) { return minu32(v.x, minu32(v.y, v.z)); }
-static inline uint64_t minelmtu64x3(u64x3 v) { return minu64(v.x, minu64(v.y, v.z)); }
-static inline half minelmtf16x4(f16x4 v) { return minf16(v.x, minf16(v.y, minf16(v.z, v.w))); }
-static inline float minelmtf32x4(f32x4 v) { return minf32(v.x, minf32(v.y, minf32(v.z, v.w))); }
-static inline double minelmtf64x4(f64x4 v) { return minf64(v.x, minf64(v.y, minf64(v.z, v.w))); }
-static inline int8_t minelmts8x4(s8x4 v) { return mins8(v.x, mins8(v.y, mins8(v.z, v.w))); }
-static inline int16_t minelmts16x4(s16x4 v) { return mins16(v.x, mins16(v.y, mins16(v.z, v.w))); }
-static inline int32_t minelmts32x4(s32x4 v) { return mins32(v.x, mins32(v.y, mins32(v.z, v.w))); }
-static inline int64_t minelmts64x4(s64x4 v) { return mins64(v.x, mins64(v.y, mins64(v.z, v.w))); }
-static inline uint8_t minelmtu8x4(u8x4 v) { return minu8(v.x, minu8(v.y, minu8(v.z, v.w))); }
-static inline uint16_t minelmtu16x4(u16x4 v) { return minu16(v.x, minu16(v.y, minu16(v.z, v.w))); }
-static inline uint32_t minelmtu32x4(u32x4 v) { return minu32(v.x, minu32(v.y, minu32(v.z, v.w))); }
-static inline uint64_t minelmtu64x4(u64x4 v) { return minu64(v.x, minu64(v.y, minu64(v.z, v.w))); }
+static inline half minelmt_f16x2(f16x2 v) { return min_f16(v.x, v.y); }
+static inline float minelmt_f32x2(f32x2 v) { return min_f32(v.x, v.y); }
+static inline double minelmt_f64x2(f64x2 v) { return min_f64(v.x, v.y); }
+static inline int8_t minelmt_s8x2(s8x2 v) { return min_s8(v.x, v.y); }
+static inline int16_t minelmt_s16x2(s16x2 v) { return min_s16(v.x, v.y); }
+static inline int32_t minelmt_s32x2(s32x2 v) { return min_s32(v.x, v.y); }
+static inline int64_t minelmt_s64x2(s64x2 v) { return min_s64(v.x, v.y); }
+static inline uint8_t minelmt_u8x2(u8x2 v) { return min_u8(v.x, v.y); }
+static inline uint16_t minelmt_u16x2(u16x2 v) { return min_u16(v.x, v.y); }
+static inline uint32_t minelmt_u32x2(u32x2 v) { return min_u32(v.x, v.y); }
+static inline uint64_t minelmt_u64x2(u64x2 v) { return min_u64(v.x, v.y); }
+static inline half minelmt_f16x3(f16x3 v) { return min_f16(v.x, min_f16(v.y, v.z)); }
+static inline float minelmt_f32x3(f32x3 v) { return min_f32(v.x, min_f32(v.y, v.z)); }
+static inline double minelmt_f64x3(f64x3 v) { return min_f64(v.x, min_f64(v.y, v.z)); }
+static inline int8_t minelmt_s8x3(s8x3 v) { return min_s8(v.x, min_s8(v.y, v.z)); }
+static inline int16_t minelmt_s16x3(s16x3 v) { return min_s16(v.x, min_s16(v.y, v.z)); }
+static inline int32_t minelmt_s32x3(s32x3 v) { return min_s32(v.x, min_s32(v.y, v.z)); }
+static inline int64_t minelmt_s64x3(s64x3 v) { return min_s64(v.x, min_s64(v.y, v.z)); }
+static inline uint8_t minelmt_u8x3(u8x3 v) { return min_u8(v.x, min_u8(v.y, v.z)); }
+static inline uint16_t minelmt_u16x3(u16x3 v) { return min_u16(v.x, min_u16(v.y, v.z)); }
+static inline uint32_t minelmt_u32x3(u32x3 v) { return min_u32(v.x, min_u32(v.y, v.z)); }
+static inline uint64_t minelmt_u64x3(u64x3 v) { return min_u64(v.x, min_u64(v.y, v.z)); }
+static inline half minelmt_f16x4(f16x4 v) { return min_f16(v.x, min_f16(v.y, min_f16(v.z, v.w))); }
+static inline float minelmt_f32x4(f32x4 v) { return min_f32(v.x, min_f32(v.y, min_f32(v.z, v.w))); }
+static inline double minelmt_f64x4(f64x4 v) { return min_f64(v.x, min_f64(v.y, min_f64(v.z, v.w))); }
+static inline int8_t minelmt_s8x4(s8x4 v) { return min_s8(v.x, min_s8(v.y, min_s8(v.z, v.w))); }
+static inline int16_t minelmt_s16x4(s16x4 v) { return min_s16(v.x, min_s16(v.y, min_s16(v.z, v.w))); }
+static inline int32_t minelmt_s32x4(s32x4 v) { return min_s32(v.x, min_s32(v.y, min_s32(v.z, v.w))); }
+static inline int64_t minelmt_s64x4(s64x4 v) { return min_s64(v.x, min_s64(v.y, min_s64(v.z, v.w))); }
+static inline uint8_t minelmt_u8x4(u8x4 v) { return min_u8(v.x, min_u8(v.y, min_u8(v.z, v.w))); }
+static inline uint16_t minelmt_u16x4(u16x4 v) { return min_u16(v.x, min_u16(v.y, min_u16(v.z, v.w))); }
+static inline uint32_t minelmt_u32x4(u32x4 v) { return min_u32(v.x, min_u32(v.y, min_u32(v.z, v.w))); }
+static inline uint64_t minelmt_u64x4(u64x4 v) { return min_u64(v.x, min_u64(v.y, min_u64(v.z, v.w))); }
 
 //
 // returns the maximum value from each of the components in 'v' aka. L infinity norm
-static inline half maxelmtf16x2(f16x2 v) { return maxf16(v.x, v.y); }
-static inline float maxelmtf32x2(f32x2 v) { return maxf32(v.x, v.y); }
-static inline double maxelmtf64x2(f64x2 v) { return maxf64(v.x, v.y); }
-static inline int8_t maxelmts8x2(s8x2 v) { return maxs8(v.x, v.y); }
-static inline int16_t maxelmts16x2(s16x2 v) { return maxs16(v.x, v.y); }
-static inline int32_t maxelmts32x2(s32x2 v) { return maxs32(v.x, v.y); }
-static inline int64_t maxelmts64x2(s64x2 v) { return maxs64(v.x, v.y); }
-static inline uint8_t maxelmtu8x2(u8x2 v) { return maxu8(v.x, v.y); }
-static inline uint16_t maxelmtu16x2(u16x2 v) { return maxu16(v.x, v.y); }
-static inline uint32_t maxelmtu32x2(u32x2 v) { return maxu32(v.x, v.y); }
-static inline uint64_t maxelmtu64x2(u64x2 v) { return maxu64(v.x, v.y); }
-static inline half maxelmtf16x3(f16x3 v) { return maxf16(v.x, maxf16(v.y, v.z)); }
-static inline float maxelmtf32x3(f32x3 v) { return maxf32(v.x, maxf32(v.y, v.z)); }
-static inline double maxelmtf64x3(f64x3 v) { return maxf64(v.x, maxf64(v.y, v.z)); }
-static inline int8_t maxelmts8x3(s8x3 v) { return maxs8(v.x, maxs8(v.y, v.z)); }
-static inline int16_t maxelmts16x3(s16x3 v) { return maxs16(v.x, maxs16(v.y, v.z)); }
-static inline int32_t maxelmts32x3(s32x3 v) { return maxs32(v.x, maxs32(v.y, v.z)); }
-static inline int64_t maxelmts64x3(s64x3 v) { return maxs64(v.x, maxs64(v.y, v.z)); }
-static inline uint8_t maxelmtu8x3(u8x3 v) { return maxu8(v.x, maxu8(v.y, v.z)); }
-static inline uint16_t maxelmtu16x3(u16x3 v) { return maxu16(v.x, maxu16(v.y, v.z)); }
-static inline uint32_t maxelmtu32x3(u32x3 v) { return maxu32(v.x, maxu32(v.y, v.z)); }
-static inline uint64_t maxelmtu64x3(u64x3 v) { return maxu64(v.x, maxu64(v.y, v.z)); }
-static inline half maxelmtf16x4(f16x4 v) { return maxf16(v.x, maxf16(v.y, maxf16(v.z, v.w))); }
-static inline float maxelmtf32x4(f32x4 v) { return maxf32(v.x, maxf32(v.y, maxf32(v.z, v.w))); }
-static inline double maxelmtf64x4(f64x4 v) { return maxf64(v.x, maxf64(v.y, maxf64(v.z, v.w))); }
-static inline int8_t maxelmts8x4(s8x4 v) { return maxs8(v.x, maxs8(v.y, maxs8(v.z, v.w))); }
-static inline int16_t maxelmts16x4(s16x4 v) { return maxs16(v.x, maxs16(v.y, maxs16(v.z, v.w))); }
-static inline int32_t maxelmts32x4(s32x4 v) { return maxs32(v.x, maxs32(v.y, maxs32(v.z, v.w))); }
-static inline int64_t maxelmts64x4(s64x4 v) { return maxs64(v.x, maxs64(v.y, maxs64(v.z, v.w))); }
-static inline uint8_t maxelmtu8x4(u8x4 v) { return maxu8(v.x, maxu8(v.y, maxu8(v.z, v.w))); }
-static inline uint16_t maxelmtu16x4(u16x4 v) { return maxu16(v.x, maxu16(v.y, maxu16(v.z, v.w))); }
-static inline uint32_t maxelmtu32x4(u32x4 v) { return maxu32(v.x, maxu32(v.y, maxu32(v.z, v.w))); }
-static inline uint64_t maxelmtu64x4(u64x4 v) { return maxu64(v.x, maxu64(v.y, maxu64(v.z, v.w))); }
+static inline half maxelmt_f16x2(f16x2 v) { return max_f16(v.x, v.y); }
+static inline float maxelmt_f32x2(f32x2 v) { return max_f32(v.x, v.y); }
+static inline double maxelmt_f64x2(f64x2 v) { return max_f64(v.x, v.y); }
+static inline int8_t maxelmt_s8x2(s8x2 v) { return max_s8(v.x, v.y); }
+static inline int16_t maxelmt_s16x2(s16x2 v) { return max_s16(v.x, v.y); }
+static inline int32_t maxelmt_s32x2(s32x2 v) { return max_s32(v.x, v.y); }
+static inline int64_t maxelmt_s64x2(s64x2 v) { return max_s64(v.x, v.y); }
+static inline uint8_t maxelmt_u8x2(u8x2 v) { return max_u8(v.x, v.y); }
+static inline uint16_t maxelmt_u16x2(u16x2 v) { return max_u16(v.x, v.y); }
+static inline uint32_t maxelmt_u32x2(u32x2 v) { return max_u32(v.x, v.y); }
+static inline uint64_t maxelmt_u64x2(u64x2 v) { return max_u64(v.x, v.y); }
+static inline half maxelmt_f16x3(f16x3 v) { return max_f16(v.x, max_f16(v.y, v.z)); }
+static inline float maxelmt_f32x3(f32x3 v) { return max_f32(v.x, max_f32(v.y, v.z)); }
+static inline double maxelmt_f64x3(f64x3 v) { return max_f64(v.x, max_f64(v.y, v.z)); }
+static inline int8_t maxelmt_s8x3(s8x3 v) { return max_s8(v.x, max_s8(v.y, v.z)); }
+static inline int16_t maxelmt_s16x3(s16x3 v) { return max_s16(v.x, max_s16(v.y, v.z)); }
+static inline int32_t maxelmt_s32x3(s32x3 v) { return max_s32(v.x, max_s32(v.y, v.z)); }
+static inline int64_t maxelmt_s64x3(s64x3 v) { return max_s64(v.x, max_s64(v.y, v.z)); }
+static inline uint8_t maxelmt_u8x3(u8x3 v) { return max_u8(v.x, max_u8(v.y, v.z)); }
+static inline uint16_t maxelmt_u16x3(u16x3 v) { return max_u16(v.x, max_u16(v.y, v.z)); }
+static inline uint32_t maxelmt_u32x3(u32x3 v) { return max_u32(v.x, max_u32(v.y, v.z)); }
+static inline uint64_t maxelmt_u64x3(u64x3 v) { return max_u64(v.x, max_u64(v.y, v.z)); }
+static inline half maxelmt_f16x4(f16x4 v) { return max_f16(v.x, max_f16(v.y, max_f16(v.z, v.w))); }
+static inline float maxelmt_f32x4(f32x4 v) { return max_f32(v.x, max_f32(v.y, max_f32(v.z, v.w))); }
+static inline double maxelmt_f64x4(f64x4 v) { return max_f64(v.x, max_f64(v.y, max_f64(v.z, v.w))); }
+static inline int8_t maxelmt_s8x4(s8x4 v) { return max_s8(v.x, max_s8(v.y, max_s8(v.z, v.w))); }
+static inline int16_t maxelmt_s16x4(s16x4 v) { return max_s16(v.x, max_s16(v.y, max_s16(v.z, v.w))); }
+static inline int32_t maxelmt_s32x4(s32x4 v) { return max_s32(v.x, max_s32(v.y, max_s32(v.z, v.w))); }
+static inline int64_t maxelmt_s64x4(s64x4 v) { return max_s64(v.x, max_s64(v.y, max_s64(v.z, v.w))); }
+static inline uint8_t maxelmt_u8x4(u8x4 v) { return max_u8(v.x, max_u8(v.y, max_u8(v.z, v.w))); }
+static inline uint16_t maxelmt_u16x4(u16x4 v) { return max_u16(v.x, max_u16(v.y, max_u16(v.z, v.w))); }
+static inline uint32_t maxelmt_u32x4(u32x4 v) { return max_u32(v.x, max_u32(v.y, max_u32(v.z, v.w))); }
+static inline uint64_t maxelmt_u64x4(u64x4 v) { return max_u64(v.x, max_u64(v.y, max_u64(v.z, v.w))); }
 
 //
 // returns the sum of all of the components in 'v'
-static inline half sumelmtsf16x2(f16x2 v) { return addf16(v.x, v.y); }
-static inline float sumelmtsf32x2(f32x2 v) { return v.x + v.y; }
-static inline double sumelmtsf64x2(f64x2 v) { return v.x + v.y; }
-static inline int8_t sumelmtss8x2(s8x2 v) { return v.x + v.y; }
-static inline int16_t sumelmtss16x2(s16x2 v) { return v.x + v.y; }
-static inline int32_t sumelmtss32x2(s32x2 v) { return v.x + v.y; }
-static inline int64_t sumelmtss64x2(s64x2 v) { return v.x + v.y; }
-static inline uint8_t sumelmtsu8x2(u8x2 v) { return v.x + v.y; }
-static inline uint16_t sumelmtsu16x2(u16x2 v) { return v.x + v.y; }
-static inline uint32_t sumelmtsu32x2(u32x2 v) { return v.x + v.y; }
-static inline uint64_t sumelmtsu64x2(u64x2 v) { return v.x + v.y; }
-static inline half sumelmtsf16x3(f16x3 v) { return addf16(v.x, addf16(v.y, v.z)); }
-static inline float sumelmtsf32x3(f32x3 v) { return v.x + v.y + v.z; }
-static inline double sumelmtsf64x3(f64x3 v) { return v.x + v.y + v.z; }
-static inline int8_t sumelmtss8x3(s8x3 v) { return v.x + v.y + v.z; }
-static inline int16_t sumelmtss16x3(s16x3 v) { return v.x + v.y + v.z; }
-static inline int32_t sumelmtss32x3(s32x3 v) { return v.x + v.y + v.z; }
-static inline int64_t sumelmtss64x3(s64x3 v) { return v.x + v.y + v.z; }
-static inline uint8_t sumelmtsu8x3(u8x3 v) { return v.x + v.y + v.z; }
-static inline uint16_t sumelmtsu16x3(u16x3 v) { return v.x + v.y + v.z; }
-static inline uint32_t sumelmtsu32x3(u32x3 v) { return v.x + v.y + v.z; }
-static inline uint64_t sumelmtsu64x3(u64x3 v) { return v.x + v.y + v.z; }
-static inline half sumelmtsf16x4(f16x4 v) { return addf16(v.x, addf16(v.y, addf16(v.z, v.w))); }
-static inline float sumelmtsf32x4(f32x4 v) { return v.x + v.y + v.z + v.w; }
-static inline double sumelmtsf64x4(f64x4 v) { return v.x + v.y + v.z + v.w; }
-static inline int8_t sumelmtss8x4(s8x4 v) { return v.x + v.y + v.z + v.w; }
-static inline int16_t sumelmtss16x4(s16x4 v) { return v.x + v.y + v.z + v.w; }
-static inline int32_t sumelmtss32x4(s32x4 v) { return v.x + v.y + v.z + v.w; }
-static inline int64_t sumelmtss64x4(s64x4 v) { return v.x + v.y + v.z + v.w; }
-static inline uint8_t sumelmtsu8x4(u8x4 v) { return v.x + v.y + v.z + v.w; }
-static inline uint16_t sumelmtsu16x4(u16x4 v) { return v.x + v.y + v.z + v.w; }
-static inline uint32_t sumelmtsu32x4(u32x4 v) { return v.x + v.y + v.z + v.w; }
-static inline uint64_t sumelmtsu64x4(u64x4 v) { return v.x + v.y + v.z + v.w; }
+static inline half sumelmts_f16x2(f16x2 v) { return add_f16(v.x, v.y); }
+static inline float sumelmts_f32x2(f32x2 v) { return v.x + v.y; }
+static inline double sumelmts_f64x2(f64x2 v) { return v.x + v.y; }
+static inline int8_t sumelmts_s8x2(s8x2 v) { return v.x + v.y; }
+static inline int16_t sumelmts_s16x2(s16x2 v) { return v.x + v.y; }
+static inline int32_t sumelmts_s32x2(s32x2 v) { return v.x + v.y; }
+static inline int64_t sumelmts_s64x2(s64x2 v) { return v.x + v.y; }
+static inline uint8_t sumelmts_u8x2(u8x2 v) { return v.x + v.y; }
+static inline uint16_t sumelmts_u16x2(u16x2 v) { return v.x + v.y; }
+static inline uint32_t sumelmts_u32x2(u32x2 v) { return v.x + v.y; }
+static inline uint64_t sumelmts_u64x2(u64x2 v) { return v.x + v.y; }
+static inline half sumelmts_f16x3(f16x3 v) { return add_f16(v.x, add_f16(v.y, v.z)); }
+static inline float sumelmts_f32x3(f32x3 v) { return v.x + v.y + v.z; }
+static inline double sumelmts_f64x3(f64x3 v) { return v.x + v.y + v.z; }
+static inline int8_t sumelmts_s8x3(s8x3 v) { return v.x + v.y + v.z; }
+static inline int16_t sumelmts_s16x3(s16x3 v) { return v.x + v.y + v.z; }
+static inline int32_t sumelmts_s32x3(s32x3 v) { return v.x + v.y + v.z; }
+static inline int64_t sumelmts_s64x3(s64x3 v) { return v.x + v.y + v.z; }
+static inline uint8_t sumelmts_u8x3(u8x3 v) { return v.x + v.y + v.z; }
+static inline uint16_t sumelmts_u16x3(u16x3 v) { return v.x + v.y + v.z; }
+static inline uint32_t sumelmts_u32x3(u32x3 v) { return v.x + v.y + v.z; }
+static inline uint64_t sumelmts_u64x3(u64x3 v) { return v.x + v.y + v.z; }
+static inline half sumelmts_f16x4(f16x4 v) { return add_f16(v.x, add_f16(v.y, add_f16(v.z, v.w))); }
+static inline float sumelmts_f32x4(f32x4 v) { return v.x + v.y + v.z + v.w; }
+static inline double sumelmts_f64x4(f64x4 v) { return v.x + v.y + v.z + v.w; }
+static inline int8_t sumelmts_s8x4(s8x4 v) { return v.x + v.y + v.z + v.w; }
+static inline int16_t sumelmts_s16x4(s16x4 v) { return v.x + v.y + v.z + v.w; }
+static inline int32_t sumelmts_s32x4(s32x4 v) { return v.x + v.y + v.z + v.w; }
+static inline int64_t sumelmts_s64x4(s64x4 v) { return v.x + v.y + v.z + v.w; }
+static inline uint8_t sumelmts_u8x4(u8x4 v) { return v.x + v.y + v.z + v.w; }
+static inline uint16_t sumelmts_u16x4(u16x4 v) { return v.x + v.y + v.z + v.w; }
+static inline uint32_t sumelmts_u32x4(u32x4 v) { return v.x + v.y + v.z + v.w; }
+static inline uint64_t sumelmts_u64x4(u64x4 v) { return v.x + v.y + v.z + v.w; }
 
 //
 // returns the product of all of the components in 'v'
-static inline half productelmtsf16x2(f16x2 v) { return mulf16(v.x, v.y); }
-static inline float productelmtsf32x2(f32x2 v) { return v.x * v.y; }
-static inline double productelmtsf64x2(f64x2 v) { return v.x * v.y; }
-static inline int8_t productelmtss8x2(s8x2 v) { return v.x * v.y; }
-static inline int16_t productelmtss16x2(s16x2 v) { return v.x * v.y; }
-static inline int32_t productelmtss32x2(s32x2 v) { return v.x * v.y; }
-static inline int64_t productelmtss64x2(s64x2 v) { return v.x * v.y; }
-static inline uint8_t productelmtsu8x2(u8x2 v) { return v.x * v.y; }
-static inline uint16_t productelmtsu16x2(u16x2 v) { return v.x * v.y; }
-static inline uint32_t productelmtsu32x2(u32x2 v) { return v.x * v.y; }
-static inline uint64_t productelmtsu64x2(u64x2 v) { return v.x * v.y; }
-static inline half productelmtsf16x3(f16x3 v) { return mulf16(v.x, mulf16(v.y, v.z)); }
-static inline float productelmtsf32x3(f32x3 v) { return v.x * v.y * v.z; }
-static inline double productelmtsf64x3(f64x3 v) { return v.x * v.y * v.z; }
-static inline int8_t productelmtss8x3(s8x3 v) { return v.x * v.y * v.z; }
-static inline int16_t productelmtss16x3(s16x3 v) { return v.x * v.y * v.z; }
-static inline int32_t productelmtss32x3(s32x3 v) { return v.x * v.y * v.z; }
-static inline int64_t productelmtss64x3(s64x3 v) { return v.x * v.y * v.z; }
-static inline uint8_t productelmtsu8x3(u8x3 v) { return v.x * v.y * v.z; }
-static inline uint16_t productelmtsu16x3(u16x3 v) { return v.x * v.y * v.z; }
-static inline uint32_t productelmtsu32x3(u32x3 v) { return v.x * v.y * v.z; }
-static inline uint64_t productelmtsu64x3(u64x3 v) { return v.x * v.y * v.z; }
-static inline half productelmtsf16x4(f16x4 v) { return mulf16(v.x, mulf16(v.y, mulf16(v.z, v.w))); }
-static inline float productelmtsf32x4(f32x4 v) { return v.x * v.y * v.z * v.w; }
-static inline double productelmtsf64x4(f64x4 v) { return v.x * v.y * v.z * v.w; }
-static inline int8_t productelmtss8x4(s8x4 v) { return v.x * v.y * v.z * v.w; }
-static inline int16_t productelmtss16x4(s16x4 v) { return v.x * v.y * v.z * v.w; }
-static inline int32_t productelmtss32x4(s32x4 v) { return v.x * v.y * v.z * v.w; }
-static inline int64_t productelmtss64x4(s64x4 v) { return v.x * v.y * v.z * v.w; }
-static inline uint8_t productelmtsu8x4(u8x4 v) { return v.x * v.y * v.z * v.w; }
-static inline uint16_t productelmtsu16x4(u16x4 v) { return v.x * v.y * v.z * v.w; }
-static inline uint32_t productelmtsu32x4(u32x4 v) { return v.x * v.y * v.z * v.w; }
-static inline uint64_t productelmtsu64x4(u64x4 v) { return v.x * v.y * v.z * v.w; }
+static inline half productelmts_f16x2(f16x2 v) { return mul_f16(v.x, v.y); }
+static inline float productelmts_f32x2(f32x2 v) { return v.x * v.y; }
+static inline double productelmts_f64x2(f64x2 v) { return v.x * v.y; }
+static inline int8_t productelmts_s8x2(s8x2 v) { return v.x * v.y; }
+static inline int16_t productelmts_s16x2(s16x2 v) { return v.x * v.y; }
+static inline int32_t productelmts_s32x2(s32x2 v) { return v.x * v.y; }
+static inline int64_t productelmts_s64x2(s64x2 v) { return v.x * v.y; }
+static inline uint8_t productelmts_u8x2(u8x2 v) { return v.x * v.y; }
+static inline uint16_t productelmts_u16x2(u16x2 v) { return v.x * v.y; }
+static inline uint32_t productelmts_u32x2(u32x2 v) { return v.x * v.y; }
+static inline uint64_t productelmts_u64x2(u64x2 v) { return v.x * v.y; }
+static inline half productelmts_f16x3(f16x3 v) { return mul_f16(v.x, mul_f16(v.y, v.z)); }
+static inline float productelmts_f32x3(f32x3 v) { return v.x * v.y * v.z; }
+static inline double productelmts_f64x3(f64x3 v) { return v.x * v.y * v.z; }
+static inline int8_t productelmts_s8x3(s8x3 v) { return v.x * v.y * v.z; }
+static inline int16_t productelmts_s16x3(s16x3 v) { return v.x * v.y * v.z; }
+static inline int32_t productelmts_s32x3(s32x3 v) { return v.x * v.y * v.z; }
+static inline int64_t productelmts_s64x3(s64x3 v) { return v.x * v.y * v.z; }
+static inline uint8_t productelmts_u8x3(u8x3 v) { return v.x * v.y * v.z; }
+static inline uint16_t productelmts_u16x3(u16x3 v) { return v.x * v.y * v.z; }
+static inline uint32_t productelmts_u32x3(u32x3 v) { return v.x * v.y * v.z; }
+static inline uint64_t productelmts_u64x3(u64x3 v) { return v.x * v.y * v.z; }
+static inline half productelmts_f16x4(f16x4 v) { return mul_f16(v.x, mul_f16(v.y, mul_f16(v.z, v.w))); }
+static inline float productelmts_f32x4(f32x4 v) { return v.x * v.y * v.z * v.w; }
+static inline double productelmts_f64x4(f64x4 v) { return v.x * v.y * v.z * v.w; }
+static inline int8_t productelmts_s8x4(s8x4 v) { return v.x * v.y * v.z * v.w; }
+static inline int16_t productelmts_s16x4(s16x4 v) { return v.x * v.y * v.z * v.w; }
+static inline int32_t productelmts_s32x4(s32x4 v) { return v.x * v.y * v.z * v.w; }
+static inline int64_t productelmts_s64x4(s64x4 v) { return v.x * v.y * v.z * v.w; }
+static inline uint8_t productelmts_u8x4(u8x4 v) { return v.x * v.y * v.z * v.w; }
+static inline uint16_t productelmts_u16x4(u16x4 v) { return v.x * v.y * v.z * v.w; }
+static inline uint32_t productelmts_u32x4(u32x4 v) { return v.x * v.y * v.z * v.w; }
+static inline uint64_t productelmts_u64x4(u64x4 v) { return v.x * v.y * v.z * v.w; }
 
 //
 // returns a vector where each component is the square of itself
-static inline f16x2 squaref16x2(f16x2 v) { return f16x2(mulf16(v.x, v.x), mulf16(v.y, v.y)); }
-static inline f32x2 squaref32x2(f32x2 v) { return f32x2(v.x * v.x, v.y * v.y); }
-static inline f64x2 squaref64x2(f64x2 v) { return f64x2(v.x * v.x, v.y * v.y); }
-static inline s8x2 squares8x2(s8x2 v) { return s8x2(v.x * v.x, v.y * v.y); }
-static inline s16x2 squares16x2(s16x2 v) { return s16x2(v.x * v.x, v.y * v.y); }
-static inline s32x2 squares32x2(s32x2 v) { return s32x2(v.x * v.x, v.y * v.y); }
-static inline s64x2 squares64x2(s64x2 v) { return s64x2(v.x * v.x, v.y * v.y); }
-static inline u8x2 squareu8x2(u8x2 v) { return u8x2(v.x * v.x, v.y * v.y); }
-static inline u16x2 squareu16x2(u16x2 v) { return u16x2(v.x * v.x, v.y * v.y); }
-static inline u32x2 squareu32x2(u32x2 v) { return u32x2(v.x * v.x, v.y * v.y); }
-static inline u64x2 squareu64x2(u64x2 v) { return u64x2(v.x * v.x, v.y * v.y); }
-static inline f16x3 squaref16x3(f16x3 v) { return f16x3(mulf16(v.x, v.x), mulf16(v.y, v.y), mulf16(v.z, v.z)); }
-static inline f32x3 squaref32x3(f32x3 v) { return f32x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline f64x3 squaref64x3(f64x3 v) { return f64x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline s8x3 squares8x3(s8x3 v) { return s8x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline s16x3 squares16x3(s16x3 v) { return s16x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline s32x3 squares32x3(s32x3 v) { return s32x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline s64x3 squares64x3(s64x3 v) { return s64x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline u8x3 squareu8x3(u8x3 v) { return u8x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline u16x3 squareu16x3(u16x3 v) { return u16x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline u32x3 squareu32x3(u32x3 v) { return u32x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline u64x3 squareu64x3(u64x3 v) { return u64x3(v.x * v.x, v.y * v.y, v.z * v.z); }
-static inline f16x4 squaref16x4(f16x4 v) { return f16x4(mulf16(v.x, v.x), mulf16(v.y, v.y), mulf16(v.z, v.z), mulf16(v.w, v.w)); }
-static inline f32x4 squaref32x4(f32x4 v) { return f32x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline f64x4 squaref64x4(f64x4 v) { return f64x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline s8x4 squares8x4(s8x4 v) { return s8x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline s16x4 squares16x4(s16x4 v) { return s16x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline s32x4 squares32x4(s32x4 v) { return s32x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline s64x4 squares64x4(s64x4 v) { return s64x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline u8x4 squareu8x4(u8x4 v) { return u8x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline u16x4 squareu16x4(u16x4 v) { return u16x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline u32x4 squareu32x4(u32x4 v) { return u32x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
-static inline u64x4 squareu64x4(u64x4 v) { return u64x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline f16x2 square_f16x2(f16x2 v) { return f16x2(mul_f16(v.x, v.x), mul_f16(v.y, v.y)); }
+static inline f32x2 square_f32x2(f32x2 v) { return f32x2(v.x * v.x, v.y * v.y); }
+static inline f64x2 square_f64x2(f64x2 v) { return f64x2(v.x * v.x, v.y * v.y); }
+static inline s8x2 square_s8x2(s8x2 v) { return s8x2(v.x * v.x, v.y * v.y); }
+static inline s16x2 square_s16x2(s16x2 v) { return s16x2(v.x * v.x, v.y * v.y); }
+static inline s32x2 square_s32x2(s32x2 v) { return s32x2(v.x * v.x, v.y * v.y); }
+static inline s64x2 square_s64x2(s64x2 v) { return s64x2(v.x * v.x, v.y * v.y); }
+static inline u8x2 square_u8x2(u8x2 v) { return u8x2(v.x * v.x, v.y * v.y); }
+static inline u16x2 square_u16x2(u16x2 v) { return u16x2(v.x * v.x, v.y * v.y); }
+static inline u32x2 square_u32x2(u32x2 v) { return u32x2(v.x * v.x, v.y * v.y); }
+static inline u64x2 square_u64x2(u64x2 v) { return u64x2(v.x * v.x, v.y * v.y); }
+static inline f16x3 square_f16x3(f16x3 v) { return f16x3(mul_f16(v.x, v.x), mul_f16(v.y, v.y), mul_f16(v.z, v.z)); }
+static inline f32x3 square_f32x3(f32x3 v) { return f32x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline f64x3 square_f64x3(f64x3 v) { return f64x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline s8x3 square_s8x3(s8x3 v) { return s8x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline s16x3 square_s16x3(s16x3 v) { return s16x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline s32x3 square_s32x3(s32x3 v) { return s32x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline s64x3 square_s64x3(s64x3 v) { return s64x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline u8x3 square_u8x3(u8x3 v) { return u8x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline u16x3 square_u16x3(u16x3 v) { return u16x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline u32x3 square_u32x3(u32x3 v) { return u32x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline u64x3 square_u64x3(u64x3 v) { return u64x3(v.x * v.x, v.y * v.y, v.z * v.z); }
+static inline f16x4 square_f16x4(f16x4 v) { return f16x4(mul_f16(v.x, v.x), mul_f16(v.y, v.y), mul_f16(v.z, v.z), mul_f16(v.w, v.w)); }
+static inline f32x4 square_f32x4(f32x4 v) { return f32x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline f64x4 square_f64x4(f64x4 v) { return f64x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline s8x4 square_s8x4(s8x4 v) { return s8x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline s16x4 square_s16x4(s16x4 v) { return s16x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline s32x4 square_s32x4(s32x4 v) { return s32x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline s64x4 square_s64x4(s64x4 v) { return s64x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline u8x4 square_u8x4(u8x4 v) { return u8x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline u16x4 square_u16x4(u16x4 v) { return u16x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline u32x4 square_u32x4(u32x4 v) { return u32x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
+static inline u64x4 square_u64x4(u64x4 v) { return u64x4(v.x * v.x, v.y * v.y, v.z * v.z, v.w * v.w); }
 
 //
-// packs a vec2f32 into a 32 bit integer comprised of two float 16 bits
-HCC_INTRINSIC uint32_t packf16x2v2f32(vec2f32 v);
+// packs a f32x2 into a 32 bit integer comprised of two float 16 bits
+uint32_t pack_f16x2_f32x2(f32x2 v);
 
 //
-// unpacks a vec2f32 from a 32 bit integer comprised of two float 16 bits
-HCC_INTRINSIC vec2f32 unpackf16x2v2f32(uint32_t v);
+// unpacks a f32x2 from a 32 bit integer comprised of two float 16 bits
+f32x2 unpack_f16x2_f32x2(uint32_t v);
 
 //
-// packs a unsigned normalized vec2f32 into a 32 bit integer where each component is given 16 bits
-HCC_INTRINSIC uint32_t packu16x2v2f32(vec2f32 v);
+// packs a unsigned normalized f32x2 into a 32 bit integer where each component is given 16 bits
+uint32_t pack_u16x2_f32x2(f32x2 v);
 
 //
-// unpacks a unsigned normalized vec2f32 from a 32 bit integer where each component is given 16 bits
-HCC_INTRINSIC vec2f32 unpacku16x2v2f32(uint32_t v);
+// unpacks a unsigned normalized f32x2 from a 32 bit integer where each component is given 16 bits
+f32x2 unpack_u16x2_f32x2(uint32_t v);
 
 //
-// packs a signed normalized vec2f32 into a 32 bit integer where each component is given 16 bits
-HCC_INTRINSIC uint32_t packs16x2v2f32(vec2f32 v);
+// packs a signed normalized f32x2 into a 32 bit integer where each component is given 16 bits
+uint32_t pack_s16x2_f32x2(f32x2 v);
 
 //
-// unpacks a signed normalized vec2f32 from a 32 bit integer where each component is given 16 bits
-HCC_INTRINSIC vec2f32 unpacks16x2v2f32(uint32_t v);
+// unpacks a signed normalized f32x2 from a 32 bit integer where each component is given 16 bits
+f32x2 unpack_s16x2_f32x2(uint32_t v);
 
 //
-// packs a unsigned normalized vec4f32 into a 32 bit integer where each component is given 8 bits
-HCC_INTRINSIC uint32_t packu8x4v4f32(vec4f32 v);
+// packs a unsigned normalized f32x4 into a 32 bit integer where each component is given 8 bits
+uint32_t pack_u8x4_f32x4(f32x4 v);
 
 //
-// unpacks a unsigned normalized vec4f32 from a 32 bit integer where each component is given 8 bits
-HCC_INTRINSIC vec4f32 unpacku8x4v4f32(uint32_t v);
+// unpacks a unsigned normalized f32x4 from a 32 bit integer where each component is given 8 bits
+f32x4 unpack_u8x4_f32x4(uint32_t v);
 
 //
-// packs a signed normalized vec4f32 into a 32 bit integer where each component is given 8 bits
-HCC_INTRINSIC uint32_t packs8x4v4f32(vec4f32 v);
+// packs a signed normalized f32x4 into a 32 bit integer where each component is given 8 bits
+uint32_t pack_u8x4_f32x4(f32x4 v);
 
 //
-// unpacks a signed normalized vec4f32 from a 32 bit integer where each component is given 8 bits
-HCC_INTRINSIC vec4f32 unpacks8x4v4f32(uint32_t v);
+// unpacks a signed normalized f32x4 from a 32 bit integer where each component is given 8 bits
+f32x4 unpack_u8x4_f32x4(uint32_t v);
 
 // ===========================================
 //
@@ -2934,146 +2949,146 @@ HCC_INTRINSIC vec4f32 unpacks8x4v4f32(uint32_t v);
 
 //
 // returns a matrix that is a result of multipling matrix 'a' with matrix 'b'
-HCC_INTRINSIC mat22f32 mulm22m22f32(mat22f32 a, mat22f32 b);
-HCC_INTRINSIC mat22f64 mulm22m22f64(mat22f64 a, mat22f64 b);
-HCC_INTRINSIC mat23f32 mulm23m32f32(mat23f32 a, mat32f32 b);
-HCC_INTRINSIC mat23f64 mulm23m32f64(mat23f64 a, mat32f64 b);
-HCC_INTRINSIC mat24f32 mulm24m42f32(mat24f32 a, mat42f32 b);
-HCC_INTRINSIC mat24f64 mulm24m42f64(mat24f64 a, mat42f64 b);
-HCC_INTRINSIC mat32f32 mulm32m23f32(mat32f32 a, mat23f32 b);
-HCC_INTRINSIC mat32f64 mulm32m23f64(mat32f64 a, mat23f64 b);
-HCC_INTRINSIC mat33f32 mulm33m33f32(mat33f32 a, mat33f32 b);
-HCC_INTRINSIC mat33f64 mulm33m33f64(mat33f64 a, mat33f64 b);
-HCC_INTRINSIC mat34f32 mulm34m43f32(mat34f32 a, mat43f32 b);
-HCC_INTRINSIC mat34f64 mulm34m43f64(mat34f64 a, mat43f64 b);
-HCC_INTRINSIC mat42f32 mulm42m24f32(mat42f32 a, mat24f32 b);
-HCC_INTRINSIC mat42f64 mulm42m24f64(mat42f64 a, mat24f64 b);
-HCC_INTRINSIC mat43f32 mulm43m34f32(mat43f32 a, mat34f32 b);
-HCC_INTRINSIC mat43f64 mulm43m34f64(mat43f64 a, mat34f64 b);
-HCC_INTRINSIC mat44f32 mulm44m44f32(mat44f32 a, mat44f32 b);
-HCC_INTRINSIC mat44f64 mulm44m44f64(mat44f64 a, mat44f64 b);
+f32x2x2 mul_f32x2x2_f32x2x2(f32x2x2 a, f32x2x2 b);
+f64x2x2 mul_f64x2x2_f64x2x2(f64x2x2 a, f64x2x2 b);
+f32x2x3 mul_f32x2x3_f32x3x2(f32x2x3 a, f32x3x2 b);
+f64x2x3 mul_f64x2x3_f64x3x2(f64x2x3 a, f64x3x2 b);
+f32x2x4 mul_f32x2x4_f32x4x2(f32x2x4 a, f32x4x2 b);
+f64x2x4 mul_f64x2x4_f64x4x2(f64x2x4 a, f64x4x2 b);
+f32x3x2 mul_f32x3x2_f32x2x3(f32x3x2 a, f32x2x3 b);
+f64x3x2 mul_f64x3x2_f64x2x3(f64x3x2 a, f64x2x3 b);
+f32x3x3 mul_f32x3x3_f32x3x3(f32x3x3 a, f32x3x3 b);
+f64x3x3 mul_f64x3x3_f64x3x3(f64x3x3 a, f64x3x3 b);
+f32x3x4 mul_f32x3x4_f32x4x3(f32x3x4 a, f32x4x3 b);
+f64x3x4 mul_f64x3x4_f64x4x3(f64x3x4 a, f64x4x3 b);
+f32x4x2 mul_f32x4x2_f32x2x4(f32x4x2 a, f32x2x4 b);
+f64x4x2 mul_f64x4x2_f64x2x4(f64x4x2 a, f64x2x4 b);
+f32x4x3 mul_f32x4x3_f32x3x4(f32x4x3 a, f32x3x4 b);
+f64x4x3 mul_f64x4x3_f64x3x4(f64x4x3 a, f64x3x4 b);
+f32x4x4 mul_f32x4x4_f32x4x4(f32x4x4 a, f32x4x4 b);
+f64x4x4 mul_f64x4x4_f64x4x4(f64x4x4 a, f64x4x4 b);
 
 //
 // returns a matrix that is a result of multipling matrix 'm' with scalar 's'
-HCC_INTRINSIC f32x2x2 mulsm22f32(f32x2x2 m, float s);
-HCC_INTRINSIC f64x2x2 mulsm22f64(f64x2x2 m, double s);
-HCC_INTRINSIC f32x2x3 mulsm23f32(f32x2x3 m, float s);
-HCC_INTRINSIC f64x2x3 mulsm23f64(f64x2x3 m, double s);
-HCC_INTRINSIC f32x2x4 mulsm24f32(f32x2x4 m, float s);
-HCC_INTRINSIC f64x2x4 mulsm24f64(f64x2x4 m, double s);
-HCC_INTRINSIC f32x3x2 mulsm32f32(f32x3x2 m, float s);
-HCC_INTRINSIC f64x3x2 mulsm32f64(f64x3x2 m, double s);
-HCC_INTRINSIC f32x3x3 mulsm33f32(f32x3x3 m, float s);
-HCC_INTRINSIC f64x3x3 mulsm33f64(f64x3x3 m, double s);
-HCC_INTRINSIC f32x3x4 mulsm34f32(f32x3x4 m, float s);
-HCC_INTRINSIC f64x3x4 mulsm34f64(f64x3x4 m, double s);
-HCC_INTRINSIC f32x4x2 mulsm42f32(f32x4x2 m, float s);
-HCC_INTRINSIC f64x4x2 mulsm42f64(f64x4x2 m, double s);
-HCC_INTRINSIC f32x4x3 mulsm43f32(f32x4x3 m, float s);
-HCC_INTRINSIC f64x4x3 mulsm43f64(f64x4x3 m, double s);
-HCC_INTRINSIC f32x4x4 mulsm44f32(f32x4x4 m, float s);
-HCC_INTRINSIC f64x4x4 mulsm44f64(f64x4x4 m, double s);
+f32x2x2 muls_f32x2x2(f32x2x2 m, float s);
+f64x2x2 muls_f64x2x2(f64x2x2 m, double s);
+f32x2x3 muls_f32x2x3(f32x2x3 m, float s);
+f64x2x3 muls_f64x2x3(f64x2x3 m, double s);
+f32x2x4 muls_f32x2x4(f32x2x4 m, float s);
+f64x2x4 muls_f64x2x4(f64x2x4 m, double s);
+f32x3x2 muls_f32x3x2(f32x3x2 m, float s);
+f64x3x2 muls_f64x3x2(f64x3x2 m, double s);
+f32x3x3 muls_f32x3x3(f32x3x3 m, float s);
+f64x3x3 muls_f64x3x3(f64x3x3 m, double s);
+f32x3x4 muls_f32x3x4(f32x3x4 m, float s);
+f64x3x4 muls_f64x3x4(f64x3x4 m, double s);
+f32x4x2 muls_f32x4x2(f32x4x2 m, float s);
+f64x4x2 muls_f64x4x2(f64x4x2 m, double s);
+f32x4x3 muls_f32x4x3(f32x4x3 m, float s);
+f64x4x3 muls_f64x4x3(f64x4x3 m, double s);
+f32x4x4 muls_f32x4x4(f32x4x4 m, float s);
+f64x4x4 muls_f64x4x4(f64x4x4 m, double s);
 
 //
 // returns a vector that is a result of multipling matrix 'm' with vector 'v'
-HCC_INTRINSIC vec2f32 mulm22v2f32(mat22f32 m, vec2f32 v);
-HCC_INTRINSIC vec2f64 mulm22v2f64(mat22f64 m, vec2f64 v);
-HCC_INTRINSIC vec2f32 mulm23v2f32(mat23f32 m, vec2f32 v);
-HCC_INTRINSIC vec2f64 mulm23v2f64(mat23f64 m, vec2f64 v);
-HCC_INTRINSIC vec2f32 mulm24v2f32(mat24f32 m, vec2f32 v);
-HCC_INTRINSIC vec2f64 mulm24v2f64(mat24f64 m, vec2f64 v);
-HCC_INTRINSIC vec3f32 mulm32v3f32(mat32f32 m, vec3f32 v);
-HCC_INTRINSIC vec3f64 mulm32v3f64(mat32f64 m, vec3f64 v);
-HCC_INTRINSIC vec3f32 mulm33v3f32(mat33f32 m, vec3f32 v);
-HCC_INTRINSIC vec3f64 mulm33v3f64(mat33f64 m, vec3f64 v);
-HCC_INTRINSIC vec3f32 mulm34v3f32(mat34f32 m, vec3f32 v);
-HCC_INTRINSIC vec3f64 mulm34v3f64(mat34f64 m, vec3f64 v);
-HCC_INTRINSIC vec4f32 mulm42v4f32(mat42f32 m, vec4f32 v);
-HCC_INTRINSIC vec4f64 mulm42v4f64(mat42f64 m, vec4f64 v);
-HCC_INTRINSIC vec4f32 mulm43v4f32(mat43f32 m, vec4f32 v);
-HCC_INTRINSIC vec4f64 mulm43v4f64(mat43f64 m, vec4f64 v);
-HCC_INTRINSIC vec4f32 mulm44v4f32(mat44f32 m, vec4f32 v);
-HCC_INTRINSIC vec4f64 mulm44v4f64(mat44f64 m, vec4f64 v);
+f32x2 mul_f32x2x2_f32x2(f32x2x2 m, f32x2 v);
+f64x2 mul_f64x2x2_f64x2(f64x2x2 m, f64x2 v);
+f32x2 mul_f32x2x3_f32x2(f32x2x3 m, f32x2 v);
+f64x2 mul_f64x2x3_f64x2(f64x2x3 m, f64x2 v);
+f32x2 mul_f32x2x4_f32x2(f32x2x4 m, f32x2 v);
+f64x2 mul_f64x2x4_f64x2(f64x2x4 m, f64x2 v);
+f32x3 mul_f32x3x2_f32x3(f32x3x2 m, f32x3 v);
+f64x3 mul_f64x3x2_f64x3(f64x3x2 m, f64x3 v);
+f32x3 mul_f32x3x3_f32x3(f32x3x3 m, f32x3 v);
+f64x3 mul_f64x3x3_f64x3(f64x3x3 m, f64x3 v);
+f32x3 mul_f32x3x4_f32x3(f32x3x4 m, f32x3 v);
+f64x3 mul_f64x3x4_f64x3(f64x3x4 m, f64x3 v);
+f32x4 mul_f32x4x2_f32x4(f32x4x2 m, f32x4 v);
+f64x4 mul_f64x4x2_f64x4(f64x4x2 m, f64x4 v);
+f32x4 mul_f32x4x3_f32x4(f32x4x3 m, f32x4 v);
+f64x4 mul_f64x4x3_f64x4(f64x4x3 m, f64x4 v);
+f32x4 mul_f32x4x4_f32x4(f32x4x4 m, f32x4 v);
+f64x4 mul_f64x4x4_f64x4(f64x4x4 m, f64x4 v);
 
 //
 // returns a vector that is a result of multipling vector 'v' with matrix 'm'
-HCC_INTRINSIC vec2f32 mulv2f32m22(vec2f32 v, mat22f32 m);
-HCC_INTRINSIC vec2f64 mulv2f64m22(vec2f64 v, mat22f64 m);
-HCC_INTRINSIC vec3f32 mulv3f32m23(vec3f32 v, mat23f32 m);
-HCC_INTRINSIC vec3f64 mulv3f64m23(vec3f64 v, mat23f64 m);
-HCC_INTRINSIC vec4f32 mulv4f32m24(vec4f32 v, mat24f32 m);
-HCC_INTRINSIC vec4f64 mulv4f64m24(vec4f64 v, mat24f64 m);
-HCC_INTRINSIC vec2f32 mulv2f32m32(vec2f32 v, mat32f32 m);
-HCC_INTRINSIC vec2f64 mulv2f64m32(vec2f64 v, mat32f64 m);
-HCC_INTRINSIC vec3f32 mulv3f32m33(vec3f32 v, mat33f32 m);
-HCC_INTRINSIC vec3f64 mulv3f64m33(vec3f64 v, mat33f64 m);
-HCC_INTRINSIC vec4f32 mulv4f32m34(vec4f32 v, mat34f32 m);
-HCC_INTRINSIC vec4f64 mulv4f64m34(vec4f64 v, mat34f64 m);
-HCC_INTRINSIC vec2f32 mulv2f32m42(vec2f32 v, mat42f32 m);
-HCC_INTRINSIC vec2f64 mulv2f64m42(vec2f64 v, mat42f64 m);
-HCC_INTRINSIC vec3f32 mulv3f32m43(vec3f32 v, mat43f32 m);
-HCC_INTRINSIC vec3f64 mulv3f64m43(vec3f64 v, mat43f64 m);
-HCC_INTRINSIC vec4f32 mulv4f32m44(vec4f32 v, mat44f32 m);
-HCC_INTRINSIC vec4f64 mulv4f64m44(vec4f64 v, mat44f64 m);
+f32x2 mul_f32x2_f32x2x2(f32x2 v, f32x2x2 m);
+f64x2 mul_f64x2_f64x2x2(f64x2 v, f64x2x2 m);
+f32x3 mul_f32x3_f32x2x3(f32x3 v, f32x2x3 m);
+f64x3 mul_f64x3_f64x2x3(f64x3 v, f64x2x3 m);
+f32x4 mul_f32x4_f32x2x4(f32x4 v, f32x2x4 m);
+f64x4 mul_f64x4_f64x2x4(f64x4 v, f64x2x4 m);
+f32x2 mul_f32x2_f32x3x2(f32x2 v, f32x3x2 m);
+f64x2 mul_f64x2_f64x3x2(f64x2 v, f64x3x2 m);
+f32x3 mul_f32x3_f32x3x3(f32x3 v, f32x3x3 m);
+f64x3 mul_f64x3_f64x3x3(f64x3 v, f64x3x3 m);
+f32x4 mul_f32x4_f32x3x4(f32x4 v, f32x3x4 m);
+f64x4 mul_f64x4_f64x3x4(f64x4 v, f64x3x4 m);
+f32x2 mul_f32x2_f32x4x2(f32x2 v, f32x4x2 m);
+f64x2 mul_f64x2_f64x4x2(f64x2 v, f64x4x2 m);
+f32x3 mul_f32x3_f32x4x3(f32x3 v, f32x4x3 m);
+f64x3 mul_f64x3_f64x4x3(f64x3 v, f64x4x3 m);
+f32x4 mul_f32x4_f32x4x4(f32x4 v, f32x4x4 m);
+f64x4 mul_f64x4_f64x4x4(f64x4 v, f64x4x4 m);
 
 //
 // returns the transposed matrix of matrix 'm'
-HCC_INTRINSIC mat22f32 transposem22f32(mat22f32 m);
-HCC_INTRINSIC mat22f64 transposem22f64(mat22f64 m);
-HCC_INTRINSIC mat32f32 transposem23f32(mat23f32 m);
-HCC_INTRINSIC mat32f64 transposem23f64(mat23f64 m);
-HCC_INTRINSIC mat42f32 transposem24f32(mat24f32 m);
-HCC_INTRINSIC mat42f64 transposem24f64(mat24f64 m);
-HCC_INTRINSIC mat23f32 transposem32f32(mat32f32 m);
-HCC_INTRINSIC mat23f64 transposem32f64(mat32f64 m);
-HCC_INTRINSIC mat33f32 transposem33f32(mat33f32 m);
-HCC_INTRINSIC mat33f64 transposem33f64(mat33f64 m);
-HCC_INTRINSIC mat43f32 transposem34f32(mat34f32 m);
-HCC_INTRINSIC mat43f64 transposem34f64(mat34f64 m);
-HCC_INTRINSIC mat24f32 transposem42f32(mat42f32 m);
-HCC_INTRINSIC mat24f64 transposem42f64(mat42f64 m);
-HCC_INTRINSIC mat34f32 transposem43f32(mat43f32 m);
-HCC_INTRINSIC mat34f64 transposem43f64(mat43f64 m);
-HCC_INTRINSIC mat44f32 transposem44f32(mat44f32 m);
-HCC_INTRINSIC mat44f64 transposem44f64(mat44f64 m);
+f32x2x2 transpose_f32x2x2(f32x2x2 m);
+f64x2x2 transpose_f64x2x2(f64x2x2 m);
+f32x3x2 transpose_f32x2x3(f32x2x3 m);
+f64x3x2 transpose_f64x2x3(f64x2x3 m);
+f32x4x2 transpose_f32x2x4(f32x2x4 m);
+f64x4x2 transpose_f64x2x4(f64x2x4 m);
+f32x2x3 transpose_f32x3x2(f32x3x2 m);
+f64x2x3 transpose_f64x3x2(f64x3x2 m);
+f32x3x3 transpose_f32x3x3(f32x3x3 m);
+f64x3x3 transpose_f64x3x3(f64x3x3 m);
+f32x4x3 transpose_f32x3x4(f32x3x4 m);
+f64x4x3 transpose_f64x3x4(f64x3x4 m);
+f32x2x4 transpose_f32x4x2(f32x4x2 m);
+f64x2x4 transpose_f64x4x2(f64x4x2 m);
+f32x3x4 transpose_f32x4x3(f32x4x3 m);
+f64x3x4 transpose_f64x4x3(f64x4x3 m);
+f32x4x4 transpose_f32x4x4(f32x4x4 m);
+f64x4x4 transpose_f64x4x4(f64x4x4 m);
 
 //
 // returns a matrix from the outer product of vector 'a' and vector 'b'
-HCC_INTRINSIC mat22f32 outerproductv2v2f32(vec2f32 c, vec2f32 r);
-HCC_INTRINSIC mat22f64 outerproductv2v2f64(vec2f64 c, vec2f64 r);
-HCC_INTRINSIC mat23f32 outerproductv2v3f32(vec2f32 c, vec3f32 r);
-HCC_INTRINSIC mat23f64 outerproductv2v3f64(vec2f64 c, vec3f64 r);
-HCC_INTRINSIC mat24f32 outerproductv2v4f32(vec2f32 c, vec4f32 r);
-HCC_INTRINSIC mat24f64 outerproductv2v4f64(vec2f64 c, vec4f64 r);
-HCC_INTRINSIC mat32f32 outerproductv3v2f32(vec3f32 c, vec2f32 r);
-HCC_INTRINSIC mat32f64 outerproductv3v2f64(vec3f64 c, vec2f64 r);
-HCC_INTRINSIC mat33f32 outerproductv3v3f32(vec3f32 c, vec3f32 r);
-HCC_INTRINSIC mat33f64 outerproductv3v3f64(vec3f64 c, vec3f64 r);
-HCC_INTRINSIC mat34f32 outerproductv3v4f32(vec3f32 c, vec4f32 r);
-HCC_INTRINSIC mat34f64 outerproductv3v4f64(vec3f64 c, vec4f64 r);
-HCC_INTRINSIC mat42f32 outerproductv4v2f32(vec4f32 c, vec2f32 r);
-HCC_INTRINSIC mat42f64 outerproductv4v2f64(vec4f64 c, vec2f64 r);
-HCC_INTRINSIC mat43f32 outerproductv4v3f32(vec4f32 c, vec3f32 r);
-HCC_INTRINSIC mat43f64 outerproductv4v3f64(vec4f64 c, vec3f64 r);
-HCC_INTRINSIC mat44f32 outerproductv4v4f32(vec4f32 c, vec4f32 r);
-HCC_INTRINSIC mat44f64 outerproductv4v4f64(vec4f64 c, vec4f64 r);
+f32x2x2 outerproduct_f32x2_f32x2(f32x2 c, f32x2 r);
+f64x2x2 outerproduct_f64x2_f64x2(f64x2 c, f64x2 r);
+f32x2x3 outerproduct_f32x2_f32x3(f32x2 c, f32x3 r);
+f64x2x3 outerproduct_f64x2_f64x3(f64x2 c, f64x3 r);
+f32x2x4 outerproduct_f32x2_f32x4(f32x2 c, f32x4 r);
+f64x2x4 outerproduct_f64x2_f64x4(f64x2 c, f64x4 r);
+f32x3x2 outerproduct_f32x3_f32x2(f32x3 c, f32x2 r);
+f64x3x2 outerproduct_f64x3_f64x2(f64x3 c, f64x2 r);
+f32x3x3 outerproduct_f32x3_f32x3(f32x3 c, f32x3 r);
+f64x3x3 outerproduct_f64x3_f64x3(f64x3 c, f64x3 r);
+f32x3x4 outerproduct_f32x3_f32x4(f32x3 c, f32x4 r);
+f64x3x4 outerproduct_f64x3_f64x4(f64x3 c, f64x4 r);
+f32x4x2 outerproduct_f32x4_f32x2(f32x4 c, f32x2 r);
+f64x4x2 outerproduct_f64x4_f64x2(f64x4 c, f64x2 r);
+f32x4x3 outerproduct_f32x4_f32x3(f32x4 c, f32x3 r);
+f64x4x3 outerproduct_f64x4_f64x3(f64x4 c, f64x3 r);
+f32x4x4 outerproduct_f32x4_f32x4(f32x4 c, f32x4 r);
+f64x4x4 outerproduct_f64x4_f64x4(f64x4 c, f64x4 r);
 
 //
 // returns the determinant of matrix 'm'
-HCC_INTRINSIC f32x2x2 determinantm22f32(f32x2x2 m);
-HCC_INTRINSIC f64x2x2 determinantm22f64(f64x2x2 m);
-HCC_INTRINSIC f32x3x3 determinantm33f32(f32x3x3 m);
-HCC_INTRINSIC f64x3x3 determinantm33f64(f64x3x3 m);
-HCC_INTRINSIC f32x4x4 determinantm44f32(f32x4x4 m);
-HCC_INTRINSIC f64x4x4 determinantm44f64(f64x4x4 m);
+f32x2x2 determinant_f32x2x2(f32x2x2 m);
+f64x2x2 determinant_f64x2x2(f64x2x2 m);
+f32x3x3 determinant_f32x3x3(f32x3x3 m);
+f64x3x3 determinant_f64x3x3(f64x3x3 m);
+f32x4x4 determinant_f32x4x4(f32x4x4 m);
+f64x4x4 determinant_f64x4x4(f64x4x4 m);
 
 //
 // returns the inverse of matrix 'm'
-HCC_INTRINSIC f32x2x2 inversem22f32(f32x2x2 m);
-HCC_INTRINSIC f64x2x2 inversem22f64(f64x2x2 m);
-HCC_INTRINSIC f32x3x3 inversem33f32(f32x3x3 m);
-HCC_INTRINSIC f64x3x3 inversem33f64(f64x3x3 m);
-HCC_INTRINSIC f32x4x4 inversem44f32(f32x4x4 m);
-HCC_INTRINSIC f64x4x4 inversem44f64(f64x4x4 m);
+f32x2x2 inverse_f32x2x2(f32x2x2 m);
+f64x2x2 inverse_f64x2x2(f64x2x2 m);
+f32x3x3 inverse_f32x3x3(f32x3x3 m);
+f64x3x3 inverse_f64x3x3(f64x3x3 m);
+f32x4x4 inverse_f32x4x4(f32x4x4 m);
+f64x4x4 inverse_f64x4x4(f64x4x4 m);
 
 #endif // _HCC_STD_MATH_H_

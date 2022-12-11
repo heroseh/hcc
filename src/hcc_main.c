@@ -33,8 +33,7 @@ int main(int argc, char** argv) {
 	task_setup.options = options;
 	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_ASTLINK;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
-	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/astgen_test.c", NULL));
-	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/astgen_test2.c", NULL));
+	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/test.c", NULL));
 
 	HccIIO stdout_iio = hcc_iio_file(stdout);
 	hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);

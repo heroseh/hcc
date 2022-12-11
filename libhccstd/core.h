@@ -354,15 +354,15 @@ HCC_DEFINE_TEXTURE_TYPE(HccRWTextureCubeArray);
 //
 // ===========================================
 
-HCC_INTRINSIC typedef struct HccVertexInput HccVertexInput;
-HCC_INTRINSIC struct HccVertexInput {
+typedef struct HccVertexInput HccVertexInput;
+struct HccVertexInput {
 	int32_t vertex_idx;
 	int32_t instance_idx;
 };
 
-HCC_INTRINSIC typedef struct HccFragmentInput HccFragmentInput;
-HCC_INTRINSIC struct HccFragmentInput {
-	vec4f32 frag_coord;
+typedef struct HccFragmentInput HccFragmentInput;
+struct HccFragmentInput {
+	f32x4 frag_coord;
 };
 
 #endif // _HCC_STD_CORE_H_

@@ -1,98 +1,92 @@
 #ifndef	_MATH_H
 #define	_MATH_H 1
 
-#include "stdbool.h"
-
 #define INFINITY (1.f / 0.f)
 #define NAN (0.f / 0.f)
-#define M_PI 3.14159265358979323846
 
-HCC_INTRINSIC bool __hcc_isinf(__hcc_generic_float v);
-HCC_INTRINSIC bool __hcc_isnan(__hcc_generic_float v);
+#define isinf isinf_f64
+#define isnan isnan_f64
 
-#define isinf(v) __hcc_isinf(v)
-#define isnan(v) __hcc_isnan(v)
+#define fmodf mod_f32
+#define fmod mod_f64
 
-HCC_INTRINSIC float fmodf(float a, float b);
-HCC_INTRINSIC double fmod(double a, double b);
+#define copysignf copysign_f32
+#define copysign copysign_f64
 
-static inline float copysignf(float v, float sign) { return v * (sign < 0.f ? -1.f : 1.f); }
-static inline double copysign(double v, double sign) { return v * (sign < 0.0 ? -1.0 : 1.0); }
+#define fabsf fabs_f32
+#define fabs fabs_f64
 
-HCC_INTRINSIC float fabsf(float v);
-HCC_INTRINSIC double fabs(double v);
+#define floorf floor_f32
+#define floor floor_f64
 
-HCC_INTRINSIC float floorf(float v);
-HCC_INTRINSIC double floor(double v);
+#define ceilf ceil_f32
+#define ceil ceil_f64
 
-HCC_INTRINSIC float ceilf(float v);
-HCC_INTRINSIC double ceil(double v);
+#define roundf round_f32
+#define round round_f64
 
-HCC_INTRINSIC float roundf(float v);
-HCC_INTRINSIC double round(double v);
+#define truncf trunc_f32
+#define trunc trunc_f64
 
-HCC_INTRINSIC float truncf(float v);
-HCC_INTRINSIC double trunc(double v);
+#define sinf sin_f32
+#define sin sin_f64
 
-HCC_INTRINSIC float sinf(float v);
-HCC_INTRINSIC double sin(double v);
+#define cosf cos_f32
+#define cos cos_f64
 
-HCC_INTRINSIC float cosf(float v);
-HCC_INTRINSIC double cos(double v);
+#define tanf tan_f32
+#define tan tan_f64
 
-HCC_INTRINSIC float tanf(float v);
-HCC_INTRINSIC double tan(double v);
+#define asinf asin_f32
+#define asin asin_f64
 
-HCC_INTRINSIC float asinf(float v);
-HCC_INTRINSIC double asin(double v);
+#define acosf acos_f32
+#define acos acos_f64
 
-HCC_INTRINSIC float acosf(float v);
-HCC_INTRINSIC double acos(double v);
+#define atanf atan_f32
+#define atan atan_f64
 
-HCC_INTRINSIC float atanf(float v);
-HCC_INTRINSIC double atan(double v);
+#define sinhf sinh_f32
+#define sinh sinh_f64
 
-HCC_INTRINSIC float sinhf(float v);
-HCC_INTRINSIC double sinh(double v);
+#define coshf cosh_f32
+#define cosh cosh_f64
 
-HCC_INTRINSIC float coshf(float v);
-HCC_INTRINSIC double cosh(double v);
+#define tanhf tanh_f32
+#define tanh tanh_f64
 
-HCC_INTRINSIC float tanhf(float v);
-HCC_INTRINSIC double tanh(double v);
+#define asinhf asinh_f32
+#define asinh asinh_f64
 
-HCC_INTRINSIC float asinhf(float v);
-HCC_INTRINSIC double asinh(double v);
+#define acoshf acosh_f32
+#define acosh acosh_f64
 
-HCC_INTRINSIC float acoshf(float v);
-HCC_INTRINSIC double acosh(double v);
+#define atanhf atanh_f32
+#define atanh atanh_f64
 
-HCC_INTRINSIC float atanhf(float v);
-HCC_INTRINSIC double atanh(double v);
+#define atan2f atan2_f32
+#define atan2 atan2_f64
 
-HCC_INTRINSIC float atan2f(float y, float x);
-HCC_INTRINSIC double atan2(double y, double x);
+#define fmaf fma_f32
+#define fma fma_f64
 
-HCC_INTRINSIC float fmaf(float x, float y, float z);
-HCC_INTRINSIC double fma(double x, double y, double z);
+#define sqrtf sqrt_f32
+#define sqrt sqrt_f64
 
-HCC_INTRINSIC float sqrtf(float v);
-HCC_INTRINSIC double sqrt(double v);
+#define powf pow_f32
+#define pow pow_f64
 
-HCC_INTRINSIC float powf(float v);
-HCC_INTRINSIC double pow(double v);
+#define expf exp_f32
+#define exp exp_f64
 
-HCC_INTRINSIC float expf(float v);
-HCC_INTRINSIC double exp(double v);
+#define logf log_f32
+#define log log_f64
 
-HCC_INTRINSIC float logf(float v);
-HCC_INTRINSIC double log(double v);
+#define exp2f exp2_f32
+#define exp2 exp2_f64
 
-HCC_INTRINSIC float exp2f(float v);
-HCC_INTRINSIC double exp2(double v);
-
-HCC_INTRINSIC float log2f(float v);
-HCC_INTRINSIC double log2(double v);
+#define log2f log2_f32
+#define log2 log2_f64
 
 #endif // _MATH_H
 

@@ -125,101 +125,6 @@ const char* hcc_ast_function_shader_stage_strings[HCC_AST_FUNCTION_SHADER_STAGE_
 	[HCC_AST_FUNCTION_SHADER_STAGE_MESHTASK] = "meshtask",
 };
 
-const char* hcc_function_scalarx_strings[HCC_FUNCTION_SCALARX_COUNT] = {
-	[HCC_FUNCTION_SCALARX_SWIZZLE] = "swizzle",
-	[HCC_FUNCTION_SCALARX_PACK] = "pack",
-	[HCC_FUNCTION_SCALARX_UNPACK] = "unpack",
-	[HCC_FUNCTION_SCALARX_ANY] = "any",
-	[HCC_FUNCTION_SCALARX_ALL] = "all",
-	[HCC_FUNCTION_SCALARX_ADD] = "add",
-	[HCC_FUNCTION_SCALARX_SUB] = "sub",
-	[HCC_FUNCTION_SCALARX_MUL] = "mul",
-	[HCC_FUNCTION_SCALARX_DIV] = "div",
-	[HCC_FUNCTION_SCALARX_MOD] = "mod",
-	[HCC_FUNCTION_SCALARX_EQ] = "eq",
-	[HCC_FUNCTION_SCALARX_NEQ] = "neq",
-	[HCC_FUNCTION_SCALARX_LT] = "lt",
-	[HCC_FUNCTION_SCALARX_LTEQ] = "lteq",
-	[HCC_FUNCTION_SCALARX_GT] = "gt",
-	[HCC_FUNCTION_SCALARX_GTEQ] = "gteq",
-	[HCC_FUNCTION_SCALARX_NOT] = "not",
-	[HCC_FUNCTION_SCALARX_NEG] = "neg",
-	[HCC_FUNCTION_SCALARX_BITNOT] = "bitnot",
-	[HCC_FUNCTION_SCALARX_MIN] = "min",
-	[HCC_FUNCTION_SCALARX_MAX] = "max",
-	[HCC_FUNCTION_SCALARX_CLAMP] = "clamp",
-	[HCC_FUNCTION_SCALARX_SIGN] = "sign",
-	[HCC_FUNCTION_SCALARX_ABS] = "abs",
-	[HCC_FUNCTION_SCALARX_BITAND] = "bitand",
-	[HCC_FUNCTION_SCALARX_BITOR] = "bitor",
-	[HCC_FUNCTION_SCALARX_BITXOR] = "bitxor",
-	[HCC_FUNCTION_SCALARX_BITSHL] = "bitshl",
-	[HCC_FUNCTION_SCALARX_BITSHR] = "bitshr",
-	[HCC_FUNCTION_SCALARX_FMA] = "fma",
-	[HCC_FUNCTION_SCALARX_FLOOR] = "floor",
-	[HCC_FUNCTION_SCALARX_CEIL] = "ceil",
-	[HCC_FUNCTION_SCALARX_ROUND] = "round",
-	[HCC_FUNCTION_SCALARX_TRUNC] = "trunc",
-	[HCC_FUNCTION_SCALARX_FRACT] = "fract",
-	[HCC_FUNCTION_SCALARX_RADIANS] = "radians",
-	[HCC_FUNCTION_SCALARX_DEGREES] = "degrees",
-	[HCC_FUNCTION_SCALARX_STEP] = "step",
-	[HCC_FUNCTION_SCALARX_SMOOTHSTEP] = "smoothstep",
-	[HCC_FUNCTION_SCALARX_BITSTO] = "bitsto",
-	[HCC_FUNCTION_SCALARX_BITSFROM] = "bitsfrom",
-	[HCC_FUNCTION_SCALARX_SIN] = "sin",
-	[HCC_FUNCTION_SCALARX_COS] = "cos",
-	[HCC_FUNCTION_SCALARX_TAN] = "tan",
-	[HCC_FUNCTION_SCALARX_ASIN] = "asin",
-	[HCC_FUNCTION_SCALARX_ACOS] = "acos",
-	[HCC_FUNCTION_SCALARX_ATAN] = "atan",
-	[HCC_FUNCTION_SCALARX_SINH] = "sinh",
-	[HCC_FUNCTION_SCALARX_COSH] = "cosh",
-	[HCC_FUNCTION_SCALARX_TANH] = "tanh",
-	[HCC_FUNCTION_SCALARX_ASINH] = "asinh",
-	[HCC_FUNCTION_SCALARX_ACOSH] = "acosh",
-	[HCC_FUNCTION_SCALARX_ATANH] = "atanh",
-	[HCC_FUNCTION_SCALARX_ATAN2] = "atan2",
-	[HCC_FUNCTION_SCALARX_POW] = "pow",
-	[HCC_FUNCTION_SCALARX_EXP] = "exp",
-	[HCC_FUNCTION_SCALARX_LOG] = "log",
-	[HCC_FUNCTION_SCALARX_EXP2] = "exp2",
-	[HCC_FUNCTION_SCALARX_LOG2] = "log2",
-	[HCC_FUNCTION_SCALARX_SQRT] = "sqrt",
-	[HCC_FUNCTION_SCALARX_RSQRT] = "rsqrt",
-	[HCC_FUNCTION_SCALARX_ISINF] = "isinf",
-	[HCC_FUNCTION_SCALARX_ISNAN] = "isnan",
-	[HCC_FUNCTION_SCALARX_LERP] = "lerp",
-	[HCC_FUNCTION_SCALARX_DOT] = "dot",
-	[HCC_FUNCTION_SCALARX_LEN] = "len",
-	[HCC_FUNCTION_SCALARX_NORM] = "norm",
-	[HCC_FUNCTION_SCALARX_REFLECT] = "reflect",
-	[HCC_FUNCTION_SCALARX_REFRACT] = "refract",
-	[HCC_FUNCTION_SCALARX_MATRIX_MUL_SCALAR] = "muls",
-	[HCC_FUNCTION_SCALARX_MATRIX_MUL_VECTOR] = "mulv",
-	[HCC_FUNCTION_SCALARX_MATRIX_TRANSPOSE] = "transpose",
-	[HCC_FUNCTION_SCALARX_MATRIX_OUTER_PRODUCT] = "outer_product",
-	[HCC_FUNCTION_SCALARX_MATRIX_DETERMINANT] = "determinant",
-	[HCC_FUNCTION_SCALARX_MATRIX_INVERSE] = "inverse",
-};
-
-const char* hcc_intrinsic_function_specific_strings[HCC_FUNCTION_IDX_SPECIFIC_END] = {
-	[HCC_FUNCTION_IDX_F16TOF32] = "f16tof32",
-	[HCC_FUNCTION_IDX_F16TOF64] = "f16tof64",
-	[HCC_FUNCTION_IDX_F32TOF16] = "f32tof16",
-	[HCC_FUNCTION_IDX_F64TOF16] = "f64tof16",
-	[HCC_FUNCTION_IDX_PACKF16X2F32X2] = "packf16x2f32x2",
-	[HCC_FUNCTION_IDX_UNPACKF16X2F32X2] = "unpackf16x2f32x2",
-	[HCC_FUNCTION_IDX_PACKU16X2F32X2] = "packu16x2f32x2",
-	[HCC_FUNCTION_IDX_UNPACKU16X2F32X2] = "unpacku16x2f32x2",
-	[HCC_FUNCTION_IDX_PACKS16X2F32X2] = "packs16x2f32x2",
-	[HCC_FUNCTION_IDX_UNPACKS16X2F32X2] = "unpacks16x2f32x2",
-	[HCC_FUNCTION_IDX_PACKU8X4F32X4] = "packu8x4f32x4",
-	[HCC_FUNCTION_IDX_UNPACKU8X4F32X4] = "unpacku8x4f32x4",
-	[HCC_FUNCTION_IDX_PACKS8X4F32X4] = "packs8x4f32x4",
-	[HCC_FUNCTION_IDX_UNPACKS8X4F32X4] = "unpacks8x4f32x4",
-};
-
 HccASTForwardDecl* hcc_ast_forward_decl_get(HccCU* cu, HccDecl decl) {
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_FORWARD_DECL(decl), "internal error: expected a forward declaration");
 	return hcc_stack_get(cu->ast.forward_declarations, HCC_DATA_TYPE_AUX(decl));
@@ -460,7 +365,12 @@ void hcc_ast_init(HccCU* cu, HccASTSetup* setup) {
 	cu->ast.exprs = hcc_stack_init(HccASTExpr, HCC_ALLOC_TAG_AST_EXPRS, setup->exprs_grow_count, setup->exprs_reserve_cap);
 	cu->ast.global_variables = hcc_stack_init(HccASTVariable, HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES, setup->global_variables_grow_count, setup->global_variables_reserve_cap);
 	cu->ast.forward_declarations = hcc_stack_init(HccASTForwardDecl, HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS, setup->forward_declarations_grow_count, setup->forward_declarations_reserve_cap);
+	cu->ast.designated_initializer_elmt_indices = hcc_stack_init(uint64_t, HCC_ALLOC_TAG_AST_DESIGNATED_INITIALIZER_ELMT_INDICES, setup->designated_initializer_elmt_indices_grow_count, setup->designated_initializer_elmt_indices_reserve_cap);
 	cu->ast.unsupported_intrinsic_type_used = hcc_stack_init(HccASTUnsupportedIntrinsicTypeUsed, HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED, setup->functions_grow_count, setup->functions_reserve_cap);
+
+	//
+	// preallocate all the intrinsic functions
+	hcc_stack_resize(cu->ast.functions, HCC_FUNCTION_IDX_USER_START);
 }
 
 void hcc_ast_deinit(HccCU* cu) {
@@ -704,17 +614,18 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 				case HCC_AST_BINARY_OP_TERNARY_RESULTS: expr_name = "TERNARY_RESULTS"; break;
 				case HCC_AST_BINARY_OP_COMMA: expr_name = "COMMA"; break;
 				case HCC_AST_BINARY_OP_FIELD_ACCESS: expr_name = "FIELD_ACCESS"; break;
+				case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT: expr_name = "FIELD_ACCESS_INDIRECT"; break;
 				case HCC_AST_BINARY_OP_CALL: expr_name = "CALL"; break;
 				case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT: expr_name = "ARRAY_SUBSCRIPT"; break;
 			}
-			if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS) {
+			if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS || expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT) {
 				hcc_iio_write_fmt(iio, "%s: {\n", expr_name);
 
 				HccASTExpr* left_expr = expr->binary.left_expr;
 				uint32_t field_idx = expr->binary.field_idx;
 				hcc_ast_print_expr(cu, function, left_expr, indent + 1, iio);
 
-				HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, left_expr->data_type);
+				HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, hcc_data_type_strip_pointer(cu, left_expr->data_type));
 				HccCompoundField* field = &compound_data_type->fields[field_idx];
 
 				HccString field_data_type_name = hcc_data_type_string(cu, field->data_type);
@@ -1004,6 +915,10 @@ CONSTANT: {}
 
 		for (uint32_t compound_type_idx = 0; compound_type_idx < hcc_stack_count(cu->dtt.compounds); compound_type_idx += 1) {
 			HccCompoundDataType* d = hcc_stack_get(cu->dtt.compounds, compound_type_idx);
+			if (d->size == 0) {
+				continue;
+			}
+
 			HccString name = hcc_string_lit("<anonymous>");
 			if (d->identifier_string_id.idx_plus_one) {
 				name = hcc_string_table_get(d->identifier_string_id);

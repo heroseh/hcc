@@ -2687,6 +2687,9 @@ void hcc_atagen_run(HccWorker* w, HccATATokenBag* dst_token_bag, HccATAGenRunMod
 				} else if (next_byte == '-') {
 					token_size = 2;
 					token = HCC_ATA_TOKEN_DECREMENT;
+				} else if (next_byte == '>') {
+					token_size = 2;
+					token = HCC_ATA_TOKEN_ARROW_RIGHT;
 				} else {
 					token = HCC_ATA_TOKEN_MINUS;
 				}

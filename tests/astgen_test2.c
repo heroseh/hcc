@@ -33,6 +33,6 @@ static void static_func() {
 int extern_func() {
 	func(var);
 
-	return i1 + i2 + i3 + i4 + i5;
+	return 1;
 }
 

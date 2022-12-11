@@ -61,7 +61,6 @@ int func2() {
 
 	extern_func();
 
-	a += i1 + i2 + i3 + i4 + i5;
 	return a ? test : b;
 }
 

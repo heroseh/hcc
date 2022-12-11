@@ -2,8 +2,6 @@
 #ifndef _STDBOOL_H
 #define _STDBOOL_H
 
-#include "hcc_intrinsics.h"
-
 #define bool  _Bool
 #define true  1
 #define false 0
