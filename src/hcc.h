@@ -201,9 +201,12 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ENUMS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ENUM_VALUES,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_POINTERS,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_FUNCTIONS,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_FUNCTION_PARAMS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ARRAYS_DEDUP_HASH_TABLE,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_POINTERS_DEDUP_HASH_TABLE,
+	HCC_ALLOC_TAG_DATA_TYPE_TABLE_FUNCTIONS_DEDUP_HASH_TABLE,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_BUFFERS_DEDUP_HASH_TABLE,
 	HCC_ALLOC_TAG_DATA_TYPE_TABLE_ANON_COMPOUND_DEDUP_HASH_TABLE,
 
@@ -229,6 +232,14 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_AST_DESIGNATED_INITIALIZER_ELMT_INDICES,
 	HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED,
 
+	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_NODES_POOL,
+	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_WORDS_POOL,
+	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_VALUES_POOL,
+	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCKS_POOL,
+	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCK_PARAMS_POOL,
+	HCC_ALLOC_TAG_AML_FUNCTIONS,
+	HCC_ALLOC_TAG_AML_LOCATIONS,
+
 	HCC_ALLOC_TAG_PPGEN_EXPAND_STACK,
 	HCC_ALLOC_TAG_PPGEN_EXPAND_MACRO_IDX_STACK,
 	HCC_ALLOC_TAG_PPGEN_STRINGIFY_BUFFER,
@@ -249,6 +260,8 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED,
 	HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS,
 	HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS,
+
+	HCC_ALLOC_TAG_AMLGEN_TEMP_OPERANDS,
 
 	HCC_ALLOC_TAG_COUNT,
 };
@@ -749,6 +762,9 @@ enum HccAMLIntrinsicDataType {
 
 //
 // extraction utilities
+#define HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(type)  ((type) < HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT)
+#define HCC_AML_INTRINSIC_DATA_TYPE_IS_UINT(type)  (HCC_AML_INTRINSIC_DATA_TYPE_U8 <= (type) && (type) <= HCC_AML_INTRINSIC_DATA_TYPE_U64)
+#define HCC_AML_INTRINSIC_DATA_TYPE_IS_SINT(type)  (HCC_AML_INTRINSIC_DATA_TYPE_S8 <= (type) && (type) <= HCC_AML_INTRINSIC_DATA_TYPE_S64)
 #define HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(type)  ((type) & HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK)
 #define HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(type) ((((type) & HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_SHIFT) + 1)
 #define HCC_AML_INTRINSIC_DATA_TYPE_ROWS(type)    ((((type) & HCC_AML_INTRINSIC_DATA_TYPE_ROWS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_ROWS_SHIFT) + 1)
@@ -1077,29 +1093,30 @@ extern uint64_t hcc_ast_basic_type_int_maxes_x86_64_linux[HCC_AST_BASIC_DATA_TYP
 
 typedef uint32_t HccDataType;
 enum HccDataType {
-	HCC_DATA_TYPE_AST_BASIC =      0, // HccASTBasicDataType
-	HCC_DATA_TYPE_AML_INTRINSIC =  1, // HccAMLIntrinsicDataType
-	HCC_DATA_TYPE_ENUM =           2, // index for HccDataTypeTable.enum_data_types
-	HCC_DATA_TYPE_STRUCT =         3, // index for HccDataTypeTable.compound_data_types
-	HCC_DATA_TYPE_UNION =          4, // index for HccDataTypeTable.compound_data_types
-	HCC_DATA_TYPE_ARRAY =          5, // index for HccDataTypeTable.array_data_types
-	HCC_DATA_TYPE_POINTER =        6, // index for HccDataTypeTable.pointer_data_types
-	HCC_DATA_TYPE_TYPEDEF =        7, // index for HccDataTypeTable.typedefs
-	HCC_DATA_TYPE_RESOURCE =       8, // HccResourceDataType
-	HCC_DATA_TYPE_COUNT =         9,
+	HCC_DATA_TYPE_AST_BASIC =     0, // HccASTBasicDataType
+	HCC_DATA_TYPE_AML_INTRINSIC = 1, // HccAMLIntrinsicDataType
+	HCC_DATA_TYPE_ENUM =          2, // index for HccDataTypeTable.enum_data_types
+	HCC_DATA_TYPE_STRUCT =        3, // index for HccDataTypeTable.compound_data_types
+	HCC_DATA_TYPE_UNION =         4, // index for HccDataTypeTable.compound_data_types
+	HCC_DATA_TYPE_ARRAY =         5, // index for HccDataTypeTable.array_data_types
+	HCC_DATA_TYPE_POINTER =       6, // index for HccDataTypeTable.pointer_data_types
+	HCC_DATA_TYPE_TYPEDEF =       7, // index for HccDataTypeTable.typedefs
+	HCC_DATA_TYPE_FUNCTION =      8, // index for HccDataTypeTable.functions
+	HCC_DATA_TYPE_RESOURCE =      9, // HccResourceDataType
+	HCC_DATA_TYPE_COUNT =         10,
 #define HCC_DATA_TYPE_INVALID HCC_DATA_TYPE_COUNT
 };
 
 //
 // format constants
-#define HCC_DATA_TYPE_TYPE_MASK               0x0000000f // as HCC_DATA_TYPE_COUNT < 16
-#define HCC_DATA_TYPE_CONST_QUALIFIER_MASK    0x00000010
-#define HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK 0x00000020
-#define HCC_DATA_TYPE_ATOMIC_QUALIFIER_MASK   0x00000040
-#define HCC_DATA_TYPE_QUALIFIERS_MASK         0x00000070
-#define HCC_DATA_TYPE_FORWARD_DECL_MASK       0x00000080 // for HCC_DATA_TYPE_STRUCT, HCC_DATA_TYPE_UNION, HCC_DECL_GLOBAL_VARIABLE, HCC_DECL_FUNCTION
-#define HCC_DATA_TYPE_AUX_MASK                0xffffff00
-#define HCC_DATA_TYPE_AUX_SHIFT               8
+#define HCC_DATA_TYPE_TYPE_MASK               0x0000001f // as HCC_AML_OPERAND_COUNT < 32
+#define HCC_DATA_TYPE_CONST_QUALIFIER_MASK    0x00000020
+#define HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK 0x00000040
+#define HCC_DATA_TYPE_ATOMIC_QUALIFIER_MASK   0x00000080
+#define HCC_DATA_TYPE_QUALIFIERS_MASK         0x000000e0
+#define HCC_DATA_TYPE_FORWARD_DECL_MASK       0x00000100 // for HCC_DATA_TYPE_STRUCT, HCC_DATA_TYPE_UNION, HCC_DECL_GLOBAL_VARIABLE, HCC_DECL_FUNCTION
+#define HCC_DATA_TYPE_AUX_MASK                0xfffffe00
+#define HCC_DATA_TYPE_AUX_SHIFT               9
 
 //
 // extraction utilities
@@ -1131,7 +1148,7 @@ enum HccDataType {
 	HCC_DATA_TYPE_FORWARD_DECL_MASK | \
 	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
 )
-#define HCC_DATA_TYPE_AML(aml_intrinsic_data_type) HCC_DATA_TYPE(UNION, HCC_COMPOUND_DATA_TYPE_IDX_AML_START + (aml_intrinsic_data_type))
+#define HCC_DATA_TYPE_AML(aml_intrinsic_data_type) HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_AML_START + (aml_intrinsic_data_type))
 #define HCC_DATA_TYPE_PACKED_AML(aml_intrinsic_data_type) HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START + (aml_intrinsic_data_type))
 
 //
@@ -1147,6 +1164,7 @@ enum HccDataType {
 #define HCC_DATA_TYPE_IS_ARRAY(type)         (HCC_DATA_TYPE_TYPE(type) == HCC_DATA_TYPE_ARRAY)
 #define HCC_DATA_TYPE_IS_POINTER(type)       (HCC_DATA_TYPE_TYPE(type) == HCC_DATA_TYPE_POINTER)
 #define HCC_DATA_TYPE_IS_TYPEDEF(type)       (HCC_DATA_TYPE_TYPE(type) == HCC_DATA_TYPE_TYPEDEF)
+#define HCC_DATA_TYPE_IS_FUNCTION(type)      (HCC_DATA_TYPE_TYPE(type) == HCC_DATA_TYPE_FUNCTION)
 #define HCC_DATA_TYPE_IS_RESOURCE(type)      (HCC_DATA_TYPE_TYPE(type) == HCC_DATA_TYPE_RESOURCE)
 #define HCC_DATA_TYPE_IS_COMPOUND(type)      (HCC_DATA_TYPE_IS_STRUCT(type) || HCC_DATA_TYPE_IS_UNION(type))
 #define HCC_DATA_TYPE_IS_COMPOSITE(type)     (HCC_DATA_TYPE_IS_STRUCT(type) || HCC_DATA_TYPE_IS_UNION(type) || HCC_DATA_TYPE_IS_ARRAY(type))
@@ -1170,7 +1188,80 @@ enum HccDataType {
 #define HCC_DATA_TYPE_AST_BASIC_ULONGLONG    HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_ULONGLONG)
 #define HCC_DATA_TYPE_AST_BASIC_FLOAT        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_FLOAT)
 #define HCC_DATA_TYPE_AST_BASIC_DOUBLE       HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_DOUBLE)
+#define HCC_DATA_TYPE_AST_BASIC_VOID         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_VOID)
+#define HCC_DATA_TYPE_AST_BASIC_BOOL         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_BOOL)
+#define HCC_DATA_TYPE_AST_BASIC_CHAR         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_CHAR)
+#define HCC_DATA_TYPE_AST_BASIC_SCHAR        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SCHAR)
+#define HCC_DATA_TYPE_AST_BASIC_SSHORT       HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SSHORT)
+#define HCC_DATA_TYPE_AST_BASIC_SINT         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SINT)
+#define HCC_DATA_TYPE_AST_BASIC_SLONG        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SLONG)
+#define HCC_DATA_TYPE_AST_BASIC_SLONGLONG    HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_SLONGLONG)
+#define HCC_DATA_TYPE_AST_BASIC_UCHAR        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_UCHAR)
+#define HCC_DATA_TYPE_AST_BASIC_USHORT       HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_USHORT)
+#define HCC_DATA_TYPE_AST_BASIC_UINT         HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_UINT)
+#define HCC_DATA_TYPE_AST_BASIC_ULONG        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_ULONG)
+#define HCC_DATA_TYPE_AST_BASIC_ULONGLONG    HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_ULONGLONG)
+#define HCC_DATA_TYPE_AST_BASIC_FLOAT        HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_FLOAT)
+#define HCC_DATA_TYPE_AST_BASIC_DOUBLE       HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_DOUBLE)
 #define HCC_DATA_TYPE_HALF                   HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HALF)
+#define HCC_DATA_TYPE_AML_INTRINSIC_VOID     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_VOID)
+#define HCC_DATA_TYPE_AML_INTRINSIC_BOOL     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_BOOL)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S8       HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S8)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S16      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S16)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S32      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S32)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S64      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S64)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U8       HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U8)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U16      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U16)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U32      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U32)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U64      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U64)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F16      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F16)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F32      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F32)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F64      HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F64)
+#define HCC_DATA_TYPE_AML_INTRINSIC_BOOLX2   HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_BOOLX2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S8X2     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S8X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S16X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S16X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S32X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S32X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S64X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S64X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U8X2     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U8X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U16X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U16X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U32X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U32X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U64X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U64X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F16X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F16X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F32X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F32X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F64X2    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F64X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_BOOLX3   HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_BOOLX3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S8X3     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S8X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S16X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S16X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S32X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S32X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S64X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S64X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U8X3     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U8X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U16X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U16X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U32X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U32X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U64X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U64X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F16X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F16X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F32X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F32X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F64X3    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F64X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_BOOLX4   HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_BOOLX4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S8X4     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S8X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S16X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S16X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S32X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S32X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_S64X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_S64X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U8X4     HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U8X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U16X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U16X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U32X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U32X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_U64X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_U64X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F16X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F16X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F32X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F32X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F64X4    HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F64X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F16X2X2  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F16X2X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F32X2X3  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F32X2X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F64X2X4  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F64X2X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F16X3X2  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F16X3X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F32X3X3  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F32X3X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F64X3X4  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F64X3X4)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F16X4X2  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F16X4X2)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F32X4X3  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F32X4X3)
+#define HCC_DATA_TYPE_AML_INTRINSIC_F64X4X4  HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_F64X4X4)
 
 // ===========================================
 //
@@ -1188,6 +1279,8 @@ enum HccDecl {
 	HCC_DECL_ENUM_VALUE,
 	HCC_DECL_LOCAL_VARIABLE,
 	HCC_DECL_GLOBAL_VARIABLE,
+
+	HCC_DECL_COUNT,
 };
 
 //
@@ -1201,6 +1294,8 @@ enum HccDecl {
 	HCC_DATA_TYPE_FORWARD_DECL_MASK | \
 	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
 )
+
+static_assert(HCC_DECL_COUNT <= HCC_DATA_TYPE_TYPE_MASK + 1, "HccDecl type overflows the type mask in HccDataType");
 
 //
 // comparison utilities
@@ -1216,6 +1311,7 @@ enum HccDecl {
 
 HccDecl hcc_decl_resolve_and_keep_qualifiers(HccCU* cu, HccDecl decl);
 HccDecl hcc_decl_resolve_and_strip_qualifiers(HccCU* cu, HccDecl decl);
+HccDataType hcc_decl_function_data_type(HccCU* cu, HccDecl decl);
 HccDecl hcc_decl_return_data_type(HccCU* cu, HccDecl decl);
 uint8_t hcc_decl_function_params_count(HccCU* cu, HccDecl decl);
 HccASTVariable* hcc_decl_function_params(HccCU* cu, HccDecl decl);
@@ -1235,6 +1331,7 @@ typedef struct HccDataTypeTable HccDataTypeTable;
 typedef struct HccArrayDataType HccArrayDataType;
 typedef struct HccBufferDataType HccBufferDataType;
 typedef struct HccPointerDataType HccPointerDataType;
+typedef struct HccFunctionDataType HccFunctionDataType;
 typedef struct HccCompoundDataType HccCompoundDataType;
 typedef struct HccCompoundField HccCompoundField;
 typedef struct HccEnumDataType HccEnumDataType;
@@ -1274,6 +1371,7 @@ enum HccBasicTypeClass {
 
 typedef union HccBasic HccBasic;
 union HccBasic {
+	bool     bool_;
 	int8_t   s8;
 	int16_t  s16;
 	int32_t  s32;
@@ -1324,12 +1422,20 @@ HccArrayDataType* hcc_array_data_type_get(HccCU* cu, HccDataType data_type);
 HccDataType hcc_array_data_type_element_data_type(HccArrayDataType* dt);
 HccConstantId hcc_array_data_type_element_count_constant_id(HccArrayDataType* dt);
 uint64_t hcc_array_data_type_element_count(HccCU* cu, HccArrayDataType* dt);
+HccDataType hcc_array_data_type_deduplicate(HccCU* cu, HccDataType element_data_type, HccConstantId element_count_constant_id);
 
 HccBufferDataType* hcc_buffer_data_type_get(HccCU* cu, HccDataType data_type);
 HccDataType hcc_buffer_data_type_element_data_type(HccBufferDataType* dt);
 
 HccPointerDataType* hcc_pointer_data_type_get(HccCU* cu, HccDataType data_type);
 HccDataType hcc_pointer_data_type_element_data_type(HccPointerDataType* dt);
+HccDataType hcc_pointer_data_type_deduplicate(HccCU* cu, HccDataType element_data_type);
+
+HccFunctionDataType* hcc_function_data_type_get(HccCU* cu, HccDataType data_type);
+HccDataType hcc_function_data_type_return_data_type(HccFunctionDataType* dt);
+uint32_t hcc_function_data_type_params_count(HccFunctionDataType* dt);
+HccDataType* hcc_function_data_type_params(HccFunctionDataType* dt);
+HccDataType hcc_function_data_type_deduplicate(HccCU* cu, HccDataType return_data_type, HccDataType* params, uint32_t params_count, uintptr_t params_stride);
 
 HccCompoundDataType* hcc_compound_data_type_get(HccCU* cu, HccDataType data_type);
 bool hcc_compound_data_type_is_struct(HccCompoundDataType* dt);
@@ -1383,7 +1489,7 @@ struct HccConstant {
 	HccDataType data_type;
 };
 
-void hcc_constant_print(HccCU* ast, HccConstantId constant_id, HccIIO* iio);
+void hcc_constant_print(HccCU* cu, HccConstantId constant_id, HccIIO* iio);
 bool hcc_constant_as_uint(HccCU* cu, HccConstant constant, uint64_t* out);
 bool hcc_constant_as_sint(HccCU* cu, HccConstant constant, int64_t* out);
 bool hcc_constant_as_sint32(HccCU* cu, HccConstant constant, int32_t* out);
@@ -1401,6 +1507,8 @@ HccConstantId hcc_constant_table_deduplicate_basic(HccCU* cu, HccDataType data_t
 HccConstantId* hcc_constant_table_deduplicate_composite_start(HccCU* cu, HccDataType data_type, uint32_t* fields_count_out);
 HccConstantId hcc_constant_table_deduplicate_composite_end(HccCU* cu, HccDataType data_type, HccConstantId* fields, uint32_t fields_count);
 HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_type);
+HccConstantId hcc_constant_table_deduplicate_one(HccCU* cu, HccDataType data_type);
+HccConstantId hcc_constant_table_deduplicate_minus_one(HccCU* cu, HccDataType data_type);
 HccConstant hcc_constant_table_get(HccCU* cu, HccConstantId id);
 
 // ===========================================
@@ -1434,18 +1542,17 @@ enum HccASTBinaryOp {
 	HCC_AST_BINARY_OP_GREATER_THAN,
 	HCC_AST_BINARY_OP_GREATER_THAN_OR_EQUAL,
 
+#define HCC_AST_BINARY_OP_LANG_FEATURES_START HCC_AST_BINARY_OP_LOGICAL_AND
+
 	HCC_AST_BINARY_OP_LOGICAL_AND,
 	HCC_AST_BINARY_OP_LOGICAL_OR,
-
-#define HCC_AST_BINARY_OP_LANG_FEATURES_START HCC_AST_BINARY_OP_TERNARY
-
 	HCC_AST_BINARY_OP_TERNARY,
 	HCC_AST_BINARY_OP_TERNARY_RESULTS,
 	HCC_AST_BINARY_OP_COMMA,
 	HCC_AST_BINARY_OP_FIELD_ACCESS,
 	HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT,
-	HCC_AST_BINARY_OP_CALL,
 	HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT,
+	HCC_AST_BINARY_OP_CALL,
 
 	HCC_AST_BINARY_OP_COUNT,
 };
@@ -1580,7 +1687,8 @@ struct HccASTExpr {
 			uint8_t         is_stmt: 1;
 			HccASTExpr*     cond_expr;
 			HccASTExpr*     block_expr;
-			HccASTExpr*     first_case_expr;
+			uint32_t        case_stmts_count: 31;
+			uint32_t        has_default_case: 1;
 		} switch_;
 		struct {
 			HccASTExprType  type: 7;
@@ -1597,9 +1705,9 @@ struct HccASTExpr {
 		struct {
 			HccASTExprType  type: 7;
 			uint8_t         is_stmt: 1;
-			HccASTExpr*     init_expr;
+			HccASTExpr*     init_stmt;
 			HccASTExpr*     cond_expr;
-			HccASTExpr*     inc_expr;
+			HccASTExpr*     inc_stmt;
 			HccASTExpr*     loop_stmt;
 		} for_;
 		struct {
@@ -1610,10 +1718,8 @@ struct HccASTExpr {
 	};
 
 	HccLocation* location;
-	union {
-		HccDataType data_type; // if !HccASTExpr.is_stmt
-		HccASTExpr* next_stmt; // if HccASTExpr.is_stmt
-	};
+	HccASTExpr* next_stmt;
+	HccDataType data_type;
 };
 
 enum HccASTFunctionShaderStage {
@@ -1641,6 +1747,7 @@ struct HccASTForwardDecl {
 			HccDataType data_type;
 		} variable;
 		struct {
+			HccDataType     function_data_type;
 			HccASTVariable* params;
 			uint32_t        params_count;
 			HccDataType     return_data_type;
@@ -1973,10 +2080,6 @@ typedef struct HccASTSetup HccASTSetup;
 struct HccASTSetup {
 	uint32_t        files_cap;
 	HccASTFileSetup file_setup;
-	uint32_t        function_params_and_variables_grow_count;
-	uint32_t        function_params_and_variables_reserve_cap;
-	uint32_t        functions_grow_count;
-	uint32_t        functions_reserve_cap;
 	uint32_t        exprs_grow_count;
 	uint32_t        exprs_reserve_cap;
 	uint32_t        expr_locations_grow_count;
@@ -1992,6 +2095,142 @@ struct HccASTSetup {
 // ===========================================
 //
 //
+// AML Operation
+//
+//
+// ===========================================
+
+typedef struct HccAMLFunction HccAMLFunction;
+
+typedef uint16_t HccAMLOp;
+enum {
+	HCC_AML_OP_NO_OP,
+
+	//
+	// memory access
+	HCC_AML_OP_PTR_STATIC_ALLOC,
+	HCC_AML_OP_PTR_LOAD,
+	HCC_AML_OP_PTR_STORE,
+	HCC_AML_OP_PTR_ACCESS_CHAIN,
+	HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS,
+
+	//
+	// composite operations
+	HCC_AML_OP_COMPOSITE_INIT,
+	HCC_AML_OP_COMPOSITE_ACCESS_CHAIN_GET,
+	HCC_AML_OP_COMPOSITE_ACCESS_CHAIN_SET,
+
+	//
+	// branching
+	HCC_AML_OP_BASIC_BLOCK,
+	HCC_AML_OP_BRANCH,
+	HCC_AML_OP_BRANCH_CONDITIONAL,
+	HCC_AML_OP_SWITCH,
+
+	//
+	// binary arithmetic, for AML intrinsic scalar types
+	HCC_AML_OP_ADD,
+	HCC_AML_OP_SUBTRACT,
+	HCC_AML_OP_MULTIPLY,
+	HCC_AML_OP_DIVIDE,
+	HCC_AML_OP_MODULO,
+	HCC_AML_OP_BIT_AND,
+	HCC_AML_OP_BIT_OR,
+	HCC_AML_OP_BIT_XOR,
+	HCC_AML_OP_BIT_SHIFT_LEFT,
+	HCC_AML_OP_BIT_SHIFT_RIGHT,
+
+	//
+	// binary comparisions, for AML intrinsic scalar types
+	HCC_AML_OP_EQUAL,
+	HCC_AML_OP_NOT_EQUAL,
+	HCC_AML_OP_LESS_THAN,
+	HCC_AML_OP_LESS_THAN_OR_EQUAL,
+	HCC_AML_OP_GREATER_THAN,
+	HCC_AML_OP_GREATER_THAN_OR_EQUAL,
+
+	//
+	// unary operations, for AML intrinsic scalar types
+	HCC_AML_OP_NEGATE,
+
+	//
+	// conversion
+	HCC_AML_OP_CONVERT,
+	HCC_AML_OP_BITCAST,
+
+	//
+	// misc
+	HCC_AML_OP_CALL,
+	HCC_AML_OP_RETURN,
+	HCC_AML_OP_INTRINSIC_CALL,
+	HCC_AML_OP_UNREACHABLE,
+	HCC_AML_OP_SELECT,
+
+	HCC_AML_OP_COUNT,
+};
+
+extern const char* hcc_aml_op_code_strings[HCC_AML_OP_COUNT];
+extern bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT];
+
+// ===========================================
+//
+//
+// AML Instruction
+//
+//
+// ===========================================
+
+typedef uint32_t HccAMLWord;
+typedef HccAMLWord HccAMLInstr;
+#define HCC_AML_INSTR(op, operands_count)       (((HccAMLWord)(op) << 16) | (operands_count))
+#define HCC_AML_INSTR_OP(instr_ptr)             (*(instr_ptr) >> 16)
+#define HCC_AML_INSTR_WORDS_COUNT(instr_ptr)    (HCC_AML_INSTR_OPERANDS_COUNT(instr_ptr) + 2)
+#define HCC_AML_INSTR_OPERANDS_COUNT(instr_ptr) (*(instr_ptr) & 0xffff)
+#define HCC_AML_INSTR_LOCATION_IDX(instr_ptr)   ((instr_ptr)[1])
+#define HCC_AML_INSTR_OPERANDS(instr_ptr)       (&(instr_ptr)[2])
+
+// ===========================================
+//
+//
+// AML Operand
+//
+//
+// ===========================================
+
+//
+// inherits HccDataType
+typedef HccAMLWord HccAMLOperand;
+enum {
+	HCC_AML_OPERAND_VALUE = HCC_DECL_COUNT,
+	HCC_AML_OPERAND_CONSTANT,
+	HCC_AML_OPERAND_BASIC_BLOCK,
+	HCC_AML_OPERAND_BASIC_BLOCK_PARAM,
+
+	HCC_AML_OPERAND_COUNT,
+};
+#define HCC_AML_OPERANDS_TO_INSTR(operands_ptr) (&(operands_ptr)[-2])
+
+static_assert(HCC_AML_OPERAND_COUNT <= HCC_DATA_TYPE_TYPE_MASK + 1, "HccDecl type overflows the type mask in HccDataType");
+
+#define HCC_AML_OPERAND_TYPE(operand) HCC_DATA_TYPE_TYPE(operand)
+#define HCC_AML_OPERAND_AUX(operand) HCC_DATA_TYPE_AUX(operand)
+#define HCC_AML_OPERAND_IS_DATA_TYPE(operand) (HCC_AML_OPERAND_TYPE(operand) < HCC_DATA_TYPE_COUNT)
+#define HCC_AML_OPERAND_IS_DECL(operand) (HCC_AML_OPERAND_TYPE(operand) < HCC_DECL_COUNT)
+#define HCC_AML_OPERAND(type, aux) ( \
+	HCC_AML_OPERAND_##type | \
+	((aux) << HCC_DATA_TYPE_AUX_SHIFT) \
+)
+
+#define HCC_AML_OPERAND_IS_VALUE(operand) (HCC_AML_OPERAND_TYPE(operand) == HCC_AML_OPERAND_VALUE)
+#define HCC_AML_OPERAND_IS_CONSTANT(operand) (HCC_AML_OPERAND_TYPE(operand) == HCC_AML_OPERAND_CONSTANT)
+#define HCC_AML_OPERAND_IS_BASIC_BLOCK(operand) (HCC_AML_OPERAND_TYPE(operand) == HCC_AML_OPERAND_BASIC_BLOCK)
+#define HCC_AML_OPERAND_IS_BASIC_BLOCK_PARAM(operand) (HCC_AML_OPERAND_TYPE(operand) == HCC_AML_OPERAND_BASIC_BLOCK_PARAM)
+
+HccDataType hcc_aml_operand_data_type(HccCU* cu, HccAMLFunction* function, HccAMLOperand operand);
+
+// ===========================================
+//
+//
 // AML - Abstract Machine Language
 //
 //
@@ -1999,10 +2238,67 @@ struct HccASTSetup {
 
 typedef struct HccAML HccAML;
 
+typedef struct HccAMLValue HccAMLValue;
+struct HccAMLValue {
+	HccDataType data_type;
+};
+
+typedef struct HccAMLBasicBlock HccAMLBasicBlock;
+struct HccAMLBasicBlock {
+	uint32_t word_idx;
+	uint16_t params_start_idx;
+	uint16_t params_count: 15;
+	uint16_t _has_branch_or_return: 1; // used internally to track while generating. basic blocks will always end with a HCC_AML_OP_BRANCH or HCC_AML_OP_RETURN
+};
+
+typedef struct HccAMLFunctionAlctorSetup HccAMLFunctionAlctorSetup;
+struct HccAMLFunctionAlctorSetup {
+	uint32_t functions_grow_count;
+	uint32_t functions_reserve_cap;
+	uint32_t instrs_grow_count;
+	uint32_t instrs_reserve_cap;
+};
+
 typedef struct HccAMLSetup HccAMLSetup;
 struct HccAMLSetup {
-	uint32_t        placeholder;
+	HccAMLFunctionAlctorSetup function_alctor;
 };
+
+HccAMLFunction* hcc_aml_function_get(HccCU* cu, HccDecl decl);
+
+uint32_t hcc_aml_function_words_count(HccAMLFunction* function);
+HccAMLWord* hcc_aml_function_words(HccAMLFunction* function);
+
+uint32_t hcc_aml_function_values_count(HccAMLFunction* function);
+HccAMLValue* hcc_aml_function_values(HccAMLFunction* function);
+
+uint32_t hcc_aml_function_basic_blocks_count(HccAMLFunction* function);
+HccAMLBasicBlock* hcc_aml_function_basic_blocks(HccAMLFunction* function);
+
+uint32_t hcc_aml_function_basic_block_params_count(HccAMLFunction* function);
+HccAMLValue* hcc_aml_function_basic_block_params(HccAMLFunction* function);
+
+// ===========================================
+//
+//
+// AML Iterator
+//
+//
+// ===========================================
+
+typedef struct HccAMLInstrIter HccAMLInstrIter;
+struct HccAMLInstrIter {
+	HccAMLWord*       words;
+	HccAMLValue*      values;
+	HccAMLBasicBlock* basic_blocks;
+	uint32_t          words_count;
+	uint32_t          values_count;
+	uint32_t          basic_blocks_count;
+	uint32_t          next_word_idx;
+};
+
+HccAMLInstrIter hcc_aml_instr_iter(HccDecl decl);
+bool hcc_aml_instr_iter_next(HccAMLInstrIter* iter, uint32_t* instr_word_idx);
 
 // ===========================================
 //
@@ -2026,6 +2322,10 @@ struct HccCUSetup {
 	HccConstantTableSetup constant_table;
 	HccASTSetup           ast;
 	HccAMLSetup           aml;
+	uint32_t              functions_grow_count;
+	uint32_t              functions_reserve_cap;
+	uint32_t              function_params_and_variables_grow_count;
+	uint32_t              function_params_and_variables_reserve_cap;
 };
 
 HccDataTypeTable* hcc_cu_get_data_type_table(HccCU* cu);
@@ -2288,11 +2588,17 @@ struct HccASTLinkSetup {
 	uint32_t __placeholder__;
 };
 
+typedef struct HccAMLGenSetup HccAMLGenSetup;
+struct HccAMLGenSetup {
+	uint32_t placeholder;
+};
+
 typedef struct HccCompilerSetup HccCompilerSetup;
 struct HccCompilerSetup {
 	HccATAGenSetup  atagen;
 	HccASTGenSetup  astgen;
 	HccASTLinkSetup astlink;
+	HccAMLGenSetup  amlgen;
 	uint32_t        worker_string_buffer_grow_size;
 	uint32_t        worker_string_buffer_reserve_size;
 	uint32_t        worker_arena_size;

@@ -356,16 +356,16 @@ void hcc_ast_file_found_included_file(HccASTFile* file, HccStringId path_string_
 //
 // ===========================================
 
-void hcc_ast_init(HccCU* cu, HccASTSetup* setup) {
-	cu->ast.file_setup = setup->file_setup;
-	cu->ast.files_hash_table = hcc_hash_table_init(HccASTFileEntry, HCC_ALLOC_TAG_AST_FILES_HASH_TABLE, hcc_string_key_cmp, hcc_string_key_hash, setup->files_cap);
-	cu->ast.files = hcc_stack_init(HccASTFile*, HCC_ALLOC_TAG_AST_FILES, setup->files_cap, setup->files_cap);
+void hcc_ast_init(HccCU* cu, HccCUSetup* setup) {
+	cu->ast.file_setup = setup->ast.file_setup;
+	cu->ast.files_hash_table = hcc_hash_table_init(HccASTFileEntry, HCC_ALLOC_TAG_AST_FILES_HASH_TABLE, hcc_string_key_cmp, hcc_string_key_hash, setup->ast.files_cap);
+	cu->ast.files = hcc_stack_init(HccASTFile*, HCC_ALLOC_TAG_AST_FILES, setup->ast.files_cap, setup->ast.files_cap);
 	cu->ast.function_params_and_variables = hcc_stack_init(HccASTVariable, HCC_ALLOC_TAG_AST_FUNCTION_PARAMS_AND_VARIABLES, setup->function_params_and_variables_grow_count, setup->function_params_and_variables_reserve_cap);
 	cu->ast.functions = hcc_stack_init(HccASTFunction, HCC_ALLOC_TAG_AST_FUNCTIONS, setup->functions_grow_count, setup->functions_reserve_cap);
-	cu->ast.exprs = hcc_stack_init(HccASTExpr, HCC_ALLOC_TAG_AST_EXPRS, setup->exprs_grow_count, setup->exprs_reserve_cap);
-	cu->ast.global_variables = hcc_stack_init(HccASTVariable, HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES, setup->global_variables_grow_count, setup->global_variables_reserve_cap);
-	cu->ast.forward_declarations = hcc_stack_init(HccASTForwardDecl, HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS, setup->forward_declarations_grow_count, setup->forward_declarations_reserve_cap);
-	cu->ast.designated_initializer_elmt_indices = hcc_stack_init(uint64_t, HCC_ALLOC_TAG_AST_DESIGNATED_INITIALIZER_ELMT_INDICES, setup->designated_initializer_elmt_indices_grow_count, setup->designated_initializer_elmt_indices_reserve_cap);
+	cu->ast.exprs = hcc_stack_init(HccASTExpr, HCC_ALLOC_TAG_AST_EXPRS, setup->ast.exprs_grow_count, setup->ast.exprs_reserve_cap);
+	cu->ast.global_variables = hcc_stack_init(HccASTVariable, HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES, setup->ast.global_variables_grow_count, setup->ast.global_variables_reserve_cap);
+	cu->ast.forward_declarations = hcc_stack_init(HccASTForwardDecl, HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS, setup->ast.forward_declarations_grow_count, setup->ast.forward_declarations_reserve_cap);
+	cu->ast.designated_initializer_elmt_indices = hcc_stack_init(uint64_t, HCC_ALLOC_TAG_AST_DESIGNATED_INITIALIZER_ELMT_INDICES, setup->ast.designated_initializer_elmt_indices_grow_count, setup->ast.designated_initializer_elmt_indices_reserve_cap);
 	cu->ast.unsupported_intrinsic_type_used = hcc_stack_init(HccASTUnsupportedIntrinsicTypeUsed, HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED, setup->functions_grow_count, setup->functions_reserve_cap);
 
 	//
@@ -557,17 +557,17 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 		case HCC_AST_EXPR_TYPE_STMT_FOR: {
 			hcc_iio_write_fmt(iio, "%s: {\n", "STMT_FOR");
 
-			HccASTExpr* init_expr = expr->for_.init_expr;
+			HccASTExpr* init_stmt = expr->for_.init_stmt;
 			hcc_iio_write_fmt(iio, "%.*sINIT_EXPR:\n", indent + 1, indent_chars);
-			hcc_ast_print_expr(cu, function, init_expr, indent + 2, iio);
+			hcc_ast_print_expr(cu, function, init_stmt, indent + 2, iio);
 
 			HccASTExpr* cond_expr = expr->for_.cond_expr;
 			hcc_iio_write_fmt(iio, "%.*sCONDITION_EXPR:\n", indent + 1, indent_chars);
 			hcc_ast_print_expr(cu, function, cond_expr, indent + 2, iio);
 
-			HccASTExpr* inc_expr = expr->for_.inc_expr;
+			HccASTExpr* inc_stmt = expr->for_.inc_stmt;
 			hcc_iio_write_fmt(iio, "%.*sINCREMENT_EXPR:\n", indent + 1, indent_chars);
-			hcc_ast_print_expr(cu, function, inc_expr, indent + 2, iio);
+			hcc_ast_print_expr(cu, function, inc_stmt, indent + 2, iio);
 
 			HccASTExpr* loop_stmt = expr->for_.loop_stmt;
 			hcc_iio_write_fmt(iio, "%.*sLOOP_STMT:\n", indent + 1, indent_chars);
@@ -708,16 +708,14 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 			break;
 		};
 		case HCC_AST_EXPR_TYPE_LOCAL_VARIABLE: {
-			char buf[1024];
 			HccASTVariable* variable = &function->params_and_variables[HCC_DECL_AUX(expr->variable.decl)];
+			hcc_iio_write_fmt(iio, "LOCAL_VARIABLE(#%u): ", HCC_DECL_AUX(expr->variable.decl));
 			hcc_ast_variable_to_string(cu, variable->data_type, variable->identifier_string_id, iio);
-			hcc_iio_write_fmt(iio, " LOCAL_VARIABLE(#%u): %s", HCC_DECL_AUX(expr->variable.decl), buf);
 			break;
 		};
 		case HCC_AST_EXPR_TYPE_GLOBAL_VARIABLE: {
-			char buf[1024];
+			hcc_iio_write_fmt(iio, "GLOBAL_VARIABLE(#%u): %s", HCC_DECL_AUX(expr->variable.decl), HCC_DECL_IS_FORWARD_DECL(expr->variable.decl) ? "[forward_decl]" : "");
 			hcc_ast_variable_to_string(cu, hcc_decl_return_data_type(cu, expr->variable.decl), hcc_decl_identifier_string_id(cu, expr->variable.decl), iio);
-			hcc_iio_write_fmt(iio, " GLOBAL_VARIABLE(#%u): %s%s", HCC_DECL_AUX(expr->variable.decl), HCC_DECL_IS_FORWARD_DECL(expr->variable.decl) ? "[forward_decl]" : "", buf);
 			break;
 		};
 		default:

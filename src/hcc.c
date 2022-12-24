@@ -51,14 +51,14 @@ void hcc_cu_init(HccCU* cu, HccCUSetup* setup, HccOptions* options) {
 		+ setup->dtt.enums_reserve_cap
 		+ setup->dtt.pointers_reserve_cap
 		+ setup->dtt.buffers_reserve_cap
-		+ setup->ast.functions_reserve_cap
+		+ setup->functions_reserve_cap
 		+ setup->ast.global_variables_reserve_cap
 		;
 
 	hcc_constant_table_init(cu, &setup->constant_table);
-	hcc_data_type_table_init(cu, &setup->dtt);
-	hcc_ast_init(cu, &setup->ast);
-	hcc_aml_init(cu, &setup->aml);
+	hcc_data_type_table_init(cu, setup);
+	hcc_ast_init(cu, setup);
+	hcc_aml_init(cu, setup);
 	cu->global_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_GLOBAL_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, global_declarations_cap);
 	cu->struct_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_STRUCT_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
 	cu->union_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_UNION_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
@@ -307,10 +307,6 @@ HccTaskSetup hcc_task_setup_default = {
 				.forward_declarations_to_link_grow_count = 1024,
 				.forward_declarations_to_link_reserve_cap = 131072,
 			},
-			.function_params_and_variables_grow_count = 1024,
-			.function_params_and_variables_reserve_cap = 131072,
-			.functions_grow_count = 1024,
-			.functions_reserve_cap = 131072,
 			.exprs_grow_count = 1024,
 			.exprs_reserve_cap = 131072,
 			.expr_locations_grow_count = 1024,
@@ -323,8 +319,17 @@ HccTaskSetup hcc_task_setup_default = {
 			.designated_initializer_elmt_indices_reserve_cap = 131072,
 		},
 		.aml = {
-			.placeholder = 1,
+			.function_alctor = {
+				.functions_grow_count = 1024,
+				.functions_reserve_cap = 131072,
+				.instrs_grow_count = 16384,
+				.instrs_reserve_cap = 1048576,
+			},
 		},
+		.functions_grow_count = 1024,
+		.functions_reserve_cap = 131072,
+		.function_params_and_variables_grow_count = 1024,
+		.function_params_and_variables_reserve_cap = 131072,
 	},
 	.options = NULL,
 	.final_worker_job_type = HCC_WORKER_JOB_TYPE_METADATA,
@@ -519,11 +524,11 @@ HccResult hcc_task_add_output_ast(HccTask* t, HccAST** ast_out) {
 	return hcc_task_add_output(t, HCC_STAGE_AST, HCC_ENCODING_RUNTIME_BINARY, ast_out);
 }
 
-HccResult hcc_task_add_output_aml_text_file(HccTask* t, HccIIO* iio) {
+HccResult hcc_task_add_output_aml_text(HccTask* t, HccIIO* iio) {
 	return hcc_task_add_output(t, HCC_STAGE_AML, HCC_ENCODING_TEXT, iio);
 }
 
-HccResult hcc_task_add_output_aml_binary_file(HccTask* t, HccIIO* iio) {
+HccResult hcc_task_add_output_aml_binary(HccTask* t, HccIIO* iio) {
 	return hcc_task_add_output(t, HCC_STAGE_AML, HCC_ENCODING_BINARY, iio);
 }
 
@@ -682,11 +687,19 @@ void hcc_worker_end_job(HccWorker* w) {
 				}
 				break;
 			};
-			case HCC_PHASE_ASTLINK:
-				// TODO: loop over all functions and hcc_compiler_give_worker_job for AMLOPT
+			case HCC_PHASE_ASTLINK: {
+				uint32_t functions_count = hcc_stack_count(t->cu->ast.functions);
+				hcc_stack_resize(t->cu->aml.functions, functions_count);
+
+				for (uint32_t function_idx = HCC_FUNCTION_IDX_USER_START; function_idx < functions_count; function_idx += 1) {
+					HccDecl function_decl = HCC_DECL(FUNCTION, function_idx);
+					void* arg = (void*)(uintptr_t)function_decl;
+					hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_AMLGEN, arg);
+				}
 				break;
+			};
 			case HCC_PHASE_AMLGEN:
-				// TODO: queue job for the backend
+				// TODO: loop over all functions and hcc_compiler_give_worker_job for AMLOPT
 				break;
 			case HCC_PHASE_AMLOPT:
 				// TODO: queue job for the backend
@@ -717,7 +730,7 @@ void hcc_worker_main(void* arg) {
 		switch (w->job.type) {
 			case HCC_WORKER_JOB_TYPE_ATAGEN:
 				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
-					hcc_atagen_init(w, &c->atagen_setup);
+					hcc_atagen_init(w, &c->setup.atagen);
 					w->initialized_generators_bitset |= (1 << w->job.type);
 				}
 				hcc_atagen_reset(w);
@@ -726,7 +739,7 @@ void hcc_worker_main(void* arg) {
 				break;
 			case HCC_WORKER_JOB_TYPE_ASTGEN:
 				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
-					hcc_astgen_init(w, &c->astgen_setup);
+					hcc_astgen_init(w, &c->setup.astgen);
 					w->initialized_generators_bitset |= (1 << w->job.type);
 				}
 				hcc_astgen_reset(w);
@@ -734,13 +747,20 @@ void hcc_worker_main(void* arg) {
 				break;
 			case HCC_WORKER_JOB_TYPE_ASTLINK:
 				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
-					hcc_astlink_init(w, &c->astlink_setup);
+					hcc_astlink_init(w, &c->setup.astlink);
 					w->initialized_generators_bitset |= (1 << w->job.type);
 				}
 				hcc_astlink_reset(w);
 				hcc_astlink_link_file(w);
 				break;
 			case HCC_WORKER_JOB_TYPE_AMLGEN:
+				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
+					hcc_amlgen_init(w, &c->setup);
+					w->initialized_generators_bitset |= (1 << w->job.type);
+				}
+				hcc_amlgen_reset(w);
+				hcc_amlgen_generate(w);
+				break;
 				break;
 			case HCC_WORKER_JOB_TYPE_AMLOPT:
 				break;
@@ -789,6 +809,9 @@ HccCompilerSetup hcc_compiler_setup_default = {
 		.curly_initializer_nested_reserve_cap = 2048,
 		.curly_initializer_nested_curlys_reserve_cap = 2048,
 		.curly_initializer_nested_elmts_reserve_cap = 2048,
+	},
+	.amlgen = {
+		.placeholder = 1,
 	},
 	.worker_string_buffer_grow_size = 4096,
 	.worker_string_buffer_reserve_size = 65536,
@@ -869,9 +892,7 @@ HccResult hcc_compiler_init(HccCompilerSetup* setup, HccCompiler** c_out) {
 		workers_count = hcc_logical_cores_count();
 	}
 
-	c->atagen_setup = setup->atagen;
-	c->astgen_setup = setup->astgen;
-	c->astlink_setup = setup->astlink;
+	c->setup = *setup;
 
 	//
 	// allocate the job queue magic ring buffer
@@ -1454,7 +1475,7 @@ void hcc_location_merge_apply(HccLocation* before, HccLocation* after) {
 
 HccSetup hcc_setup_default = {
 	.flags = HCC_FLAGS_NONE,
-	.global_mem_arena_size = 8192,
+	.global_mem_arena_size = 16384,
 	.alloc_event_fn = NULL,
 	.alloc_event_userdata = NULL,
 	.path_canonicalize_fn = hcc_path_canonicalize_internal,

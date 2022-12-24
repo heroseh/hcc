@@ -132,567 +132,245 @@ typedef struct pu64x4 { uint64_t x; uint64_t y; uint64_t z; uint64_t w; } pu64x4
 // the vec3 is rounded up to the size and align of a vec4 due to hardware limitations
 //
 
-typedef union boolx2 boolx2;
-typedef union f16x2 f16x2;
-typedef union f32x2 f32x2;
-typedef union f64x2 f64x2;
-typedef union s8x2 s8x2;
-typedef union s16x2 s16x2;
-typedef union s32x2 s32x2;
-typedef union s64x2 s64x2;
-typedef union u8x2 u8x2;
-typedef union u16x2 u16x2;
-typedef union u32x2 u32x2;
-typedef union u64x2 u64x2;
+typedef struct boolx2 boolx2;
+typedef struct f16x2 f16x2;
+typedef struct f32x2 f32x2;
+typedef struct f64x2 f64x2;
+typedef struct s8x2 s8x2;
+typedef struct s16x2 s16x2;
+typedef struct s32x2 s32x2;
+typedef struct s64x2 s64x2;
+typedef struct u8x2 u8x2;
+typedef struct u16x2 u16x2;
+typedef struct u32x2 u32x2;
+typedef struct u64x2 u64x2;
 
-typedef union boolx3 boolx3;
-typedef union f16x3 f16x3;
-typedef union f32x3 f32x3;
-typedef union f64x3 f64x3;
-typedef union s8x3 s8x3;
-typedef union s16x3 s16x3;
-typedef union s32x3 s32x3;
-typedef union s64x3 s64x3;
-typedef union u8x3 u8x3;
-typedef union u16x3 u16x3;
-typedef union u32x3 u32x3;
-typedef union u64x3 u64x3;
+typedef struct boolx3 boolx3;
+typedef struct f16x3 f16x3;
+typedef struct f32x3 f32x3;
+typedef struct f64x3 f64x3;
+typedef struct s8x3 s8x3;
+typedef struct s16x3 s16x3;
+typedef struct s32x3 s32x3;
+typedef struct s64x3 s64x3;
+typedef struct u8x3 u8x3;
+typedef struct u16x3 u16x3;
+typedef struct u32x3 u32x3;
+typedef struct u64x3 u64x3;
 
-typedef union boolx4 boolx4;
-typedef union f16x4 f16x4;
-typedef union f32x4 f32x4;
-typedef union f64x4 f64x4;
-typedef union s8x4 s8x4;
-typedef union s16x4 s16x4;
-typedef union s32x4 s32x4;
-typedef union s64x4 s64x4;
-typedef union u8x4 u8x4;
-typedef union u16x4 u16x4;
-typedef union u32x4 u32x4;
-typedef union u64x4 u64x4;
+typedef struct boolx4 boolx4;
+typedef struct f16x4 f16x4;
+typedef struct f32x4 f32x4;
+typedef struct f64x4 f64x4;
+typedef struct s8x4 s8x4;
+typedef struct s16x4 s16x4;
+typedef struct s32x4 s32x4;
+typedef struct s64x4 s64x4;
+typedef struct u8x4 u8x4;
+typedef struct u16x4 u16x4;
+typedef struct u32x4 u32x4;
+typedef struct u64x4 u64x4;
 
-union boolx2 {
-	_Alignas(2)
-	struct { bool x; bool y; };
-	struct { bool r; bool g; };
-	struct { bool width; bool height; };
-	bool array[2];
-};
+struct boolx2 { _Alignas(2) bool x; bool y; };
+struct f16x2 { _Alignas(4) half x; half y; };
+struct f32x2 { _Alignas(8) float x; float y; };
+struct f64x2 { _Alignas(16) double x; double y; };
+struct s8x2 { _Alignas(2) int8_t x; int8_t y; };
+struct s16x2 { _Alignas(4) int16_t x; int16_t y; };
+struct s32x2 { _Alignas(8) int32_t x; int32_t y; };
+struct s64x2 { _Alignas(16) int64_t x; int64_t y; };
+struct u8x2 { _Alignas(2) uint8_t x; uint8_t y; };
+struct u16x2 { _Alignas(4) uint16_t x; uint16_t y; };
+struct u32x2 { _Alignas(8) uint32_t x; uint32_t y; };
+struct u64x2 { _Alignas(16) uint64_t x; uint64_t y; };
 
-union f16x2 {
-	_Alignas(4)
-	struct { half x; half y; };
-	struct { half r; half g; };
-	struct { half width; half height; };
-	half array[2];
-};
+struct boolx3 { _Alignas(4) bool x; bool y; bool z; };
+struct f16x3 { _Alignas(8) half x; half y; half z; };
+struct f32x3 { _Alignas(16) float x; float y; float z; };
+struct f64x3 { _Alignas(32) double x; double y; double z; };
+struct s8x3 { _Alignas(4) int8_t x; int8_t y; int8_t z; };
+struct s16x3 { _Alignas(8) int16_t x; int16_t y; int16_t z; };
+struct s32x3 { _Alignas(16) int32_t x; int32_t y; int32_t z; };
+struct s64x3 { _Alignas(32) int64_t x; int64_t y; int64_t z; };
+struct u8x3 { _Alignas(4) uint8_t x; uint8_t y; uint8_t z; };
+struct u16x3 { _Alignas(8) uint16_t x; uint16_t y; uint16_t z; };
+struct u32x3 { _Alignas(16) uint32_t x; uint32_t y; uint32_t z; };
+struct u64x3 { _Alignas(32) uint64_t x; uint64_t y; uint64_t z; };
 
-union f32x2 {
-	_Alignas(8)
-	struct { float x; float y; };
-	struct { float r; float g; };
-	struct { float width; float height; };
-	float array[2];
-};
-
-union f64x2 {
-	_Alignas(16)
-	struct { double x; double y; };
-	struct { double r; double g; };
-	struct { double width; double height; };
-	double array[2];
-};
-
-union s8x2 {
-	_Alignas(2)
-	struct { int8_t x; int8_t y; };
-	struct { int8_t r; int8_t g; };
-	struct { int8_t width; int8_t height; };
-	int8_t array[2];
-};
-
-union s16x2 {
-	_Alignas(4)
-	struct { int16_t x; int16_t y; };
-	struct { int16_t r; int16_t g; };
-	struct { int16_t width; int16_t height; };
-	int16_t array[2];
-};
-
-union s32x2 {
-	_Alignas(8)
-	struct { int32_t x; int32_t y; };
-	struct { int32_t r; int32_t g; };
-	struct { int32_t width; int32_t height; };
-	int32_t array[2];
-};
-
-union s64x2 {
-	_Alignas(16)
-	struct { int64_t x; int64_t y; };
-	struct { int64_t r; int64_t g; };
-	struct { int64_t width; int64_t height; };
-	int64_t array[2];
-};
-
-union u8x2 {
-	_Alignas(2)
-	struct { uint8_t x; uint8_t y; };
-	struct { uint8_t r; uint8_t g; };
-	struct { uint8_t width; uint8_t height; };
-	uint8_t array[2];
-};
-
-union u16x2 {
-	_Alignas(4)
-	struct { uint16_t x; uint16_t y; };
-	struct { uint16_t r; uint16_t g; };
-	struct { uint16_t width; uint16_t height; };
-	uint16_t array[2];
-};
-
-union u32x2 {
-	_Alignas(8)
-	struct { uint32_t x; uint32_t y; };
-	struct { uint32_t r; uint32_t g; };
-	struct { uint32_t width; uint32_t height; };
-	uint32_t array[2];
-};
-
-union u64x2 {
-	_Alignas(16)
-	struct { uint64_t x; uint64_t y; };
-	struct { uint64_t r; uint64_t g; };
-	struct { uint64_t width; uint64_t height; };
-	uint64_t array[2];
-};
-
-union boolx3 {
-	_Alignas(4)
-	struct { bool x; bool y; bool z; bool _w; };
-	struct { bool r; bool g; bool b; bool _a; };
-	boolx2 xy;
-	boolx2 rg;
-	bool array[4];
-};
-
-union f16x3 {
-	_Alignas(8)
-	struct { half x; half y; half z; half _w; };
-	struct { half r; half g; half b; half _a; };
-	f16x2 xy;
-	f16x2 rg;
-	half array[4];
-};
-
-union f32x3 {
-	_Alignas(16)
-	struct { float x; float y; float z; float _w; };
-	struct { float r; float g; float b; float _a; };
-	f32x2 xy;
-	f32x2 rg;
-	float array[4];
-};
-
-union f64x3 {
-	_Alignas(32)
-	struct { double x; double y; double z; double _w; };
-	struct { double r; double g; double b; double _a; };
-	f64x2 xy;
-	f64x2 rg;
-	double array[4];
-};
-
-union s8x3 {
-	_Alignas(4)
-	struct { int8_t x; int8_t y; int8_t z; int8_t _w; };
-	struct { int8_t r; int8_t g; int8_t b; int8_t _a; };
-	s8x2 xy;
-	s8x2 rg;
-	int8_t array[4];
-};
-
-union s16x3 {
-	_Alignas(8)
-	struct { int16_t x; int16_t y; int16_t z; int16_t _w; };
-	struct { int16_t r; int16_t g; int16_t b; int16_t _a; };
-	s16x2 xy;
-	s16x2 rg;
-	int16_t array[4];
-};
-
-union s32x3 {
-	_Alignas(16)
-	struct { int32_t x; int32_t y; int32_t z; int32_t _w; };
-	struct { int32_t r; int32_t g; int32_t b; int32_t _a; };
-	s32x2 xy;
-	s32x2 rg;
-	int32_t array[4];
-};
-
-union s64x3 {
-	_Alignas(32)
-	struct { int64_t x; int64_t y; int64_t z; int64_t _w; };
-	struct { int64_t r; int64_t g; int64_t b; int64_t _a; };
-	s64x2 xy;
-	s64x2 rg;
-	int64_t array[4];
-};
-
-union u8x3 {
-	_Alignas(4)
-	struct { uint8_t x; uint8_t y; uint8_t z; uint8_t _w; };
-	struct { uint8_t r; uint8_t g; uint8_t b; uint8_t _a; };
-	u8x2 xy;
-	u8x2 rg;
-	uint8_t array[4];
-};
-
-union u16x3 {
-	_Alignas(8)
-	struct { uint16_t x; uint16_t y; uint16_t z; uint16_t _w; };
-	struct { uint16_t r; uint16_t g; uint16_t b; uint16_t _a; };
-	u16x2 xy;
-	u16x2 rg;
-	uint16_t array[4];
-};
-
-union u32x3 {
-	_Alignas(16)
-	struct { uint32_t x; uint32_t y; uint32_t z; uint32_t _w; };
-	struct { uint32_t r; uint32_t g; uint32_t b; uint32_t _a; };
-	u32x2 xy;
-	u32x2 rg;
-	uint32_t array[4];
-};
-
-union u64x3 {
-	_Alignas(32)
-	struct { uint64_t x; uint64_t y; uint64_t z; uint64_t _w; };
-	struct { uint64_t r; uint64_t g; uint64_t b; uint64_t _a; };
-	u64x2 xy;
-	u64x2 rg;
-	uint64_t array[4];
-};
-
-union boolx4 {
-	_Alignas(4)
-	struct { bool x; bool y; bool z; bool w; };
-	struct { bool r; bool g; bool b; bool a; };
-	struct { boolx2 top_left; boolx2 bottom_right; };
-	struct { boolx2 bottom_left; boolx2 top_right; };
-	struct { boolx2 xy; boolx2 zw; };
-	struct { boolx2 rg; boolx2 ba; };
-	struct { bool _; bool __; bool width; bool height; };
-	boolx3 xyz;
-	boolx3 rgb;
-	bool array[4];
-};
-union f16x4 {
-	_Alignas(8)
-	struct { half x; half y; half z; half w; };
-	struct { half r; half g; half b; half a; };
-	struct { f16x2 top_left; f16x2 bottom_right; };
-	struct { f16x2 bottom_left; f16x2 top_right; };
-	struct { f16x2 xy; f16x2 zw; };
-	struct { f16x2 rg; f16x2 ba; };
-	struct { half _; half __; half width; half height; };
-	f16x3 xyz;
-	f16x3 rgb;
-	half array[4];
-};
-union f32x4 {
-	_Alignas(16)
-	struct { float x; float y; float z; float w; };
-	struct { float r; float g; float b; float a; };
-	struct { f32x2 top_left; f32x2 bottom_right; };
-	struct { f32x2 bottom_left; f32x2 top_right; };
-	struct { f32x2 xy; f32x2 zw; };
-	struct { f32x2 rg; f32x2 ba; };
-	struct { float _; float __; float width; float height; };
-	f32x3 xyz;
-	f32x3 rgb;
-	float array[4];
-};
-union f64x4 {
-	_Alignas(32)
-	struct { double x; double y; double z; double w; };
-	struct { double r; double g; double b; double a; };
-	struct { f64x2 top_left; f64x2 bottom_right; };
-	struct { f64x2 bottom_left; f64x2 top_right; };
-	struct { f64x2 xy; f64x2 zw; };
-	struct { f64x2 rg; f64x2 ba; };
-	struct { double _; double __; double width; double height; };
-	f64x3 xyz;
-	f64x3 rgb;
-	double array[4];
-};
-union s8x4 {
-	_Alignas(4)
-	struct { int8_t x; int8_t y; int8_t z; int8_t w; };
-	struct { int8_t r; int8_t g; int8_t b; int8_t a; };
-	struct { s8x2 top_left; s8x2 bottom_right; };
-	struct { s8x2 bottom_left; s8x2 top_right; };
-	struct { s8x2 xy; s8x2 zw; };
-	struct { s8x2 rg; s8x2 ba; };
-	struct { int8_t _; int8_t __; int8_t width; int8_t height; };
-	s8x3 xyz;
-	s8x3 rgb;
-	int8_t array[4];
-};
-union s16x4 {
-	_Alignas(8)
-	struct { int16_t x; int16_t y; int16_t z; int16_t w; };
-	struct { int16_t r; int16_t g; int16_t b; int16_t a; };
-	struct { s16x2 top_left; s16x2 bottom_right; };
-	struct { s16x2 bottom_left; s16x2 top_right; };
-	struct { s16x2 xy; s16x2 zw; };
-	struct { s16x2 rg; s16x2 ba; };
-	struct { int16_t _; int16_t __; int16_t width; int16_t height; };
-	s16x3 xyz;
-	s16x3 rgb;
-	int16_t array[4];
-};
-union s32x4 {
-	_Alignas(16)
-	struct { int32_t x; int32_t y; int32_t z; int32_t w; };
-	struct { int32_t r; int32_t g; int32_t b; int32_t a; };
-	struct { s32x2 top_left; s32x2 bottom_right; };
-	struct { s32x2 bottom_left; s32x2 top_right; };
-	struct { s32x2 xy; s32x2 zw; };
-	struct { s32x2 rg; s32x2 ba; };
-	struct { int32_t _; int32_t __; int32_t width; int32_t height; };
-	s32x3 xyz;
-	s32x3 rgb;
-	int32_t array[4];
-};
-union s64x4 {
-	_Alignas(32)
-	struct { int64_t x; int64_t y; int64_t z; int64_t w; };
-	struct { int64_t r; int64_t g; int64_t b; int64_t a; };
-	struct { s64x2 top_left; s64x2 bottom_right; };
-	struct { s64x2 bottom_left; s64x2 top_right; };
-	struct { s64x2 xy; s64x2 zw; };
-	struct { s64x2 rg; s64x2 ba; };
-	struct { int64_t _; int64_t __; int64_t width; int64_t height; };
-	s64x3 xyz;
-	s64x3 rgb;
-	int64_t array[4];
-};
-union u8x4 {
-	_Alignas(4)
-	struct { uint8_t x; uint8_t y; uint8_t z; uint8_t w; };
-	struct { uint8_t r; uint8_t g; uint8_t b; uint8_t a; };
-	struct { u8x2 top_left; u8x2 bottom_right; };
-	struct { u8x2 bottom_left; u8x2 top_right; };
-	struct { u8x2 xy; u8x2 zw; };
-	struct { u8x2 rg; u8x2 ba; };
-	struct { uint8_t _; uint8_t __; uint8_t width; uint8_t height; };
-	u8x3 xyz;
-	u8x3 rgb;
-	uint8_t array[4];
-};
-union u16x4 {
-	_Alignas(8)
-	struct { uint16_t x; uint16_t y; uint16_t z; uint16_t w; };
-	struct { uint16_t r; uint16_t g; uint16_t b; uint16_t a; };
-	struct { u16x2 top_left; u16x2 bottom_right; };
-	struct { u16x2 bottom_left; u16x2 top_right; };
-	struct { u16x2 xy; u16x2 zw; };
-	struct { u16x2 rg; u16x2 ba; };
-	struct { uint16_t _; uint16_t __; uint16_t width; uint16_t height; };
-	u16x3 xyz;
-	u16x3 rgb;
-	uint16_t array[4];
-};
-union u32x4 {
-	_Alignas(16)
-	struct { uint32_t x; uint32_t y; uint32_t z; uint32_t w; };
-	struct { uint32_t r; uint32_t g; uint32_t b; uint32_t a; };
-	struct { u32x2 top_left; u32x2 bottom_right; };
-	struct { u32x2 bottom_left; u32x2 top_right; };
-	struct { u32x2 xy; u32x2 zw; };
-	struct { u32x2 rg; u32x2 ba; };
-	struct { uint32_t _; uint32_t __; uint32_t width; uint32_t height; };
-	u32x3 xyz;
-	u32x3 rgb;
-	uint32_t array[4];
-};
-union u64x4 {
-	_Alignas(32)
-	struct { uint64_t x; uint64_t y; uint64_t z; uint64_t w; };
-	struct { uint64_t r; uint64_t g; uint64_t b; uint64_t a; };
-	struct { u64x2 top_left; u64x2 bottom_right; };
-	struct { u64x2 bottom_left; u64x2 top_right; };
-	struct { u64x2 xy; u64x2 zw; };
-	struct { u64x2 rg; u64x2 ba; };
-	struct { uint64_t _; uint64_t __; uint64_t width; uint64_t height; };
-	u64x3 xyz;
-	u64x3 rgb;
-	uint64_t array[4];
-};
+struct boolx4 { _Alignas(4) bool x; bool y; bool z; bool w; };
+struct f16x4 { _Alignas(8) half x; half y; half z; half w; };
+struct f32x4 { _Alignas(16) float x; float y; float z; float w; };
+struct f64x4 { _Alignas(32) double x; double y; double z; double w; };
+struct s8x4 { _Alignas(4) int8_t x; int8_t y; int8_t z; int8_t w; };
+struct s16x4 { _Alignas(8) int16_t x; int16_t y; int16_t z; int16_t w; };
+struct s32x4 { _Alignas(16) int32_t x; int32_t y; int32_t z; int32_t w; };
+struct s64x4 { _Alignas(32) int64_t x; int64_t y; int64_t z; int64_t w; };
+struct u8x4 { _Alignas(4) uint8_t x; uint8_t y; uint8_t z; uint8_t w; };
+struct u16x4 { _Alignas(8) uint16_t x; uint16_t y; uint16_t z; uint16_t w; };
+struct u32x4 { _Alignas(16) uint32_t x; uint32_t y; uint32_t z; uint32_t w; };
+struct u64x4 { _Alignas(32) uint64_t x; uint64_t y; uint64_t z; uint64_t w; };
 
 //
 // initializes a new vector with 2, 3 or 4 components of any of the following types:
 //	bool, half, float, double, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, or int64_t
-#define boolx2(x, y) ((boolx2){ { x, y } })
-#define boolx2s(s) ((boolx2){ { s, s } })
-#define f16x2(x, y) ((f16x2){ { x, y } })
-#define f16x2s(s) ((f16x2){ { s, s } })
-#define f32x2(x, y) ((f32x2){ { x, y } })
-#define f32x2s(s) ((f32x2){ { s, s } })
-#define f64x2(x, y) ((f64x2){ { x, y } })
-#define f64x2s(s) ((f64x2){ { s, s } })
-#define s8x2(x, y) ((s8x2){ { x, y } })
-#define s8x2s(s) ((s8x2){ { s, s } })
-#define s16x2(x, y) ((s16x2){ { x, y } })
-#define s16x2s(s) ((s16x2){ { s, s } })
-#define s32x2(x, y) ((s32x2){ { x, y } })
-#define s32x2s(s) ((s32x2){ { s, s } })
-#define s64x2(x, y) ((s64x2){ { x, y } })
-#define s64x2s(s) ((s64x2){ { s, s } })
-#define u8x2(x, y) ((u8x2){ { x, y } })
-#define u8x2s(s) ((u8x2){ { s, s } })
-#define u16x2(x, y) ((u16x2){ { x, y } })
-#define u16x2s(s) ((u16x2){ { s, s } })
-#define u32x2(x, y) ((u32x2){ { x, y } })
-#define u32x2s(s) ((u32x2){ { s, s } })
-#define u64x2(x, y) ((u64x2){ { x, y } })
-#define u64x2s(s) ((u64x2){ { s, s } })
+#define boolx2(x, y) ((boolx2){ x, y })
+#define boolx2s(s) ((boolx2){ s, s })
+#define f16x2(x, y) ((f16x2){ x, y })
+#define f16x2s(s) ((f16x2){ s, s })
+#define f32x2(x, y) ((f32x2){ x, y })
+#define f32x2s(s) ((f32x2){ s, s })
+#define f64x2(x, y) ((f64x2){ x, y })
+#define f64x2s(s) ((f64x2){ s, s })
+#define s8x2(x, y) ((s8x2){ x, y })
+#define s8x2s(s) ((s8x2){ s, s })
+#define s16x2(x, y) ((s16x2){ x, y })
+#define s16x2s(s) ((s16x2){ s, s })
+#define s32x2(x, y) ((s32x2){ x, y })
+#define s32x2s(s) ((s32x2){ s, s })
+#define s64x2(x, y) ((s64x2){ x, y })
+#define s64x2s(s) ((s64x2){ s, s })
+#define u8x2(x, y) ((u8x2){ x, y })
+#define u8x2s(s) ((u8x2){ s, s })
+#define u16x2(x, y) ((u16x2){ x, y })
+#define u16x2s(s) ((u16x2){ s, s })
+#define u32x2(x, y) ((u32x2){ x, y })
+#define u32x2s(s) ((u32x2){ s, s })
+#define u64x2(x, y) ((u64x2){ x, y })
+#define u64x2s(s) ((u64x2){ s, s })
 
-#define boolx3(x, y, z) ((boolx3){ { x, y, z } })
-#define boolx3s(s) ((boolx3){ { s, s, s } })
-#define boolx3sv2(x, v) ((boolx3){ { x, (v).x, (v).y } })
-#define boolx3v2s(v, z) ((boolx3){ { (v).x, (v).y, z } })
-#define f16x3(x, y, z) ((f16x3){ { x, y, z } })
-#define f16x3s(s) ((f16x3){ { s, s, s } })
-#define f16x3sv2(x, v) ((f16x3){ { x, (v).x, (v).y } })
-#define f16x3v2s(v, z) ((f16x3){ { (v).x, (v).y, z } })
-#define f32x3(x, y, z) ((f32x3){ { x, y, z } })
-#define f32x3s(s) ((f32x3){ { s, s, s } })
-#define f32x3sv2(x, v) ((f32x3){ { x, (v).x, (v).y } })
-#define f32x3v2s(v, z) ((f32x3){ { (v).x, (v).y, z } })
-#define f64x3(x, y, z) ((f64x3){ { x, y, z } })
-#define f64x3s(s) ((f64x3){ { s, s, s } })
-#define f64x3sv2(x, v) ((f64x3){ { x, (v).x, (v).y } })
-#define f64x3v2s(v, z) ((f64x3){ { (v).x, (v).y, z } })
-#define s8x3(x, y, z) ((s8x3){ { x, y, z } })
-#define s8x3s(s) ((s8x3){ { s, s, s } })
-#define s8x3sv2(x, v) ((s8x3){ { x, (v).x, (v).y } })
-#define s8x3v2s(v, z) ((s8x3){ { (v).x, (v).y, z } })
-#define s16x3(x, y, z) ((s16x3){ { x, y, z } })
-#define s16x3s(s) ((s16x3){ { s, s, s } })
-#define s16x3sv2(x, v) ((s16x3){ { x, (v).x, (v).y } })
-#define s16x3v2s(v, z) ((s16x3){ { (v).x, (v).y, z } })
-#define s32x3(x, y, z) ((s32x3){ { x, y, z } })
-#define s32x3s(s) ((s32x3){ { s, s, s } })
-#define s32x3sv2(x, v) ((s32x3){ { x, (v).x, (v).y } })
-#define s32x3v2s(v, z) ((s32x3){ { (v).x, (v).y, z } })
-#define s64x3(x, y, z) ((s64x3){ { x, y, z } })
-#define s64x3s(s) ((s64x3){ { s, s, s } })
-#define s64x3sv2(x, v) ((s64x3){ { x, (v).x, (v).y } })
-#define s64x3v2s(v, z) ((s64x3){ { (v).x, (v).y, z } })
-#define u8x3(x, y, z) ((u8x3){ { x, y, z } })
-#define u8x3s(s) ((u8x3){ { s, s, s } })
-#define u8x3sv2(x, v) ((u8x3){ { x, (v).x, (v).y } })
-#define u8x3v2s(v, z) ((u8x3){ { (v).x, (v).y, z } })
-#define u16x3(x, y, z) ((u16x3){ { x, y, z } })
-#define u16x3s(s) ((u16x3){ { s, s, s } })
-#define u16x3sv2(x, v) ((u16x3){ { x, (v).x, (v).y } })
-#define u16x3v2s(v, z) ((u16x3){ { (v).x, (v).y, z } })
-#define u32x3(x, y, z) ((u32x3){ { x, y, z } })
-#define u32x3s(s) ((u32x3){ { s, s, s } })
-#define u32x3sv2(x, v) ((u32x3){ { x, (v).x, (v).y } })
-#define u32x3v2s(v, z) ((u32x3){ { (v).x, (v).y, z } })
-#define u64x3(x, y, z) ((u64x3){ { x, y, z } })
-#define u64x3s(s) ((u64x3){ { s, s, s } })
-#define u64x3sv2(x, v) ((u64x3){ { x, (v).x, (v).y } })
-#define u64x3v2s(v, z) ((u64x3){ { (v).x, (v).y, z } })
+#define boolx3(x, y, z) ((boolx3){ x, y, z })
+#define boolx3s(s) ((boolx3){ s, s, s })
+#define boolx3sv2(x, v) ((boolx3){ x, (v).x, (v).y })
+#define boolx3v2s(v, z) ((boolx3){ (v).x, (v).y, z })
+#define f16x3(x, y, z) ((f16x3){ x, y, z })
+#define f16x3s(s) ((f16x3){ s, s, s })
+#define f16x3sv2(x, v) ((f16x3){ x, (v).x, (v).y })
+#define f16x3v2s(v, z) ((f16x3){ (v).x, (v).y, z })
+#define f32x3(x, y, z) ((f32x3){ x, y, z })
+#define f32x3s(s) ((f32x3){ s, s, s })
+#define f32x3sv2(x, v) ((f32x3){ x, (v).x, (v).y })
+#define f32x3v2s(v, z) ((f32x3){ (v).x, (v).y, z })
+#define f64x3(x, y, z) ((f64x3){ x, y, z })
+#define f64x3s(s) ((f64x3){ s, s, s })
+#define f64x3sv2(x, v) ((f64x3){ x, (v).x, (v).y })
+#define f64x3v2s(v, z) ((f64x3){ (v).x, (v).y, z })
+#define s8x3(x, y, z) ((s8x3){ x, y, z })
+#define s8x3s(s) ((s8x3){ s, s, s })
+#define s8x3sv2(x, v) ((s8x3){ x, (v).x, (v).y })
+#define s8x3v2s(v, z) ((s8x3){ (v).x, (v).y, z })
+#define s16x3(x, y, z) ((s16x3){ x, y, z })
+#define s16x3s(s) ((s16x3){ s, s, s })
+#define s16x3sv2(x, v) ((s16x3){ x, (v).x, (v).y })
+#define s16x3v2s(v, z) ((s16x3){ (v).x, (v).y, z })
+#define s32x3(x, y, z) ((s32x3){ x, y, z })
+#define s32x3s(s) ((s32x3){ s, s, s })
+#define s32x3sv2(x, v) ((s32x3){ x, (v).x, (v).y })
+#define s32x3v2s(v, z) ((s32x3){ (v).x, (v).y, z })
+#define s64x3(x, y, z) ((s64x3){ x, y, z })
+#define s64x3s(s) ((s64x3){ s, s, s })
+#define s64x3sv2(x, v) ((s64x3){ x, (v).x, (v).y })
+#define s64x3v2s(v, z) ((s64x3){ (v).x, (v).y, z })
+#define u8x3(x, y, z) ((u8x3){ x, y, z })
+#define u8x3s(s) ((u8x3){ s, s, s })
+#define u8x3sv2(x, v) ((u8x3){ x, (v).x, (v).y })
+#define u8x3v2s(v, z) ((u8x3){ (v).x, (v).y, z })
+#define u16x3(x, y, z) ((u16x3){ x, y, z })
+#define u16x3s(s) ((u16x3){ s, s, s })
+#define u16x3sv2(x, v) ((u16x3){ x, (v).x, (v).y })
+#define u16x3v2s(v, z) ((u16x3){ (v).x, (v).y, z })
+#define u32x3(x, y, z) ((u32x3){ x, y, z })
+#define u32x3s(s) ((u32x3){ s, s, s })
+#define u32x3sv2(x, v) ((u32x3){ x, (v).x, (v).y })
+#define u32x3v2s(v, z) ((u32x3){ (v).x, (v).y, z })
+#define u64x3(x, y, z) ((u64x3){ x, y, z })
+#define u64x3s(s) ((u64x3){ s, s, s })
+#define u64x3sv2(x, v) ((u64x3){ x, (v).x, (v).y })
+#define u64x3v2s(v, z) ((u64x3){ (v).x, (v).y, z })
 
-#define boolx4(x, y, z, w) ((boolx4){ { x, y, z, w } })
-#define boolx4s(s) ((boolx4){ { s, s, s, s } })
-#define boolx4sv2(x, y, v) ((boolx4){ { x, y, (v).x, (v).y } })
-#define boolx4v2s(v, z, w) ((boolx4){ { (v).x, (v).y, z, w } })
-#define boolx4sv2s(x, v, w) ((boolx4){ { x, (v).x, (v).y, w } })
-#define boolx4sv3(x, v) ((boolx4){ { x, (v).x, (v).y, (v).z } })
-#define boolx4v3s(v, w) ((boolx4){ { (v).x, (v).y, (v).z, w } })
-#define f16x4(x, y, z, w) ((f16x4){ { x, y, z, w } })
-#define f16x4s(s) ((f16x4){ { s, s, s, s } })
-#define f16x4sv2(x, y, v) ((f16x4){ { x, y, (v).x, (v).y } })
-#define f16x4v2s(v, z, w) ((f16x4){ { (v).x, (v).y, z, w } })
-#define f16x4sv2s(x, v, w) ((f16x4){ { x, (v).x, (v).y, w } })
-#define f16x4sv3(x, v) ((f16x4){ { x, (v).x, (v).y, (v).z } })
-#define f16x4v3s(v, w) ((f16x4){ { (v).x, (v).y, (v).z, w } })
-#define f32x4(x, y, z, w) ((f32x4){ { x, y, z, w } })
-#define f32x4s(s) ((f32x4){ { s, s, s, s } })
-#define f32x4sv2(x, y, v) ((f32x4){ { x, y, (v).x, (v).y } })
-#define f32x4v2s(v, z, w) ((f32x4){ { (v).x, (v).y, z, w } })
-#define f32x4sv2s(x, v, w) ((f32x4){ { x, (v).x, (v).y, w } })
-#define f32x4sv3(x, v) ((f32x4){ { x, (v).x, (v).y, (v).z } })
-#define f32x4v3s(v, w) ((f32x4){ { (v).x, (v).y, (v).z, w } })
-#define f64x4(x, y, z, w) ((f64x4){ { x, y, z, w } })
-#define f64x4s(s) ((f64x4){ { s, s, s, s } })
-#define f64x4sv2(x, y, v) ((f64x4){ { x, y, (v).x, (v).y } })
-#define f64x4v2s(v, z, w) ((f64x4){ { (v).x, (v).y, z, w } })
-#define f64x4sv2s(x, v, w) ((f64x4){ { x, (v).x, (v).y, w } })
-#define f64x4sv3(x, v) ((f64x4){ { x, (v).x, (v).y, (v).z } })
-#define f64x4v3s(v, w) ((f64x4){ { (v).x, (v).y, (v).z, w } })
-#define s8x4(x, y, z, w) ((s8x4){ { x, y, z, w } })
-#define s8x4s(s) ((s8x4){ { s, s, s, s } })
-#define s8x4sv2(x, y, v) ((s8x4){ { x, y, (v).x, (v).y } })
-#define s8x4v2s(v, z, w) ((s8x4){ { (v).x, (v).y, z, w } })
-#define s8x4sv2s(x, v, w) ((s8x4){ { x, (v).x, (v).y, w } })
-#define s8x4sv3(x, v) ((s8x4){ { x, (v).x, (v).y, (v).z } })
-#define s8x4v3s(v, w) ((s8x4){ { (v).x, (v).y, (v).z, w } })
-#define s16x4(x, y, z, w) ((s16x4){ { x, y, z, w } })
-#define s16x4s(s) ((s16x4){ { s, s, s, s } })
-#define s16x4sv2(x, y, v) ((s16x4){ { x, y, (v).x, (v).y } })
-#define s16x4v2s(v, z, w) ((s16x4){ { (v).x, (v).y, z, w } })
-#define s16x4sv2s(x, v, w) ((s16x4){ { x, (v).x, (v).y, w } })
-#define s16x4sv3(x, v) ((s16x4){ { x, (v).x, (v).y, (v).z } })
-#define s16x4v3s(v, w) ((s16x4){ { (v).x, (v).y, (v).z, w } })
-#define s32x4(x, y, z, w) ((s32x4){ { x, y, z, w } })
-#define s32x4s(s) ((s32x4){ { s, s, s, s } })
-#define s32x4sv2(x, y, v) ((s32x4){ { x, y, (v).x, (v).y } })
-#define s32x4v2s(v, z, w) ((s32x4){ { (v).x, (v).y, z, w } })
-#define s32x4sv2s(x, v, w) ((s32x4){ { x, (v).x, (v).y, w } })
-#define s32x4sv3(x, v) ((s32x4){ { x, (v).x, (v).y, (v).z } })
-#define s32x4v3s(v, w) ((s32x4){ { (v).x, (v).y, (v).z, w } })
-#define s64x4(x, y, z, w) ((s64x4){ { x, y, z, w } })
-#define s64x4s(s) ((s64x4){ { s, s, s, s } })
-#define s64x4sv2(x, y, v) ((s64x4){ { x, y, (v).x, (v).y } })
-#define s64x4v2s(v, z, w) ((s64x4){ { (v).x, (v).y, z, w } })
-#define s64x4sv2s(x, v, w) ((s64x4){ { x, (v).x, (v).y, w } })
-#define s64x4sv3(x, v) ((s64x4){ { x, (v).x, (v).y, (v).z } })
-#define s64x4v3s(v, w) ((s64x4){ { (v).x, (v).y, (v).z, w } })
-#define u8x4(x, y, z, w) ((u8x4){ { x, y, z, w } })
-#define u8x4s(s) ((u8x4){ { s, s, s, s } })
-#define u8x4sv2(x, y, v) ((u8x4){ { x, y, (v).x, (v).y } })
-#define u8x4v2s(v, z, w) ((u8x4){ { (v).x, (v).y, z, w } })
-#define u8x4sv2s(x, v, w) ((u8x4){ { x, (v).x, (v).y, w } })
-#define u8x4sv3(x, v) ((u8x4){ { x, (v).x, (v).y, (v).z } })
-#define u8x4v3s(v, w) ((u8x4){ { (v).x, (v).y, (v).z, w } })
-#define u16x4(x, y, z, w) ((u16x4){ { x, y, z, w } })
-#define u16x4s(s) ((u16x4){ { s, s, s, s } })
-#define u16x4sv2(x, y, v) ((u16x4){ { x, y, (v).x, (v).y } })
-#define u16x4v2s(v, z, w) ((u16x4){ { (v).x, (v).y, z, w } })
-#define u16x4sv2s(x, v, w) ((u16x4){ { x, (v).x, (v).y, w } })
-#define u16x4sv3(x, v) ((u16x4){ { x, (v).x, (v).y, (v).z } })
-#define u16x4v3s(v, w) ((u16x4){ { (v).x, (v).y, (v).z, w } })
-#define u32x4(x, y, z, w) ((u32x4){ { x, y, z, w } })
-#define u32x4s(s) ((u32x4){ { s, s, s, s } })
-#define u32x4sv2(x, y, v) ((u32x4){ { x, y, (v).x, (v).y } })
-#define u32x4v2s(v, z, w) ((u32x4){ { (v).x, (v).y, z, w } })
-#define u32x4sv2s(x, v, w) ((u32x4){ { x, (v).x, (v).y, w } })
-#define u32x4sv3(x, v) ((u32x4){ { x, (v).x, (v).y, (v).z } })
-#define u32x4v3s(v, w) ((u32x4){ { (v).x, (v).y, (v).z, w } })
-#define u64x4(x, y, z, w) ((u64x4){ { x, y, z, w } })
-#define u64x4s(s) ((u64x4){ { s, s, s, s } })
-#define u64x4sv2(x, y, v) ((u64x4){ { x, y, (v).x, (v).y } })
-#define u64x4v2s(v, z, w) ((u64x4){ { (v).x, (v).y, z, w } })
-#define u64x4sv2s(x, v, w) ((u64x4){ { x, (v).x, (v).y, w } })
-#define u64x4sv3(x, v) ((u64x4){ { x, (v).x, (v).y, (v).z } })
-#define u64x4v3s(v, w) ((u64x4){ { (v).x, (v).y, (v).z, w } })
+#define boolx4(x, y, z, w) ((boolx4){ x, y, z, w })
+#define boolx4s(s) ((boolx4){ s, s, s, s })
+#define boolx4sv2(x, y, v) ((boolx4){ x, y, (v).x, (v).y })
+#define boolx4v2s(v, z, w) ((boolx4){ (v).x, (v).y, z, w })
+#define boolx4sv2s(x, v, w) ((boolx4){ x, (v).x, (v).y, w })
+#define boolx4sv3(x, v) ((boolx4){ x, (v).x, (v).y, (v).z })
+#define boolx4v3s(v, w) ((boolx4){ (v).x, (v).y, (v).z, w })
+#define f16x4(x, y, z, w) ((f16x4){ x, y, z, w })
+#define f16x4s(s) ((f16x4){ s, s, s, s })
+#define f16x4sv2(x, y, v) ((f16x4){ x, y, (v).x, (v).y })
+#define f16x4v2s(v, z, w) ((f16x4){ (v).x, (v).y, z, w })
+#define f16x4sv2s(x, v, w) ((f16x4){ x, (v).x, (v).y, w })
+#define f16x4sv3(x, v) ((f16x4){ x, (v).x, (v).y, (v).z })
+#define f16x4v3s(v, w) ((f16x4){ (v).x, (v).y, (v).z, w })
+#define f32x4(x, y, z, w) ((f32x4){ x, y, z, w })
+#define f32x4s(s) ((f32x4){ s, s, s, s })
+#define f32x4sv2(x, y, v) ((f32x4){ x, y, (v).x, (v).y })
+#define f32x4v2s(v, z, w) ((f32x4){ (v).x, (v).y, z, w })
+#define f32x4sv2s(x, v, w) ((f32x4){ x, (v).x, (v).y, w })
+#define f32x4sv3(x, v) ((f32x4){ x, (v).x, (v).y, (v).z })
+#define f32x4v3s(v, w) ((f32x4){ (v).x, (v).y, (v).z, w })
+#define f64x4(x, y, z, w) ((f64x4){ x, y, z, w })
+#define f64x4s(s) ((f64x4){ s, s, s, s })
+#define f64x4sv2(x, y, v) ((f64x4){ x, y, (v).x, (v).y })
+#define f64x4v2s(v, z, w) ((f64x4){ (v).x, (v).y, z, w })
+#define f64x4sv2s(x, v, w) ((f64x4){ x, (v).x, (v).y, w })
+#define f64x4sv3(x, v) ((f64x4){ x, (v).x, (v).y, (v).z })
+#define f64x4v3s(v, w) ((f64x4){ (v).x, (v).y, (v).z, w })
+#define s8x4(x, y, z, w) ((s8x4){ x, y, z, w })
+#define s8x4s(s) ((s8x4){ s, s, s, s })
+#define s8x4sv2(x, y, v) ((s8x4){ x, y, (v).x, (v).y })
+#define s8x4v2s(v, z, w) ((s8x4){ (v).x, (v).y, z, w })
+#define s8x4sv2s(x, v, w) ((s8x4){ x, (v).x, (v).y, w })
+#define s8x4sv3(x, v) ((s8x4){ x, (v).x, (v).y, (v).z })
+#define s8x4v3s(v, w) ((s8x4){ (v).x, (v).y, (v).z, w })
+#define s16x4(x, y, z, w) ((s16x4){ x, y, z, w })
+#define s16x4s(s) ((s16x4){ s, s, s, s })
+#define s16x4sv2(x, y, v) ((s16x4){ x, y, (v).x, (v).y })
+#define s16x4v2s(v, z, w) ((s16x4){ (v).x, (v).y, z, w })
+#define s16x4sv2s(x, v, w) ((s16x4){ x, (v).x, (v).y, w })
+#define s16x4sv3(x, v) ((s16x4){ x, (v).x, (v).y, (v).z })
+#define s16x4v3s(v, w) ((s16x4){ (v).x, (v).y, (v).z, w })
+#define s32x4(x, y, z, w) ((s32x4){ x, y, z, w })
+#define s32x4s(s) ((s32x4){ s, s, s, s })
+#define s32x4sv2(x, y, v) ((s32x4){ x, y, (v).x, (v).y })
+#define s32x4v2s(v, z, w) ((s32x4){ (v).x, (v).y, z, w })
+#define s32x4sv2s(x, v, w) ((s32x4){ x, (v).x, (v).y, w })
+#define s32x4sv3(x, v) ((s32x4){ x, (v).x, (v).y, (v).z })
+#define s32x4v3s(v, w) ((s32x4){ (v).x, (v).y, (v).z, w })
+#define s64x4(x, y, z, w) ((s64x4){ x, y, z, w })
+#define s64x4s(s) ((s64x4){ s, s, s, s })
+#define s64x4sv2(x, y, v) ((s64x4){ x, y, (v).x, (v).y })
+#define s64x4v2s(v, z, w) ((s64x4){ (v).x, (v).y, z, w })
+#define s64x4sv2s(x, v, w) ((s64x4){ x, (v).x, (v).y, w })
+#define s64x4sv3(x, v) ((s64x4){ x, (v).x, (v).y, (v).z })
+#define s64x4v3s(v, w) ((s64x4){ (v).x, (v).y, (v).z, w })
+#define u8x4(x, y, z, w) ((u8x4){ x, y, z, w })
+#define u8x4s(s) ((u8x4){ s, s, s, s })
+#define u8x4sv2(x, y, v) ((u8x4){ x, y, (v).x, (v).y })
+#define u8x4v2s(v, z, w) ((u8x4){ (v).x, (v).y, z, w })
+#define u8x4sv2s(x, v, w) ((u8x4){ x, (v).x, (v).y, w })
+#define u8x4sv3(x, v) ((u8x4){ x, (v).x, (v).y, (v).z })
+#define u8x4v3s(v, w) ((u8x4){ (v).x, (v).y, (v).z, w })
+#define u16x4(x, y, z, w) ((u16x4){ x, y, z, w })
+#define u16x4s(s) ((u16x4){ s, s, s, s })
+#define u16x4sv2(x, y, v) ((u16x4){ x, y, (v).x, (v).y })
+#define u16x4v2s(v, z, w) ((u16x4){ (v).x, (v).y, z, w })
+#define u16x4sv2s(x, v, w) ((u16x4){ x, (v).x, (v).y, w })
+#define u16x4sv3(x, v) ((u16x4){ x, (v).x, (v).y, (v).z })
+#define u16x4v3s(v, w) ((u16x4){ (v).x, (v).y, (v).z, w })
+#define u32x4(x, y, z, w) ((u32x4){ x, y, z, w })
+#define u32x4s(s) ((u32x4){ s, s, s, s })
+#define u32x4sv2(x, y, v) ((u32x4){ x, y, (v).x, (v).y })
+#define u32x4v2s(v, z, w) ((u32x4){ (v).x, (v).y, z, w })
+#define u32x4sv2s(x, v, w) ((u32x4){ x, (v).x, (v).y, w })
+#define u32x4sv3(x, v) ((u32x4){ x, (v).x, (v).y, (v).z })
+#define u32x4v3s(v, w) ((u32x4){ (v).x, (v).y, (v).z, w })
+#define u64x4(x, y, z, w) ((u64x4){ x, y, z, w })
+#define u64x4s(s) ((u64x4){ s, s, s, s })
+#define u64x4sv2(x, y, v) ((u64x4){ x, y, (v).x, (v).y })
+#define u64x4v2s(v, z, w) ((u64x4){ (v).x, (v).y, z, w })
+#define u64x4sv2s(x, v, w) ((u64x4){ x, (v).x, (v).y, w })
+#define u64x4sv3(x, v) ((u64x4){ x, (v).x, (v).y, (v).z })
+#define u64x4v3s(v, w) ((u64x4){ (v).x, (v).y, (v).z, w })
 
 #define INFINITY_F16X2 f16x2(INFINITY_F16, INFINITY_F16)
 #define INFINITY_F32X2 f32x2(INFINITY_F32, INFINITY_F32)

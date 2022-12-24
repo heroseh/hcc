@@ -1356,11 +1356,35 @@ void generate_math_types_header_file() {
 		ctx.vector = vector;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
+#if 0
 			print_entry("typedef union $vs $vs;\n");
+#endif
+			print_entry("typedef struct $vs $vs;\n");
 		}
 		fprintf(ctx.f,"\n");
 	}
 
+	ctx.vector = VECTOR_2;
+	for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
+		ctx.data_type = data_type;
+		print_entry("struct $vs { _Alignas($va) $di x; $di y; };\n");
+	}
+	fprintf(ctx.f,"\n");
+
+	ctx.vector = VECTOR_3;
+	for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
+		ctx.data_type = data_type;
+		print_entry("struct $vs { _Alignas($va) $di x; $di y; $di z; };\n");
+	}
+	fprintf(ctx.f,"\n");
+
+	ctx.vector = VECTOR_4;
+	for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
+		ctx.data_type = data_type;
+		print_entry("struct $vs { _Alignas($va) $di x; $di y; $di z; $di w; };\n");
+	}
+
+#if 0
 	ctx.vector = VECTOR_2;
 	for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 		ctx.data_type = data_type;
@@ -1406,6 +1430,7 @@ void generate_math_types_header_file() {
 				"\t$di array[4];\n"
 			"};\n");
 	}
+#endif
 
 	//
 	// vector constructors ewww
@@ -1415,29 +1440,29 @@ void generate_math_types_header_file() {
 		ctx.vector = VECTOR_2;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vs(x, y) (($vs){ { x, y } })\n");
-			print_entry("#define $vss(s) (($vs){ { s, s } })\n");
+			print_entry("#define $vs(x, y) (($vs){ x, y })\n");
+			print_entry("#define $vss(s) (($vs){ s, s })\n");
 		}
 		fprintf(ctx.f,"\n");
 		ctx.vector = VECTOR_3;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vs(x, y, z) (($vs){ { x, y, z } })\n");
-			print_entry("#define $vss(s) (($vs){ { s, s, s } })\n");
-			print_entry("#define $vssv2(x, v) (($vs){ { x, (v).x, (v).y } })\n");
-			print_entry("#define $vsv2s(v, z) (($vs){ { (v).x, (v).y, z } })\n");
+			print_entry("#define $vs(x, y, z) (($vs){ x, y, z })\n");
+			print_entry("#define $vss(s) (($vs){ s, s, s })\n");
+			print_entry("#define $vssv2(x, v) (($vs){ x, (v).x, (v).y })\n");
+			print_entry("#define $vsv2s(v, z) (($vs){ (v).x, (v).y, z })\n");
 		}
 		fprintf(ctx.f,"\n");
 		ctx.vector = VECTOR_4;
 		for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("#define $vs(x, y, z, w) (($vs){ { x, y, z, w } })\n");
-			print_entry("#define $vss(s) (($vs){ { s, s, s, s } })\n");
-			print_entry("#define $vssv2(x, y, v) (($vs){ { x, y, (v).x, (v).y } })\n");
-			print_entry("#define $vsv2s(v, z, w) (($vs){ { (v).x, (v).y, z, w } })\n");
-			print_entry("#define $vssv2s(x, v, w) (($vs){ { x, (v).x, (v).y, w } })\n");
-			print_entry("#define $vssv3(x, v) (($vs){ { x, (v).x, (v).y, (v).z } })\n");
-			print_entry("#define $vsv3s(v, w) (($vs){ { (v).x, (v).y, (v).z, w } })\n");
+			print_entry("#define $vs(x, y, z, w) (($vs){ x, y, z, w })\n");
+			print_entry("#define $vss(s) (($vs){ s, s, s, s })\n");
+			print_entry("#define $vssv2(x, y, v) (($vs){ x, y, (v).x, (v).y })\n");
+			print_entry("#define $vsv2s(v, z, w) (($vs){ (v).x, (v).y, z, w })\n");
+			print_entry("#define $vssv2s(x, v, w) (($vs){ x, (v).x, (v).y, w })\n");
+			print_entry("#define $vssv3(x, v) (($vs){ x, (v).x, (v).y, (v).z })\n");
+			print_entry("#define $vsv3s(v, w) (($vs){ (v).x, (v).y, (v).z, w })\n");
 		}
 	}
 	fprintf(ctx.f,"\n");
@@ -2115,7 +2140,7 @@ void generate_math_header_file() {
 
 	//
 	// vector swizzle
-	{
+	if (0) {
 		print_vector_fn_docs(VECTOR_FN_SWIZZLE);
 
 		ctx.vector = VECTOR_2;

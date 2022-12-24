@@ -304,8 +304,7 @@ fragment void billboard_shader_fragment(const HccFragmentInput input, const Bill
 	f32x4 vec = f32x4(1.f, 0.f, 0.f, 1.f);
 	red = vec.x == 1.f;
 
-	vec.xy = f32x2(0.f, 1.f);
-	blue = vec.r == 0.f && vec.g == 1.f;
+	blue = vec.x == 0.f && vec.y == 1.f;
 
 	float t = ZERO_POINT_FIVE + TEST2(ZERO_POINT_FIVE);
 

@@ -175,6 +175,7 @@ noreturn void hcc_bail(HccResultCode code, int32_t value);
 
 uint32_t hcc_onebitscount32(uint32_t bits);
 uint32_t hcc_leastsetbitidx32(uint32_t bits);
+uint32_t hcc_mostsetbitidx32(uint32_t bits);
 void hcc_get_last_system_error_string(char* buf_out, uint32_t buf_out_size);
 bool hcc_file_exist(const char* path);
 bool hcc_change_working_directory(const char* path);
@@ -965,6 +966,13 @@ struct HccPointerDataType {
 	HccDataType element_data_type;
 };
 
+typedef struct HccFunctionDataType HccFunctionDataType;
+struct HccFunctionDataType {
+	HccDataType  return_data_type;
+	uint32_t     params_count;
+	HccDataType* params;
+};
+
 typedef uint16_t HccCompoundDataTypeFlags;
 enum HccCompoundDataTypeFlags {
 	HCC_COMPOUND_DATA_TYPE_FLAGS_IS_UNION =     0x1,
@@ -1063,13 +1071,16 @@ struct HccDataTypeTable {
 	HccStack(HccEnumDataType)     enums;
 	HccStack(HccEnumValue)        enum_values;
 	HccStack(HccPointerDataType)  pointers;
+	HccStack(HccFunctionDataType) functions;
+	HccStack(HccDataType)         function_params;
 	HccStack(HccBufferDataType)   buffers;
 	HccHashTable(HccDataTypeDedupEntry) arrays_dedup_hash_table;
 	HccHashTable(HccDataTypeDedupEntry) pointers_dedup_hash_table;
+	HccHashTable(HccDataTypeDedupEntry) functions_dedup_hash_table;
 	HccHashTable(HccDataTypeDedupEntry) buffers_dedup_hash_table;
 };
 
-void hcc_data_type_table_init(HccCU* cu, HccDataTypeTableSetup* setup);
+void hcc_data_type_table_init(HccCU* cu, HccCUSetup* setup);
 void hcc_data_type_table_deinit(HccCU* cu);
 
 // ===========================================
@@ -1182,6 +1193,7 @@ struct HccASTFunction {
 	HccLocation*              return_data_type_location;
 	HccASTVariable*           params_and_variables;
 	HccStringId               identifier_string_id;
+	HccDataType               function_data_type;
 	HccDataType               return_data_type;
 	uint32_t                  unsupported_intrinsic_types_first_id;
 	uint16_t                  variables_count;
@@ -1191,6 +1203,7 @@ struct HccASTFunction {
 	HccASTFunctionShaderStage shader_stage;
 	HccASTExpr*               block_expr;
 	uint32_t                  unsupported_basic_types_deferred_messages_start_idx;
+	uint32_t                  max_instrs_count;
 };
 
 enum {
@@ -1637,7 +1650,7 @@ struct HccAST {
 	HccStack(HccASTUnsupportedIntrinsicTypeUsed) unsupported_intrinsic_type_used;
 };
 
-void hcc_ast_init(HccCU* cu, HccASTSetup* setup);
+void hcc_ast_init(HccCU* cu, HccCUSetup* setup);
 void hcc_ast_deinit(HccCU* cu);
 void hcc_ast_add_file(HccCU* cu, HccString file_path, HccASTFile** out);
 HccASTFile* hcc_ast_find_file(HccCU* cu, HccString file_path);
@@ -1923,8 +1936,6 @@ void hcc_astgen_data_type_ensure_compatible_assignment(HccWorker* w, HccLocation
 bool hcc_astgen_data_type_check_compatible_arithmetic(HccWorker* w, HccASTExpr** left_expr_mut, HccASTExpr** right_expr_mut);
 void hcc_astgen_data_type_ensure_compatible_arithmetic(HccWorker* w, HccLocation* other_location, HccASTExpr** left_expr_mut, HccASTExpr** right_expr_mut, HccATAToken operator_token);
 void hcc_astgen_ensure_function_args_count(HccWorker* w, HccDecl function_decl, uint32_t args_count);
-HccDataType hcc_astgen_deduplicate_array_data_type(HccWorker* w, HccDataType element_data_type, HccConstantId element_count_constant_id);
-HccDataType hcc_astgen_deduplicate_pointer_data_type(HccWorker* w, HccDataType element_data_type);
 HccDataType hcc_astgen_deduplicate_constbuffer_data_type(HccWorker* w, HccDataType element_data_type);
 HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type);
 void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what);
@@ -1936,7 +1947,7 @@ void hcc_astgen_variable_stack_close(HccWorker* w);
 uint32_t hcc_astgen_variable_stack_add(HccWorker* w, HccStringId string_id);
 uint32_t hcc_astgen_variable_stack_find(HccWorker* w, HccStringId string_id);
 
-HccATAToken hcc_astgen_curly_initializer_start(HccWorker* w, HccDataType data_type, HccDataType resolved_data_type, HccASTExpr* first_expr);
+HccATAToken hcc_astgen_curly_initializer_start(HccWorker* w, HccDataType data_type, HccDataType resolved_data_type);
 HccATAToken hcc_astgen_curly_initializer_open(HccWorker* w);
 HccATAToken hcc_astgen_curly_initializer_close(HccWorker* w, bool is_finished);
 bool hcc_astgen_curly_initializer_next_elmt(HccWorker* w, HccDataType resolved_target_data_type);
@@ -2000,6 +2011,76 @@ void hcc_astlink_link_file(HccWorker* w);
 // ===========================================
 //
 //
+// AML Function
+//
+//
+// ===========================================
+
+typedef struct HccAMLFunction HccAMLFunction;
+struct HccAMLFunction {
+	HccLocation*              identifier_location;
+	HccStringId               identifier_string_id;
+	uint8_t                   params_count;
+
+	HccAMLWord*               words;
+	HccAMLValue*              values;
+	HccAMLBasicBlock*         basic_blocks;
+	HccAMLValue*              basic_block_params;
+	uint32_t                  words_count;
+	uint32_t                  words_cap;
+	uint32_t                  values_count;
+	uint32_t                  values_cap;
+	uint32_t                  basic_blocks_count;
+	uint32_t                  basic_blocks_cap;
+	uint32_t                  basic_block_params_count;
+	uint32_t                  basic_block_params_cap;
+
+	HccAMLFunction*           next_free;
+};
+
+// ===========================================
+//
+//
+// AML Function Allocator
+//
+//
+// ===========================================
+
+#define HCC_AML_INSTR_AVERAGE_WORDS              4.f
+#define HCC_AML_INSTR_AVERAGE_VALUES             0.75f
+#define HCC_AML_INSTR_AVERAGE_BASIC_BLOCKS       0.25f
+#define HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAMS 0.25f
+
+#define HCC_AML_FUNCTION_ALLOCATOR_INTSR_MIN_LOG2 10
+#define HCC_AML_FUNCTION_ALLOCATOR_INTSR_MAX_LOG2 16
+#define HCC_AML_FUNCTION_ALLOCATOR_INTSR_LOG2_COUNT (HCC_AML_FUNCTION_ALLOCATOR_INTSR_MAX_LOG2 - HCC_AML_FUNCTION_ALLOCATOR_INTSR_MIN_LOG2)
+
+#define HCC_AML_FUNCTION_SENTINAL ((HccAMLFunction*)UINTPTR_MAX)
+
+typedef struct HccAMLFunctionAlctor HccAMLFunctionAlctor;
+struct HccAMLFunctionAlctor {
+	HccStack(HccAMLFunction)   functions_pool;
+	HccStack(HccAMLWord)           words_pool;
+	HccStack(HccAMLValue)          values_pool;
+	HccStack(HccAMLBasicBlock)     basic_blocks_pool;
+	HccStack(HccAMLValue)          basic_block_params_pool;
+	HccAtomic(HccAMLFunction*) free_functions_by_instr_log2[HCC_AML_FUNCTION_ALLOCATOR_INTSR_LOG2_COUNT];
+};
+
+void hcc_aml_function_alctor_init(HccCU* cu, HccAMLFunctionAlctorSetup* setup);
+void hcc_aml_function_alctor_deinit(HccCU* cu);
+uint32_t hcc_aml_function_alctor_instr_count_round_up_log2(HccCU* cu, uint32_t max_instrs_count);
+HccAMLFunction* hcc_aml_function_alctor_alloc(HccCU* cu, uint32_t max_instrs_count);
+void hcc_aml_function_alctor_dealloc(HccCU* cu, HccAMLFunction* function);
+
+HccAMLOperand hcc_aml_function_value_add(HccAMLFunction* function, HccDataType data_type);
+HccAMLOperand hcc_aml_function_basic_block_add(HccAMLFunction* function, uint32_t location_idx);
+HccAMLOperand hcc_aml_function_basic_block_param_add(HccAMLFunction* function, HccDataType data_type);
+HccAMLOperand* hcc_aml_function_instr_add(HccAMLFunction* function, uint32_t location_idx, HccAMLOp op, uint16_t operands_count);
+
+// ===========================================
+//
+//
 // AML
 //
 //
@@ -2007,12 +2088,62 @@ void hcc_astlink_link_file(HccWorker* w);
 
 typedef struct HccAML HccAML;
 struct HccAML {
-	uint32_t placeholder;
+	HccAMLFunctionAlctor      function_alctor;
+	HccStack(HccAMLFunction*) functions; // use index of HccDecl(Function) to access this array
+	HccStack(HccLocation*)    locations; // all the HccAMLInstr have a location index into this array
 };
 
-void hcc_aml_init(HccCU* cu, HccAMLSetup* setup);
+void hcc_aml_init(HccCU* cu, HccCUSetup* setup);
 void hcc_aml_deinit(HccCU* cu);
+void hcc_aml_print_operand(HccCU* cu, HccAMLFunction* function, HccAMLOperand operand, HccIIO* iio, bool is_definition);
 void hcc_aml_print(HccCU* cu, HccIIO* iio);
+
+// ===========================================
+//
+//
+// AML Generator
+//
+//
+// ===========================================
+
+typedef struct HccAMLGen HccAMLGen;
+struct HccAMLGen {
+	HccASTFunction*         ast_function;
+	HccAMLFunction*         function;
+	HccDecl                 function_decl;
+	HccStack(HccAMLOperand) temp_operands;
+	HccAMLOperand*          access_chain_operands;
+	uint32_t                access_chain_operand_idx;
+	HccAMLOperand*          switch_case_operands;
+	uint32_t                switch_case_idx;
+	uint32_t                continue_stmt_list_head_id;
+	uint32_t                continue_stmt_list_prev_id;
+	uint32_t                break_stmt_list_head_id;
+	uint32_t                break_stmt_list_prev_id;
+};
+
+void hcc_amlgen_init(HccWorker* w, HccCompilerSetup* setup);
+void hcc_amlgen_deinit(HccWorker* w);
+void hcc_amlgen_reset(HccWorker* w);
+
+HccAMLOperand hcc_amlgen_value_add(HccWorker* w, HccDataType data_type);
+HccAMLOperand hcc_amlgen_basic_block_add(HccWorker* w, HccLocation* location);
+HccAMLOperand hcc_amlgen_basic_block_param_add(HccWorker* w, HccDataType data_type);
+HccAMLOperand* hcc_amlgen_instr_add(HccWorker* w, HccLocation* location, HccAMLOp op, uint16_t operands_count);
+HccAMLOperand hcc_amlgen_instr_add_1(HccWorker* w, HccLocation* location, HccAMLOp op, HccAMLOperand operand_0);
+HccAMLOperand hcc_amlgen_instr_add_2(HccWorker* w, HccLocation* location, HccAMLOp op, HccAMLOperand operand_0, HccAMLOperand operand_1);
+HccAMLOperand hcc_amlgen_instr_add_3(HccWorker* w, HccLocation* location, HccAMLOp op, HccAMLOperand operand_0, HccAMLOperand operand_1, HccAMLOperand operand_2);
+HccAMLOperand hcc_amlgen_local_variable_operand(HccWorker* w, uint32_t local_variable_idx);
+
+HccAMLOperand hcc_amlgen_generate_convert_to_bool(HccWorker* w, HccLocation* location, HccAMLOperand src_operand, HccDataType src_data_type, bool flip_bool_result);
+HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool want_variable_ref);
+HccAMLOperand hcc_amlgen_generate_instrs_condition(HccWorker* w, HccASTExpr* cond_expr);
+HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* expr, uint32_t count);
+HccAMLOperand hcc_amlgen_generate_instr_access_chain_start(HccWorker* w, HccLocation* location, HccAMLOperand base_ptr_operand, uint32_t count);
+void hcc_amlgen_generate_instr_access_chain_set_next_operand(HccWorker* w, HccAMLOperand operand);
+void hcc_amlgen_generate_instr_access_chain_end(HccWorker* w, HccDataType dst_data_type);
+HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation* location, HccDataType union_data_type, uint32_t field_idx, HccAMLOperand union_ptr_operand);
+void hcc_amlgen_generate(HccWorker* w);
 
 // ===========================================
 //
@@ -2212,8 +2343,8 @@ struct HccWorker {
 	HccATAGen      atagen;
 	HccASTGen      astgen;
 	HccASTLink     astlink;
-#if 0
 	HccAMLGen      amlgen;
+#if 0
 	HccAMLOpt      amlopt;
 #endif
 };
@@ -2249,9 +2380,7 @@ enum HccCompilerFlags {
 typedef struct HccCompiler HccCompiler;
 struct HccCompiler {
 	HccAtomic(HccCompilerFlags)    flags;
-	HccATAGenSetup                 atagen_setup;
-	HccASTGenSetup                 astgen_setup;
-	HccASTLinkSetup                astlink_setup;
+	HccCompilerSetup               setup;
 	uint32_t                       workers_count;
 	HccWorker*                     workers;
 	void*                          worker_call_stacks_addr;

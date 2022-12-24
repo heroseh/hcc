@@ -343,43 +343,6 @@ static inline uint64_t bitsfrom_f64(double v) { union { uint64_t u; double f; } 
 #endif
 
 //
-// returns a vector that is a a shuffled version of 'v' that is constructed like so:
-//	v4f(v.array[x], v.array[y], v.array[z], v.array[w]);
-static inline f16x2 swizzlef16x2(f16x2 v, uint8_t x, uint8_t y) { return f16x2(v.array[x], v.array[y]); }
-static inline f32x2 swizzlef32x2(f32x2 v, uint8_t x, uint8_t y) { return f32x2(v.array[x], v.array[y]); }
-static inline f64x2 swizzlef64x2(f64x2 v, uint8_t x, uint8_t y) { return f64x2(v.array[x], v.array[y]); }
-static inline s8x2 swizzles8x2(s8x2 v, uint8_t x, uint8_t y) { return s8x2(v.array[x], v.array[y]); }
-static inline s16x2 swizzles16x2(s16x2 v, uint8_t x, uint8_t y) { return s16x2(v.array[x], v.array[y]); }
-static inline s32x2 swizzles32x2(s32x2 v, uint8_t x, uint8_t y) { return s32x2(v.array[x], v.array[y]); }
-static inline s64x2 swizzles64x2(s64x2 v, uint8_t x, uint8_t y) { return s64x2(v.array[x], v.array[y]); }
-static inline u8x2 swizzleu8x2(u8x2 v, uint8_t x, uint8_t y) { return u8x2(v.array[x], v.array[y]); }
-static inline u16x2 swizzleu16x2(u16x2 v, uint8_t x, uint8_t y) { return u16x2(v.array[x], v.array[y]); }
-static inline u32x2 swizzleu32x2(u32x2 v, uint8_t x, uint8_t y) { return u32x2(v.array[x], v.array[y]); }
-static inline u64x2 swizzleu64x2(u64x2 v, uint8_t x, uint8_t y) { return u64x2(v.array[x], v.array[y]); }
-static inline f16x3 swizzlef16x3(f16x3 v, uint8_t x, uint8_t y, uint8_t z) { return f16x3(v.array[x], v.array[y], v.array[z]); }
-static inline f32x3 swizzlef32x3(f32x3 v, uint8_t x, uint8_t y, uint8_t z) { return f32x3(v.array[x], v.array[y], v.array[z]); }
-static inline f64x3 swizzlef64x3(f64x3 v, uint8_t x, uint8_t y, uint8_t z) { return f64x3(v.array[x], v.array[y], v.array[z]); }
-static inline s8x3 swizzles8x3(s8x3 v, uint8_t x, uint8_t y, uint8_t z) { return s8x3(v.array[x], v.array[y], v.array[z]); }
-static inline s16x3 swizzles16x3(s16x3 v, uint8_t x, uint8_t y, uint8_t z) { return s16x3(v.array[x], v.array[y], v.array[z]); }
-static inline s32x3 swizzles32x3(s32x3 v, uint8_t x, uint8_t y, uint8_t z) { return s32x3(v.array[x], v.array[y], v.array[z]); }
-static inline s64x3 swizzles64x3(s64x3 v, uint8_t x, uint8_t y, uint8_t z) { return s64x3(v.array[x], v.array[y], v.array[z]); }
-static inline u8x3 swizzleu8x3(u8x3 v, uint8_t x, uint8_t y, uint8_t z) { return u8x3(v.array[x], v.array[y], v.array[z]); }
-static inline u16x3 swizzleu16x3(u16x3 v, uint8_t x, uint8_t y, uint8_t z) { return u16x3(v.array[x], v.array[y], v.array[z]); }
-static inline u32x3 swizzleu32x3(u32x3 v, uint8_t x, uint8_t y, uint8_t z) { return u32x3(v.array[x], v.array[y], v.array[z]); }
-static inline u64x3 swizzleu64x3(u64x3 v, uint8_t x, uint8_t y, uint8_t z) { return u64x3(v.array[x], v.array[y], v.array[z]); }
-static inline f16x4 swizzlef16x4(f16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline f32x4 swizzlef32x4(f32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline f64x4 swizzlef64x4(f64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return f64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline s8x4 swizzles8x4(s8x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s8x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline s16x4 swizzles16x4(s16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline s32x4 swizzles32x4(s32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline s64x4 swizzles64x4(s64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return s64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline u8x4 swizzleu8x4(u8x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u8x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline u16x4 swizzleu16x4(u16x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u16x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline u32x4 swizzleu32x4(u32x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u32x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-static inline u64x4 swizzleu64x4(u64x4 v, uint8_t x, uint8_t y, uint8_t z, uint8_t w) { return u64x4(v.array[x], v.array[y], v.array[z], v.array[w]); }
-
-//
 // converts vector type that is natively aligned to a packed vector which is aligned to it's component alignment
 static inline pboolx2 pack_boolx2(boolx2 v) { return pboolx2(v.x, v.y); }
 static inline pf16x2 pack_f16x2(f16x2 v) { return pf16x2(v.x, v.y); }

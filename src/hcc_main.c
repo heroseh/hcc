@@ -7,6 +7,7 @@
 #include "atagen.c"
 #include "astgen.c"
 #include "astlink.c"
+#include "amlgen.c"
 #include "hcc.c"
 
 void print_duration(const char* what, HccDuration d) {
@@ -31,13 +32,13 @@ int main(int argc, char** argv) {
 	HccTask* task;
 	HccTaskSetup task_setup = hcc_task_setup_default;
 	task_setup.options = options;
-	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_ASTLINK;
+	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_AMLGEN;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
 	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/test.c", NULL));
 
 	HccIIO stdout_iio = hcc_iio_file(stdout);
 	hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
-	HCC_ENSURE(hcc_task_add_output_ast_text(task, &stdout_iio));
+	HCC_ENSURE(hcc_task_add_output_aml_text(task, &stdout_iio));
 
 	hcc_compiler_dispatch_task(compiler, task);
 	HccResult result = hcc_task_wait_for_complete(task);
