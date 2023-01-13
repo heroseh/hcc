@@ -10,7 +10,7 @@
 void hcc_amlgen_init(HccWorker* w, HccCompilerSetup* setup) {
 	HCC_UNUSED(w);
 	HCC_UNUSED(setup);
-	w->amlgen.temp_operands = hcc_stack_init(HccAMLOperand, HCC_ALLOC_TAG_AMLGEN_TEMP_OPERANDS, setup->astgen.function_params_and_variables_reserve_cap, setup->astgen.function_params_and_variables_reserve_cap);
+	w->amlgen.temp_operands = hcc_stack_init(HccAMLOperand, HCC_ALLOC_TAG_SPIRVLINK_WORDS, setup->astgen.function_params_and_variables_reserve_cap, setup->astgen.function_params_and_variables_reserve_cap);
 }
 
 void hcc_amlgen_deinit(HccWorker* w) {
@@ -19,6 +19,13 @@ void hcc_amlgen_deinit(HccWorker* w) {
 
 void hcc_amlgen_reset(HccWorker* w) {
 	HCC_UNUSED(w);
+}
+
+void hcc_amlgen_error_1(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...) {
+	va_list va_args;
+	va_start(va_args, location);
+	hcc_error_pushv(hcc_worker_task(w), error_code, location, NULL, va_args);
+	va_end(va_args);
 }
 
 HccAMLOperand hcc_amlgen_value_add(HccWorker* w, HccDataType data_type) {
@@ -36,9 +43,17 @@ HccAMLOperand hcc_amlgen_basic_block_param_add(HccWorker* w, HccDataType data_ty
 	return hcc_aml_function_basic_block_param_add(w->amlgen.function, data_type);
 }
 
+void hcc_amlgen_basic_block_param_src_add(HccWorker* w, HccAMLOperand basic_block_operand, HccAMLOperand operand) {
+	hcc_aml_function_basic_block_param_src_add(w->amlgen.function, basic_block_operand, operand);
+}
+
 HccAMLOperand* hcc_amlgen_instr_add(HccWorker* w, HccLocation* location, HccAMLOp op, uint16_t operands_count) {
+	HCC_DEBUG_ASSERT(location, "expected the location for this AML instruction to not be NULL");
+
 	HccLocation** dst_location = hcc_stack_push_thread_safe(w->cu->aml.locations);
 	*dst_location = location;
+	w->amlgen.last_op = op;
+	w->amlgen.last_location = location;
 	uint32_t location_idx = dst_location - w->cu->aml.locations;
 	return hcc_aml_function_instr_add(w->amlgen.function, location_idx, op, operands_count);
 }
@@ -64,17 +79,36 @@ HccAMLOperand hcc_amlgen_instr_add_3(HccWorker* w, HccLocation* location, HccAML
 	return operand_0;
 }
 
+HccAMLOperand hcc_amlgen_instr_add_4(HccWorker* w, HccLocation* location, HccAMLOp op, HccAMLOperand operand_0, HccAMLOperand operand_1, HccAMLOperand operand_2, HccAMLOperand operand_3) {
+	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, op, 4);
+	operands[0] = operand_0;
+	operands[1] = operand_1;
+	operands[2] = operand_2;
+	operands[3] = operand_3;
+	return operand_0;
+}
+
 HccAMLOperand hcc_amlgen_local_variable_operand(HccWorker* w, uint32_t local_variable_idx) {
-	// the first 'params_count' value registers are the immuatable parameters.
-	// all of the mutable parameters and variables come after that.
-	return HCC_AML_OPERAND(VALUE, w->amlgen.ast_function->params_count + local_variable_idx);
+	if (w->amlgen.function->shader_stage == HCC_SHADER_STAGE_NONE) {
+		// the first 'params_count' value registers are the immuatable parameters.
+		// all of the mutable parameters and variables come after that.
+		return HCC_AML_OPERAND(VALUE, w->amlgen.ast_function->params_count + local_variable_idx);
+	} else {
+		// shaders have no parameters as they are remove when AST -> AML, so just use the local variable index.
+		return HCC_AML_OPERAND(VALUE, local_variable_idx - w->amlgen.ast_function->params_count);
+	}
+}
+
+HccAMLOperand hcc_amlgen_current_basic_block(HccWorker* w) {
+	return HCC_AML_OPERAND(BASIC_BLOCK, w->amlgen.function->basic_blocks_count - 1);
 }
 
 HccAMLOperand hcc_amlgen_generate_convert_to_bool(HccWorker* w, HccLocation* location, HccAMLOperand src_operand, HccDataType src_data_type, bool flip_bool_result) {
-	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(src_data_type) && HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(HCC_DATA_TYPE_AUX(src_data_type)), "only intrinsic are convertable to bool");
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(src_data_type) && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(src_data_type)) == 1, "only intrinsic scalar and vector data types are convertable to bool");
 
-	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, flip_bool_result ? HCC_AST_BINARY_OP_EQUAL : HCC_AST_BINARY_OP_NOT_EQUAL, 3);
-	operands[0] = hcc_amlgen_value_add(w, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
+	HccDataType return_data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_BOOL | (HCC_DATA_TYPE_AUX(src_data_type) & HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK));
+	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, flip_bool_result ? HCC_AML_OP_EQUAL : HCC_AML_OP_NOT_EQUAL, 3);
+	operands[0] = hcc_amlgen_value_add(w, return_data_type);
 	operands[1] = src_operand;
 	operands[2] = HCC_AML_OPERAND(CONSTANT, hcc_constant_table_deduplicate_zero(w->cu, src_data_type).idx_plus_one);
 	return operands[0];
@@ -101,7 +135,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				// to get a pointer that we can store the value in.
 				HccDataType data_type = variable_data_type;
 				HccAMLInstr* access_chain_instr = &w->amlgen.function->words[w->amlgen.function->words_count];
-				HccAMLOperand dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, variable_operand, initializer_expr->designated_initializer.elmts_count);
+				HccAMLOperand dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, variable_operand, initializer_expr->designated_initializer.elmts_count, true);
 				for (uint32_t elmt_indices_idx = 0; elmt_indices_idx < initializer_expr->designated_initializer.elmts_count; elmt_indices_idx += 1) {
 					uint64_t elmt_idx = elmt_indices[elmt_indices_idx];
 
@@ -117,7 +151,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						if (elmt_indices_idx + 1 < initializer_expr->designated_initializer.elmts_count) {
 							uint32_t expected_operands_count = initializer_expr->designated_initializer.elmts_count - elmt_idx;
 							access_chain_instr = &w->amlgen.function->words[w->amlgen.function->words_count];
-							dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, dst_elmt_operand, expected_operands_count);
+							dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, dst_elmt_operand, expected_operands_count, true);
 						}
 					} else if (
 						HCC_DATA_TYPE_IS_STRUCT(data_type) ||
@@ -142,6 +176,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, data_type);
 						HccCompoundField* field = &compound_data_type->fields[elmt_idx];
 						data_type = field->data_type;
+					} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
+						data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type)));
 					}
 					data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
 				}
@@ -207,8 +243,22 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 			if (expr->binary.op < HCC_AST_BINARY_OP_LANG_FEATURES_START) {
 				//
 				// generate the (left or left_ref) and right operand
-				HccAMLOperand left_ref_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, expr->binary.is_assign);
 				HccAMLOperand right_operand = hcc_amlgen_generate_instrs(w, expr->binary.right_expr, false);
+				HccAMLOperand left_ref_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, expr->binary.is_assign);
+
+				if (expr->binary.is_assign && w->amlgen.access_chain_operands) {
+					if (expr->binary.op != HCC_AST_BINARY_OP_ASSIGN) {
+						hcc_amlgen_error_1(w, HCC_ERROR_CODE_BUILT_IN_WRITE_ONLY_POINTER_CANNOT_BE_READ, expr->location);
+					}
+
+					//
+					// the left expression is either HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD or HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD.
+					// so we just need to complete the instruction by setting the store operand.
+					//
+					w->amlgen.access_chain_operands[0] = right_operand;
+					w->amlgen.access_chain_operands = NULL;
+					return left_ref_operand;
+				}
 
 				if (expr->binary.op == HCC_AST_BINARY_OP_ASSIGN) {
 					//
@@ -267,10 +317,12 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					case HCC_AST_BINARY_OP_LOGICAL_OR: {
 						uint32_t success_idx = 1 + (expr->binary.op != HCC_AST_BINARY_OP_LOGICAL_AND);
 						uint32_t converging_idx = 1 + (expr->binary.op == HCC_AST_BINARY_OP_LOGICAL_AND);
+						HccAMLOperand basic_block_operand = hcc_amlgen_current_basic_block(w);
 
 						//
 						// current basic block
 						HccAMLOperand left_operand = hcc_amlgen_generate_instrs_condition(w, expr->binary.left_expr);
+						HccAMLOperand* selection_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_SELECTION_MERGE, 1);
 						HccAMLOperand* cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 4);
 
 						//
@@ -282,6 +334,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						//
 						// converging basic block which will have the result as it's only parameter
 						HccAMLOperand converging_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
+						selection_merge_operands[0] = converging_basic_block;
 
 						HccBasic basic = { .u8 = expr->binary.op == HCC_AST_BINARY_OP_LOGICAL_OR };
 						HccConstantId converging_arg_constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_BOOL, &basic);
@@ -295,7 +348,10 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 						//
 						// add the result basic block parameter and return that operand
-						return hcc_amlgen_basic_block_param_add(w, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
+						HccAMLOperand operand = hcc_amlgen_basic_block_param_add(w, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
+						hcc_amlgen_basic_block_param_src_add(w, basic_block_operand, cond_branch_operands[3]);
+						hcc_amlgen_basic_block_param_src_add(w, success_basic_block, success_converging_branch_operands[1]);
+						return operand;
 					};
 					case HCC_AST_BINARY_OP_TERNARY: {
 						HccASTExpr* cond_expr = expr->binary.left_expr;
@@ -304,6 +360,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						HccASTExpr* result_false_expr = right_expr->binary.right_expr;
 						bool result_true_is_constant = result_true_expr->type == HCC_AST_EXPR_TYPE_CONSTANT;
 						bool result_false_is_constant = result_false_expr->type == HCC_AST_EXPR_TYPE_CONSTANT;
+						HccAMLOperand basic_block_operand = hcc_amlgen_current_basic_block(w);
+						HccDataType result_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
 
 						//
 						// current basic block
@@ -314,7 +372,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 							// so just emit a select instruction.
 							HccAMLOperand result_true_operand = HCC_AML_OPERAND(CONSTANT, result_true_expr->constant.id.idx_plus_one);
 							HccAMLOperand result_false_operand = HCC_AML_OPERAND(CONSTANT, result_false_expr->constant.id.idx_plus_one);
-							return hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_SELECT, cond_operand, result_true_operand, result_false_operand);
+							return hcc_amlgen_instr_add_4(w, expr->location, HCC_AML_OP_SELECT,
+								hcc_amlgen_value_add(w, result_data_type), cond_operand, result_true_operand, result_false_operand);
 						}
 
 						//
@@ -323,33 +382,43 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						// for the true & false blocks, if they are NOT constants:
 						//     it's block does exist with it's result evaluated inside that block that will branch to the converging block with it's result.
 						//
+						HccAMLOperand* selection_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_SELECTION_MERGE, 1);
 						HccAMLOperand* cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 3 + result_true_is_constant + result_false_is_constant);
 						cond_branch_operands[0] = cond_operand;
 
 						//
 						// generate the true and/or false blocks if they need to exist
 						HccAMLOperand* true_converging_branch_operands;
+						HccAMLOperand true_final_basic_block;
 						if (!result_true_is_constant) {
 							HccAMLOperand true_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 							HccAMLOperand result_true_operand = hcc_amlgen_generate_instrs(w, result_true_expr, false);
 							true_converging_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 2);
 							true_converging_branch_operands[1] = result_true_operand;
 
+							true_final_basic_block = hcc_amlgen_current_basic_block(w);
 							cond_branch_operands[1] = true_basic_block;
 						}
 						HccAMLOperand* false_converging_branch_operands;
+						HccAMLOperand false_final_basic_block;
 						if (!result_false_is_constant) {
 							HccAMLOperand false_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 							HccAMLOperand result_false_operand = hcc_amlgen_generate_instrs(w, result_false_expr, false);
 							false_converging_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 2);
 							false_converging_branch_operands[1] = result_false_operand;
 
+							false_final_basic_block = hcc_amlgen_current_basic_block(w);
 							cond_branch_operands[2] = false_basic_block;
 						}
 
 						//
 						// converging basic block which will have the result as it's only parameter
 						HccAMLOperand converging_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
+						selection_merge_operands[0] = converging_basic_block;
+
+						//
+						// add the result basic block parameter that will be returned
+						HccAMLOperand operand = hcc_amlgen_basic_block_param_add(w, result_data_type);
 
 						//
 						// patch the converging basic block operand into the branching instructions that target it.
@@ -357,20 +426,22 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 							HccAMLOperand result_true_operand = HCC_AML_OPERAND(CONSTANT, result_true_expr->constant.id.idx_plus_one);
 							cond_branch_operands[1] = converging_basic_block;
 							cond_branch_operands[3] = result_true_operand;
+							hcc_amlgen_basic_block_param_src_add(w, basic_block_operand, cond_branch_operands[3]);
 						} else {
 							true_converging_branch_operands[0] = converging_basic_block;
+							hcc_amlgen_basic_block_param_src_add(w, true_final_basic_block, true_converging_branch_operands[1]);
 						}
 						if (result_false_is_constant) {
 							HccAMLOperand result_false_operand = HCC_AML_OPERAND(CONSTANT, result_false_expr->constant.id.idx_plus_one);
 							cond_branch_operands[2] = converging_basic_block;
 							cond_branch_operands[3 + result_false_is_constant] = result_false_operand;
+							hcc_amlgen_basic_block_param_src_add(w, basic_block_operand, cond_branch_operands[3]);
 						} else {
 							false_converging_branch_operands[0] = converging_basic_block;
+							hcc_amlgen_basic_block_param_src_add(w, false_final_basic_block, false_converging_branch_operands[1]);
 						}
 
-						//
-						// add the result basic block parameter and return that operand
-						return hcc_amlgen_basic_block_param_add(w, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
+						return operand;
 					};
 					case HCC_AST_BINARY_OP_COMMA: {
 						HccAMLOperand left_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, false);
@@ -380,7 +451,18 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					case HCC_AST_BINARY_OP_FIELD_ACCESS:
 					case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT:
 					case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT: {
-						HccAMLOperand result_operand = hcc_amlgen_generate_instr_access_chain(w, expr, 0);
+						HccAMLOperand result_operand;
+						if (w->amlgen.ast_function->shader_stage != HCC_SHADER_STAGE_NONE) {
+							result_operand = hcc_amlgen_generate_instr_shader_param(w, expr, 0);
+							if (result_operand != 0) {
+								if (!want_variable_ref && (w->amlgen.access_chain_op == HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD || w->amlgen.access_chain_op == HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD)) {
+									hcc_amlgen_error_1(w, HCC_ERROR_CODE_BUILT_IN_WRITE_ONLY_POINTER_CANNOT_BE_READ, expr->location);
+								}
+								return result_operand;
+							}
+						}
+
+						result_operand = hcc_amlgen_generate_instr_access_chain(w, expr, 0);
 						HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
 						hcc_amlgen_generate_instr_access_chain_end(w, dst_data_type);
 
@@ -407,23 +489,119 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 						//
 						// generate the callee
-						HccAMLOperand callee_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, false);
-						HccDataType return_data_type = hcc_decl_return_data_type(w->cu, expr->binary.left_expr->data_type);
+						HccASTExpr* callee_expr = expr->binary.left_expr;
+						HccAMLOperand callee_operand = hcc_amlgen_generate_instrs(w, callee_expr, false);
+						HccDataType return_data_type = hcc_decl_return_data_type(w->cu, callee_expr->data_type);
 						return_data_type = hcc_data_type_lower_ast_to_aml(w->cu, return_data_type);
 
-						//
-						// now create the call instruction
-						HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_CALL, args_count + 2);
-						operands[0] = hcc_amlgen_value_add(w, return_data_type);
-						operands[1] = callee_operand;
-						for (uint32_t arg_idx = 0; arg_idx < args_count; arg_idx += 1) {
-							operands[2 + arg_idx] = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + arg_idx);
+						HccAMLOperand return_operand;
+						if (callee_expr->type != HCC_AST_EXPR_TYPE_FUNCTION || HCC_AML_OPERAND_AUX(callee_expr->function.decl) >= HCC_FUNCTION_IDX_USER_START) {
+							//
+							// now create the call instruction
+							HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_CALL, args_count + 2);
+							operands[0] = hcc_amlgen_value_add(w, return_data_type);
+							operands[1] = callee_operand;
+							for (uint32_t arg_idx = 0; arg_idx < args_count; arg_idx += 1) {
+								operands[2 + arg_idx] = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + arg_idx);
+							}
+
+							return_operand = operands[0];
+						} else {
+							uint32_t function_idx = HCC_AML_OPERAND_AUX(callee_expr->function.decl);
+
+							HccAMLOp op = HCC_AML_OP_NO_OP;
+							switch (function_idx) {
+								case HCC_FUNCTION_IDX_F16TOF32: op = HCC_AML_OP_CONVERT; break;
+								case HCC_FUNCTION_IDX_F16TOF64: op = HCC_AML_OP_CONVERT; break;
+								case HCC_FUNCTION_IDX_F32TOF16: op = HCC_AML_OP_CONVERT; break;
+								case HCC_FUNCTION_IDX_F64TOF16: op = HCC_AML_OP_CONVERT; break;
+								case HCC_FUNCTION_IDX_PACK_F16X2_F32X2: op = HCC_AML_OP_PACK_F16X2_F32X2; break;
+								case HCC_FUNCTION_IDX_UNPACK_F16X2_F32X2: op = HCC_AML_OP_UNPACK_F16X2_F32X2; break;
+								case HCC_FUNCTION_IDX_PACK_U16X2_F32X2: op = HCC_AML_OP_PACK_U16X2_F32X2; break;
+								case HCC_FUNCTION_IDX_UNPACK_U16X2_F32X2: op = HCC_AML_OP_UNPACK_U16X2_F32X2; break;
+								case HCC_FUNCTION_IDX_PACK_S16X2_F32X2: op = HCC_AML_OP_PACK_S16X2_F32X2; break;
+								case HCC_FUNCTION_IDX_UNPACK_S16X2_F32X2: op = HCC_AML_OP_UNPACK_S16X2_F32X2; break;
+								case HCC_FUNCTION_IDX_PACK_U8X4_F32X4: op = HCC_AML_OP_PACK_U8X4_F32X4; break;
+								case HCC_FUNCTION_IDX_UNPACK_U8X4_F32X4: op = HCC_AML_OP_UNPACK_U8X4_F32X4; break;
+								case HCC_FUNCTION_IDX_PACK_S8X4_F32X4: op = HCC_AML_OP_PACK_S8X4_F32X4; break;
+								case HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4: op = HCC_AML_OP_UNPACK_S8X4_F32X4; break;
+								default: {
+									HCC_DEBUG_ASSERT(HCC_FUNCTION_IDX_MANY_START <= function_idx && function_idx < HCC_FUNCTION_IDX_MANY_END, "unhandled intrinsic function");
+									uint32_t many = (function_idx - HCC_FUNCTION_IDX_MANY_START) / HCC_AML_INTRINSIC_DATA_TYPE_COUNT;
+									switch (many) {
+										case HCC_FUNCTION_MANY_NOT: {
+											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);
+											HccDataType src_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand);
+
+											if (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(src_data_type)) != HCC_AML_INTRINSIC_DATA_TYPE_BOOL) {
+												return_operand = hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, true);
+												goto CALL_END;
+											}
+
+											return_operand = hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_XOR,
+												hcc_amlgen_value_add(w, return_data_type),
+												src_operand,
+												HCC_AML_OPERAND(CONSTANT, hcc_constant_table_deduplicate_one(w->cu, src_data_type).idx_plus_one));
+											goto CALL_END;
+										};
+										case HCC_FUNCTION_MANY_BITNOT: {
+											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);
+											HccDataType src_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand);
+
+											return_operand = hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_XOR,
+												hcc_amlgen_value_add(w, return_data_type),
+												src_operand,
+												HCC_AML_OPERAND(CONSTANT, hcc_constant_table_deduplicate_minus_one(w->cu, src_data_type).idx_plus_one));
+											goto CALL_END;
+										};
+										case HCC_FUNCTION_MANY_BITSTO:
+										case HCC_FUNCTION_MANY_BITSFROM: {
+											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);
+											HccDataType src_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand);
+
+											return_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_BITCAST,
+												hcc_amlgen_value_add(w, return_data_type),
+												src_operand);
+											goto CALL_END;
+										};
+
+										case HCC_FUNCTION_MANY_ANY:
+										case HCC_FUNCTION_MANY_ALL: {
+											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);
+											HccDataType src_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand);
+
+											if (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(src_data_type)) != HCC_AML_INTRINSIC_DATA_TYPE_BOOL) {
+												return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, false);
+											}
+
+											return_operand = hcc_amlgen_instr_add_2(w, expr->location, many == HCC_FUNCTION_MANY_ANY ? HCC_AML_OP_ANY : HCC_AML_OP_ALL,
+												hcc_amlgen_value_add(w, return_data_type),
+												src_operand);
+											goto CALL_END;
+										};
+
+										default:
+											op = hcc_intrinisic_function_many_aml_ops[many];
+											break;
+									}
+									break;
+								};
+							}
+							HCC_DEBUG_ASSERT(op != HCC_AML_OP_NO_OP, "unhandled intrinsic function_idx '%u' when converting from AST -> AML", function_idx);
+
+							HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, op, args_count + 1);
+							operands[0] = hcc_amlgen_value_add(w, return_data_type);
+							for (uint32_t arg_idx = 0; arg_idx < args_count; arg_idx += 1) {
+								operands[1 + arg_idx] = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + arg_idx);
+							}
+							return_operand = operands[0];
 						}
 
 						//
 						// restore the temp_operands back to the size it was
+CALL_END:
 						hcc_stack_resize(w->amlgen.temp_operands, temp_operands_start_idx);
-						return operands[0];
+						return return_operand;
 					};
 				}
 			}
@@ -498,6 +676,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 		case HCC_AST_EXPR_TYPE_STMT_IF: {
 			HccAMLOperand cond_operand = hcc_amlgen_generate_instrs_condition(w, expr->if_.cond_expr);
 
+			HccAMLOperand* selection_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_SELECTION_MERGE, 1);
 			HccAMLOperand* cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 3);
 			cond_branch_operands[0] = cond_operand;
 
@@ -522,12 +701,14 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 			} else {
 				cond_branch_operands[2] = converging_basic_block;
 			}
+			selection_merge_operands[0] = converging_basic_block;
 
 			break;
 		};
 		case HCC_AST_EXPR_TYPE_STMT_SWITCH: {
 			HccAMLOperand cond_operand = hcc_amlgen_generate_instrs(w, expr->switch_.cond_expr, false);
 
+			HccAMLOperand* selection_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_SELECTION_MERGE, 1);
 			HccAMLOperand* switch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_SWITCH, (expr->switch_.case_stmts_count * 2) + 2);
 			switch_operands[0] = cond_operand;
 
@@ -561,6 +742,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				words[break_word_id - 1] = converging_basic_block;
 				break_word_id = next_break_word_id;
 			}
+			selection_merge_operands[0] = converging_basic_block;
 
 			//
 			// restore the switch state tracking for the outer switch statement
@@ -568,7 +750,6 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 			w->amlgen.switch_case_idx = prev_switch_case_idx;
 			w->amlgen.break_stmt_list_head_id = prev_break_stmt_list_head_id;
 			w->amlgen.break_stmt_list_prev_id = prev_break_stmt_list_prev_id;
-
 			break;
 		};
 		case HCC_AST_EXPR_TYPE_STMT_WHILE:
@@ -610,38 +791,47 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				hcc_amlgen_generate_instrs(w, init_stmt, false);
 			}
 
-			HccAMLOperand cond_basic_block;
-			HccAMLOperand continue_basic_block;
-			HccAMLOperand* cond_branch_operands;
+			HccAMLOperand loop_header_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
+
+			HccAMLOperand cond_operand;
 			if (!is_do_while_loop) {
-				cond_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
-				continue_basic_block = cond_basic_block;
-				HccAMLOperand cond_operand = hcc_amlgen_generate_instrs_condition(w, cond_expr);
+				cond_operand = hcc_amlgen_generate_instrs_condition(w, cond_expr);
+			}
+
+			HccAMLOperand* cond_branch_operands;
+			HccAMLOperand* loop_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_LOOP_MERGE, 2);
+			if (is_do_while_loop) {
+				cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
+			} else {
 				cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 3);
 				cond_branch_operands[0] = cond_operand;
 			}
 
 			HccAMLOperand loop_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 			hcc_amlgen_generate_instrs(w, loop_stmt, false);
+			cond_branch_operands[is_do_while_loop ? 0 : 1] = loop_basic_block;
 
+			// make a continue block here as SPIR-V wants a single branch instruction that
+			// restarts the loop. this can be optimized out on other platform in the AMLOPT anyway.
+			HccAMLOperand continue_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 			if (is_do_while_loop) {
-				cond_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 				HccAMLOperand cond_operand = hcc_amlgen_generate_instrs_condition(w, cond_expr);
 				cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 3);
 				cond_branch_operands[0] = cond_operand;
+				cond_branch_operands[1] = loop_header_basic_block;
 			} else {
+
 				if (inc_stmt) {
-					continue_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 					hcc_amlgen_generate_instrs(w, inc_stmt, false);
 				}
-
-				hcc_amlgen_instr_add_1(w, expr->location, HCC_AML_OP_BRANCH, cond_basic_block);
+				hcc_amlgen_instr_add_1(w, expr->location, HCC_AML_OP_BRANCH, loop_header_basic_block);
 			}
 
 			HccAMLOperand converging_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
-
-			cond_branch_operands[1] = loop_basic_block;
 			cond_branch_operands[2] = converging_basic_block;
+
+			loop_merge_operands[0] = converging_basic_block;
+			loop_merge_operands[1] = continue_basic_block;
 
 			//
 			// patch the HCC_AML_OP_BRANCH instructions for the continue statements
@@ -754,6 +944,93 @@ HccAMLOperand hcc_amlgen_generate_instrs_condition(HccWorker* w, HccASTExpr* con
 	return cond_operand;
 }
 
+HccAMLOperand hcc_amlgen_generate_instr_shader_param(HccWorker* w, HccASTExpr* expr, uint32_t recursion_count) {
+	switch (expr->type) {
+		case HCC_AST_EXPR_TYPE_BINARY_OP:
+			switch (expr->binary.op) {
+				case HCC_AST_BINARY_OP_FIELD_ACCESS:
+				case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT:
+				case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT: {
+					HccAMLOperand operand = hcc_amlgen_generate_instr_shader_param(w, expr->binary.left_expr, recursion_count + 1);
+					if (operand == 0) {
+						return 0;
+					}
+
+					HccAMLOperand right_operand;
+					switch (expr->binary.op) {
+						case HCC_AST_BINARY_OP_FIELD_ACCESS:
+						case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT: {
+							HccBasic basic = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, expr->binary.field_idx);
+							HccConstantId constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, &basic);
+							right_operand = HCC_AML_OPERAND(CONSTANT, constant_id.idx_plus_one);
+							break;
+						};
+						case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT:
+							//
+							// generate the indexee from the right expression
+							right_operand = hcc_amlgen_generate_instrs(w, expr->binary.right_expr, false);
+							break;
+					}
+
+					hcc_amlgen_generate_instr_access_chain_set_next_operand(w, right_operand);
+					if (recursion_count == 0) {
+						if (w->amlgen.access_chain_op != HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD && w->amlgen.access_chain_op != HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD) {
+							// the read instructions complete here, but the write instructions will be completed where the assignment code is
+							// set the value operand's data type to the most root expression
+							w->amlgen.function->values[HCC_AML_OPERAND_AUX(operand)].data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
+							w->amlgen.access_chain_operands = NULL;
+						}
+					}
+					return operand;
+				};
+			}
+			break;
+		case HCC_AST_EXPR_TYPE_LOCAL_VARIABLE: {
+			uint32_t variable_idx = HCC_DECL_AUX(expr->variable.decl);
+
+			HccASTFunction* ast_function = w->amlgen.ast_function;
+			if (variable_idx < ast_function->params_count) {
+				HccAMLOp op = HCC_AML_OP_NO_OP;
+				switch (ast_function->shader_stage) {
+					case HCC_SHADER_STAGE_VERTEX:
+						switch (variable_idx) {
+							case HCC_VERTEX_SHADER_PARAM_VERTEX_SV: op = HCC_AML_OP_SYSTEM_VALUE_LOAD; break;
+							case HCC_VERTEX_SHADER_PARAM_RASTERIZER_STATE: op = HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD; break;
+							default: HCC_ABORT("unhandled vertex shader parameter: %u", variable_idx);
+						}
+						break;
+					case HCC_SHADER_STAGE_FRAGMENT:
+						switch (variable_idx) {
+							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV: op = HCC_AML_OP_SYSTEM_VALUE_LOAD; break;
+							case HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE: op = HCC_AML_OP_RASTERIZER_STATE_LOAD_FIELD; break;
+							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE: op = HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD; break;
+							default: HCC_ABORT("unhandled fragment shader parameter: %u", variable_idx);
+						}
+						break;
+					default: HCC_ABORT("unhandled shader stage: %u", ast_function->shader_stage);
+				}
+
+				if (op != HCC_AML_OP_NO_OP) {
+					HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, op, recursion_count + 1);
+					if (op != HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD && op != HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD) {
+						operands[0] = hcc_amlgen_value_add(w, 0);
+					} else {
+						operands[0] = 1;
+					}
+					w->amlgen.access_chain_operands = operands;
+					w->amlgen.access_chain_op = op;
+					w->amlgen.access_chain_operand_idx = 1;
+					return operands[0];
+				}
+			}
+			break;
+		};
+	}
+
+	// this expression does not target a shader parameter
+	return 0;
+}
+
 HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* expr, uint32_t count) {
 	if (expr->type == HCC_AST_EXPR_TYPE_BINARY_OP) {
 		switch (expr->binary.op) {
@@ -798,7 +1075,7 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 				//
 				// start the next access chain if we ended it's generation on this instance of the recursion
 				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type)) {
-					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, result_operand, count + !HCC_DATA_TYPE_IS_UNION(left_data_type));
+					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, result_operand, count + !HCC_DATA_TYPE_IS_UNION(left_data_type), true);
 				}
 
 				//
@@ -839,7 +1116,7 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 					result_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD,
 						hcc_amlgen_value_add(w, hcc_data_type_strip_pointer(w->cu, left_data_type)),
 						result_operand);
-					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, result_operand, count + 1);
+					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, result_operand, count + 1, child_count > 0);
 				}
 
 				hcc_amlgen_generate_instr_access_chain_set_next_operand(w, right_operand);
@@ -850,15 +1127,15 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 	}
 
 	HccAMLOperand variable_ref = hcc_amlgen_generate_instrs(w, expr, true);
-	return hcc_amlgen_generate_instr_access_chain_start(w, expr->location, variable_ref, count);
+	return hcc_amlgen_generate_instr_access_chain_start(w, expr->location, variable_ref, count, true);
 }
 
-HccAMLOperand hcc_amlgen_generate_instr_access_chain_start(HccWorker* w, HccLocation* location, HccAMLOperand base_ptr_operand, uint32_t count) {
+HccAMLOperand hcc_amlgen_generate_instr_access_chain_start(HccWorker* w, HccLocation* location, HccAMLOperand base_ptr_operand, uint32_t count, bool is_in_bounds) {
 	if (count == 0) {
 		return base_ptr_operand;
 	}
 
-	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, count + 2);
+	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, is_in_bounds ? HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS : HCC_AML_OP_PTR_ACCESS_CHAIN, count + 2);
 	operands[0] = hcc_amlgen_value_add(w, (HccDataType)0);
 	operands[1] = base_ptr_operand;
 
@@ -885,7 +1162,7 @@ void hcc_amlgen_generate_instr_access_chain_end(HccWorker* w, HccDataType dst_da
 	*instr = HCC_AML_INSTR(HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, operands_count);
 	w->amlgen.function->words_count -= expected_operands_count - operands_count;
 
-	w->amlgen.function->values[HCC_AML_OPERAND_AUX(w->amlgen.access_chain_operands[0])].data_type = dst_data_type;
+	w->amlgen.function->values[HCC_AML_OPERAND_AUX(w->amlgen.access_chain_operands[0])].data_type = hcc_pointer_data_type_deduplicate(w->cu, dst_data_type);
 	w->amlgen.access_chain_operands = NULL;
 }
 
@@ -902,11 +1179,16 @@ HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation*
 void hcc_amlgen_generate(HccWorker* w) {
 	HccDecl function_decl = (HccDecl)(uintptr_t)w->job.arg;
 	HccASTFunction* ast_function = hcc_ast_function_get(w->cu, function_decl);
+	bool is_not_shader = ast_function->shader_stage == HCC_SHADER_STAGE_NONE;
 
 	HccAMLFunction* function = hcc_aml_function_alctor_alloc(w->cu, ast_function->max_instrs_count);
 	function->identifier_location = ast_function->identifier_location;
 	function->identifier_string_id = ast_function->identifier_string_id;
-	function->params_count = ast_function->params_count;
+	function->function_data_type = ast_function->function_data_type;
+	function->return_data_type = hcc_data_type_lower_ast_to_aml(w->cu, ast_function->return_data_type);
+	function->shader_stage = ast_function->shader_stage;
+	function->params_count = is_not_shader ? ast_function->params_count : 0;
+	function->opt_level = ast_function->opt_level;
 	*hcc_stack_get(w->cu->aml.functions, HCC_DECL_AUX(function_decl)) = function;
 	w->amlgen.function_decl = function_decl;
 	w->amlgen.ast_function = ast_function;
@@ -914,17 +1196,41 @@ void hcc_amlgen_generate(HccWorker* w) {
 
 	//
 	// immutable parameters
-	for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
-		HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
-		hcc_amlgen_value_add(w, variable->data_type);
+	if (is_not_shader) {
+		for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
+			HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
+			HccDataType data_type = hcc_data_type_lower_ast_to_aml(w->cu, variable->data_type);
+			hcc_amlgen_value_add(w, data_type);
+		}
 	}
 
 	HccASTExpr* block_expr = ast_function->block_expr;
 	hcc_amlgen_basic_block_add(w, block_expr->location);
 
+	if (is_not_shader) {
+		//
+		// mutable parameters
+		for (uint32_t variable_idx = 0; variable_idx < ast_function->params_count; variable_idx += 1) {
+			HccASTVariable* variable = &ast_function->params_and_variables[variable_idx];
+			HccDataType data_type = hcc_data_type_lower_ast_to_aml(w->cu, variable->data_type);
+			HccDataType ptr_data_type = hcc_pointer_data_type_deduplicate(w->cu, data_type);
+			HccAMLOperand value_operand = hcc_amlgen_value_add(w, ptr_data_type);
+			hcc_amlgen_instr_add_2(w, variable->identifier_location, HCC_AML_OP_PTR_STATIC_ALLOC, value_operand, data_type);
+		}
+
+		//
+		// store the value from the immutable parameters in the mutable parameters
+		for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
+			HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
+			HccAMLOperand dst_operand = hcc_amlgen_local_variable_operand(w, param_idx);
+			HccAMLOperand src_operand = HCC_AML_OPERAND(VALUE, param_idx);
+			hcc_amlgen_instr_add_2(w, variable->identifier_location, HCC_AML_OP_PTR_STORE, dst_operand, src_operand);
+		}
+	}
+
 	//
-	// mutable parameters and variables
-	for (uint32_t variable_idx = 0; variable_idx < ast_function->variables_count; variable_idx += 1) {
+	// variables
+	for (uint32_t variable_idx = ast_function->params_count; variable_idx < ast_function->variables_count; variable_idx += 1) {
 		HccASTVariable* variable = &ast_function->params_and_variables[variable_idx];
 		HccDataType data_type = hcc_data_type_lower_ast_to_aml(w->cu, variable->data_type);
 		HccDataType ptr_data_type = hcc_pointer_data_type_deduplicate(w->cu, data_type);
@@ -932,15 +1238,14 @@ void hcc_amlgen_generate(HccWorker* w) {
 		hcc_amlgen_instr_add_2(w, variable->identifier_location, HCC_AML_OP_PTR_STATIC_ALLOC, value_operand, data_type);
 	}
 
-	//
-	// store the value from the immutable parameters in the mutable parameters
-	for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
-		HccAMLOperand dst_operand = HCC_AML_OPERAND(VALUE, ast_function->params_count + param_idx);
-		HccAMLOperand src_operand = HCC_AML_OPERAND(VALUE, param_idx);
-		HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
-		hcc_amlgen_instr_add_2(w, variable->identifier_location, HCC_AML_OP_PTR_STORE, dst_operand, src_operand);
+	hcc_amlgen_generate_instrs(w, block_expr, false);
+
+	if (w->amlgen.last_op != HCC_AML_OP_RETURN) {
+		HccAMLOperand* operands = hcc_amlgen_instr_add(w, w->amlgen.last_location, HCC_AML_OP_RETURN, 1);
+		operands[0] = 0;
 	}
 
-	hcc_amlgen_generate_instrs(w, block_expr, false);
+	HccStack(HccDecl) optimize_functions = hcc_aml_optimize_functions(w->cu);
+	*hcc_stack_push_thread_safe(optimize_functions) = function_decl;
 }
 

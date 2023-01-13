@@ -349,19 +349,19 @@ HCC_DEFINE_TEXTURE_TYPE(HccRWTextureCubeArray);
 // ===========================================
 //
 //
-// Shader Input
+// Shader System Values
 //
 //
 // ===========================================
 
-typedef struct HccVertexInput HccVertexInput;
-struct HccVertexInput {
+typedef struct HccVertexSV HccVertexSV;
+struct HccVertexSV {
 	int32_t vertex_idx;
 	int32_t instance_idx;
 };
 
-typedef struct HccFragmentInput HccFragmentInput;
-struct HccFragmentInput {
+typedef struct HccFragmentSV HccFragmentSV;
+struct HccFragmentSV {
 	f32x4 frag_coord;
 };
 

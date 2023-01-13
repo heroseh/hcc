@@ -95,7 +95,7 @@ HCC_DEFINE_RASTERIZER_STATE(
 	(NOINTERP, f32x4, flat_color)
 );
 
-vertex void billboard_shader_vertex(const HccVertexInput input, BillboardRasterizerState* state_out) {
+vertex void billboard_shader_vertex(HccVertexSV const sv, BillboardRasterizerState* const state_out) {
 	f32x4 colors[4] = {
 		f32x4(1.f, 0.f, 0.f, 1.f),
 		f32x4(0.f, 1.f, 0.f, 1.f),
@@ -103,9 +103,14 @@ vertex void billboard_shader_vertex(const HccVertexInput input, BillboardRasteri
 		f32x4(0.f, 1.f, 1.f, 1.f),
 	};
 
-	state_out->position = f32x4((input.vertex_idx & 1) * 2.f - 1.f, (input.vertex_idx / 2) * 2.f - 1.f, 0.25f, 1.f);
-	state_out->color = colors[input.vertex_idx];
+	state_out->position = f32x4((sv.vertex_idx & 1) * 2.f - 1.f, (sv.vertex_idx / 2) * 2.f - 1.f, 0.25f, 1.f);
+	state_out->color = colors[sv.vertex_idx];
 	state_out->flat_color = f32x4(1.f, 0.f, 1.f, 1.f);
+
+	Bool bool_ = 79798789;
+	U32 uint = 0;
+
+	bool_ = uint;
 }
 
 enum NamedEnum {
@@ -160,7 +165,7 @@ typedef S32 signed_int;
 typedef struct Named { S32 i[1]; } named_wrapped_signed_int;
 typedef struct { F32 i[2]; } wrapped_float2;
 typedef struct { F32 i[4]; } wrapped_float4;
-fragment void billboard_shader_fragment(const HccFragmentInput input, const BillboardRasterizerState* state, BillboardFragment* frag_out) {
+fragment void billboard_shader_fragment(HccFragmentSV const sv, BillboardRasterizerState const* const state, BillboardFragment* const frag_out) {
 	typedef struct Struct TypedefStruct;
 	struct Struct {
 		U32 a;
@@ -313,7 +318,7 @@ fragment void billboard_shader_fragment(const HccFragmentInput input, const Bill
 	AddOp add_op = { 2, 2 };
 	red = add_op_u32(add_op) == 4 && inlined_add_u32(1, 1) == 2;
 
-	red = copysignf(2.f, -1.f) <= -2.f;
+	red = copysign_f32(2.f, -1.f) <= -2.f;
 	red = isinf_f32(INFINITY);
 	red = isnan_f32(NAN);
 

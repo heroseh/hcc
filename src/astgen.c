@@ -19,7 +19,7 @@ HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 
 void hcc_astgen_init(HccWorker* w, HccASTGenSetup* setup) {
 	w->astgen.variable_stack_strings = hcc_stack_init(HccStringId, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS, setup->variable_stack_grow_count, setup->variable_stack_reserve_cap);
-	w->astgen.variable_stack_var_indices = hcc_stack_init(uint32_t, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES, setup->variable_stack_grow_count, setup->variable_stack_reserve_cap);
+	w->astgen.variable_stack = hcc_stack_init(HccDecl, HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK, setup->variable_stack_grow_count, setup->variable_stack_reserve_cap);
 	w->astgen.compound_type_find_fields = hcc_stack_init(HccFieldAccess, HCC_ALLOC_TAG_ASTGEN_COMPOUND_TYPE_FIND_FIELDS, setup->compound_fields_reserve_cap, setup->compound_fields_reserve_cap);
 	w->astgen.compound_field_names = hcc_stack_init(HccStringId, HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELD_NAMES, setup->compound_fields_reserve_cap, setup->compound_fields_reserve_cap);
 	w->astgen.compound_field_locations = hcc_stack_init(HccLocation*, HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELD_LOCATIONS, setup->compound_fields_reserve_cap, setup->compound_fields_reserve_cap);
@@ -34,7 +34,7 @@ void hcc_astgen_init(HccWorker* w, HccASTGenSetup* setup) {
 
 void hcc_astgen_deinit(HccWorker* w) {
 	hcc_stack_deinit(w->astgen.variable_stack_strings);
-	hcc_stack_deinit(w->astgen.variable_stack_var_indices);
+	hcc_stack_deinit(w->astgen.variable_stack);
 	hcc_stack_deinit(w->astgen.compound_type_find_fields);
 	hcc_stack_deinit(w->astgen.compound_field_names);
 	hcc_stack_deinit(w->astgen.compound_field_locations);
@@ -48,7 +48,7 @@ void hcc_astgen_reset(HccWorker* w) {
 	hcc_stack_clear(w->astgen.compound_fields);
 	hcc_stack_clear(w->astgen.function_params_and_variables);
 	hcc_stack_clear(w->astgen.variable_stack_strings);
-	hcc_stack_clear(w->astgen.variable_stack_var_indices);
+	hcc_stack_clear(w->astgen.variable_stack);
 	hcc_stack_clear(w->astgen.compound_type_find_fields);
 	hcc_stack_clear(w->astgen.compound_field_names);
 	hcc_stack_clear(w->astgen.compound_field_locations);
@@ -287,24 +287,6 @@ HccCompoundField* hcc_astgen_compound_data_type_find_field_by_name_recursive(Hcc
 	return NULL;
 }
 
-void hcc_astgen_static_variable_usage_found(HccWorker* w, HccDecl decl) {
-	HCC_UNUSED(w);
-	HCC_UNUSED(decl);
-#if 0
-	bool found = false;
-	uint32_t end_idx = hcc_stack_count(w->astgen.function_used_static_variables);
-	for (uint32_t idx = w->astgen.function->used_static_variables_start_idx; idx < end_idx; idx += 1) {
-		if (w->astgen.function_used_static_variables[idx] == decl) {
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
-		*hcc_stack_push(w->astgen.function_used_static_variables) = decl;
-	}
-#endif
-}
-
 void hcc_astgen_insert_global_declaration(HccWorker* w, HccStringId identifier_string_id, HccDecl decl, HccLocation* location) {
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(w->astgen.ast_file->global_declarations, &identifier_string_id);
 	HccDeclEntry* entry = &w->astgen.ast_file->global_declarations[insert.idx];
@@ -452,27 +434,6 @@ void hcc_astgen_ensure_semicolon(HccWorker* w) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_MISSING_SEMICOLON);
 	}
 	hcc_ata_iter_next(w->astgen.token_iter);
-}
-
-void hcc_astgen_ensure_not_unsupported_basic_type(HccWorker* w, HccLocation* location, HccDataType data_type) {
-	if (w->astgen.function == NULL) {
-		return;
-	}
-
-	data_type = HCC_DATA_TYPE_STRIP_CONST(data_type);
-	HccAMLScalarDataTypeMask mask = hcc_data_type_scalar_data_types_mask(w->cu, data_type) & ~w->cu->supported_scalar_data_types_mask;
-	if (mask) {
-		HccLocation* other_location = hcc_data_type_location(w->cu, data_type);
-		HccString data_type_string = hcc_data_type_string(w->cu, data_type);
-		HccString mask_string = hcc_aml_scalar_data_type_mask_string(mask);
-
-		HccASTUnsupportedIntrinsicTypeUsed* used = hcc_stack_push_thread_safe(w->cu->ast.unsupported_intrinsic_type_used);
-		used->location = location;
-		used->data_type = data_type;
-		used->next_id = w->astgen.function->unsupported_intrinsic_types_first_id;
-
-		w->astgen.function->unsupported_intrinsic_types_first_id = (used - w->cu->ast.unsupported_intrinsic_type_used) + 1;
-	}
 }
 
 bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType target_data_type, HccASTExpr** source_expr_mut) {
@@ -742,33 +703,40 @@ void hcc_astgen_variable_stack_open(HccWorker* w) {
 		w->astgen.next_var_idx = 0;
 	}
 	hcc_stack_push(w->astgen.variable_stack_strings)->idx_plus_one = 0;
-	*hcc_stack_push(w->astgen.variable_stack_var_indices) = UINT32_MAX;
+	*hcc_stack_push(w->astgen.variable_stack) = 0;
 }
 
 void hcc_astgen_variable_stack_close(HccWorker* w) {
 	while (hcc_stack_count(w->astgen.variable_stack_strings)) {
 		bool end = hcc_stack_get_last(w->astgen.variable_stack_strings)->idx_plus_one == 0;
 		hcc_stack_pop(w->astgen.variable_stack_strings);
-		hcc_stack_pop(w->astgen.variable_stack_var_indices);
+		hcc_stack_pop(w->astgen.variable_stack);
 		if (end) {
 			break;
 		}
 	}
 }
 
-uint32_t hcc_astgen_variable_stack_add(HccWorker* w, HccStringId string_id) {
-	uint32_t var_idx = w->astgen.next_var_idx;
-	*hcc_stack_push(w->astgen.variable_stack_strings) = string_id;
-	*hcc_stack_push(w->astgen.variable_stack_var_indices) = var_idx;
+HccDecl hcc_astgen_variable_stack_add_local(HccWorker* w, HccStringId string_id) {
+	HccDecl decl = HCC_DECL(LOCAL_VARIABLE, w->astgen.next_var_idx);
 	w->astgen.next_var_idx += 1;
-	return var_idx;
+
+	*hcc_stack_push(w->astgen.variable_stack_strings) = string_id;
+	*hcc_stack_push(w->astgen.variable_stack) = decl;
+
+	return decl;
 }
 
-uint32_t hcc_astgen_variable_stack_find(HccWorker* w, HccStringId string_id) {
+void hcc_astgen_variable_stack_add_global(HccWorker* w, HccStringId string_id, HccDecl decl) {
+	*hcc_stack_push(w->astgen.variable_stack_strings) = string_id;
+	*hcc_stack_push(w->astgen.variable_stack) = decl;
+}
+
+HccDecl hcc_astgen_variable_stack_find(HccWorker* w, HccStringId string_id) {
 	HCC_DEBUG_ASSERT(string_id.idx_plus_one, "string id is null");
 	for (uint32_t idx = hcc_stack_count(w->astgen.variable_stack_strings); idx-- > 0;) {
 		if (hcc_stack_get(w->astgen.variable_stack_strings, idx)->idx_plus_one == string_id.idx_plus_one) {
-			return *hcc_stack_get(w->astgen.variable_stack_var_indices, idx) + 1;
+			return *hcc_stack_get(w->astgen.variable_stack, idx);
 		}
 	}
 	return 0;
@@ -1614,11 +1582,13 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, compound_field->data_type);
 		if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
 			HccDataType aml_intrinsic_data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
-			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&compound_data_type.has_scalar_data_types_mask, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(aml_intrinsic_data_type)));
+			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&compound_data_type.scalar_data_types_mask, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(aml_intrinsic_data_type)));
 		} else if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
 			HccCompoundDataType* field_compound_data_type = hcc_compound_data_type_get(w->cu, data_type);
-			compound_data_type.has_scalar_data_types_mask |= field_compound_data_type->has_scalar_data_types_mask;
+			compound_data_type.scalar_data_types_mask |= field_compound_data_type->scalar_data_types_mask;
 			compound_data_type.flags |= (field_compound_data_type->flags & (HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE | HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER));
+		} else if (HCC_DATA_TYPE_IS_TYPEDEF(data_type)) {
+			compound_data_type.scalar_data_types_mask |= hcc_data_type_scalar_data_types_mask(w->cu, data_type);
 		} else if (HCC_DATA_TYPE_IS_RESOURCE(data_type)) {
 			compound_data_type.flags |= HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE;
 		} else if (HCC_DATA_TYPE_IS_POINTER(data_type)) {
@@ -1628,7 +1598,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			compound_data_type.flags |= d->has_resource ? HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE : 0;
 			compound_data_type.flags |= d->has_pointer ? HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER : 0;
 		} else if (data_type == HCC_DATA_TYPE_HALF) {
-			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&compound_data_type.has_scalar_data_types_mask, HCC_AML_INTRINSIC_DATA_TYPE_F16);
+			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&compound_data_type.scalar_data_types_mask, HCC_AML_INTRINSIC_DATA_TYPE_F16);
 		}
 
 		//
@@ -1915,6 +1885,26 @@ HccATAToken hcc_astgen_generate_type_specifiers(HccWorker* w, HccLocation* locat
 	}
 }
 
+HccATAToken hcc_astgen_generate_type_specifiers_post_qualifiers(HccWorker* w, HccLocation* location, HccASTGenTypeSpecifier* type_specifiers_mut) {
+	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
+	while (1) {
+		HccASTGenTypeSpecifier found_specifier;
+		switch (token) {
+			case HCC_ATA_TOKEN_KEYWORD_ATOMIC: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_ATOMIC; break;
+			case HCC_ATA_TOKEN_KEYWORD_CONST: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_CONST; break;
+			case HCC_ATA_TOKEN_KEYWORD_VOLATILE: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_VOLATILE; break;
+			default: return token;
+		}
+
+		if (*type_specifiers_mut & found_specifier) {
+			hcc_astgen_bail_error_1_merge_apply(w, HCC_ERROR_CODE_DUPLICATE_TYPE_SPECIFIER, location, hcc_astgen_type_specifier_string(found_specifier));
+		}
+
+		*type_specifiers_mut |= found_specifier;
+		token = hcc_ata_iter_next(w->astgen.token_iter);
+	}
+}
+
 HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code, bool want_concrete_type) {
 	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 	HccASTGenTypeSpecifier type_specifiers = 0;
@@ -2169,6 +2159,8 @@ NON_NUM_TYPE: {}
 		};
 	}
 
+	token = hcc_astgen_generate_type_specifiers_post_qualifiers(w, location, &type_specifiers);
+
 	if (type_specifiers & HCC_ASTGEN_TYPE_SPECIFIER_CONST) {
 		data_type = HCC_DATA_TYPE_CONST(data_type);
 	}
@@ -2180,8 +2172,6 @@ NON_NUM_TYPE: {}
 	if (type_specifiers & HCC_ASTGEN_TYPE_SPECIFIER_ATOMIC) {
 		data_type = HCC_DATA_TYPE_ATOMIC(data_type);
 	}
-
-	hcc_astgen_ensure_not_unsupported_basic_type(w, location, data_type);
 
 	if (token != HCC_ATA_TOKEN_ASTERISK) {
 		if (want_concrete_type) {
@@ -2518,18 +2508,20 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
 
-			uint32_t existing_variable_id = hcc_astgen_variable_stack_find(w, identifier_value.string_id);
-			if (existing_variable_id) {
-				HccASTVariable* variable = &w->astgen.function_params_and_variables[existing_variable_id - 1];
+			HccDecl existing_variable_decl = hcc_astgen_variable_stack_find(w, identifier_value.string_id);
+			if (existing_variable_decl) {
+				HccASTVariable* variable;
+				if (HCC_DECL_IS_LOCAL_VARIABLE(existing_variable_decl)) {
+					variable = &w->astgen.function_params_and_variables[HCC_DECL_AUX(existing_variable_decl)];
+				} else {
+					variable = hcc_ast_global_variable_get(w->cu, existing_variable_decl);
+				}
 
 				HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_LOCAL_VARIABLE);
-				expr->variable.decl = HCC_DECL(LOCAL_VARIABLE, existing_variable_id - 1);
+				expr->variable.decl = existing_variable_decl;
 				expr->data_type = variable->data_type;
 				expr->location = location;
 
-				if (variable->storage_duration != HCC_AST_STORAGE_DURATION_AUTOMATIC) {
-					hcc_astgen_static_variable_usage_found(w, expr->variable.decl);
-				}
 				return expr;
 			}
 
@@ -2561,8 +2553,6 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 					expr->variable.decl = decl;
 					expr->data_type = hcc_decl_return_data_type(w->cu, decl);
 					expr->location = location;
-
-					hcc_astgen_static_variable_usage_found(w, decl);
 					return expr;
 				} else {
 					HCC_UNREACHABLE("unhandled decl type here %u", decl);
@@ -2643,9 +2633,11 @@ UNARY:
 			w->astgen.assign_data_type = HCC_DATA_TYPE_AST_BASIC_VOID;
 			HccASTGenCurlyInitializer* gen = &w->astgen.curly_initializer;
 			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
+			hcc_astgen_data_type_ensure_valid_variable(w, assign_data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE);
 
 			HccASTExpr* curly_initializer_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CURLY_INITIALIZER);
 			curly_initializer_expr->data_type = assign_data_type;
+			curly_initializer_expr->location = location;
 
 			uint32_t nested_curlys_start_idx = hcc_stack_count(gen->nested_curlys);
 			token = hcc_astgen_curly_initializer_start(w, assign_data_type, resolved_assign_data_type);
@@ -2970,7 +2962,7 @@ HccASTExpr* hcc_astgen_generate_call_expr(HccWorker* w, HccASTExpr* function_exp
 	HccASTVariable* params_array = hcc_decl_function_params(w->cu, function_decl);
 	uint32_t params_count = hcc_decl_function_params_count(w->cu, function_decl);
 
-	if (hcc_decl_function_shader_stage(w->cu, function_decl) != HCC_AST_FUNCTION_SHADER_STAGE_NONE) {
+	if (hcc_decl_function_shader_stage(w->cu, function_decl) != HCC_SHADER_STAGE_NONE) {
 		hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION, hcc_decl_location(w->cu, function_decl));
 	}
 
@@ -3355,8 +3347,8 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL, hcc_ata_token_strings[token]);
 	}
 
-	uint32_t existing_variable_id = hcc_astgen_variable_stack_find(w, identifier_string_id);
-	if (existing_variable_id) { // TODO: support shadowing but also warn or error about it
+	HccDecl existing_variable_decl = hcc_astgen_variable_stack_find(w, identifier_string_id);
+	if (existing_variable_decl) { // TODO: support shadowing but also warn or error about it
 		HccLocation* other_location = NULL;
 		HccString string = hcc_string_table_get(identifier_string_id);
 		hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_LOCAL, other_location, (int)string.size, string.data);
@@ -3559,10 +3551,19 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		}
 	} else {
 		variable.linkage = HCC_AST_LINKAGE_INTERNAL;
-		uint32_t variable_idx = hcc_astgen_variable_stack_add(w, identifier_string_id);
-		HccASTVariable* dst_variable = hcc_stack_push(w->astgen.function_params_and_variables);
-		*dst_variable = variable;
-		decl = HCC_DECL(LOCAL_VARIABLE, variable_idx);
+		if (found_static) {
+			//
+			// found static global variable so just add it to the global variable array for the AST
+			HccASTVariable* dst_variable = hcc_stack_push_thread_safe(cu->ast.global_variables);
+			*dst_variable = variable;
+
+			uint32_t variable_idx = dst_variable - cu->ast.global_variables;
+			decl = HCC_DECL(GLOBAL_VARIABLE, variable_idx);
+		} else {
+			decl = hcc_astgen_variable_stack_add_local(w, identifier_string_id);
+			HccASTVariable* dst_variable = hcc_stack_push(w->astgen.function_params_and_variables);
+			*dst_variable = variable;
+		}
 	}
 
 	w->astgen.specifier_flags &= ~HCC_ASTGEN_SPECIFIER_FLAGS_ALL_VARIABLE_SPECIFIERS;
@@ -3986,7 +3987,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 
 	bool found_static = false;
 	bool found_extern = false;
-	HccASTFunctionShaderStage shader_stage = HCC_AST_FUNCTION_SHADER_STAGE_NONE;
+	HccShaderStage shader_stage = HCC_SHADER_STAGE_NONE;
 	HccASTFunctionFlags flags = 0;
 	{
 		if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_ALL_NON_FUNCTION_SPECIFIERS) {
@@ -4000,9 +4001,9 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 		}
 
 		if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX) {
-			shader_stage = HCC_AST_FUNCTION_SHADER_STAGE_VERTEX;
+			shader_stage = HCC_SHADER_STAGE_VERTEX;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT) {
-			shader_stage = HCC_AST_FUNCTION_SHADER_STAGE_FRAGMENT;
+			shader_stage = HCC_SHADER_STAGE_FRAGMENT;
 		}
 
 		found_static |= w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC;
@@ -4046,7 +4047,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			function.params_count += 1;
 
 			HccDataType param_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, true);
-			if (shader_stage == HCC_AST_FUNCTION_SHADER_STAGE_NONE) {
+			if (shader_stage == HCC_SHADER_STAGE_NONE) {
 				hcc_astgen_data_type_ensure_valid_variable(w, param_data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM);
 			}
 			if (!(flags & HCC_AST_FUNCTION_FLAGS_INLINE)) {
@@ -4064,13 +4065,13 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			HccStringId param_identifier_string_id = hcc_ata_iter_next_value(w->astgen.token_iter).string_id;
 			HccLocation* param_identifier_location = hcc_ata_iter_location(w->astgen.token_iter);
 
-			uint32_t existing_variable_id = hcc_astgen_variable_stack_find(w, param_identifier_string_id);
-			if (existing_variable_id) {
+			HccDecl existing_variable_decl = hcc_astgen_variable_stack_find(w, param_identifier_string_id);
+			if (existing_variable_decl) {
 				HccLocation* other_location = NULL; // TODO: location of existing variable
 				HccString string = hcc_string_table_get(param_identifier_string_id);
 				hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM, other_location, (int)string.size, string.data);
 			}
-			hcc_astgen_variable_stack_add(w, param_identifier_string_id);
+			hcc_astgen_variable_stack_add_local(w, param_identifier_string_id);
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 
 			param->data_type = param_data_type;
@@ -4095,7 +4096,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 	//
 	// validate the function prototype for shader stage entry points if this function is one
 	switch (function.shader_stage) {
-		case HCC_AST_FUNCTION_SHADER_STAGE_VERTEX: {
+		case HCC_SHADER_STAGE_VERTEX: {
 			if (function.params_count != 2) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, params_location);
 			}
@@ -4109,9 +4110,9 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			}
 
 			//
-			// param[0]: HccVertexInput
+			// param[0]: HccVertexSV
 			param = hcc_stack_get(w->astgen.function_params_and_variables, 0);
-			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_INPUT))) {
+			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, param->identifier_location);
 			}
 
@@ -4119,12 +4120,12 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			// param[1]: HCC_DEFINE_RASTERIZER_STATE
 			param = hcc_stack_get(w->astgen.function_params_and_variables, 1);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_rasterizer_state(w->cu, param_data_type)) {
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_rasterizer_state(w->cu, param_data_type)) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, param->identifier_location);
 			}
 			break;
 		};
-		case HCC_AST_FUNCTION_SHADER_STAGE_FRAGMENT: {
+		case HCC_SHADER_STAGE_FRAGMENT: {
 			if (function.params_count != 3) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, params_location);
 			}
@@ -4138,9 +4139,9 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			}
 
 			//
-			// param[0]: HccFragmentInput
+			// param[0]: HccFragmentSV
 			param = hcc_stack_get(w->astgen.function_params_and_variables, 0);
-			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_INPUT))) {
+			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
 			}
 
@@ -4148,7 +4149,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			// param[1]: HCC_DEFINE_RASTERIZER_STATE
 			param = hcc_stack_get(w->astgen.function_params_and_variables, 1);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_rasterizer_state(w->cu, param_data_type)) {
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_rasterizer_state(w->cu, param_data_type)) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
 			}
 
@@ -4156,7 +4157,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			// param[2]: HCC_DEFINE_FRAGMENT_STATE
 			param = hcc_stack_get(w->astgen.function_params_and_variables, 2);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_fragment_state(w->cu, param_data_type)) {
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_fragment_state(w->cu, param_data_type)) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
 			}
 

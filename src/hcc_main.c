@@ -8,6 +8,10 @@
 #include "astgen.c"
 #include "astlink.c"
 #include "amlgen.c"
+#include "amlopt.c"
+#include "spirv.c"
+#include "spirvgen.c"
+#include "spirvlink.c"
 #include "hcc.c"
 
 void print_duration(const char* what, HccDuration d) {
@@ -24,6 +28,7 @@ int main(int argc, char** argv) {
 	HccOptions* options;
 	HccOptionsSetup options_setup = hcc_options_setup_default;
 	HCC_ENSURE(hcc_options_init(&options_setup, &options));
+	hcc_options_set_bool(options, HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED, true);
 
 	HccCompiler* compiler;
 	HccCompilerSetup compiler_setup = hcc_compiler_setup_default;
@@ -32,13 +37,16 @@ int main(int argc, char** argv) {
 	HccTask* task;
 	HccTaskSetup task_setup = hcc_task_setup_default;
 	task_setup.options = options;
-	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_AMLGEN;
+	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_BACKENDLINK;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
 	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/test.c", NULL));
 
 	HccIIO stdout_iio = hcc_iio_file(stdout);
+	HccIIO binary_iio = hcc_iio_file(fopen("tests/test.spirv", "wb"));
 	hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
+	//HCC_ENSURE(hcc_task_add_output_ast_text(task, &stdout_iio));
 	HCC_ENSURE(hcc_task_add_output_aml_text(task, &stdout_iio));
+	HCC_ENSURE(hcc_task_add_output_binary(task, &binary_iio));
 
 	hcc_compiler_dispatch_task(compiler, task);
 	HccResult result = hcc_task_wait_for_complete(task);
@@ -59,8 +67,8 @@ int main(int argc, char** argv) {
 	}
 
 	print_duration("compiler", hcc_compiler_duration(compiler));
-	for (HccPhase phase = 0; phase < HCC_PHASE_COUNT; phase += 1) {
-		print_duration(hcc_phase_strings[phase], hcc_compiler_phase_duration(compiler, phase));
+	for (HccWorkerJobType job_type = 0; job_type < HCC_WORKER_JOB_TYPE_COUNT; job_type += 1) {
+		print_duration(hcc_worker_job_type_strings[job_type], hcc_compiler_worker_job_type_duration(compiler, job_type));
 	}
 
 	return 0;

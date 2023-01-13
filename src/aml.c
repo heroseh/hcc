@@ -3,6 +3,124 @@
 // ===========================================
 //
 //
+// AML Function
+//
+//
+// ===========================================
+
+HccAMLFunction* hcc_aml_function_take_ref(HccCU* cu, HccDecl decl) {
+	HCC_DEBUG_ASSERT(HCC_DECL_IS_FUNCTION(decl), "internal error: expected a function declaration");
+	HCC_DEBUG_ASSERT(!HCC_DECL_IS_FORWARD_DECL(decl), "internal error: expected a function declaration that is not a forward declaration");
+
+	HccAtomic(HccAMLFunction*)* function_ptr = hcc_stack_get(cu->aml.functions, HCC_DECL_AUX(decl));
+	while (1) {
+		HccAMLFunction* function = atomic_load(function_ptr);
+		if (atomic_fetch_add(&function->ref_count, 1) != 0) {
+			return function;
+		}
+
+		atomic_fetch_sub(&function->ref_count, 1);
+	}
+}
+
+void hcc_aml_function_return_ref(HccCU* cu, HccAMLFunction* function) {
+	if (atomic_fetch_sub(&function->ref_count, 1) != 1 || !atomic_load(&function->can_free)) {
+		return;
+	}
+
+	hcc_aml_function_alctor_dealloc(cu, function);
+}
+
+HccAMLOperand hcc_aml_function_value_add(HccAMLFunction* function, HccDataType data_type) {
+	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->values_count + 1, function->values_cap);
+
+	uint32_t value_idx = function->values_count;
+	function->values_count += 1;
+
+	HccAMLValue* value = &function->values[value_idx];
+	value->data_type = data_type;
+
+	return HCC_AML_OPERAND(VALUE, value_idx);
+}
+
+HccAMLOperand hcc_aml_function_basic_block_add(HccAMLFunction* function, uint32_t location_idx) {
+	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->basic_blocks_count + 1, function->basic_blocks_cap);
+
+	//
+	// if the previous basic block does not branch or return, then lets make it explicit fallthrough to this basic block
+	if (function->basic_blocks_count && function->basic_blocks[function->basic_blocks_count - 1].terminating_instr_word_idx == UINT32_MAX) {
+		HccAMLOperand* operands = hcc_aml_function_instr_add(function, location_idx, HCC_AML_OP_BRANCH, 1);
+		operands[0] = HCC_AML_OPERAND(BASIC_BLOCK, function->basic_blocks_count);
+	}
+
+	uint32_t word_idx = function->words_count;
+	uint32_t basic_block_idx = function->basic_blocks_count;
+	function->basic_blocks_count += 1;
+
+	HccAMLBasicBlock* basic_block = &function->basic_blocks[basic_block_idx];
+	basic_block->word_idx = word_idx;
+	basic_block->terminating_instr_word_idx = UINT32_MAX;
+	basic_block->params_start_idx = function->basic_block_params_count;
+	basic_block->params_count = 0;
+
+	HccAMLOperand* operands = hcc_aml_function_instr_add(function, location_idx, HCC_AML_OP_BASIC_BLOCK, 1);
+	operands[0] = HCC_AML_OPERAND(BASIC_BLOCK, basic_block_idx);
+
+	return HCC_AML_OPERAND(BASIC_BLOCK, basic_block_idx);
+}
+
+HccAMLOperand hcc_aml_function_basic_block_param_add(HccAMLFunction* function, HccDataType data_type) {
+	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->basic_block_params_count + 1, function->basic_block_params_cap);
+
+	uint32_t basic_block_param_idx = function->basic_block_params_count;
+	function->basic_block_params_count += 1;
+
+	HccAMLBasicBlockParam* basic_block_param = &function->basic_block_params[basic_block_param_idx];
+	basic_block_param->data_type = data_type;
+	basic_block_param->srcs_start_idx = function->basic_block_param_srcs_count;
+	basic_block_param->srcs_count = 0;
+
+	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(function->basic_blocks_count - 1, function->basic_blocks_count);
+	function->basic_blocks[function->basic_blocks_count - 1].params_count += 1;
+
+	return HCC_AML_OPERAND(BASIC_BLOCK_PARAM, basic_block_param_idx);
+}
+
+void hcc_aml_function_basic_block_param_src_add(HccAMLFunction* function, HccAMLOperand basic_block_operand, HccAMLOperand operand) {
+	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->basic_block_param_srcs_count + 1, function->basic_block_param_srcs_cap);
+	HCC_DEBUG_ASSERT(HCC_AML_OPERAND_IS_BASIC_BLOCK(basic_block_operand), "expected a basic block operand");
+
+	uint32_t basic_block_param_src_idx = function->basic_block_param_srcs_count;
+	function->basic_block_param_srcs_count += 1;
+
+	HccAMLBasicBlockParamSrc* basic_block_param_src = &function->basic_block_param_srcs[basic_block_param_src_idx];
+	basic_block_param_src->basic_block_operand = basic_block_operand;
+	basic_block_param_src->operand = operand;
+
+	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(function->basic_block_params_count - 1, function->basic_block_params_count);
+	function->basic_block_params[function->basic_block_params_count - 1].srcs_count += 1;
+}
+
+HccAMLOperand* hcc_aml_function_instr_add(HccAMLFunction* function, uint32_t location_idx, HccAMLOp op, uint16_t operands_count) {
+	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->words_count + operands_count + 2, function->words_cap);
+	uint32_t word_idx = function->words_count;
+
+	if (op == HCC_AML_OP_BRANCH || op == HCC_AML_OP_BRANCH_CONDITIONAL || op == HCC_AML_OP_SWITCH || op == HCC_AML_OP_RETURN) {
+		function->basic_blocks[function->basic_blocks_count - 1].terminating_instr_word_idx = word_idx;
+	}
+
+	function->words_count += operands_count + 2;
+
+	HccAMLWord* words = &function->words[word_idx];
+	words[0] = HCC_AML_INSTR(op, operands_count);
+	words[1] = location_idx;
+
+	return &words[2];
+}
+
+// ===========================================
+//
+//
 // AML Function Allocator
 //
 //
@@ -13,17 +131,20 @@ void hcc_aml_function_alctor_init(HccCU* cu, HccAMLFunctionAlctorSetup* setup) {
 	uint32_t values_grow_count = (uint32_t)ceilf((float)setup->instrs_grow_count * HCC_AML_INSTR_AVERAGE_VALUES);
 	uint32_t basic_blocks_grow_count = (uint32_t)ceilf((float)setup->instrs_grow_count * HCC_AML_INSTR_AVERAGE_BASIC_BLOCKS);
 	uint32_t basic_block_params_grow_count = (uint32_t)ceilf((float)setup->instrs_grow_count * HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAMS);
+	uint32_t basic_block_param_srcs_grow_count = (uint32_t)ceilf((float)setup->instrs_grow_count * HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAM_SRCS);
 	uint32_t words_reserve_cap = (uint32_t)ceilf((float)setup->instrs_reserve_cap * HCC_AML_INSTR_AVERAGE_WORDS);
 	uint32_t values_reserve_cap = (uint32_t)ceilf((float)setup->instrs_reserve_cap * HCC_AML_INSTR_AVERAGE_VALUES);
 	uint32_t basic_blocks_reserve_cap = (uint32_t)ceilf((float)setup->instrs_reserve_cap * HCC_AML_INSTR_AVERAGE_BASIC_BLOCKS);
 	uint32_t basic_block_params_reserve_cap = (uint32_t)ceilf((float)setup->instrs_reserve_cap * HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAMS);
+	uint32_t basic_block_param_srcs_reserve_cap = (uint32_t)ceilf((float)setup->instrs_reserve_cap * HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAM_SRCS);
 
 	HccAMLFunctionAlctor* function_alctor = &cu->aml.function_alctor;
 	function_alctor->functions_pool = hcc_stack_init(HccAMLFunction, HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_NODES_POOL, setup->functions_grow_count, setup->functions_reserve_cap);
 	function_alctor->words_pool = hcc_stack_init(HccAMLWord, HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_WORDS_POOL, words_grow_count, words_reserve_cap);
 	function_alctor->values_pool = hcc_stack_init(HccAMLValue, HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_VALUES_POOL, values_grow_count, values_reserve_cap);
 	function_alctor->basic_blocks_pool = hcc_stack_init(HccAMLBasicBlock, HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCKS_POOL, basic_blocks_grow_count, basic_blocks_reserve_cap);
-	function_alctor->basic_block_params_pool = hcc_stack_init(HccAMLValue, HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCK_PARAMS_POOL, basic_block_params_grow_count, basic_block_params_reserve_cap);
+	function_alctor->basic_block_params_pool = hcc_stack_init(HccAMLBasicBlockParam, HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCK_PARAMS_POOL, basic_block_params_grow_count, basic_block_params_reserve_cap);
+	function_alctor->basic_block_param_srcs_pool = hcc_stack_init(HccAMLBasicBlockParamSrc, HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCK_PARAM_SRCS_POOL, basic_block_param_srcs_grow_count, basic_block_param_srcs_reserve_cap);
 }
 
 void hcc_aml_function_alctor_deinit(HccCU* cu) {
@@ -33,6 +154,7 @@ void hcc_aml_function_alctor_deinit(HccCU* cu) {
 	hcc_stack_deinit(function_alctor->values_pool);
 	hcc_stack_deinit(function_alctor->basic_blocks_pool);
 	hcc_stack_deinit(function_alctor->basic_block_params_pool);
+	hcc_stack_deinit(function_alctor->basic_block_param_srcs_pool);
 }
 
 uint32_t hcc_aml_function_alctor_instr_count_round_up_log2(HccCU* cu, uint32_t max_instrs_count) {
@@ -79,6 +201,8 @@ HccAMLFunction* hcc_aml_function_alctor_alloc(HccCU* cu, uint32_t max_instrs_cou
 			next_free_function->values_count = 0;
 			next_free_function->basic_blocks_count = 0;
 			next_free_function->basic_block_params_count = 0;
+			next_free_function->ref_count = 1;
+			next_free_function->can_free = false;
 			next_free_function->next_free = NULL;
 			return next_free_function;
 		}
@@ -94,20 +218,25 @@ HccAMLFunction* hcc_aml_function_alctor_alloc(HccCU* cu, uint32_t max_instrs_cou
 	uint32_t values_cap = (uint32_t)ceilf((float)instr_count * HCC_AML_INSTR_AVERAGE_VALUES);
 	uint32_t basic_blocks_cap = (uint32_t)ceilf((float)instr_count * HCC_AML_INSTR_AVERAGE_BASIC_BLOCKS);
 	uint32_t basic_block_params_cap = (uint32_t)ceilf((float)instr_count * HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAMS);
+	uint32_t basic_block_param_srcs_cap = (uint32_t)ceilf((float)instr_count * HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAM_SRCS);
 	HccAMLWord* words = hcc_stack_push_many_thread_safe(function_alctor->words_pool, words_cap);
 	HccAMLValue* values = hcc_stack_push_many_thread_safe(function_alctor->values_pool, values_cap);
 	HccAMLBasicBlock* basic_blocks = hcc_stack_push_many_thread_safe(function_alctor->basic_blocks_pool, basic_blocks_cap);
-	HccAMLValue* basic_block_params = hcc_stack_push_many_thread_safe(function_alctor->basic_block_params_pool, basic_block_params_cap);
+	HccAMLBasicBlockParam* basic_block_params = hcc_stack_push_many_thread_safe(function_alctor->basic_block_params_pool, basic_block_params_cap);
+	HccAMLBasicBlockParamSrc* basic_block_param_srcs = hcc_stack_push_many_thread_safe(function_alctor->basic_block_param_srcs_pool, basic_block_param_srcs_cap);
 
 	HccAMLFunction* function = hcc_stack_push(function_alctor->functions_pool);
 	function->identifier_location = NULL;
 	function->identifier_string_id.idx_plus_one = 0;
 	function->params_count = 0;
+	function->can_free = false;
+	function->ref_count = 1;
 	function->next_free = NULL;
 	function->words = words;
 	function->values = values;
 	function->basic_blocks = basic_blocks;
 	function->basic_block_params = basic_block_params;
+	function->basic_block_param_srcs = basic_block_param_srcs;
 	function->words_count = 0;
 	function->words_cap = words_cap;
 	function->values_count = 0;
@@ -116,6 +245,8 @@ HccAMLFunction* hcc_aml_function_alctor_alloc(HccCU* cu, uint32_t max_instrs_cou
 	function->basic_blocks_cap = basic_blocks_cap;
 	function->basic_block_params_count = 0;
 	function->basic_block_params_cap = basic_block_params_cap;
+	function->basic_block_param_srcs_count = 0;
+	function->basic_block_param_srcs_cap = basic_block_param_srcs_cap;
 
 	return function;
 }
@@ -138,75 +269,6 @@ void hcc_aml_function_alctor_dealloc(HccCU* cu, HccAMLFunction* function) {
 			return;
 		}
 	}
-}
-
-HccAMLOperand hcc_aml_function_value_add(HccAMLFunction* function, HccDataType data_type) {
-	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->values_count + 1, function->values_cap);
-
-	uint32_t value_idx = function->values_count;
-	function->values_count += 1;
-
-	HccAMLValue* value = &function->values[value_idx];
-	value->data_type = data_type;
-
-	return HCC_AML_OPERAND(VALUE, value_idx);
-}
-
-HccAMLOperand hcc_aml_function_basic_block_add(HccAMLFunction* function, uint32_t location_idx) {
-	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->basic_blocks_count + 1, function->basic_blocks_cap);
-
-	//
-	// if the previous basic block does not branch or return, then lets make it explicit fallthrough to this basic block
-	if (function->basic_blocks_count && !function->basic_blocks[function->basic_blocks_count - 1]._has_branch_or_return) {
-		HccAMLOperand* operands = hcc_aml_function_instr_add(function, location_idx, HCC_AML_OP_BRANCH, 1);
-		operands[0] = HCC_AML_OPERAND(BASIC_BLOCK, function->basic_blocks_count);
-	}
-
-	uint32_t word_idx = function->words_count;
-	uint32_t basic_block_idx = function->basic_blocks_count;
-	function->basic_blocks_count += 1;
-
-	HccAMLBasicBlock* basic_block = &function->basic_blocks[basic_block_idx];
-	basic_block->word_idx = word_idx;
-	basic_block->params_start_idx = function->basic_block_params_count;
-	basic_block->params_count = 0;
-
-	HccAMLOperand* operands = hcc_aml_function_instr_add(function, location_idx, HCC_AML_OP_BASIC_BLOCK, 1);
-	operands[0] = HCC_AML_OPERAND(BASIC_BLOCK, basic_block_idx);
-
-	return HCC_AML_OPERAND(BASIC_BLOCK, basic_block_idx);
-}
-
-HccAMLOperand hcc_aml_function_basic_block_param_add(HccAMLFunction* function, HccDataType data_type) {
-	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->basic_block_params_count + 1, function->basic_block_params_cap);
-
-	uint32_t basic_block_param_idx = function->basic_block_params_count;
-	function->basic_block_params_count += 1;
-
-	HccAMLValue* basic_block_param = &function->basic_block_params[basic_block_param_idx];
-	basic_block_param->data_type = data_type;
-
-	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(function->basic_blocks_count - 1, function->basic_blocks_count);
-	function->basic_blocks[function->basic_blocks_count - 1].params_count += 1;
-
-	return HCC_AML_OPERAND(BASIC_BLOCK_PARAM, basic_block_param_idx);
-}
-
-HccAMLOperand* hcc_aml_function_instr_add(HccAMLFunction* function, uint32_t location_idx, HccAMLOp op, uint16_t operands_count) {
-	HCC_DEBUG_ASSERT_ARRAY_RESIZE(function->words_count + operands_count + 2, function->words_cap);
-
-	if (op == HCC_AML_OP_BRANCH || op == HCC_AML_OP_BRANCH_CONDITIONAL || op == HCC_AML_OP_SWITCH || op == HCC_AML_OP_RETURN) {
-		function->basic_blocks[function->basic_blocks_count - 1]._has_branch_or_return = true;
-	}
-
-	uint32_t word_idx = function->words_count;
-	function->words_count += operands_count + 2;
-
-	HccAMLWord* words = &function->words[word_idx];
-	words[0] = HCC_AML_INSTR(op, operands_count);
-	words[1] = location_idx;
-
-	return &words[2];
 }
 
 // ===========================================
@@ -252,9 +314,79 @@ const char* hcc_aml_op_code_strings[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_BITCAST] = "BITCAST",
 	[HCC_AML_OP_CALL] = "CALL",
 	[HCC_AML_OP_RETURN] = "RETURN",
-	[HCC_AML_OP_INTRINSIC_CALL] = "INTRINSIC_CALL",
 	[HCC_AML_OP_UNREACHABLE] = "UNREACHABLE",
 	[HCC_AML_OP_SELECT] = "SELECT",
+	[HCC_AML_OP_SELECTION_MERGE] = "SELECTION_MERGE",
+	[HCC_AML_OP_LOOP_MERGE] = "LOOP_MERGE",
+	[HCC_AML_OP_SYSTEM_VALUE_LOAD] = "SYSTEM_VALUE_LOAD",
+	[HCC_AML_OP_RASTERIZER_STATE_LOAD_FIELD] = "RASTERIZER_STATE_LOAD_FIELD",
+	[HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD] = "RASTERIZER_STATE_STORE_FIELD",
+	[HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD] = "FRAGMENT_STATE_STORE_FIELD",
+	[HCC_AML_OP_MIN] = "MIN",
+	[HCC_AML_OP_MAX] = "MAX",
+	[HCC_AML_OP_CLAMP] = "CLAMP",
+	[HCC_AML_OP_SIGN] = "SIGN",
+	[HCC_AML_OP_ABS] = "ABS",
+	[HCC_AML_OP_FMA] = "FMA",
+	[HCC_AML_OP_FLOOR] = "FLOOR",
+	[HCC_AML_OP_CEIL] = "CEIL",
+	[HCC_AML_OP_ROUND] = "ROUND",
+	[HCC_AML_OP_TRUNC] = "TRUNC",
+	[HCC_AML_OP_FRACT] = "FRACT",
+	[HCC_AML_OP_RADIANS] = "RADIANS",
+	[HCC_AML_OP_DEGREES] = "DEGREES",
+	[HCC_AML_OP_STEP] = "STEP",
+	[HCC_AML_OP_SMOOTHSTEP] = "SMOOTHSTEP",
+	[HCC_AML_OP_SIN] = "SIN",
+	[HCC_AML_OP_COS] = "COS",
+	[HCC_AML_OP_TAN] = "TAN",
+	[HCC_AML_OP_ASIN] = "ASIN",
+	[HCC_AML_OP_ACOS] = "ACOS",
+	[HCC_AML_OP_ATAN] = "ATAN",
+	[HCC_AML_OP_SINH] = "SINH",
+	[HCC_AML_OP_COSH] = "COSH",
+	[HCC_AML_OP_TANH] = "TANH",
+	[HCC_AML_OP_ASINH] = "ASINH",
+	[HCC_AML_OP_ACOSH] = "ACOSH",
+	[HCC_AML_OP_ATANH] = "ATANH",
+	[HCC_AML_OP_ATAN2] = "ATAN2",
+	[HCC_AML_OP_POW] = "POW",
+	[HCC_AML_OP_EXP] = "EXP",
+	[HCC_AML_OP_LOG] = "LOG",
+	[HCC_AML_OP_EXP2] = "EXP2",
+	[HCC_AML_OP_LOG2] = "LOG2",
+	[HCC_AML_OP_SQRT] = "SQRT",
+	[HCC_AML_OP_RSQRT] = "RSQRT",
+	[HCC_AML_OP_ISINF] = "ISINF",
+	[HCC_AML_OP_ISNAN] = "ISNAN",
+	[HCC_AML_OP_LERP] = "LERP",
+	[HCC_AML_OP_PACK] = "PACK",
+	[HCC_AML_OP_UNPACK] = "UNPACK",
+	[HCC_AML_OP_ANY] = "ANY",
+	[HCC_AML_OP_ALL] = "ALL",
+	[HCC_AML_OP_DOT] = "DOT",
+	[HCC_AML_OP_LEN] = "LEN",
+	[HCC_AML_OP_NORM] = "NORM",
+	[HCC_AML_OP_REFLECT] = "REFLECT",
+	[HCC_AML_OP_REFRACT] = "REFRACT",
+	[HCC_AML_OP_PACK_F16X2_F32X2] = "PACK_F16X2_F32X2",
+	[HCC_AML_OP_UNPACK_F16X2_F32X2] = "UNPACK_F16X2_F32X2",
+	[HCC_AML_OP_PACK_U16X2_F32X2] = "PACK_U16X2_F32X2",
+	[HCC_AML_OP_UNPACK_U16X2_F32X2] = "UNPACK_U16X2_F32X2",
+	[HCC_AML_OP_PACK_S16X2_F32X2] = "PACK_S16X2_F32X2",
+	[HCC_AML_OP_UNPACK_S16X2_F32X2] = "UNPACK_S16X2_F32X2",
+	[HCC_AML_OP_PACK_U8X4_F32X4] = "PACK_U8X4_F32X4",
+	[HCC_AML_OP_UNPACK_U8X4_F32X4] = "UNPACK_U8X4_F32X4",
+	[HCC_AML_OP_PACK_S8X4_F32X4] = "PACK_S8X4_F32X4",
+	[HCC_AML_OP_UNPACK_S8X4_F32X4] = "UNPACK_S8X4_F32X4",
+	[HCC_AML_OP_MATRIX_MUL] = "MATRIX_MUL",
+	[HCC_AML_OP_MATRIX_MUL_SCALAR] = "MATRIX_MUL_SCALAR",
+	[HCC_AML_OP_MATRIX_MUL_VECTOR] = "MATRIX_MUL_VECTOR",
+	[HCC_AML_OP_VECTOR_MUL_MATRIX] = "VECTOR_MUL_MATRIX",
+	[HCC_AML_OP_MATRIX_TRANSPOSE] = "MATRIX_TRANSPOSE",
+	[HCC_AML_OP_MATRIX_OUTER_PRODUCT] = "MATRIX_OUTER_PRODUCT",
+	[HCC_AML_OP_MATRIX_DETERMINANT] = "MATRIX_DETERMINANT",
+	[HCC_AML_OP_MATRIX_INVERSE] = "MATRIX_INVERSE",
 };
 
 bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
@@ -292,9 +424,79 @@ bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_BITCAST] = true,
 	[HCC_AML_OP_CALL] = true,
 	[HCC_AML_OP_RETURN] = false,
-	[HCC_AML_OP_INTRINSIC_CALL] = true,
 	[HCC_AML_OP_UNREACHABLE] = false,
 	[HCC_AML_OP_SELECT] = true,
+	[HCC_AML_OP_SELECTION_MERGE] = false,
+	[HCC_AML_OP_LOOP_MERGE] = false,
+	[HCC_AML_OP_SYSTEM_VALUE_LOAD] = true,
+	[HCC_AML_OP_RASTERIZER_STATE_LOAD_FIELD] = true,
+	[HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD] = false,
+	[HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD] = false,
+	[HCC_AML_OP_MIN] = true,
+	[HCC_AML_OP_MAX] = true,
+	[HCC_AML_OP_CLAMP] = true,
+	[HCC_AML_OP_SIGN] = true,
+	[HCC_AML_OP_ABS] = true,
+	[HCC_AML_OP_FMA] = true,
+	[HCC_AML_OP_FLOOR] = true,
+	[HCC_AML_OP_CEIL] = true,
+	[HCC_AML_OP_ROUND] = true,
+	[HCC_AML_OP_TRUNC] = true,
+	[HCC_AML_OP_FRACT] = true,
+	[HCC_AML_OP_RADIANS] = true,
+	[HCC_AML_OP_DEGREES] = true,
+	[HCC_AML_OP_STEP] = true,
+	[HCC_AML_OP_SMOOTHSTEP] = true,
+	[HCC_AML_OP_SIN] = true,
+	[HCC_AML_OP_COS] = true,
+	[HCC_AML_OP_TAN] = true,
+	[HCC_AML_OP_ASIN] = true,
+	[HCC_AML_OP_ACOS] = true,
+	[HCC_AML_OP_ATAN] = true,
+	[HCC_AML_OP_SINH] = true,
+	[HCC_AML_OP_COSH] = true,
+	[HCC_AML_OP_TANH] = true,
+	[HCC_AML_OP_ASINH] = true,
+	[HCC_AML_OP_ACOSH] = true,
+	[HCC_AML_OP_ATANH] = true,
+	[HCC_AML_OP_ATAN2] = true,
+	[HCC_AML_OP_POW] = true,
+	[HCC_AML_OP_EXP] = true,
+	[HCC_AML_OP_LOG] = true,
+	[HCC_AML_OP_EXP2] = true,
+	[HCC_AML_OP_LOG2] = true,
+	[HCC_AML_OP_SQRT] = true,
+	[HCC_AML_OP_RSQRT] = true,
+	[HCC_AML_OP_ISINF] = true,
+	[HCC_AML_OP_ISNAN] = true,
+	[HCC_AML_OP_LERP] = true,
+	[HCC_AML_OP_PACK] = true,
+	[HCC_AML_OP_UNPACK] = true,
+	[HCC_AML_OP_ANY] = true,
+	[HCC_AML_OP_ALL] = true,
+	[HCC_AML_OP_DOT] = true,
+	[HCC_AML_OP_LEN] = true,
+	[HCC_AML_OP_NORM] = true,
+	[HCC_AML_OP_REFLECT] = true,
+	[HCC_AML_OP_REFRACT] = true,
+	[HCC_AML_OP_PACK_F16X2_F32X2] = true,
+	[HCC_AML_OP_UNPACK_F16X2_F32X2] = true,
+	[HCC_AML_OP_PACK_U16X2_F32X2] = true,
+	[HCC_AML_OP_UNPACK_U16X2_F32X2] = true,
+	[HCC_AML_OP_PACK_S16X2_F32X2] = true,
+	[HCC_AML_OP_UNPACK_S16X2_F32X2] = true,
+	[HCC_AML_OP_PACK_U8X4_F32X4] = true,
+	[HCC_AML_OP_UNPACK_U8X4_F32X4] = true,
+	[HCC_AML_OP_PACK_S8X4_F32X4] = true,
+	[HCC_AML_OP_UNPACK_S8X4_F32X4] = true,
+	[HCC_AML_OP_MATRIX_MUL] = true,
+	[HCC_AML_OP_MATRIX_MUL_SCALAR] = true,
+	[HCC_AML_OP_MATRIX_MUL_VECTOR] = true,
+	[HCC_AML_OP_VECTOR_MUL_MATRIX] = true,
+	[HCC_AML_OP_MATRIX_TRANSPOSE] = true,
+	[HCC_AML_OP_MATRIX_OUTER_PRODUCT] = true,
+	[HCC_AML_OP_MATRIX_DETERMINANT] = true,
+	[HCC_AML_OP_MATRIX_INVERSE] = true,
 };
 
 // ===========================================
@@ -305,7 +507,7 @@ bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
 //
 // ===========================================
 
-HccDataType hcc_aml_operand_data_type(HccCU* cu, HccAMLFunction* function, HccAMLOperand operand) {
+HccDataType hcc_aml_operand_data_type(HccCU* cu, const HccAMLFunction* function, HccAMLOperand operand) {
 	switch (HCC_AML_OPERAND_TYPE(operand)) {
 		case HCC_AML_OPERAND_VALUE: {
 			HCC_DEBUG_ASSERT_ARRAY_BOUNDS(HCC_AML_OPERAND_AUX(operand), function->values_count);
@@ -317,11 +519,11 @@ HccDataType hcc_aml_operand_data_type(HccCU* cu, HccAMLFunction* function, HccAM
 			return constant.data_type;
 		};
 		case HCC_AML_OPERAND_BASIC_BLOCK: {
-			HCC_ABORT("basic blocks do not have a operand data type");
+			return 0;
 		};
 		case HCC_AML_OPERAND_BASIC_BLOCK_PARAM: {
 			HCC_DEBUG_ASSERT_ARRAY_BOUNDS(HCC_AML_OPERAND_AUX(operand), function->basic_block_params_count);
-			HccAMLValue* basic_block_param = &function->basic_block_params[HCC_AML_OPERAND_AUX(operand)];
+			HccAMLBasicBlockParam* basic_block_param = &function->basic_block_params[HCC_AML_OPERAND_AUX(operand)];
 			return basic_block_param->data_type;
 		};
 		case HCC_DECL_GLOBAL_VARIABLE: {
@@ -350,7 +552,7 @@ HccDataType hcc_aml_operand_data_type(HccCU* cu, HccAMLFunction* function, HccAM
 //
 // ===========================================
 
-HccAMLFunction* hcc_aml_function_get(HccCU* cu, HccDecl decl) {
+const HccAMLFunction* hcc_aml_function_get(HccCU* cu, HccDecl decl) {
 	HCC_DEBUG_ASSERT(HCC_DECL_IS_FUNCTION(decl), "internal error: expected a function declaration");
 	HCC_DEBUG_ASSERT(!HCC_DECL_IS_FORWARD_DECL(decl), "internal error: expected a function declaration that is not a forward declaration");
 	return *hcc_stack_get(cu->aml.functions, HCC_DECL_AUX(decl));
@@ -384,21 +586,33 @@ uint32_t hcc_aml_function_basic_block_params_count(HccAMLFunction* function) {
 	return function->basic_block_params_count;
 }
 
-HccAMLValue* hcc_aml_function_basic_block_params(HccAMLFunction* function) {
+HccAMLBasicBlockParam* hcc_aml_function_basic_block_params(HccAMLFunction* function) {
 	return function->basic_block_params;
+}
+
+uint32_t hcc_aml_function_basic_block_param_srcs_count(HccAMLFunction* function) {
+	return function->basic_block_param_srcs_count;
+}
+
+HccAMLBasicBlockParamSrc* hcc_aml_function_basic_block_param_srcs(HccAMLFunction* function) {
+	return function->basic_block_param_srcs;
 }
 
 void hcc_aml_init(HccCU* cu, HccCUSetup* setup) {
 	hcc_aml_function_alctor_init(cu, &setup->aml.function_alctor);
-	cu->aml.functions = hcc_stack_init(HccAMLFunction*, HCC_ALLOC_TAG_AML_FUNCTIONS, setup->functions_grow_count, setup->functions_reserve_cap);
+	cu->aml.functions = hcc_stack_init(HccAtomic(HccAMLFunction*), HCC_ALLOC_TAG_AML_FUNCTIONS, setup->functions_grow_count, setup->functions_reserve_cap);
 	cu->aml.locations = hcc_stack_init(HccLocation*, HCC_ALLOC_TAG_AML_LOCATIONS, setup->ast.expr_locations_grow_count, setup->ast.expr_locations_reserve_cap);
+	cu->aml.call_graph_nodes = hcc_stack_init(HccAMLCallNode, HCC_ALLOC_TAG_AML_CALL_GRAPH_NODES, setup->functions_grow_count, setup->functions_reserve_cap);
+	cu->aml.function_call_node_lists = hcc_stack_init(HccAMLCallNode*, 	HCC_ALLOC_TAG_AML_FUNCTION_CALL_NODE_LISTS, setup->functions_grow_count, setup->functions_reserve_cap);
+	cu->aml.optimize_functions[0] = hcc_stack_init(HccDecl, HCC_ALLOC_TAG_AML_OPIMIZE_FUNCTIONS, setup->functions_grow_count, setup->functions_reserve_cap);
+	cu->aml.optimize_functions[1] = hcc_stack_init(HccDecl, HCC_ALLOC_TAG_AML_OPIMIZE_FUNCTIONS, setup->functions_grow_count, setup->functions_reserve_cap);
 }
 
 void hcc_aml_deinit(HccCU* cu) {
 	hcc_aml_function_alctor_deinit(cu);
 }
 
-void hcc_aml_print_operand(HccCU* cu, HccAMLFunction* function, HccAMLOperand operand, HccIIO* iio, bool is_definition) {
+void hcc_aml_print_operand(HccCU* cu, const HccAMLFunction* function, HccAMLOperand operand, HccIIO* iio, bool is_definition) {
 	const char* fmt;
 	switch (HCC_AML_OPERAND_TYPE(operand)) {
 		case HCC_AML_OPERAND_VALUE: {
@@ -435,9 +649,9 @@ void hcc_aml_print_operand(HccCU* cu, HccAMLFunction* function, HccAMLOperand op
 			break;
 		};
 		case HCC_AML_OPERAND_BASIC_BLOCK_PARAM: {
-			HccAMLValue* value = &function->basic_block_params[HCC_AML_OPERAND_AUX(operand)];
+			HccAMLBasicBlockParam* param = &function->basic_block_params[HCC_AML_OPERAND_AUX(operand)];
 			if (is_definition) {
-				HccString data_type_name = hcc_data_type_string(cu, value->data_type);
+				HccString data_type_name = hcc_data_type_string(cu, param->data_type);
 				if (iio->ascii_colors_enabled) {
 					fmt = "\x1b[94m%.*s \x1b[93m^%u\x1b[0m";
 				} else {
@@ -502,7 +716,7 @@ void hcc_aml_print(HccCU* cu, HccIIO* iio) {
 	const char* fmt;
 	uint32_t functions_count = hcc_stack_count(cu->aml.functions);
 	for (uint32_t function_idx = HCC_FUNCTION_IDX_USER_START; function_idx < functions_count; function_idx += 1) {
-		HccAMLFunction* function = cu->aml.functions[function_idx];
+		const HccAMLFunction* function = cu->aml.functions[function_idx];
 		HccString name = hcc_string_table_get_or_empty(function->identifier_string_id);
 		if (iio->ascii_colors_enabled) {
 			fmt = "\x1b[94mFunction\x1b[0m(\x1b[93m#%u\x1b[0m): \x1b[1m%.*s\x1b[0m(";
@@ -570,5 +784,51 @@ void hcc_aml_print(HccCU* cu, HccIIO* iio) {
 			word_idx += HCC_AML_INSTR_WORDS_COUNT(instr);
 		}
 	}
+}
+
+HccLocation* hcc_aml_instr_location(HccCU* cu, HccAMLInstr* instr) {
+	return *hcc_stack_get(cu->aml.locations, HCC_AML_INSTR_LOCATION_IDX(instr));
+}
+
+HccStack(HccDecl) hcc_aml_optimize_functions(HccCU* cu) {
+	return cu->aml.optimize_functions[cu->aml.optimize_functions_idx];
+}
+
+void hcc_aml_next_optimize_functions_array(HccCU* cu) {
+	cu->aml.optimize_functions_idx = (cu->aml.optimize_functions_idx + 1) % 2;
+	hcc_stack_clear(cu->aml.optimize_functions[cu->aml.optimize_functions_idx]);
+}
+
+HccAMLOperand hcc_aml_basic_block_next(const HccAMLFunction* function, HccAMLOperand basic_block_operand) {
+	HCC_DEBUG_ASSERT(HCC_AML_OPERAND_IS_BASIC_BLOCK(basic_block_operand), "expected a basic block");
+
+	HccAMLBasicBlock* basic_block = &function->basic_blocks[HCC_AML_OPERAND_AUX(basic_block_operand)];
+	if (basic_block->terminating_instr_word_idx + 1 >= function->words_count) {
+		return 0;
+	}
+
+	HccAMLInstr* instr = &function->words[basic_block->terminating_instr_word_idx];
+	instr = &instr[HCC_AML_INSTR_WORDS_COUNT(instr)];
+	HccAMLOperand next_basic_block_operand = HCC_AML_INSTR_OPERANDS(instr)[0];
+	HCC_DEBUG_ASSERT(HCC_AML_OPERAND_IS_BASIC_BLOCK(next_basic_block_operand), "expected the next instruction after the terminating instruction to be a basic block");
+	return next_basic_block_operand;
+}
+
+HccAMLOperand hcc_aml_instr_switch_merge_basic_block_operand(const HccAMLFunction* function, HccAMLInstr* instr) {
+	HccAMLOp op = HCC_AML_INSTR_OP(instr);
+	HccAMLOperand* operands = HCC_AML_INSTR_OPERANDS(instr);
+	uint32_t operands_count = HCC_AML_INSTR_OPERANDS_COUNT(instr);
+	HCC_DEBUG_ASSERT(op == HCC_AML_OP_SWITCH, "must be a switch instruction");
+
+	//
+	// find the last basic block defined physically in the switch statement
+	HccAMLOperand last_basic_block_operand = operands[1]; // default block
+	last_basic_block_operand = HCC_MAX(last_basic_block_operand, operands[operands_count - 1]); // last case block
+	HCC_DEBUG_ASSERT(HCC_AML_OPERAND_IS_BASIC_BLOCK(last_basic_block_operand), "expected the default block or last case block to be a basic block");
+
+	//
+	// the merge block for switch is the basic block that follows the last basic block in the switch case physically.
+	// so lets move to that next block now.
+	return hcc_aml_basic_block_next(function, last_basic_block_operand);
 }
 

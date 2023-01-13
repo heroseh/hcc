@@ -59,6 +59,7 @@ void hcc_cu_init(HccCU* cu, HccCUSetup* setup, HccOptions* options) {
 	hcc_data_type_table_init(cu, setup);
 	hcc_ast_init(cu, setup);
 	hcc_aml_init(cu, setup);
+	hcc_spirv_init(cu, setup);
 	cu->global_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_GLOBAL_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, global_declarations_cap);
 	cu->struct_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_STRUCT_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
 	cu->union_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_UNION_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
@@ -89,16 +90,17 @@ HccOptionsSetup hcc_options_setup_default = {
 };
 
 HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
-	[HCC_OPTION_KEY_TARGET_ARCH] =             HCC_TARGET_ARCH_X86_64,
-	[HCC_OPTION_KEY_TARGET_OS] =               HCC_TARGET_OS_LINUX,
-	[HCC_OPTION_KEY_TARGET_GFX_API] =          HCC_TARGET_GFX_API_VULKAN,
-	[HCC_OPTION_KEY_TARGET_FORMAT] =           HCC_TARGET_FORMAT_SPIR_V,
-	[HCC_OPTION_KEY_TARGET_RESOURCE_MODEL] =   HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS,
-	[HCC_OPTION_KEY_INT8_ENABLED] =            false,
-	[HCC_OPTION_KEY_INT16_ENABLED] =           false,
-	[HCC_OPTION_KEY_INT64_ENABLED] =           false,
-	[HCC_OPTION_KEY_FLOAT16_ENABLED] =         false,
-	[HCC_OPTION_KEY_FLOAT64_ENABLED] =         false,
+	[HCC_OPTION_KEY_TARGET_ARCH] =              HCC_TARGET_ARCH_X86_64,
+	[HCC_OPTION_KEY_TARGET_OS] =                HCC_TARGET_OS_LINUX,
+	[HCC_OPTION_KEY_TARGET_GFX_API] =           HCC_TARGET_GFX_API_VULKAN,
+	[HCC_OPTION_KEY_TARGET_FORMAT] =            HCC_TARGET_FORMAT_SPIRV,
+	[HCC_OPTION_KEY_TARGET_RESOURCE_MODEL] =    HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS,
+	[HCC_OPTION_KEY_INT8_ENABLED] =             false,
+	[HCC_OPTION_KEY_INT16_ENABLED] =            false,
+	[HCC_OPTION_KEY_INT64_ENABLED] =            false,
+	[HCC_OPTION_KEY_FLOAT16_ENABLED] =          false,
+	[HCC_OPTION_KEY_FLOAT64_ENABLED] =          false,
+	[HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED] = false,
 	[HCC_OPTION_KEY_RESOURCE_SET_SLOT_MAX] = { .uint = 4 },
 	[HCC_OPTION_KEY_RESOURCE_CONSTANTS_MAX_SIZE] = { .uint = 32 },
 };
@@ -332,26 +334,10 @@ HccTaskSetup hcc_task_setup_default = {
 		.function_params_and_variables_reserve_cap = 131072,
 	},
 	.options = NULL,
-	.final_worker_job_type = HCC_WORKER_JOB_TYPE_METADATA,
+	.final_worker_job_type = HCC_WORKER_JOB_TYPE_COUNT,
 	.include_paths_cap = 1024,
 	.messages_cap = 4096,
 	.message_strings_cap = 32768,
-};
-
-const char* hcc_stage_strings[HCC_STAGE_COUNT] = {
-	[HCC_STAGE_CODE] = "code",
-	[HCC_STAGE_AST] = "ast",
-	[HCC_STAGE_AML] = "aml",
-	[HCC_STAGE_BINARY] = "binary",
-	[HCC_STAGE_METADATA] = "metadata",
-};
-
-const char* hcc_phase_strings[HCC_PHASE_COUNT] = {
-	[HCC_PHASE_ASTGEN] = "astgen",
-	[HCC_PHASE_ASTLINK] = "astlink",
-	[HCC_PHASE_AMLGEN] = "amlgen",
-	[HCC_PHASE_AMLOPT] = "amlopt",
-	[HCC_PHASE_BACKEND] = "backend",
 };
 
 const char* hcc_worker_job_type_strings[HCC_WORKER_JOB_TYPE_COUNT] = {
@@ -360,8 +346,8 @@ const char* hcc_worker_job_type_strings[HCC_WORKER_JOB_TYPE_COUNT] = {
 	[HCC_WORKER_JOB_TYPE_ASTLINK] = "ASTLINK",
 	[HCC_WORKER_JOB_TYPE_AMLGEN] = "AMLGEN",
 	[HCC_WORKER_JOB_TYPE_AMLOPT] = "AMLOPT",
-	[HCC_WORKER_JOB_TYPE_BINARY] = "BINARY",
-	[HCC_WORKER_JOB_TYPE_METADATA] = "METADATA",
+	[HCC_WORKER_JOB_TYPE_BACKENDGEN] = "BACKENDGEN",
+	[HCC_WORKER_JOB_TYPE_BACKENDLINK] = "BACKENDLINK",
 };
 
 HccTaskInputLocation* hcc_task_input_location_init(HccTask* t, HccOptions* options) {
@@ -376,12 +362,12 @@ HccTaskInputLocation* hcc_task_input_location_init(HccTask* t, HccOptions* optio
 	return il;
 }
 
-HccResult hcc_task_add_output(HccTask* t, HccStage stage, HccEncoding encoding, void* arg) {
+HccResult hcc_task_add_output(HccTask* t, HccWorkerJobType job_type, HccEncoding encoding, void* arg) {
 	HCC_SET_BAIL_JMP_LOC_GLOBAL();
 
-	HccTaskOutputLocation* ol = &t->output_stage_locations[stage];
-	HCC_ASSERT(ol->arg == NULL, "task output for stage '%s' has already been set", hcc_stage_strings[stage]);
-	ol->stage = stage;
+	HccTaskOutputLocation* ol = &t->output_job_locations[job_type];
+	HCC_ASSERT(ol->arg == NULL, "task output for job_type '%s' has already been set", hcc_worker_job_type_strings[job_type]);
+	ol->worker_job_type = job_type;
 	ol->encoding = encoding;
 	ol->arg = arg;
 
@@ -389,55 +375,77 @@ HccResult hcc_task_add_output(HccTask* t, HccStage stage, HccEncoding encoding, 
 	return HCC_RESULT_SUCCESS;
 }
 
-void hcc_task_output_stage(HccTask* t, HccStage stage) {
-	HccTaskOutputLocation* output_location = &t->output_stage_locations[stage];
+void hcc_task_output_job(HccTask* t, HccWorkerJobType job_type) {
+	HccTaskOutputLocation* output_location = &t->output_job_locations[job_type];
 
 	switch (output_location->encoding) {
 		case HCC_ENCODING_TEXT: {
 			HccIIO* iio = output_location->arg;
-			switch (stage) {
-				case HCC_STAGE_CODE:
+			switch (job_type) {
+				case HCC_WORKER_JOB_TYPE_ATAGEN:
 					break;
-				case HCC_STAGE_AST:
+				case HCC_WORKER_JOB_TYPE_ASTGEN:
 					hcc_ast_print(t->cu, iio);
 					break;
-				case HCC_STAGE_AML:
+				case HCC_WORKER_JOB_TYPE_ASTLINK:
+					hcc_ast_print(t->cu, iio);
+					break;
+				case HCC_WORKER_JOB_TYPE_AMLGEN:
 					hcc_aml_print(t->cu, iio);
 					break;
-				case HCC_STAGE_BINARY:
+				case HCC_WORKER_JOB_TYPE_AMLOPT:
+					hcc_aml_print(t->cu, iio);
 					break;
-				case HCC_STAGE_METADATA:
+				case HCC_WORKER_JOB_TYPE_BACKENDGEN:
+					break;
+				case HCC_WORKER_JOB_TYPE_BACKENDLINK:
 					break;
 			}
+			hcc_iio_close(iio);
 			break;
 		};
 		case HCC_ENCODING_BINARY: {
 			HccIIO* iio = output_location->arg;
-			switch (stage) {
-				case HCC_STAGE_CODE:
+			switch (job_type) {
+				case HCC_WORKER_JOB_TYPE_ATAGEN:
 					break;
-				case HCC_STAGE_AST:
+				case HCC_WORKER_JOB_TYPE_ASTGEN:
 					break;
-				case HCC_STAGE_AML:
+				case HCC_WORKER_JOB_TYPE_ASTLINK:
 					break;
-				case HCC_STAGE_BINARY:
+				case HCC_WORKER_JOB_TYPE_AMLGEN:
 					break;
-				case HCC_STAGE_METADATA:
+				case HCC_WORKER_JOB_TYPE_AMLOPT:
 					break;
+				case HCC_WORKER_JOB_TYPE_BACKENDGEN:
+					break;
+				case HCC_WORKER_JOB_TYPE_BACKENDLINK: {
+					uint32_t write_size = t->cu->spirv.final_binary_words_count * sizeof(HccSPIRVWord);
+					uint32_t written_size = hcc_iio_write(iio, t->cu->spirv.final_binary_words, write_size);
+					if (written_size != write_size) {
+						HCC_ABORT("TODO report this error properly: error writing out final file to disk. written %u, expected: %u", written_size, write_size);
+					}
+					break;
+				};
 			}
+			hcc_iio_close(iio);
 			break;
 		};
 		case HCC_ENCODING_RUNTIME_BINARY:
-			switch (stage) {
-				case HCC_STAGE_CODE:
+			switch (job_type) {
+				case HCC_WORKER_JOB_TYPE_ATAGEN:
 					break;
-				case HCC_STAGE_AST:
+				case HCC_WORKER_JOB_TYPE_ASTGEN:
 					break;
-				case HCC_STAGE_AML:
+				case HCC_WORKER_JOB_TYPE_ASTLINK:
 					break;
-				case HCC_STAGE_BINARY:
+				case HCC_WORKER_JOB_TYPE_AMLGEN:
 					break;
-				case HCC_STAGE_METADATA:
+				case HCC_WORKER_JOB_TYPE_AMLOPT:
+					break;
+				case HCC_WORKER_JOB_TYPE_BACKENDGEN:
+					break;
+				case HCC_WORKER_JOB_TYPE_BACKENDLINK:
 					break;
 			}
 			break;
@@ -454,9 +462,9 @@ void hcc_task_finish(HccTask* t, bool was_successful) {
 	}
 
 	if (was_successful) {
-		for (HccStage stage = 0; stage < HCC_STAGE_COUNT; stage += 1) {
-			if (t->output_stage_locations[stage].arg) {
-				hcc_task_output_stage(t, stage);
+		for (HccWorkerJobType job_type = 0; job_type < HCC_WORKER_JOB_TYPE_COUNT; job_type += 1) {
+			if (t->output_job_locations[job_type].arg) {
+				hcc_task_output_job(t, job_type);
 			}
 		}
 	}
@@ -513,27 +521,31 @@ HccResult hcc_task_add_input_code_file(HccTask* t, const char* file_path, HccOpt
 }
 
 HccResult hcc_task_add_output_ast_text(HccTask* t, HccIIO* iio) {
-	return hcc_task_add_output(t, HCC_STAGE_AST, HCC_ENCODING_TEXT, iio);
+	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_ASTLINK, HCC_ENCODING_TEXT, iio);
 }
 
 HccResult hcc_task_add_output_ast_binary(HccTask* t, HccIIO* iio) {
-	return hcc_task_add_output(t, HCC_STAGE_AST, HCC_ENCODING_BINARY, iio);
+	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_ASTLINK, HCC_ENCODING_BINARY, iio);
 }
 
 HccResult hcc_task_add_output_ast(HccTask* t, HccAST** ast_out) {
-	return hcc_task_add_output(t, HCC_STAGE_AST, HCC_ENCODING_RUNTIME_BINARY, ast_out);
+	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_ASTLINK, HCC_ENCODING_RUNTIME_BINARY, ast_out);
 }
 
 HccResult hcc_task_add_output_aml_text(HccTask* t, HccIIO* iio) {
-	return hcc_task_add_output(t, HCC_STAGE_AML, HCC_ENCODING_TEXT, iio);
+	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_AMLOPT, HCC_ENCODING_TEXT, iio);
 }
 
 HccResult hcc_task_add_output_aml_binary(HccTask* t, HccIIO* iio) {
-	return hcc_task_add_output(t, HCC_STAGE_AML, HCC_ENCODING_BINARY, iio);
+	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_AMLOPT, HCC_ENCODING_BINARY, iio);
 }
 
 HccResult hcc_task_add_output_aml(HccTask* t, HccAML** aml_out) {
-	return hcc_task_add_output(t, HCC_STAGE_AML, HCC_ENCODING_RUNTIME_BINARY, aml_out);
+	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_AMLOPT, HCC_ENCODING_RUNTIME_BINARY, aml_out);
+}
+
+HccResult hcc_task_add_output_binary(HccTask* t, HccIIO* iio) {
+	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_BACKENDLINK, HCC_ENCODING_BINARY, iio);
 }
 
 bool hcc_task_has_started(HccTask* t) {
@@ -571,11 +583,7 @@ HccDuration hcc_task_duration(HccTask* t) {
 	return t->duration;
 }
 
-HccDuration hcc_task_phase_duration(HccTask* t, HccPhase phase) {
-	return t->phase_durations[phase];
-}
-
-HccDuration hcc_task_workers_duration_for_type(HccTask* t, HccWorkerJobType type) {
+HccDuration hcc_task_worker_job_type_duration(HccTask* t, HccWorkerJobType type) {
 	return t->worker_job_type_durations[type];
 }
 
@@ -586,16 +594,6 @@ HccDuration hcc_task_workers_duration_for_type(HccTask* t, HccWorkerJobType type
 //
 //
 // ===========================================
-
-HccPhase hcc_worker_job_type_phases[HCC_WORKER_JOB_TYPE_COUNT] = {
-	[HCC_WORKER_JOB_TYPE_ATAGEN] = HCC_PHASE_ASTGEN,
-	[HCC_WORKER_JOB_TYPE_ASTGEN] = HCC_PHASE_ASTGEN,
-	[HCC_WORKER_JOB_TYPE_ASTLINK] = HCC_PHASE_ASTLINK,
-	[HCC_WORKER_JOB_TYPE_AMLGEN] = HCC_PHASE_AMLGEN,
-	[HCC_WORKER_JOB_TYPE_AMLOPT] = HCC_PHASE_AMLOPT,
-	[HCC_WORKER_JOB_TYPE_BINARY] = HCC_PHASE_BACKEND,
-	[HCC_WORKER_JOB_TYPE_METADATA] = HCC_PHASE_BACKEND,
-};
 
 void hcc_worker_init(HccWorker* w, HccCompiler* c, void* call_stack, uintptr_t call_stack_size, HccCompilerSetup* setup) {
 	HCC_UNUSED(setup);
@@ -640,7 +638,6 @@ void hcc_worker_start_job(HccWorker* w) {
 void hcc_worker_end_job(HccWorker* w) {
 	HccTask* t = w->job.task;
 	HccCompiler* c = t->c;
-	HccTime end_time = hcc_time_now(HCC_TIME_MODE_MONOTONIC);
 	printf("[WORKER %2u] ending job %s\n", (int)(w - w->c->workers), hcc_worker_job_type_strings[w->job.type]);
 	if (c == NULL) {
 		//
@@ -648,19 +645,14 @@ void hcc_worker_end_job(HccWorker* w) {
 		return;
 	}
 
-	//
-	// update the overall worker type duration in the task and compiler
-	HccDuration duration = hcc_time_diff(end_time, w->job_start_time);
-	t->worker_job_type_durations[w->job.type] = hcc_duration_add(t->worker_job_type_durations[w->job.type], duration);
-	c->worker_job_type_durations[w->job.type] = hcc_duration_add(c->worker_job_type_durations[w->job.type], duration);
-
 	if (atomic_fetch_sub(&t->queued_jobs_count, 1) == 1) {
 		//
-		// set the phase duration in the task and add it to the compiler's overall copy
-		t->phase_durations[t->phase] = hcc_time_diff(end_time, t->phase_start_times[t->phase]);
-		c->phase_durations[t->phase] = hcc_duration_add(c->phase_durations[t->phase], t->phase_durations[t->phase]);
+		// set the worker_job_type duration in the task and add it to the compiler's overall copy
+		HccTime end_time = hcc_time_now(HCC_TIME_MODE_MONOTONIC);
+		t->worker_job_type_durations[t->worker_job_type] = hcc_time_diff(end_time, t->worker_job_type_start_times[t->worker_job_type]);
+		c->worker_job_type_durations[t->worker_job_type] = hcc_duration_add(c->worker_job_type_durations[t->worker_job_type], t->worker_job_type_durations[t->worker_job_type]);
 
-		if (t->phase == hcc_worker_job_type_phases[t->final_worker_job_type]) {
+		if (t->worker_job_type == t->final_worker_job_type) {
 			bool was_successful = true;
 			if (t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
 				t->result.code = HCC_ERROR_MESSAGES;
@@ -669,7 +661,7 @@ void hcc_worker_end_job(HccWorker* w) {
 			}
 
 			//
-			// we have finished all jobs and have reached the phase where we end.
+			// we have finished all jobs and have reached the worker job type where we end.
 			// t->final_worker_job_type also stops any jobs being added that
 			// are later than it at the start of the hcc_compiler_give_worker_job function.
 			hcc_task_finish(w->job.task, was_successful);
@@ -677,9 +669,18 @@ void hcc_worker_end_job(HccWorker* w) {
 		}
 
 		//
-		// setup the next phase worker jobs
-		switch (t->phase) {
-			case HCC_PHASE_ASTGEN: {
+		// setup the next worker job type
+		HccWorkerJobType next_job_type = t->worker_job_type + 1;
+		switch (t->worker_job_type) {
+			case HCC_WORKER_JOB_TYPE_ATAGEN: {
+				HccStack(HccASTFile*) ast_files = t->cu->ast.files;
+				uint32_t files_count = hcc_stack_count(ast_files);
+				for (uint32_t file_idx = 0; file_idx < files_count; file_idx += 1) {
+					hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_ASTGEN, ast_files[file_idx]);
+				}
+				break;
+			};
+			case HCC_WORKER_JOB_TYPE_ASTGEN: {
 				HccStack(HccASTFile*) ast_files = t->cu->ast.files;
 				uint32_t files_count = hcc_stack_count(ast_files);
 				for (uint32_t file_idx = 0; file_idx < files_count; file_idx += 1) {
@@ -687,7 +688,7 @@ void hcc_worker_end_job(HccWorker* w) {
 				}
 				break;
 			};
-			case HCC_PHASE_ASTLINK: {
+			case HCC_WORKER_JOB_TYPE_ASTLINK: {
 				uint32_t functions_count = hcc_stack_count(t->cu->ast.functions);
 				hcc_stack_resize(t->cu->aml.functions, functions_count);
 
@@ -698,17 +699,53 @@ void hcc_worker_end_job(HccWorker* w) {
 				}
 				break;
 			};
-			case HCC_PHASE_AMLGEN:
-				// TODO: loop over all functions and hcc_compiler_give_worker_job for AMLOPT
+			case HCC_WORKER_JOB_TYPE_AMLGEN: {
+				uint32_t functions_count = hcc_stack_count(t->cu->aml.functions);
+				hcc_stack_resize(t->cu->aml.function_call_node_lists, functions_count);
+
+				HccStack(HccDecl) optimize_functions = hcc_aml_optimize_functions(w->cu);
+				for (uint32_t idx = 0; idx < hcc_stack_count(optimize_functions); idx += 1) {
+					HccDecl function_decl = optimize_functions[idx];
+					void* arg = (void*)(uintptr_t)function_decl;
+					hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_AMLOPT, arg);
+				}
+				hcc_aml_next_optimize_functions_array(w->cu);
 				break;
-			case HCC_PHASE_AMLOPT:
-				// TODO: queue job for the backend
+			};
+			case HCC_WORKER_JOB_TYPE_AMLOPT: {
+				uint32_t functions_count = hcc_stack_count(t->cu->aml.functions);
+				t->cu->aml.opt_phase += 1;
+
+				HccStack(HccDecl) optimize_functions = hcc_aml_optimize_functions(w->cu);
+				if (t->cu->aml.opt_phase < HCC_AML_OPT_PHASE_COUNT) {
+					HCC_DEBUG_ASSERT(hcc_stack_count(optimize_functions), "we still have optimization phases to go but no functions where listed to be optimized");
+					for (uint32_t idx = 0; idx < hcc_stack_count(optimize_functions); idx += 1) {
+						HccDecl function_decl = optimize_functions[idx];
+						void* arg = (void*)(uintptr_t)function_decl;
+						hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_AMLOPT, arg);
+					}
+					next_job_type = HCC_WORKER_JOB_TYPE_AMLOPT;
+					hcc_aml_next_optimize_functions_array(w->cu);
+				} else {
+					hcc_stack_resize(t->cu->spirv.functions, functions_count);
+
+					HCC_DEBUG_ASSERT(hcc_stack_count(optimize_functions), "we have have no functions to output after AMLOPT has completed");
+					for (uint32_t idx = 0; idx < hcc_stack_count(optimize_functions); idx += 1) {
+						HccDecl function_decl = optimize_functions[idx];
+						void* arg = (void*)(uintptr_t)function_decl;
+						hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_BACKENDGEN, arg);
+					}
+				}
 				break;
-			case HCC_PHASE_BACKEND:
+			};
+			case HCC_WORKER_JOB_TYPE_BACKENDGEN:
+				hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_BACKENDLINK, NULL);
+				break;
+			case HCC_WORKER_JOB_TYPE_BACKENDLINK:
 				break;
 		}
-		t->phase += 1;
-		t->phase_start_times[t->phase] = end_time;
+		t->worker_job_type = next_job_type;
+		t->worker_job_type_start_times[t->worker_job_type] = end_time;
 	}
 }
 
@@ -735,7 +772,6 @@ void hcc_worker_main(void* arg) {
 				}
 				hcc_atagen_reset(w);
 				hcc_atagen_generate(w);
-				hcc_compiler_give_worker_job(c, w->job.task, HCC_WORKER_JOB_TYPE_ASTGEN, w->atagen.ast_file);
 				break;
 			case HCC_WORKER_JOB_TYPE_ASTGEN:
 				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
@@ -761,12 +797,29 @@ void hcc_worker_main(void* arg) {
 				hcc_amlgen_reset(w);
 				hcc_amlgen_generate(w);
 				break;
-				break;
 			case HCC_WORKER_JOB_TYPE_AMLOPT:
+				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
+					hcc_amlopt_init(w, &c->setup);
+					w->initialized_generators_bitset |= (1 << w->job.type);
+				}
+				hcc_amlopt_reset(w);
+				hcc_amlopt_optimize(w);
 				break;
-			case HCC_WORKER_JOB_TYPE_BINARY:
+			case HCC_WORKER_JOB_TYPE_BACKENDGEN:
+				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
+					hcc_spirvgen_init(w, &c->setup);
+					w->initialized_generators_bitset |= (1 << w->job.type);
+				}
+				hcc_spirvgen_reset(w);
+				hcc_spirvgen_generate(w);
 				break;
-			case HCC_WORKER_JOB_TYPE_METADATA:
+			case HCC_WORKER_JOB_TYPE_BACKENDLINK:
+				if (!(w->initialized_generators_bitset & (1 << w->job.type))) {
+					hcc_spirvlink_init(w, &c->setup);
+					w->initialized_generators_bitset |= (1 << w->job.type);
+				}
+				hcc_spirvlink_reset(w);
+				hcc_spirvlink_link(w);
 				break;
 		}
 
@@ -813,10 +866,14 @@ HccCompilerSetup hcc_compiler_setup_default = {
 	.amlgen = {
 		.placeholder = 1,
 	},
+	.backendlink = {
+		.binary_grow_size = 8388608,
+		.binary_reserve_size = 67108864,
+	},
 	.worker_string_buffer_grow_size = 4096,
 	.worker_string_buffer_reserve_size = 65536,
-	.worker_arena_size = 16384,
-	.workers_count = 0,
+	.worker_arena_size = 32768,
+	.workers_count = 1,
 	.worker_jobs_queue_cap = 4096,
 	.worker_call_stack_size = 65536,
 };
@@ -957,12 +1014,11 @@ HccResult hcc_compiler_dispatch_task(HccCompiler* c, HccTask* t) {
 
 	t->result = HCC_RESULT_SUCCESS;
 	t->flags &= ~(HCC_TASK_FLAGS_IS_RESULT_SET);
-	t->phase = HCC_PHASE_ASTGEN;
+	t->worker_job_type = HCC_WORKER_JOB_TYPE_ATAGEN;
 	HCC_ZERO_ARRAY(t->worker_job_type_durations);
-	HCC_ZERO_ARRAY(t->phase_durations);
 	HCC_ZERO_ELMT(&t->duration);
 	t->start_time = hcc_time_now(HCC_TIME_MODE_MONOTONIC);
-	t->phase_start_times[HCC_PHASE_ASTGEN] = t->start_time;
+	t->worker_job_type_start_times[HCC_WORKER_JOB_TYPE_ATAGEN] = t->start_time;
 
 	if (t->cu) {
 		hcc_cu_deinit(t->cu);
@@ -984,7 +1040,6 @@ HccResult hcc_compiler_dispatch_task(HccCompiler* c, HccTask* t) {
 			c->result_data.result_stacktrace[0] = '\0';
 		}
 		HCC_ZERO_ARRAY(c->worker_job_type_durations);
-		HCC_ZERO_ARRAY(c->phase_durations);
 		HCC_ZERO_ELMT(&c->duration);
 		c->start_time = t->start_time;
 
@@ -1035,11 +1090,7 @@ HccDuration hcc_compiler_duration(HccCompiler* c) {
 	return c->duration;
 }
 
-HccDuration hcc_compiler_phase_duration(HccCompiler* c, HccPhase phase) {
-	return c->phase_durations[phase];
-}
-
-HccDuration hcc_compiler_workers_duration_for_type(HccCompiler* c, HccWorkerJobType type) {
+HccDuration hcc_compiler_worker_job_type_duration(HccCompiler* c, HccWorkerJobType type) {
 	return c->worker_job_type_durations[type];
 }
 
@@ -1059,17 +1110,17 @@ void hcc_string_table_intrinsic_add(uint32_t expected_string_id, const char* str
 	HCC_DEBUG_ASSERT(id.idx_plus_one == expected_string_id, "intrinsic string id for '%s' does not match! expected '%u' but got '%u'", string, expected_string_id, id.idx_plus_one);
 }
 
-void hcc_string_intrinsic_decl_add_function(char* buf, uint32_t buf_size, uint32_t insert_idx, const char* fmt, uint32_t expected_string_id, HccAMLTypeClass support, int c, int r) {
+void hcc_string_intrinsic_decl_add_function(char* buf, uint32_t buf_size, uint32_t insert_idx, const char* fmt, uint32_t expected_string_id, HccManyTypeClass support, int c, int r) {
 	// skip HCC_AML_INTRINSIC_DATA_TYPE_VOID
 	expected_string_id += 1;
 
-	if (support & HCC_AML_TYPE_CLASS_BOOL) {
+	if (support & HCC_MANY_TYPE_CLASS_BOOL) {
 		snprintf(buf + insert_idx, buf_size - insert_idx, fmt, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_BOOL], c, r);
 		hcc_string_table_intrinsic_add(expected_string_id, buf);
 	}
 	expected_string_id += 1;
 
-	if (support & HCC_AML_TYPE_CLASS_SINT) {
+	if (support & HCC_MANY_TYPE_CLASS_SINT) {
 		for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_S8; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_S64; intrinsic += 1) {
 			snprintf(buf + insert_idx, buf_size - insert_idx, fmt, hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r);
 			hcc_string_table_intrinsic_add(expected_string_id, buf);
@@ -1079,7 +1130,7 @@ void hcc_string_intrinsic_decl_add_function(char* buf, uint32_t buf_size, uint32
 		expected_string_id += 4;
 	}
 
-	if (support & HCC_AML_TYPE_CLASS_UINT) {
+	if (support & HCC_MANY_TYPE_CLASS_UINT) {
 		for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_U8; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_U64; intrinsic += 1) {
 			snprintf(buf + insert_idx, buf_size - insert_idx, fmt, hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r);
 			hcc_string_table_intrinsic_add(expected_string_id, buf);
@@ -1089,7 +1140,7 @@ void hcc_string_intrinsic_decl_add_function(char* buf, uint32_t buf_size, uint32
 		expected_string_id += 4;
 	}
 
-	if (support & HCC_AML_TYPE_CLASS_FLOAT) {
+	if (support & HCC_MANY_TYPE_CLASS_FLOAT) {
 		for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
 			snprintf(buf + insert_idx, buf_size - insert_idx, fmt, hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r);
 			hcc_string_table_intrinsic_add(expected_string_id, buf);
@@ -1130,6 +1181,8 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 			uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + f;
 			hcc_string_table_intrinsic_add(expected_string_id, string);
 		}
+
+		hcc_string_table_intrinsic_add(HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_HALF, "half");
 
 		//
 		// generate the packed vector names
@@ -1181,23 +1234,23 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 			hcc_string_table_intrinsic_add(expected_string_id, string);
 		}
 
-		for (uint32_t f = 0; f < HCC_FUNCTION_AML_COUNT; f += 1) {
-			const char* function_prefix = hcc_intrinisic_function_aml_strings[f];
-			uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_FUNCTIONS_START + HCC_FUNCTION_IDX_AML_START + (f * HCC_AML_INTRINSIC_DATA_TYPE_COUNT);
+		for (uint32_t f = 0; f < HCC_FUNCTION_MANY_COUNT; f += 1) {
+			const char* function_prefix = hcc_intrinisic_function_many_strings[f];
+			uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_FUNCTIONS_START + HCC_FUNCTION_IDX_MANY_START + (f * HCC_AML_INTRINSIC_DATA_TYPE_COUNT);
 			uint32_t insert_idx = snprintf(buf, sizeof(buf), "%s_", function_prefix);
 
-			HccAMLTypeClass support = hcc_intrinisic_function_aml_support[f];
+			HccManyTypeClass support = hcc_intrinisic_function_many_support[f];
 
 			//
 			// generate the scalar versions of this function if they are supported
-			if (support & HCC_AML_TYPE_CLASS_OPS_SCALAR) {
+			if (support & HCC_MANY_TYPE_CLASS_OPS_SCALAR) {
 				hcc_string_intrinsic_decl_add_function(buf, sizeof(buf), insert_idx, "%s", expected_string_id, support, 0, 0);
 			}
 			expected_string_id += 16;
 
 			//
 			// generate the vector versions of this function if they are supported
-			if (support & HCC_AML_TYPE_CLASS_OPS_VECTOR) {
+			if (support & HCC_MANY_TYPE_CLASS_OPS_VECTOR) {
 				for (uint32_t c = 2; c <= 4; c += 1) {
 					hcc_string_intrinsic_decl_add_function(buf, sizeof(buf), insert_idx, "%sx%u", expected_string_id, support, c, 0);
 					expected_string_id += 16;
@@ -1208,9 +1261,9 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 
 			//
 			// generate the matrix versions of this function if they are supported
-			if (support & HCC_AML_TYPE_CLASS_OPS_MATRIX) {
+			if (support & HCC_MANY_TYPE_CLASS_OPS_MATRIX) {
 				switch (f) {
-					case HCC_FUNCTION_AML_MATRIX_MUL:
+					case HCC_FUNCTION_MANY_MATRIX_MUL:
 						for (uint32_t r = 2; r <= 4; r += 1) {
 							for (uint32_t c = 2; c <= 4; c += 1) {
 								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
@@ -1221,7 +1274,7 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 							}
 						}
 						break;
-					case HCC_FUNCTION_AML_MATRIX_MUL_VECTOR:
+					case HCC_FUNCTION_MANY_MATRIX_MUL_VECTOR:
 						for (uint32_t r = 2; r <= 4; r += 1) {
 							for (uint32_t c = 2; c <= 4; c += 1) {
 								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
@@ -1232,7 +1285,7 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 							}
 						}
 						break;
-					case HCC_FUNCTION_AML_VECTOR_MUL_MATRIX:
+					case HCC_FUNCTION_MANY_VECTOR_MUL_MATRIX:
 						for (uint32_t r = 2; r <= 4; r += 1) {
 							for (uint32_t c = 2; c <= 4; c += 1) {
 								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
@@ -1243,7 +1296,7 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 							}
 						}
 						break;
-					case HCC_FUNCTION_AML_MATRIX_OUTER_PRODUCT:
+					case HCC_FUNCTION_MANY_MATRIX_OUTER_PRODUCT:
 						for (uint32_t r = 2; r <= 4; r += 1) {
 							for (uint32_t c = 2; c <= 4; c += 1) {
 								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
@@ -1475,7 +1528,7 @@ void hcc_location_merge_apply(HccLocation* before, HccLocation* after) {
 
 HccSetup hcc_setup_default = {
 	.flags = HCC_FLAGS_NONE,
-	.global_mem_arena_size = 16384,
+	.global_mem_arena_size = 65536,
 	.alloc_event_fn = NULL,
 	.alloc_event_userdata = NULL,
 	.path_canonicalize_fn = hcc_path_canonicalize_internal,

@@ -233,9 +233,9 @@ static inline int64_t sign_s64(int64_t v) { return v == 0 ? 0 : (v < 0 ? -1 : 1)
 
 //
 // returns a 'v' with sign copied from 'sign'
-static inline half copysign_f16(half v, half sign) { return f32tof16(f16tof32(v) * (f16tof32(sign) < 0.f ? -1.0 : 1.0)); }
-static inline float copysign_f32(float v, float sign) { return v * (sign < 0.f ? -1.0 : 1.0); }
-static inline double copysign_f64(double v, double sign) { return v * (sign < 0.f ? -1.0 : 1.0); }
+static inline half copysign_f16(half v, half sign) { return f32tof16(f16tof32(v) * (f16tof32(sign) < 0.f ? -1.f : 1.f)); }
+static inline float copysign_f32(float v, float sign) { return v * (sign < 0.f ? -1.f : 1.f); }
+static inline double copysign_f64(double v, double sign) { return v * (sign < 0.f ? -1.f : 1.f); }
 static inline int8_t copysign_s8(int8_t v, int8_t sign) { return v | (sign & 0x80); }
 static inline int16_t copysign_s16(int16_t v, int16_t sign) { return v | (sign & 0x8000); }
 static inline int32_t copysign_s32(int32_t v, int32_t sign) { return v | (sign & 0x800000); }

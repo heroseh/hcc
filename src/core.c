@@ -348,6 +348,16 @@ bool hcc_file_open_read(const char* path, HccIIO* out) {
 	return true;
 }
 
+bool hcc_file_open_write(const char* path, HccIIO* out) {
+	FILE* f = fopen(path, "wb");
+	if (!f) {
+		return false;
+	}
+
+	*out = hcc_iio_file(f);
+	return true;
+}
+
 bool hcc_path_is_relative(const char* path) {
 	return !hcc_path_is_absolute(path);
 }
@@ -475,6 +485,60 @@ float hcc_float_round_down_to_multiple(float v, float multiple) {
 	} else {
 		return v - rem - multiple;
 	}
+}
+
+float f16tof32(half v) {
+	if ((v._bits & 0x7c00) == 0x7c00) { // inf, -inf or nan
+		if (v._bits & 0x03ff) return NAN;
+		else if (v._bits & 0x8000) return -INFINITY;
+		else return INFINITY;
+	}
+
+	union { float f; uint32_t u; } t1;
+	uint32_t t2;
+	uint32_t t3;
+
+	t1.u = v._bits & 0x7fff;      // non-sign bits
+	t2 = v._bits & 0x8000;        // sign bit
+	t3 = v._bits & 0x7c00;        // exponent
+
+	t1.u <<= 13;                 // align mantissa on MSB
+	t2 <<= 16;                   // shift sign bit into position
+
+	t1.u += 0x38000000;          // adjust bias
+
+	t1.u = (t3 == 0 ? 0 : t1.u); // denormals-as-zero
+
+	t1.u |= t2;                  // re-insert sign bit
+
+	return t1.f;
+}
+
+half f32tof16(float v) {
+	if (isinf(v)) return (half){ ._bits = v < 0.0 ? 0xfc00 : 0x7c00 };
+	if (isnan(v)) return (half){ ._bits = 0xffff };
+
+	union { float f; uint32_t u; } vu = { .f = v };
+	uint32_t t1;
+	uint32_t t2;
+	uint32_t t3;
+
+	t1 = vu.u & 0x7fffffff;                // non-sign bits
+	t2 = vu.u & 0x80000000;                // sign bit
+	t3 = vu.u & 0x7f800000;                // exponent
+
+	t1 >>= 13;                             // align mantissa on MSB
+	t2 >>= 16;                             // shift sign bit into position
+
+	t1 -= 0x1c000;                         // adjust bias
+
+	t1 = (t3 < 0x38800000) ? 0 : t1;       // flush-to-zero
+	t1 = (t3 > 0x8e000000) ? 0x7bff : t1;  // clamp-to-max
+	t1 = (t3 == 0 ? 0 : t1);               // denormals-as-zero
+
+	t1 |= t2;                              // re-insert sign bit
+
+	return (half){ ._bits = t1 };
 }
 
 // ===========================================
@@ -2053,17 +2117,17 @@ HccString hcc_aml_scalar_data_type_mask_string(HccAMLScalarDataTypeMask mask) {
 		switch (intrinsic_type) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_VOID: str = "void"; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: str = "bool"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_S8: str = "int8_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_S16: str = "int16_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_S32: str = "int32_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_S64: str = "int64_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_U8: str = "uint8_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_U16: str = "uint16_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_U32: str = "uint32_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_U64: str = "uint64_t"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_F16: str = "half"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_F32: str = "float"; break;
-			case HCC_AML_INTRINSIC_DATA_TYPE_F64: str = "double"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S8: str = "s8"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S16: str = "s16"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S32: str = "s32"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_S64: str = "s64"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U8: str = "u8"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U16: str = "u16"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U32: str = "u32"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_U64: str = "u64"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F16: str = "f16"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F32: str = "f32"; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F64: str = "f64"; break;
 		}
 
 		size += snprintf(buf + size, sizeof(buf) - size, size ? " %s" : "%s", str);
@@ -2178,10 +2242,10 @@ HccASTVariable* hcc_decl_function_params(HccCU* cu, HccDecl decl) {
 	}
 }
 
-HccASTFunctionShaderStage hcc_decl_function_shader_stage(HccCU* cu, HccDecl decl) {
+HccShaderStage hcc_decl_function_shader_stage(HccCU* cu, HccDecl decl) {
 	switch (HCC_DECL_TYPE(decl)) {
 		case HCC_DECL_FUNCTION:
-			return HCC_DECL_IS_FORWARD_DECL(decl) ? HCC_AST_FUNCTION_SHADER_STAGE_NONE : hcc_ast_function_get(cu, decl)->shader_stage;
+			return HCC_DECL_IS_FORWARD_DECL(decl) ? HCC_SHADER_STAGE_NONE : hcc_ast_function_get(cu, decl)->shader_stage;
 		default:
 			return 0;
 	}
@@ -2288,15 +2352,15 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
 		string = hcc_string_c((char*)hcc_ast_data_type_basic_type_strings[HCC_DATA_TYPE_AUX(data_type)]);
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
+		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
 		const char* fmt;
-		if (HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(data_type) > 1 && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(data_type) > 1) {
+		if (HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type) > 1 && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type) > 1) {
 			fmt = "%sx%ux%u";
-		} else if (HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(data_type) > 1) {
+		} else if (HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type) > 1) {
 			fmt = "%sx%u";
 		} else {
 			fmt = "%s";
 		}
-		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
 		uint32_t string_size = snprintf(buf, sizeof(buf), fmt, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type)], HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type), HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type));
 		string = hcc_string(buf, string_size);
 	} else {
@@ -2363,10 +2427,10 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 	}
 
 	if (qualifiers_mask) {
-		const char* const_string = qualifiers_mask & HCC_DATA_TYPE_CONST_QUALIFIER_MASK ? "const " : "";
-		const char* volatile_string = qualifiers_mask & HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK ? "volatile " : "";
-		const char* atomic_string = qualifiers_mask & HCC_DATA_TYPE_ATOMIC_QUALIFIER_MASK ? "atomic " : "";
-		uint32_t string_size = snprintf(buf2, sizeof(buf2), "%s%s%.*s", const_string, volatile_string, (int)string.size, string.data);
+		const char* const_string = qualifiers_mask & HCC_DATA_TYPE_CONST_QUALIFIER_MASK ? " const" : "";
+		const char* volatile_string = qualifiers_mask & HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK ? " volatile" : "";
+		const char* atomic_string = qualifiers_mask & HCC_DATA_TYPE_ATOMIC_QUALIFIER_MASK ? " atomic" : "";
+		uint32_t string_size = snprintf(buf2, sizeof(buf2), "%.*s%s%s%s", (int)string.size, string.data, const_string, volatile_string, atomic_string);
 		string = hcc_string(buf2, string_size);
 	}
 
@@ -2464,7 +2528,7 @@ FLOAT:
 			default: goto ERROR;
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
-		switch (HCC_DATA_TYPE_AUX(data_type)) {
+		switch (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_VOID:
 				hcc_iio_write_fmt(iio, "void");
 				break;
@@ -2495,13 +2559,15 @@ FLOAT:
 				}
 				hcc_iio_write_fmt(iio, "%zu", uint);
 				break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F16: float_ = f16tof32(*(half*)data); goto FLOAT;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F32: float_ = *(float*)data; goto FLOAT;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F64: float_ = *(double*)data; goto FLOAT;
 			default: goto ERROR;
 		}
 	} else {
-ERROR:
-		HCC_ABORT("internal error: expected a basic data type but got '%s'", hcc_data_type_string(cu, data_type));
+ERROR: {}
+		HccString string = hcc_data_type_string(cu, data_type);
+		HCC_ABORT("internal error: expected a basic data type but got '%.*s'", (int)string.size, string.data);
 	}
 }
 
@@ -2692,6 +2758,8 @@ HccDataType hcc_data_type_lower_ast_to_aml(HccCU* cu, HccDataType data_type) {
 				data_type = HCC_DATA_TYPE(AML_INTRINSIC, compound_data_type_idx - HCC_COMPOUND_DATA_TYPE_IDX_AML_START);
 			} else if (HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START <= compound_data_type_idx && compound_data_type_idx < HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_END) {
 				data_type = HCC_DATA_TYPE(AML_INTRINSIC, compound_data_type_idx - HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START);
+			} else if (compound_data_type_idx == HCC_COMPOUND_DATA_TYPE_IDX_HALF) {
+				data_type = HCC_DATA_TYPE_AML_INTRINSIC_F16;
 			}
 			break;
 		};
@@ -2849,7 +2917,7 @@ HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccData
 				return 0;
 			} else {
 				HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, data_type);
-				return compound_data_type->has_scalar_data_types_mask;
+				return compound_data_type->scalar_data_types_mask;
 			}
 		};
 
@@ -2889,7 +2957,7 @@ HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type) {
 			default: goto ERROR;
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
-		switch (HCC_DATA_TYPE_AUX(data_type)) {
+		switch (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: return HCC_BASIC_TYPE_CLASS_BOOL;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S8:
 			case HCC_AML_INTRINSIC_DATA_TYPE_S16:
@@ -3639,10 +3707,12 @@ HccConstantId hcc_constant_table_deduplicate_composite_end(HccCU* cu, HccDataTyp
 }
 
 HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_type) {
-	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
+	data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
+
+	if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
 		//
 		// basic type's need to store their zero data into the consant table. this is so that
-		// when the spirv code is generated it will generate OpConstant instructions for the consants instead of OpConstantNull.
+		// when the spirv code is generated it will generate OpConstant instructions for the constants instead of OpConstantNull.
 		// this will allow them to be used as indices in OpAccessChain.
 		HccBasic zero = {0};
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &zero);
@@ -3652,28 +3722,24 @@ HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_ty
 }
 
 HccConstantId hcc_constant_table_deduplicate_one(HccCU* cu, HccDataType data_type) {
-	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
-		//
-		// basic type's need to store their zero data into the consant table. this is so that
-		// when the spirv code is generated it will generate OpConstant instructions for the consants instead of OpConstantNull.
-		// this will allow them to be used as indices in OpAccessChain.
+	data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
+
+	if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
 		HccBasic one = hcc_basic_from_uint(cu, data_type, 1);
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &one);
 	} else {
-		return _hcc_constant_table_deduplicate_end(cu, data_type, NULL, 0, 0);
+		HCC_ABORT("TODO");
 	}
 }
 
 HccConstantId hcc_constant_table_deduplicate_minus_one(HccCU* cu, HccDataType data_type) {
-	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
-		//
-		// basic type's need to store their zero data into the consant table. this is so that
-		// when the spirv code is generated it will generate OpConstant instructions for the consants instead of OpConstantNull.
-		// this will allow them to be used as indices in OpAccessChain.
+	data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
+
+	if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
 		HccBasic minus_one = hcc_basic_from_sint(cu, data_type, -1);
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &minus_one);
 	} else {
-		return _hcc_constant_table_deduplicate_end(cu, data_type, NULL, 0, 0);
+		HCC_ABORT("TODO");
 	}
 }
 
@@ -3808,6 +3874,10 @@ uintptr_t _hcc_iio_file_write_fmt(HccIIO* iio, const char* fmt, va_list va_args)
 	return write_size;
 }
 
+void _hcc_iio_file_close(HccIIO* iio) {
+	fclose(iio->handle);
+}
+
 uintptr_t _hcc_iio_mem_read(HccIIO* iio, void* data_out, uintptr_t size) {
 	uintptr_t read_size = HCC_MIN(iio->size - iio->size, size);
 	memcpy(data_out, HCC_PTR_ADD(iio->handle, iio->cursor), read_size);
@@ -3855,6 +3925,7 @@ HccIIO hcc_iio_file(FILE* f) {
 		.read_fn = _hcc_iio_file_read,
 		.write_fn = _hcc_iio_file_write,
 		.write_fmt_fn = _hcc_iio_file_write_fmt,
+		.close_fn = _hcc_iio_file_close,
 	};
 	return iio;
 }
@@ -3867,6 +3938,7 @@ HccIIO hcc_iio_memory(void* data, uintptr_t size) {
 		.read_fn = _hcc_iio_mem_read,
 		.write_fn = _hcc_iio_mem_write,
 		.write_fmt_fn = _hcc_iio_mem_write_fmt,
+		.close_fn = NULL,
 	};
 	return iio;
 }
@@ -3895,6 +3967,12 @@ uintptr_t hcc_iio_write_fmt(HccIIO* iio, const char* fmt, ...) {
 	return write_size;
 }
 
+void hcc_iio_close(HccIIO* iio) {
+	if (iio->close_fn) {
+		iio->close_fn(iio);
+	}
+}
+
 // ===========================================
 //
 //
@@ -3920,7 +3998,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_NONE] = "internal error: there is no error code set for this error",
 
 		//
-		// tokengen
+		// ATAGEN
 		[HCC_ERROR_CODE_INVALID_TOKEN_MACRO_IDENTIFIER] = "invalid token '%c' for macro identifier",
 		[HCC_ERROR_CODE_INVALID_TOKEN_MACRO_PARAM_IDENTIFIER] = "invalid token '%c' for macro parameter identifier",
 		[HCC_ERROR_CODE_DUPLICATE_MACRO_PARAM_IDENTIFIER] = "duplicate macro argument identifier '%.*s'",
@@ -3983,7 +4061,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_TOO_MANY_MACRO_ARGUMENTS] = "too many arguments. expected '%u' but got '%u'",
 
 		//
-		// astgen
+		// ASTGEN
 		[HCC_ERROR_CODE_CANNOT_FIND_FIELD] = "cannot find a '%.*s' field in the '%.*s' type",
 		[HCC_ERROR_CODE_DUPLICATE_FIELD_IDENTIFIER] = "duplicate field identifier '%.*s' in '%.*s'",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_CONDITION] =  "the condition expression must be convertable to a boolean but got '%.*s'",
@@ -4091,7 +4169,6 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER] = "'%s' is currently unsupported",
 		[HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED] = "'%s' has already been used for this declaration",
 		[HCC_ERROR_CODE_UNUSED_SPECIFIER] = "the '%s' keyword was used, so we are expecting %s for a declaration but got '%s'",
-		[HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED] = "unsupported intrinsic type '%.*s' has been used. if you wish to use this type, please turn on extension support for the follow types: %.*s",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL] = "the '%s' keyword cannot be used on variable declarations",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_DECL] = "the '%s' keyword cannot be used on function declarations",
 		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_LOCAL] = "redefinition of '%.*s' local variable identifier",
@@ -4117,12 +4194,11 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_FRAGMENT_SHADER_MUST_RETURN_FRAGMENT_STATE] = "fragment shader must return a type that was declare with HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM] = "expected an identifier for a function parameter e.g. uint32_t param_identifier",
 		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM] = "redefinition of '%.*s' function parameter identifier",
-		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(const HccVertexInput input, const R* resources, S* state_out); where R defined with HCC_DEFINE_RESOURCES and S defined with HCC_DEFINE_RASTERIZER_STATE'",
-		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT] = "invalid function prototype for fragment shader, expected to be 'void fragment(const HccFragmentInput input, const R* resources, const S* state, F* frag_out); where R defined with HCC_DEFINE_RESOURCES, S defined with HCC_DEFINE_RASTERIZER_STATE' and F defined with HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(HccVertexSV const sv, R const *const resources, S *const state_out); where R defined with HCC_DEFINE_RESOURCES and S defined with HCC_DEFINE_RASTERIZER_STATE'",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT] = "invalid function prototype for fragment shader, expected to be 'void fragment(HccFragmentSV const sv, R const* const resources, S const* const state, F* const frag_out); where R defined with HCC_DEFINE_RESOURCES, S defined with HCC_DEFINE_RASTERIZER_STATE' and F defined with HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR] = "expected a ',' to declaring more function parameters or a ')' to finish declaring function parameters",
 		[HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION] = "cannot call shaders like regular functions. they can only be used as entry points",
 		[HCC_ERROR_CODE_CANNOT_CALL_UNIMPLEMENTED_FUNCTION] = "cannot call a function with no implemention",
-		[HCC_ERROR_CODE_FUNCTION_RECURSION] = "function '%.*s' is recursively called! callstack:\n%s",
 		[HCC_ERROR_CODE_UNEXPECTED_TOKEN_FUNCTION_PROTOTYPE_END] = "unexpected token '%s', expected ';' to end the function definition or '{' to define a function body",
 		[HCC_ERROR_CODE_UNEXPECTED_TOKEN] = "unexpected token '%s'",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE] = "'%.*s' data type is not supported as a RasterizerState field. data type must be an intrinsic type (scalar, vector or matrix)",
@@ -4145,9 +4221,22 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INCOMPLETE_TYPE_USED_BY_VALUE] = "incomplete type '%.*s' has been used by value",
 		[HCC_ERROR_CODE_STATIC_AND_EXTERN] = "a declaration cannot be both 'static' and 'extern', please pick one",
 		[HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL] = "'_Thread_local' can only be on global variables",
+
+		//
+		// ASTLINK
 		[HCC_ERROR_CODE_LINK_FUNCTION_PROTOTYPE_MISMATCH] = "failed to link the '%.*s' function in two different source files. the function prototype is a mismatch. check to make sure all your parameters are the same type and don't have any samely named struct's or union's with different fields due to conditional compile time code",
 		[HCC_ERROR_CODE_LINK_GLOBAL_VARIABLE_MISMATCH] = "failed to link the '%.*s' variable in two different source files. they have a mismatch in their data type. make sure you don't have any samely named struct's or union's with different fields due to conditional compile time code",
 		[HCC_ERROR_CODE_LINK_DECLARATION_UNDEFINED] = "failed to link the '%.*s' declartion as a definition does not exist in any source file.",
+
+		//
+		// AMLGEN
+		[HCC_ERROR_CODE_BUILT_IN_WRITE_ONLY_POINTER_CANNOT_BE_READ] = "can only assign to built in write only pointer, reading from the pointer is not allowed",
+
+		//
+		// AMLOPT
+		[HCC_ERROR_CODE_FUNCTION_RECURSION] = "function '%.*s' is recursively called! callstack:\n%s",
+		[HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED] = "unsupported intrinsic type '%.*s' has been used. if you wish to use this type, please turn on extension support for the follow types: %.*s",
+		[HCC_ERROR_CODE_UNION_ONLY_ALLOW_WITH_PHYSICAL_POINTERS] = "the '%.*s' union data type cannot be used unless you enable 'physical pointer' compiler option",
 	},
 };
 
@@ -4435,8 +4524,8 @@ void hcc_message_print_code(HccIIO* iio, HccLocation* location) {
 // ===========================================
 
 const char* hcc_intrinisic_compound_data_type_strings[HCC_COMPOUND_DATA_TYPE_IDX_STRINGS_COUNT] = {
-	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_INPUT] = "HccVertexInput",
-	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_INPUT] = "HccFragmentInput",
+	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV] = "HccVertexSV",
+	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV] = "HccFragmentSV",
 	[HCC_COMPOUND_DATA_TYPE_IDX_HALF] = "half",
 };
 
@@ -4445,175 +4534,248 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 	[HCC_FUNCTION_IDX_F16TOF64] = "f16tof64",
 	[HCC_FUNCTION_IDX_F32TOF16] = "f32tof16",
 	[HCC_FUNCTION_IDX_F64TOF16] = "f64tof16",
-	[HCC_FUNCTION_IDX_PACKF16X2F32X2] = "pack_f16x2_f32x2",
-	[HCC_FUNCTION_IDX_UNPACKF16X2F32X2] = "unpack_f16x2_f32x2",
-	[HCC_FUNCTION_IDX_PACKU16X2F32X2] = "pack_u16x2_f32x2",
-	[HCC_FUNCTION_IDX_UNPACKU16X2F32X2] = "unpack_u16x2_f32x2",
-	[HCC_FUNCTION_IDX_PACKS16X2F32X2] = "pack_s16x2_f32x2",
-	[HCC_FUNCTION_IDX_UNPACKS16X2F32X2] = "unpack_s16x2_f32x2",
-	[HCC_FUNCTION_IDX_PACKU8X4F32X4] = "pack_u8x4_f32x4",
-	[HCC_FUNCTION_IDX_UNPACKU8X4F32X4] = "unpack_u8x4_f32x4",
-	[HCC_FUNCTION_IDX_PACKS8X4F32X4] = "pack_s8x4_f32x4",
-	[HCC_FUNCTION_IDX_UNPACKS8X4F32X4] = "unpack_s8x4_f32x4",
+	[HCC_FUNCTION_IDX_PACK_F16X2_F32X2] = "pack_f16x2_f32x2",
+	[HCC_FUNCTION_IDX_UNPACK_F16X2_F32X2] = "unpack_f16x2_f32x2",
+	[HCC_FUNCTION_IDX_PACK_U16X2_F32X2] = "pack_u16x2_f32x2",
+	[HCC_FUNCTION_IDX_UNPACK_U16X2_F32X2] = "unpack_u16x2_f32x2",
+	[HCC_FUNCTION_IDX_PACK_S16X2_F32X2] = "pack_s16x2_f32x2",
+	[HCC_FUNCTION_IDX_UNPACK_S16X2_F32X2] = "unpack_s16x2_f32x2",
+	[HCC_FUNCTION_IDX_PACK_U8X4_F32X4] = "pack_u8x4_f32x4",
+	[HCC_FUNCTION_IDX_UNPACK_U8X4_F32X4] = "unpack_u8x4_f32x4",
+	[HCC_FUNCTION_IDX_PACK_S8X4_F32X4] = "pack_s8x4_f32x4",
+	[HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4] = "unpack_s8x4_f32x4",
 };
 
-const char* hcc_intrinisic_function_aml_strings[HCC_FUNCTION_AML_COUNT] = {
-	[HCC_FUNCTION_AML_SWIZZLE] = "swizzle",
-	[HCC_FUNCTION_AML_PACK] = "pack",
-	[HCC_FUNCTION_AML_UNPACK] = "unpack",
-	[HCC_FUNCTION_AML_ANY] = "any",
-	[HCC_FUNCTION_AML_ALL] = "all",
-	[HCC_FUNCTION_AML_ADD] = "add",
-	[HCC_FUNCTION_AML_SUB] = "sub",
-	[HCC_FUNCTION_AML_MUL] = "mul",
-	[HCC_FUNCTION_AML_DIV] = "div",
-	[HCC_FUNCTION_AML_MOD] = "mod",
-	[HCC_FUNCTION_AML_EQ] = "eq",
-	[HCC_FUNCTION_AML_NEQ] = "neq",
-	[HCC_FUNCTION_AML_LT] = "lt",
-	[HCC_FUNCTION_AML_LTEQ] = "lteq",
-	[HCC_FUNCTION_AML_GT] = "gt",
-	[HCC_FUNCTION_AML_GTEQ] = "gteq",
-	[HCC_FUNCTION_AML_NOT] = "not",
-	[HCC_FUNCTION_AML_NEG] = "neg",
-	[HCC_FUNCTION_AML_BITNOT] = "bitnot",
-	[HCC_FUNCTION_AML_MIN] = "min",
-	[HCC_FUNCTION_AML_MAX] = "max",
-	[HCC_FUNCTION_AML_CLAMP] = "clamp",
-	[HCC_FUNCTION_AML_SIGN] = "sign",
-	[HCC_FUNCTION_AML_ABS] = "abs",
-	[HCC_FUNCTION_AML_BITAND] = "bitand",
-	[HCC_FUNCTION_AML_BITOR] = "bitor",
-	[HCC_FUNCTION_AML_BITXOR] = "bitxor",
-	[HCC_FUNCTION_AML_BITSHL] = "bitshl",
-	[HCC_FUNCTION_AML_BITSHR] = "bitshr",
-	[HCC_FUNCTION_AML_FMA] = "fma",
-	[HCC_FUNCTION_AML_FLOOR] = "floor",
-	[HCC_FUNCTION_AML_CEIL] = "ceil",
-	[HCC_FUNCTION_AML_ROUND] = "round",
-	[HCC_FUNCTION_AML_TRUNC] = "trunc",
-	[HCC_FUNCTION_AML_FRACT] = "fract",
-	[HCC_FUNCTION_AML_RADIANS] = "radians",
-	[HCC_FUNCTION_AML_DEGREES] = "degrees",
-	[HCC_FUNCTION_AML_STEP] = "step",
-	[HCC_FUNCTION_AML_SMOOTHSTEP] = "smoothstep",
-	[HCC_FUNCTION_AML_BITSTO] = "bitsto",
-	[HCC_FUNCTION_AML_BITSFROM] = "bitsfrom",
-	[HCC_FUNCTION_AML_SIN] = "sin",
-	[HCC_FUNCTION_AML_COS] = "cos",
-	[HCC_FUNCTION_AML_TAN] = "tan",
-	[HCC_FUNCTION_AML_ASIN] = "asin",
-	[HCC_FUNCTION_AML_ACOS] = "acos",
-	[HCC_FUNCTION_AML_ATAN] = "atan",
-	[HCC_FUNCTION_AML_SINH] = "sinh",
-	[HCC_FUNCTION_AML_COSH] = "cosh",
-	[HCC_FUNCTION_AML_TANH] = "tanh",
-	[HCC_FUNCTION_AML_ASINH] = "asinh",
-	[HCC_FUNCTION_AML_ACOSH] = "acosh",
-	[HCC_FUNCTION_AML_ATANH] = "atanh",
-	[HCC_FUNCTION_AML_ATAN2] = "atan2",
-	[HCC_FUNCTION_AML_POW] = "pow",
-	[HCC_FUNCTION_AML_EXP] = "exp",
-	[HCC_FUNCTION_AML_LOG] = "log",
-	[HCC_FUNCTION_AML_EXP2] = "exp2",
-	[HCC_FUNCTION_AML_LOG2] = "log2",
-	[HCC_FUNCTION_AML_SQRT] = "sqrt",
-	[HCC_FUNCTION_AML_RSQRT] = "rsqrt",
-	[HCC_FUNCTION_AML_ISINF] = "isinf",
-	[HCC_FUNCTION_AML_ISNAN] = "isnan",
-	[HCC_FUNCTION_AML_LERP] = "lerp",
-	[HCC_FUNCTION_AML_DOT] = "dot",
-	[HCC_FUNCTION_AML_LEN] = "len",
-	[HCC_FUNCTION_AML_NORM] = "norm",
-	[HCC_FUNCTION_AML_REFLECT] = "reflect",
-	[HCC_FUNCTION_AML_REFRACT] = "refract",
-	[HCC_FUNCTION_AML_MATRIX_MUL] = "mul",
-	[HCC_FUNCTION_AML_MATRIX_MUL_SCALAR] = "muls",
-	[HCC_FUNCTION_AML_MATRIX_MUL_VECTOR] = "mul",
-	[HCC_FUNCTION_AML_VECTOR_MUL_MATRIX] = "mul",
-	[HCC_FUNCTION_AML_MATRIX_TRANSPOSE] = "transpose",
-	[HCC_FUNCTION_AML_MATRIX_OUTER_PRODUCT] = "outerproduct",
-	[HCC_FUNCTION_AML_MATRIX_DETERMINANT] = "determinant",
-	[HCC_FUNCTION_AML_MATRIX_INVERSE] = "inverse",
+const char* hcc_intrinisic_function_many_strings[HCC_FUNCTION_MANY_COUNT] = {
+	[HCC_FUNCTION_MANY_PACK] = "pack",
+	[HCC_FUNCTION_MANY_UNPACK] = "unpack",
+	[HCC_FUNCTION_MANY_ANY] = "any",
+	[HCC_FUNCTION_MANY_ALL] = "all",
+	[HCC_FUNCTION_MANY_ADD] = "add",
+	[HCC_FUNCTION_MANY_SUB] = "sub",
+	[HCC_FUNCTION_MANY_MUL] = "mul",
+	[HCC_FUNCTION_MANY_DIV] = "div",
+	[HCC_FUNCTION_MANY_MOD] = "mod",
+	[HCC_FUNCTION_MANY_EQ] = "eq",
+	[HCC_FUNCTION_MANY_NEQ] = "neq",
+	[HCC_FUNCTION_MANY_LT] = "lt",
+	[HCC_FUNCTION_MANY_LTEQ] = "lteq",
+	[HCC_FUNCTION_MANY_GT] = "gt",
+	[HCC_FUNCTION_MANY_GTEQ] = "gteq",
+	[HCC_FUNCTION_MANY_NOT] = "not",
+	[HCC_FUNCTION_MANY_NEG] = "neg",
+	[HCC_FUNCTION_MANY_BITNOT] = "bitnot",
+	[HCC_FUNCTION_MANY_MIN] = "min",
+	[HCC_FUNCTION_MANY_MAX] = "max",
+	[HCC_FUNCTION_MANY_CLAMP] = "clamp",
+	[HCC_FUNCTION_MANY_SIGN] = "sign",
+	[HCC_FUNCTION_MANY_ABS] = "abs",
+	[HCC_FUNCTION_MANY_BITAND] = "bitand",
+	[HCC_FUNCTION_MANY_BITOR] = "bitor",
+	[HCC_FUNCTION_MANY_BITXOR] = "bitxor",
+	[HCC_FUNCTION_MANY_BITSHL] = "bitshl",
+	[HCC_FUNCTION_MANY_BITSHR] = "bitshr",
+	[HCC_FUNCTION_MANY_FMA] = "fma",
+	[HCC_FUNCTION_MANY_FLOOR] = "floor",
+	[HCC_FUNCTION_MANY_CEIL] = "ceil",
+	[HCC_FUNCTION_MANY_ROUND] = "round",
+	[HCC_FUNCTION_MANY_TRUNC] = "trunc",
+	[HCC_FUNCTION_MANY_FRACT] = "fract",
+	[HCC_FUNCTION_MANY_RADIANS] = "radians",
+	[HCC_FUNCTION_MANY_DEGREES] = "degrees",
+	[HCC_FUNCTION_MANY_STEP] = "step",
+	[HCC_FUNCTION_MANY_SMOOTHSTEP] = "smoothstep",
+	[HCC_FUNCTION_MANY_BITSTO] = "bitsto",
+	[HCC_FUNCTION_MANY_BITSFROM] = "bitsfrom",
+	[HCC_FUNCTION_MANY_SIN] = "sin",
+	[HCC_FUNCTION_MANY_COS] = "cos",
+	[HCC_FUNCTION_MANY_TAN] = "tan",
+	[HCC_FUNCTION_MANY_ASIN] = "asin",
+	[HCC_FUNCTION_MANY_ACOS] = "acos",
+	[HCC_FUNCTION_MANY_ATAN] = "atan",
+	[HCC_FUNCTION_MANY_SINH] = "sinh",
+	[HCC_FUNCTION_MANY_COSH] = "cosh",
+	[HCC_FUNCTION_MANY_TANH] = "tanh",
+	[HCC_FUNCTION_MANY_ASINH] = "asinh",
+	[HCC_FUNCTION_MANY_ACOSH] = "acosh",
+	[HCC_FUNCTION_MANY_ATANH] = "atanh",
+	[HCC_FUNCTION_MANY_ATAN2] = "atan2",
+	[HCC_FUNCTION_MANY_POW] = "pow",
+	[HCC_FUNCTION_MANY_EXP] = "exp",
+	[HCC_FUNCTION_MANY_LOG] = "log",
+	[HCC_FUNCTION_MANY_EXP2] = "exp2",
+	[HCC_FUNCTION_MANY_LOG2] = "log2",
+	[HCC_FUNCTION_MANY_SQRT] = "sqrt",
+	[HCC_FUNCTION_MANY_RSQRT] = "rsqrt",
+	[HCC_FUNCTION_MANY_ISINF] = "isinf",
+	[HCC_FUNCTION_MANY_ISNAN] = "isnan",
+	[HCC_FUNCTION_MANY_LERP] = "lerp",
+	[HCC_FUNCTION_MANY_DOT] = "dot",
+	[HCC_FUNCTION_MANY_LEN] = "len",
+	[HCC_FUNCTION_MANY_NORM] = "norm",
+	[HCC_FUNCTION_MANY_REFLECT] = "reflect",
+	[HCC_FUNCTION_MANY_REFRACT] = "refract",
+	[HCC_FUNCTION_MANY_MATRIX_MUL] = "mul",
+	[HCC_FUNCTION_MANY_MATRIX_MUL_SCALAR] = "muls",
+	[HCC_FUNCTION_MANY_MATRIX_MUL_VECTOR] = "mul",
+	[HCC_FUNCTION_MANY_VECTOR_MUL_MATRIX] = "mul",
+	[HCC_FUNCTION_MANY_MATRIX_TRANSPOSE] = "transpose",
+	[HCC_FUNCTION_MANY_MATRIX_OUTER_PRODUCT] = "outerproduct",
+	[HCC_FUNCTION_MANY_MATRIX_DETERMINANT] = "determinant",
+	[HCC_FUNCTION_MANY_MATRIX_INVERSE] = "inverse",
 };
 
-HccAMLTypeClass hcc_intrinisic_function_aml_support[HCC_FUNCTION_AML_COUNT] = {
-	[HCC_FUNCTION_AML_SWIZZLE] = 0,
-	[HCC_FUNCTION_AML_PACK] = HCC_AML_TYPE_CLASS_SCALARS | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_UNPACK] = HCC_AML_TYPE_CLASS_SCALARS | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_ANY] = HCC_AML_TYPE_CLASS_SCALARS | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_ALL] = HCC_AML_TYPE_CLASS_SCALARS | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_ADD] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_SUB] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_MUL] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_DIV] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_MOD] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_EQ] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_NEQ] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_LT] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_LTEQ] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_GT] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_GTEQ] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_NOT] = HCC_AML_TYPE_CLASS_SCALARS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_NEG] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITNOT] = HCC_AML_TYPE_CLASS_INTS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_MIN] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_MAX] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_CLAMP] = HCC_AML_TYPE_CLASS_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_SIGN] = HCC_AML_TYPE_CLASS_SIGNED_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ABS] = HCC_AML_TYPE_CLASS_SIGNED_NUMBERS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITAND] = HCC_AML_TYPE_CLASS_INTS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITOR] = HCC_AML_TYPE_CLASS_INTS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITXOR] = HCC_AML_TYPE_CLASS_INTS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITSHL] = HCC_AML_TYPE_CLASS_INTS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITSHR] = HCC_AML_TYPE_CLASS_INTS | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_FMA] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_FLOOR] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_CEIL] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ROUND] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_TRUNC] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_FRACT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_RADIANS] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_DEGREES] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_STEP] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_SMOOTHSTEP] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITSTO] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_BITSFROM] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_SIN] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_COS] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_TAN] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ASIN] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ACOS] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ATAN] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_SINH] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_COSH] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_TANH] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ASINH] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ACOSH] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ATANH] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ATAN2] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_POW] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_EXP] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_LOG] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_EXP2] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_LOG2] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_SQRT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_RSQRT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ISINF] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_ISNAN] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_LERP] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_AML_DOT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_LEN] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_NORM] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_REFLECT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_REFRACT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_AML_MATRIX_MUL] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	[HCC_FUNCTION_AML_MATRIX_MUL_SCALAR] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	[HCC_FUNCTION_AML_MATRIX_MUL_VECTOR] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	[HCC_FUNCTION_AML_VECTOR_MUL_MATRIX] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	[HCC_FUNCTION_AML_MATRIX_TRANSPOSE] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	[HCC_FUNCTION_AML_MATRIX_OUTER_PRODUCT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	[HCC_FUNCTION_AML_MATRIX_DETERMINANT] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	[HCC_FUNCTION_AML_MATRIX_INVERSE] = HCC_AML_TYPE_CLASS_FLOAT | HCC_AML_TYPE_CLASS_OPS_MATRIX,
+HccManyTypeClass hcc_intrinisic_function_many_support[HCC_FUNCTION_MANY_COUNT] = {
+	[HCC_FUNCTION_MANY_PACK] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_UNPACK] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_ANY] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_ALL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_ADD] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_SUB] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_MUL] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_DIV] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_MOD] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_EQ] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_NEQ] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_LT] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_LTEQ] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_GT] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_GTEQ] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_NOT] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_NEG] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITNOT] = HCC_MANY_TYPE_CLASS_INTS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_MIN] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_MAX] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_CLAMP] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_SIGN] = HCC_MANY_TYPE_CLASS_SIGNED_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ABS] = HCC_MANY_TYPE_CLASS_SIGNED_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITAND] = HCC_MANY_TYPE_CLASS_INTS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITOR] = HCC_MANY_TYPE_CLASS_INTS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITXOR] = HCC_MANY_TYPE_CLASS_INTS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITSHL] = HCC_MANY_TYPE_CLASS_INTS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITSHR] = HCC_MANY_TYPE_CLASS_INTS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_FMA] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_FLOOR] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_CEIL] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ROUND] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_TRUNC] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_FRACT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_RADIANS] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_DEGREES] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_STEP] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_SMOOTHSTEP] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITSTO] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITSFROM] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_SIN] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_COS] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_TAN] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ASIN] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ACOS] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ATAN] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_SINH] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_COSH] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_TANH] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ASINH] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ACOSH] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ATANH] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ATAN2] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_POW] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_EXP] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_LOG] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_EXP2] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_LOG2] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_SQRT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_RSQRT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ISINF] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_ISNAN] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_LERP] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_DOT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_LEN] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_NORM] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_REFLECT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_REFRACT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_MATRIX_MUL] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	[HCC_FUNCTION_MANY_MATRIX_MUL_SCALAR] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	[HCC_FUNCTION_MANY_MATRIX_MUL_VECTOR] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	[HCC_FUNCTION_MANY_VECTOR_MUL_MATRIX] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	[HCC_FUNCTION_MANY_MATRIX_TRANSPOSE] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	[HCC_FUNCTION_MANY_MATRIX_OUTER_PRODUCT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	[HCC_FUNCTION_MANY_MATRIX_DETERMINANT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	[HCC_FUNCTION_MANY_MATRIX_INVERSE] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+};
+
+HccAMLOp hcc_intrinisic_function_many_aml_ops[HCC_FUNCTION_MANY_COUNT] = {
+	[HCC_FUNCTION_MANY_PACK] = HCC_AML_OP_PACK,
+	[HCC_FUNCTION_MANY_UNPACK] = HCC_AML_OP_UNPACK,
+	[HCC_FUNCTION_MANY_ADD] = HCC_AML_OP_ADD,
+	[HCC_FUNCTION_MANY_SUB] = HCC_AML_OP_SUBTRACT,
+	[HCC_FUNCTION_MANY_MUL] = HCC_AML_OP_MULTIPLY,
+	[HCC_FUNCTION_MANY_DIV] = HCC_AML_OP_DIVIDE,
+	[HCC_FUNCTION_MANY_MOD] = HCC_AML_OP_MODULO,
+	[HCC_FUNCTION_MANY_EQ] = HCC_AML_OP_EQUAL,
+	[HCC_FUNCTION_MANY_NEQ] = HCC_AML_OP_NOT_EQUAL,
+	[HCC_FUNCTION_MANY_LT] = HCC_AML_OP_LESS_THAN,
+	[HCC_FUNCTION_MANY_LTEQ] = HCC_AML_OP_LESS_THAN_OR_EQUAL,
+	[HCC_FUNCTION_MANY_GT] = HCC_AML_OP_GREATER_THAN,
+	[HCC_FUNCTION_MANY_GTEQ] = HCC_AML_OP_GREATER_THAN_OR_EQUAL,
+	[HCC_FUNCTION_MANY_NOT] = HCC_AML_OP_NO_OP,
+	[HCC_FUNCTION_MANY_NEG] = HCC_AML_OP_NEGATE,
+	[HCC_FUNCTION_MANY_BITNOT] = HCC_AML_OP_NO_OP,
+	[HCC_FUNCTION_MANY_MIN] = HCC_AML_OP_MIN,
+	[HCC_FUNCTION_MANY_MAX] = HCC_AML_OP_MAX,
+	[HCC_FUNCTION_MANY_CLAMP] = HCC_AML_OP_CLAMP,
+	[HCC_FUNCTION_MANY_SIGN] = HCC_AML_OP_SIGN,
+	[HCC_FUNCTION_MANY_ABS] = HCC_AML_OP_ABS,
+	[HCC_FUNCTION_MANY_BITAND] = HCC_AML_OP_BIT_AND,
+	[HCC_FUNCTION_MANY_BITOR] = HCC_AML_OP_BIT_OR,
+	[HCC_FUNCTION_MANY_BITXOR] = HCC_AML_OP_BIT_XOR,
+	[HCC_FUNCTION_MANY_BITSHL] = HCC_AML_OP_BIT_SHIFT_LEFT,
+	[HCC_FUNCTION_MANY_BITSHR] = HCC_AML_OP_BIT_SHIFT_RIGHT,
+	[HCC_FUNCTION_MANY_FMA] = HCC_AML_OP_FMA,
+	[HCC_FUNCTION_MANY_FLOOR] = HCC_AML_OP_FLOOR,
+	[HCC_FUNCTION_MANY_CEIL] = HCC_AML_OP_CEIL,
+	[HCC_FUNCTION_MANY_ROUND] = HCC_AML_OP_ROUND,
+	[HCC_FUNCTION_MANY_TRUNC] = HCC_AML_OP_TRUNC,
+	[HCC_FUNCTION_MANY_FRACT] = HCC_AML_OP_FRACT,
+	[HCC_FUNCTION_MANY_RADIANS] = HCC_AML_OP_RADIANS,
+	[HCC_FUNCTION_MANY_DEGREES] = HCC_AML_OP_DEGREES,
+	[HCC_FUNCTION_MANY_STEP] = HCC_AML_OP_STEP,
+	[HCC_FUNCTION_MANY_SMOOTHSTEP] = HCC_AML_OP_SMOOTHSTEP,
+	[HCC_FUNCTION_MANY_SIN] = HCC_AML_OP_SIN,
+	[HCC_FUNCTION_MANY_COS] = HCC_AML_OP_COS,
+	[HCC_FUNCTION_MANY_TAN] = HCC_AML_OP_TAN,
+	[HCC_FUNCTION_MANY_ASIN] = HCC_AML_OP_ASIN,
+	[HCC_FUNCTION_MANY_ACOS] = HCC_AML_OP_ACOS,
+	[HCC_FUNCTION_MANY_ATAN] = HCC_AML_OP_ATAN,
+	[HCC_FUNCTION_MANY_SINH] = HCC_AML_OP_SINH,
+	[HCC_FUNCTION_MANY_COSH] = HCC_AML_OP_COSH,
+	[HCC_FUNCTION_MANY_TANH] = HCC_AML_OP_TANH,
+	[HCC_FUNCTION_MANY_ASINH] = HCC_AML_OP_ASINH,
+	[HCC_FUNCTION_MANY_ACOSH] = HCC_AML_OP_ACOSH,
+	[HCC_FUNCTION_MANY_ATANH] = HCC_AML_OP_ATANH,
+	[HCC_FUNCTION_MANY_ATAN2] = HCC_AML_OP_ATAN2,
+	[HCC_FUNCTION_MANY_POW] = HCC_AML_OP_POW,
+	[HCC_FUNCTION_MANY_EXP] = HCC_AML_OP_EXP,
+	[HCC_FUNCTION_MANY_LOG] = HCC_AML_OP_LOG,
+	[HCC_FUNCTION_MANY_EXP2] = HCC_AML_OP_EXP2,
+	[HCC_FUNCTION_MANY_LOG2] = HCC_AML_OP_LOG2,
+	[HCC_FUNCTION_MANY_SQRT] = HCC_AML_OP_SQRT,
+	[HCC_FUNCTION_MANY_RSQRT] = HCC_AML_OP_RSQRT,
+	[HCC_FUNCTION_MANY_ISINF] = HCC_AML_OP_ISINF,
+	[HCC_FUNCTION_MANY_ISNAN] = HCC_AML_OP_ISNAN,
+	[HCC_FUNCTION_MANY_LERP] = HCC_AML_OP_LERP,
+	[HCC_FUNCTION_MANY_DOT] = HCC_AML_OP_DOT,
+	[HCC_FUNCTION_MANY_LEN] = HCC_AML_OP_LEN,
+	[HCC_FUNCTION_MANY_NORM] = HCC_AML_OP_NORM,
+	[HCC_FUNCTION_MANY_REFLECT] = HCC_AML_OP_REFLECT,
+	[HCC_FUNCTION_MANY_REFRACT] = HCC_AML_OP_REFRACT,
+	[HCC_FUNCTION_MANY_MATRIX_MUL] = HCC_AML_OP_MATRIX_MUL,
+	[HCC_FUNCTION_MANY_MATRIX_MUL_SCALAR] = HCC_AML_OP_MATRIX_MUL_SCALAR,
+	[HCC_FUNCTION_MANY_MATRIX_MUL_VECTOR] = HCC_AML_OP_MATRIX_MUL_VECTOR,
+	[HCC_FUNCTION_MANY_VECTOR_MUL_MATRIX] = HCC_AML_OP_VECTOR_MUL_MATRIX,
+	[HCC_FUNCTION_MANY_MATRIX_TRANSPOSE] = HCC_AML_OP_MATRIX_TRANSPOSE,
+	[HCC_FUNCTION_MANY_MATRIX_OUTER_PRODUCT] = HCC_AML_OP_MATRIX_OUTER_PRODUCT,
+	[HCC_FUNCTION_MANY_MATRIX_DETERMINANT] = HCC_AML_OP_MATRIX_DETERMINANT,
+	[HCC_FUNCTION_MANY_MATRIX_INVERSE] = HCC_AML_OP_MATRIX_INVERSE,
 };
 

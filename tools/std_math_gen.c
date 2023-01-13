@@ -1909,10 +1909,10 @@ void generate_math_header_file() {
 			"// returns a 'v' with sign copied from 'sign'\n"
 		);
 		ctx.data_type = DATA_TYPE_HALF;
-		print_entry("static inline $di copysign_$dx($di v, $di sign) { return f32tof16(f16tof32(v) * (f16tof32(sign) < 0.f ? -1.0 : 1.0)); }\n");
+		print_entry("static inline $di copysign_$dx($di v, $di sign) { return f32tof16(f16tof32(v) * (f16tof32(sign) < 0.f ? -1.f : 1.f)); }\n");
 		for (DataType data_type = DATA_TYPE_FLOAT; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 			ctx.data_type = data_type;
-			print_entry("static inline $di copysign_$dx($di v, $di sign) { return v * (sign < 0.f ? -1.0 : 1.0); }\n");
+			print_entry("static inline $di copysign_$dx($di v, $di sign) { return v * (sign < 0.f ? -1.f : 1.f); }\n");
 		}
 		for (DataType data_type = DATA_TYPE_S8; data_type <= DATA_TYPE_S64; data_type += 1) {
 			ctx.data_type = data_type;

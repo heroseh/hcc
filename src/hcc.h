@@ -64,7 +64,7 @@ typedef struct HccTarget HccTarget;
 typedef struct HccCU HccCU;
 typedef struct HccASTFile HccASTFile;
 typedef struct HccASTVariable HccASTVariable;
-typedef uint8_t HccASTFunctionShaderStage;
+typedef uint8_t HccShaderStage;
 
 // ===========================================
 //
@@ -135,6 +135,7 @@ typedef struct HccIIO HccIIO;
 typedef uintptr_t (*HccIIOReadFn)(HccIIO* iio, void* data_out, uintptr_t size);
 typedef uintptr_t (*HccIIOWriteFn)(HccIIO* iio, const void* data, uintptr_t size);
 typedef uintptr_t (*HccIIOWriteFmtFn)(HccIIO* iio, const char* fmt, va_list va_args);
+typedef void (*HccIIOCloseFn)(HccIIO* iio);
 
 struct HccIIO {
 	void*            handle;
@@ -143,6 +144,7 @@ struct HccIIO {
 	HccIIOReadFn     read_fn;
 	HccIIOWriteFn    write_fn;
 	HccIIOWriteFmtFn write_fmt_fn;
+	HccIIOCloseFn    close_fn;
 	bool             ascii_colors_enabled;
 };
 
@@ -158,6 +160,7 @@ uintptr_t hcc_iio_write_fmt(HccIIO* iio, const char* fmt, ...) __attribute__ ((f
 #else
 uintptr_t hcc_iio_write_fmt(HccIIO* iio, const char* fmt, ...);
 #endif
+void hcc_iio_close(HccIIO* iio);
 
 // ===========================================
 //
@@ -230,15 +233,30 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES,
 	HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS,
 	HCC_ALLOC_TAG_AST_DESIGNATED_INITIALIZER_ELMT_INDICES,
-	HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED,
 
 	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_NODES_POOL,
 	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_WORDS_POOL,
 	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_VALUES_POOL,
 	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCKS_POOL,
 	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCK_PARAMS_POOL,
+	HCC_ALLOC_TAG_AML_FUNCTION_ALCTOR_BASIC_BLOCK_PARAM_SRCS_POOL,
 	HCC_ALLOC_TAG_AML_FUNCTIONS,
 	HCC_ALLOC_TAG_AML_LOCATIONS,
+	HCC_ALLOC_TAG_AML_CALL_GRAPH_NODES,
+	HCC_ALLOC_TAG_AML_OPIMIZE_FUNCTIONS,
+	HCC_ALLOC_TAG_AML_FUNCTION_CALL_NODE_LISTS,
+
+	HCC_ALLOC_TAG_SPIRV_FUNCTIONS,
+	HCC_ALLOC_TAG_SPIRV_FUNCTION_WORDS,
+	HCC_ALLOC_TAG_SPIRV_TYPE_TABLE,
+	HCC_ALLOC_TAG_SPIRV_DECL_TABLE,
+	HCC_ALLOC_TAG_SPIRV_CONSTANT_TABLE,
+	HCC_ALLOC_TAG_SPIRV_TYPES_AND_CONSTANTS,
+	HCC_ALLOC_TAG_SPIRV_TYPE_ELMT_IDS,
+	HCC_ALLOC_TAG_SPIRV_ENTRY_POINTS,
+	HCC_ALLOC_TAG_SPIRV_ENTRY_POINT_GLOBAL_VARIABLE_IDS,
+	HCC_ALLOC_TAG_SPIRV_GLOBAL_VARIABLE_WORDS,
+	HCC_ALLOC_TAG_SPIRV_DECORATE_WORDS,
 
 	HCC_ALLOC_TAG_PPGEN_EXPAND_STACK,
 	HCC_ALLOC_TAG_PPGEN_EXPAND_MACRO_IDX_STACK,
@@ -250,7 +268,7 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_ATAGEN_OPEN_BRACKET_STACK,
 
 	HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_STRINGS,
-	HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK_VAR_INDICES,
+	HCC_ALLOC_TAG_ASTGEN_VARIABLE_STACK,
 	HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELD_NAMES,
 	HCC_ALLOC_TAG_ASTGEN_COMPOUND_FIELD_LOCATIONS,
 	HCC_ALLOC_TAG_ASTGEN_COMPOUND_TYPE_FIND_FIELDS,
@@ -261,7 +279,7 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS,
 	HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS,
 
-	HCC_ALLOC_TAG_AMLGEN_TEMP_OPERANDS,
+	HCC_ALLOC_TAG_SPIRVLINK_WORDS,
 
 	HCC_ALLOC_TAG_COUNT,
 };
@@ -576,7 +594,6 @@ enum {
 	HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER,
 	HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED,
 	HCC_ERROR_CODE_UNUSED_SPECIFIER,
-	HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL,
 	HCC_ERROR_CODE_INVALID_SPECIFIER_FUNCTION_DECL,
 	HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_LOCAL,
@@ -607,7 +624,6 @@ enum {
 	HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR,
 	HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION,
 	HCC_ERROR_CODE_CANNOT_CALL_UNIMPLEMENTED_FUNCTION,
-	HCC_ERROR_CODE_FUNCTION_RECURSION,
 	HCC_ERROR_CODE_UNEXPECTED_TOKEN_FUNCTION_PROTOTYPE_END,
 	HCC_ERROR_CODE_UNEXPECTED_TOKEN,
 	HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE,
@@ -630,9 +646,22 @@ enum {
 	HCC_ERROR_CODE_INCOMPLETE_TYPE_USED_BY_VALUE,
 	HCC_ERROR_CODE_STATIC_AND_EXTERN,
 	HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL,
+
+	//
+	// ASTLINK
 	HCC_ERROR_CODE_LINK_FUNCTION_PROTOTYPE_MISMATCH,
 	HCC_ERROR_CODE_LINK_GLOBAL_VARIABLE_MISMATCH,
 	HCC_ERROR_CODE_LINK_DECLARATION_UNDEFINED,
+
+	//
+	// AMLGEN
+	HCC_ERROR_CODE_BUILT_IN_WRITE_ONLY_POINTER_CANNOT_BE_READ,
+
+	//
+	// AMLOPT
+	HCC_ERROR_CODE_FUNCTION_RECURSION,
+	HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED,
+	HCC_ERROR_CODE_UNION_ONLY_ALLOW_WITH_PHYSICAL_POINTERS,
 
 	HCC_ERROR_CODE_COUNT,
 };
@@ -780,9 +809,11 @@ extern uint8_t hcc_aml_intrinsic_data_type_scalar_size_aligns[HCC_AML_INTRINSIC_
 //
 // ===========================================
 
+typedef uint16_t HccAMLOp;
+
 enum {
-	HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_INPUT,
-	HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_INPUT,
+	HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV,
+	HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV,
 	HCC_COMPOUND_DATA_TYPE_IDX_HALF,
 
 #define HCC_COMPOUND_DATA_TYPE_IDX_STRINGS_COUNT HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START
@@ -797,106 +828,105 @@ enum {
 #define HCC_COMPOUND_DATA_TYPE_IDX_INTRINSICS_COUNT HCC_COMPOUND_DATA_TYPE_IDX_USER_START
 };
 
-typedef uint8_t HccAMLTypeClass;
-enum HccAMLTypeClass {
-	HCC_AML_TYPE_CLASS_BOOL = 0x1,
-	HCC_AML_TYPE_CLASS_UINT = 0x2,
-	HCC_AML_TYPE_CLASS_SINT = 0x4,
-	HCC_AML_TYPE_CLASS_FLOAT = 0x8,
+typedef uint8_t HccManyTypeClass;
+enum HccManyTypeClass {
+	HCC_MANY_TYPE_CLASS_BOOL = 0x1,
+	HCC_MANY_TYPE_CLASS_UINT = 0x2,
+	HCC_MANY_TYPE_CLASS_SINT = 0x4,
+	HCC_MANY_TYPE_CLASS_FLOAT = 0x8,
 
-	HCC_AML_TYPE_CLASS_SCALARS = HCC_AML_TYPE_CLASS_BOOL | HCC_AML_TYPE_CLASS_UINT | HCC_AML_TYPE_CLASS_SINT | HCC_AML_TYPE_CLASS_FLOAT,
-	HCC_AML_TYPE_CLASS_NUMBERS = HCC_AML_TYPE_CLASS_UINT | HCC_AML_TYPE_CLASS_SINT | HCC_AML_TYPE_CLASS_FLOAT,
-	HCC_AML_TYPE_CLASS_INTS = HCC_AML_TYPE_CLASS_UINT | HCC_AML_TYPE_CLASS_SINT,
-	HCC_AML_TYPE_CLASS_SIGNED_NUMBERS = HCC_AML_TYPE_CLASS_SINT | HCC_AML_TYPE_CLASS_FLOAT,
+	HCC_MANY_TYPE_CLASS_SCALARS = HCC_MANY_TYPE_CLASS_BOOL | HCC_MANY_TYPE_CLASS_UINT | HCC_MANY_TYPE_CLASS_SINT | HCC_MANY_TYPE_CLASS_FLOAT,
+	HCC_MANY_TYPE_CLASS_NUMBERS = HCC_MANY_TYPE_CLASS_UINT | HCC_MANY_TYPE_CLASS_SINT | HCC_MANY_TYPE_CLASS_FLOAT,
+	HCC_MANY_TYPE_CLASS_INTS = HCC_MANY_TYPE_CLASS_UINT | HCC_MANY_TYPE_CLASS_SINT,
+	HCC_MANY_TYPE_CLASS_SIGNED_NUMBERS = HCC_MANY_TYPE_CLASS_SINT | HCC_MANY_TYPE_CLASS_FLOAT,
 
-	HCC_AML_TYPE_CLASS_OPS_SCALAR = 0x10,
-	HCC_AML_TYPE_CLASS_OPS_VECTOR = 0x20,
-	HCC_AML_TYPE_CLASS_OPS_MATRIX = 0x40,
-	HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR = HCC_AML_TYPE_CLASS_OPS_SCALAR | HCC_AML_TYPE_CLASS_OPS_VECTOR,
-	HCC_AML_TYPE_CLASS_OPS_SCALAR_VECTOR_MATRIX = HCC_AML_TYPE_CLASS_OPS_SCALAR | HCC_AML_TYPE_CLASS_OPS_VECTOR | HCC_AML_TYPE_CLASS_OPS_MATRIX,
-	HCC_AML_TYPE_CLASS_ALL_OPS = HCC_AML_TYPE_CLASS_OPS_SCALAR | HCC_AML_TYPE_CLASS_OPS_VECTOR | HCC_AML_TYPE_CLASS_OPS_MATRIX,
+	HCC_MANY_TYPE_CLASS_OPS_SCALAR = 0x10,
+	HCC_MANY_TYPE_CLASS_OPS_VECTOR = 0x20,
+	HCC_MANY_TYPE_CLASS_OPS_MATRIX = 0x40,
+	HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR_MATRIX = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	HCC_MANY_TYPE_CLASS_ALL_OPS = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
 };
 
 enum {
-	HCC_FUNCTION_AML_SWIZZLE,
-	HCC_FUNCTION_AML_PACK,
-	HCC_FUNCTION_AML_UNPACK,
-	HCC_FUNCTION_AML_ANY,
-	HCC_FUNCTION_AML_ALL,
-	HCC_FUNCTION_AML_ADD,
-	HCC_FUNCTION_AML_SUB,
-	HCC_FUNCTION_AML_MUL,
-	HCC_FUNCTION_AML_DIV,
-	HCC_FUNCTION_AML_MOD,
-	HCC_FUNCTION_AML_EQ,
-	HCC_FUNCTION_AML_NEQ,
-	HCC_FUNCTION_AML_LT,
-	HCC_FUNCTION_AML_LTEQ,
-	HCC_FUNCTION_AML_GT,
-	HCC_FUNCTION_AML_GTEQ,
-	HCC_FUNCTION_AML_NOT,
-	HCC_FUNCTION_AML_NEG,
-	HCC_FUNCTION_AML_BITNOT,
-	HCC_FUNCTION_AML_MIN,
-	HCC_FUNCTION_AML_MAX,
-	HCC_FUNCTION_AML_CLAMP,
-	HCC_FUNCTION_AML_SIGN,
-	HCC_FUNCTION_AML_ABS,
-	HCC_FUNCTION_AML_BITAND,
-	HCC_FUNCTION_AML_BITOR,
-	HCC_FUNCTION_AML_BITXOR,
-	HCC_FUNCTION_AML_BITSHL,
-	HCC_FUNCTION_AML_BITSHR,
-	HCC_FUNCTION_AML_FMA,
-	HCC_FUNCTION_AML_FLOOR,
-	HCC_FUNCTION_AML_CEIL,
-	HCC_FUNCTION_AML_ROUND,
-	HCC_FUNCTION_AML_TRUNC,
-	HCC_FUNCTION_AML_FRACT,
-	HCC_FUNCTION_AML_RADIANS,
-	HCC_FUNCTION_AML_DEGREES,
-	HCC_FUNCTION_AML_STEP,
-	HCC_FUNCTION_AML_SMOOTHSTEP,
-	HCC_FUNCTION_AML_BITSTO,
-	HCC_FUNCTION_AML_BITSFROM,
-	HCC_FUNCTION_AML_SIN,
-	HCC_FUNCTION_AML_COS,
-	HCC_FUNCTION_AML_TAN,
-	HCC_FUNCTION_AML_ASIN,
-	HCC_FUNCTION_AML_ACOS,
-	HCC_FUNCTION_AML_ATAN,
-	HCC_FUNCTION_AML_SINH,
-	HCC_FUNCTION_AML_COSH,
-	HCC_FUNCTION_AML_TANH,
-	HCC_FUNCTION_AML_ASINH,
-	HCC_FUNCTION_AML_ACOSH,
-	HCC_FUNCTION_AML_ATANH,
-	HCC_FUNCTION_AML_ATAN2,
-	HCC_FUNCTION_AML_POW,
-	HCC_FUNCTION_AML_EXP,
-	HCC_FUNCTION_AML_LOG,
-	HCC_FUNCTION_AML_EXP2,
-	HCC_FUNCTION_AML_LOG2,
-	HCC_FUNCTION_AML_SQRT,
-	HCC_FUNCTION_AML_RSQRT,
-	HCC_FUNCTION_AML_ISINF,
-	HCC_FUNCTION_AML_ISNAN,
-	HCC_FUNCTION_AML_LERP,
-	HCC_FUNCTION_AML_DOT,
-	HCC_FUNCTION_AML_LEN,
-	HCC_FUNCTION_AML_NORM,
-	HCC_FUNCTION_AML_REFLECT,
-	HCC_FUNCTION_AML_REFRACT,
-	HCC_FUNCTION_AML_MATRIX_MUL,
-	HCC_FUNCTION_AML_MATRIX_MUL_SCALAR,
-	HCC_FUNCTION_AML_MATRIX_MUL_VECTOR,
-	HCC_FUNCTION_AML_VECTOR_MUL_MATRIX,
-	HCC_FUNCTION_AML_MATRIX_TRANSPOSE,
-	HCC_FUNCTION_AML_MATRIX_OUTER_PRODUCT,
-	HCC_FUNCTION_AML_MATRIX_DETERMINANT,
-	HCC_FUNCTION_AML_MATRIX_INVERSE,
+	HCC_FUNCTION_MANY_PACK,
+	HCC_FUNCTION_MANY_UNPACK,
+	HCC_FUNCTION_MANY_ANY,
+	HCC_FUNCTION_MANY_ALL,
+	HCC_FUNCTION_MANY_ADD,
+	HCC_FUNCTION_MANY_SUB,
+	HCC_FUNCTION_MANY_MUL,
+	HCC_FUNCTION_MANY_DIV,
+	HCC_FUNCTION_MANY_MOD,
+	HCC_FUNCTION_MANY_EQ,
+	HCC_FUNCTION_MANY_NEQ,
+	HCC_FUNCTION_MANY_LT,
+	HCC_FUNCTION_MANY_LTEQ,
+	HCC_FUNCTION_MANY_GT,
+	HCC_FUNCTION_MANY_GTEQ,
+	HCC_FUNCTION_MANY_NOT,
+	HCC_FUNCTION_MANY_NEG,
+	HCC_FUNCTION_MANY_BITNOT,
+	HCC_FUNCTION_MANY_MIN,
+	HCC_FUNCTION_MANY_MAX,
+	HCC_FUNCTION_MANY_CLAMP,
+	HCC_FUNCTION_MANY_SIGN,
+	HCC_FUNCTION_MANY_ABS,
+	HCC_FUNCTION_MANY_BITAND,
+	HCC_FUNCTION_MANY_BITOR,
+	HCC_FUNCTION_MANY_BITXOR,
+	HCC_FUNCTION_MANY_BITSHL,
+	HCC_FUNCTION_MANY_BITSHR,
+	HCC_FUNCTION_MANY_FMA,
+	HCC_FUNCTION_MANY_FLOOR,
+	HCC_FUNCTION_MANY_CEIL,
+	HCC_FUNCTION_MANY_ROUND,
+	HCC_FUNCTION_MANY_TRUNC,
+	HCC_FUNCTION_MANY_FRACT,
+	HCC_FUNCTION_MANY_RADIANS,
+	HCC_FUNCTION_MANY_DEGREES,
+	HCC_FUNCTION_MANY_STEP,
+	HCC_FUNCTION_MANY_SMOOTHSTEP,
+	HCC_FUNCTION_MANY_BITSTO,
+	HCC_FUNCTION_MANY_BITSFROM,
+	HCC_FUNCTION_MANY_SIN,
+	HCC_FUNCTION_MANY_COS,
+	HCC_FUNCTION_MANY_TAN,
+	HCC_FUNCTION_MANY_ASIN,
+	HCC_FUNCTION_MANY_ACOS,
+	HCC_FUNCTION_MANY_ATAN,
+	HCC_FUNCTION_MANY_SINH,
+	HCC_FUNCTION_MANY_COSH,
+	HCC_FUNCTION_MANY_TANH,
+	HCC_FUNCTION_MANY_ASINH,
+	HCC_FUNCTION_MANY_ACOSH,
+	HCC_FUNCTION_MANY_ATANH,
+	HCC_FUNCTION_MANY_ATAN2,
+	HCC_FUNCTION_MANY_POW,
+	HCC_FUNCTION_MANY_EXP,
+	HCC_FUNCTION_MANY_LOG,
+	HCC_FUNCTION_MANY_EXP2,
+	HCC_FUNCTION_MANY_LOG2,
+	HCC_FUNCTION_MANY_SQRT,
+	HCC_FUNCTION_MANY_RSQRT,
+	HCC_FUNCTION_MANY_ISINF,
+	HCC_FUNCTION_MANY_ISNAN,
+	HCC_FUNCTION_MANY_LERP,
+	HCC_FUNCTION_MANY_DOT,
+	HCC_FUNCTION_MANY_LEN,
+	HCC_FUNCTION_MANY_NORM,
+	HCC_FUNCTION_MANY_REFLECT,
+	HCC_FUNCTION_MANY_REFRACT,
+	HCC_FUNCTION_MANY_MATRIX_MUL,
+	HCC_FUNCTION_MANY_MATRIX_MUL_SCALAR,
+	HCC_FUNCTION_MANY_MATRIX_MUL_VECTOR,
+	HCC_FUNCTION_MANY_VECTOR_MUL_MATRIX,
+	HCC_FUNCTION_MANY_MATRIX_TRANSPOSE,
+	HCC_FUNCTION_MANY_MATRIX_OUTER_PRODUCT,
+	HCC_FUNCTION_MANY_MATRIX_DETERMINANT,
+	HCC_FUNCTION_MANY_MATRIX_INVERSE,
 
-	HCC_FUNCTION_AML_COUNT,
+	HCC_FUNCTION_MANY_COUNT,
 };
 
 enum {
@@ -905,30 +935,31 @@ enum {
 	HCC_FUNCTION_IDX_F32TOF16,
 	HCC_FUNCTION_IDX_F64TOF16,
 
-	HCC_FUNCTION_IDX_PACKF16X2F32X2,
-	HCC_FUNCTION_IDX_UNPACKF16X2F32X2,
-	HCC_FUNCTION_IDX_PACKU16X2F32X2,
-	HCC_FUNCTION_IDX_UNPACKU16X2F32X2,
-	HCC_FUNCTION_IDX_PACKS16X2F32X2,
-	HCC_FUNCTION_IDX_UNPACKS16X2F32X2,
-	HCC_FUNCTION_IDX_PACKU8X4F32X4,
-	HCC_FUNCTION_IDX_UNPACKU8X4F32X4,
-	HCC_FUNCTION_IDX_PACKS8X4F32X4,
-	HCC_FUNCTION_IDX_UNPACKS8X4F32X4,
+	HCC_FUNCTION_IDX_PACK_F16X2_F32X2,
+	HCC_FUNCTION_IDX_UNPACK_F16X2_F32X2,
+	HCC_FUNCTION_IDX_PACK_U16X2_F32X2,
+	HCC_FUNCTION_IDX_UNPACK_U16X2_F32X2,
+	HCC_FUNCTION_IDX_PACK_S16X2_F32X2,
+	HCC_FUNCTION_IDX_UNPACK_S16X2_F32X2,
+	HCC_FUNCTION_IDX_PACK_U8X4_F32X4,
+	HCC_FUNCTION_IDX_UNPACK_U8X4_F32X4,
+	HCC_FUNCTION_IDX_PACK_S8X4_F32X4,
+	HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4,
 
-#define HCC_FUNCTION_IDX_STRINGS_COUNT HCC_FUNCTION_IDX_AML_START
+#define HCC_FUNCTION_IDX_STRINGS_COUNT HCC_FUNCTION_IDX_MANY_START
 
-	HCC_FUNCTION_IDX_AML_START,
-#define HCC_FUNCTION_IDX_AML_END (HCC_FUNCTION_IDX_AML_START + HCC_FUNCTION_AML_COUNT * HCC_AML_INTRINSIC_DATA_TYPE_COUNT)
+	HCC_FUNCTION_IDX_MANY_START,
+#define HCC_FUNCTION_IDX_MANY_END (HCC_FUNCTION_IDX_MANY_START + HCC_FUNCTION_MANY_COUNT * HCC_AML_INTRINSIC_DATA_TYPE_COUNT)
 
-	HCC_FUNCTION_IDX_USER_START = HCC_FUNCTION_IDX_AML_END,
+	HCC_FUNCTION_IDX_USER_START = HCC_FUNCTION_IDX_MANY_END,
 #define HCC_FUNCTION_IDX_INTRINSICS_COUNT HCC_FUNCTION_IDX_USER_START
 };
 
 extern const char* hcc_intrinisic_compound_data_type_strings[HCC_COMPOUND_DATA_TYPE_IDX_STRINGS_COUNT];
 extern const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT];
-extern const char* hcc_intrinisic_function_aml_strings[HCC_FUNCTION_AML_COUNT];
-extern HccAMLTypeClass hcc_intrinisic_function_aml_support[HCC_FUNCTION_AML_COUNT];
+extern const char* hcc_intrinisic_function_many_strings[HCC_FUNCTION_MANY_COUNT];
+extern HccManyTypeClass hcc_intrinisic_function_many_support[HCC_FUNCTION_MANY_COUNT];
+extern HccAMLOp hcc_intrinisic_function_many_aml_ops[HCC_FUNCTION_MANY_COUNT];
 
 // ===========================================
 //
@@ -1315,7 +1346,7 @@ HccDataType hcc_decl_function_data_type(HccCU* cu, HccDecl decl);
 HccDecl hcc_decl_return_data_type(HccCU* cu, HccDecl decl);
 uint8_t hcc_decl_function_params_count(HccCU* cu, HccDecl decl);
 HccASTVariable* hcc_decl_function_params(HccCU* cu, HccDecl decl);
-HccASTFunctionShaderStage hcc_decl_function_shader_stage(HccCU* cu, HccDecl decl);
+HccShaderStage hcc_decl_function_shader_stage(HccCU* cu, HccDecl decl);
 HccStringId hcc_decl_identifier_string_id(HccCU* cu, HccDecl decl);
 HccLocation* hcc_decl_location(HccCU* cu, HccDecl decl);
 
@@ -1722,14 +1753,15 @@ struct HccASTExpr {
 	HccDataType data_type;
 };
 
-enum HccASTFunctionShaderStage {
-	HCC_AST_FUNCTION_SHADER_STAGE_NONE,
-	HCC_AST_FUNCTION_SHADER_STAGE_VERTEX,
-	HCC_AST_FUNCTION_SHADER_STAGE_FRAGMENT,
-	HCC_AST_FUNCTION_SHADER_STAGE_COMPUTE,
-	HCC_AST_FUNCTION_SHADER_STAGE_MESHTASK,
+enum HccShaderStage {
+	HCC_SHADER_STAGE_NONE,
+	HCC_SHADER_STAGE_VERTEX,
+	HCC_SHADER_STAGE_FRAGMENT,
+	HCC_SHADER_STAGE_COMPUTE,
+	HCC_SHADER_STAGE_MESHTASK,
+	HCC_SHADER_STAGE_MESH,
 
-	HCC_AST_FUNCTION_SHADER_STAGE_COUNT,
+	HCC_SHADER_STAGE_COUNT,
 };
 
 //
@@ -1768,7 +1800,7 @@ enum {
 	HCC_AST_LINKAGE_INTERNAL = 1,
 };
 
-extern const char* hcc_ast_function_shader_stage_strings[HCC_AST_FUNCTION_SHADER_STAGE_COUNT];
+extern const char* hcc_ast_function_shader_stage_strings[HCC_SHADER_STAGE_COUNT];
 
 HccASTForwardDecl* hcc_ast_forward_decl_get(HccCU* cu, HccDecl decl);
 
@@ -1782,7 +1814,7 @@ HccConstantId hcc_ast_variable_initializer_constant_id(HccASTVariable* variable)
 void hcc_ast_variable_to_string(HccCU* cu, HccDataType data_type, HccStringId identifier_string_id, HccIIO* iio);
 
 HccASTFunction* hcc_ast_function_get(HccCU* cu, HccDecl decl);
-HccASTFunctionShaderStage hcc_ast_function_shader_stage(HccASTFunction* function);
+HccShaderStage hcc_ast_function_shader_stage(HccASTFunction* function);
 bool hcc_ast_function_is_inline(HccASTFunction* function);
 HccASTLinkage hcc_ast_function_linkage(HccASTFunction* function);
 HccLocation* hcc_ast_function_identifier_location(HccASTFunction* function);
@@ -1794,6 +1826,7 @@ uint16_t hcc_ast_function_variables_count(HccASTFunction* function);
 HccASTVariable* hcc_ast_function_params_and_variables(HccASTFunction* function);
 HccASTExpr* hcc_ast_function_block_expr(HccASTFunction* function);
 void hcc_ast_function_to_string(HccCU* cu, HccDecl function_decl, HccIIO* iio);
+const char* hcc_ast_function_callstack_string(HccCU* cu, HccDecl* function_decls, uint32_t functions_count);
 
 // ===========================================
 //
@@ -2102,7 +2135,6 @@ struct HccASTSetup {
 
 typedef struct HccAMLFunction HccAMLFunction;
 
-typedef uint16_t HccAMLOp;
 enum {
 	HCC_AML_OP_NO_OP,
 
@@ -2128,7 +2160,7 @@ enum {
 	HCC_AML_OP_SWITCH,
 
 	//
-	// binary arithmetic, for AML intrinsic scalar types
+	// binary arithmetic, for AML intrinsic scalar or vector types
 	HCC_AML_OP_ADD,
 	HCC_AML_OP_SUBTRACT,
 	HCC_AML_OP_MULTIPLY,
@@ -2141,7 +2173,7 @@ enum {
 	HCC_AML_OP_BIT_SHIFT_RIGHT,
 
 	//
-	// binary comparisions, for AML intrinsic scalar types
+	// binary comparisions, for AML intrinsic scalar or vector types
 	HCC_AML_OP_EQUAL,
 	HCC_AML_OP_NOT_EQUAL,
 	HCC_AML_OP_LESS_THAN,
@@ -2150,7 +2182,7 @@ enum {
 	HCC_AML_OP_GREATER_THAN_OR_EQUAL,
 
 	//
-	// unary operations, for AML intrinsic scalar types
+	// unary operations, for AML intrinsic scalar or vector types
 	HCC_AML_OP_NEGATE,
 
 	//
@@ -2162,9 +2194,97 @@ enum {
 	// misc
 	HCC_AML_OP_CALL,
 	HCC_AML_OP_RETURN,
-	HCC_AML_OP_INTRINSIC_CALL,
 	HCC_AML_OP_UNREACHABLE,
 	HCC_AML_OP_SELECT,
+
+	//
+	// shader specific
+	HCC_AML_OP_SELECTION_MERGE,
+	HCC_AML_OP_LOOP_MERGE,
+	HCC_AML_OP_SYSTEM_VALUE_LOAD,
+	HCC_AML_OP_RASTERIZER_STATE_LOAD_FIELD,
+	HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD,
+	HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD,
+
+	//
+	// scalar and vector
+	HCC_AML_OP_MIN,
+	HCC_AML_OP_MAX,
+	HCC_AML_OP_CLAMP,
+	HCC_AML_OP_SIGN,
+	HCC_AML_OP_ABS,
+
+	//
+	// floating point scalar and vector
+	HCC_AML_OP_FMA,
+	HCC_AML_OP_FLOOR,
+	HCC_AML_OP_CEIL,
+	HCC_AML_OP_ROUND,
+	HCC_AML_OP_TRUNC,
+	HCC_AML_OP_FRACT,
+	HCC_AML_OP_RADIANS,
+	HCC_AML_OP_DEGREES,
+	HCC_AML_OP_STEP,
+	HCC_AML_OP_SMOOTHSTEP,
+	HCC_AML_OP_SIN,
+	HCC_AML_OP_COS,
+	HCC_AML_OP_TAN,
+	HCC_AML_OP_ASIN,
+	HCC_AML_OP_ACOS,
+	HCC_AML_OP_ATAN,
+	HCC_AML_OP_SINH,
+	HCC_AML_OP_COSH,
+	HCC_AML_OP_TANH,
+	HCC_AML_OP_ASINH,
+	HCC_AML_OP_ACOSH,
+	HCC_AML_OP_ATANH,
+	HCC_AML_OP_ATAN2,
+	HCC_AML_OP_POW,
+	HCC_AML_OP_EXP,
+	HCC_AML_OP_LOG,
+	HCC_AML_OP_EXP2,
+	HCC_AML_OP_LOG2,
+	HCC_AML_OP_SQRT,
+	HCC_AML_OP_RSQRT,
+	HCC_AML_OP_ISINF,
+	HCC_AML_OP_ISNAN,
+	HCC_AML_OP_LERP,
+
+	//
+	// vector
+	HCC_AML_OP_PACK,
+	HCC_AML_OP_UNPACK,
+	HCC_AML_OP_ANY,
+	HCC_AML_OP_ALL,
+	HCC_AML_OP_DOT,
+	HCC_AML_OP_LEN,
+	HCC_AML_OP_NORM,
+	HCC_AML_OP_REFLECT,
+	HCC_AML_OP_REFRACT,
+
+	//
+	// vector un/packing ops
+	HCC_AML_OP_PACK_F16X2_F32X2,
+	HCC_AML_OP_UNPACK_F16X2_F32X2,
+	HCC_AML_OP_PACK_U16X2_F32X2,
+	HCC_AML_OP_UNPACK_U16X2_F32X2,
+	HCC_AML_OP_PACK_S16X2_F32X2,
+	HCC_AML_OP_UNPACK_S16X2_F32X2,
+	HCC_AML_OP_PACK_U8X4_F32X4,
+	HCC_AML_OP_UNPACK_U8X4_F32X4,
+	HCC_AML_OP_PACK_S8X4_F32X4,
+	HCC_AML_OP_UNPACK_S8X4_F32X4,
+
+	//
+	// matrix
+	HCC_AML_OP_MATRIX_MUL,
+	HCC_AML_OP_MATRIX_MUL_SCALAR,
+	HCC_AML_OP_MATRIX_MUL_VECTOR,
+	HCC_AML_OP_VECTOR_MUL_MATRIX,
+	HCC_AML_OP_MATRIX_TRANSPOSE,
+	HCC_AML_OP_MATRIX_OUTER_PRODUCT,
+	HCC_AML_OP_MATRIX_DETERMINANT,
+	HCC_AML_OP_MATRIX_INVERSE,
 
 	HCC_AML_OP_COUNT,
 };
@@ -2198,7 +2318,7 @@ typedef HccAMLWord HccAMLInstr;
 // ===========================================
 
 //
-// inherits HccDataType
+// inherits HccDataType & HccDecl
 typedef HccAMLWord HccAMLOperand;
 enum {
 	HCC_AML_OPERAND_VALUE = HCC_DECL_COUNT,
@@ -2226,7 +2346,9 @@ static_assert(HCC_AML_OPERAND_COUNT <= HCC_DATA_TYPE_TYPE_MASK + 1, "HccDecl typ
 #define HCC_AML_OPERAND_IS_BASIC_BLOCK(operand) (HCC_AML_OPERAND_TYPE(operand) == HCC_AML_OPERAND_BASIC_BLOCK)
 #define HCC_AML_OPERAND_IS_BASIC_BLOCK_PARAM(operand) (HCC_AML_OPERAND_TYPE(operand) == HCC_AML_OPERAND_BASIC_BLOCK_PARAM)
 
-HccDataType hcc_aml_operand_data_type(HccCU* cu, HccAMLFunction* function, HccAMLOperand operand);
+#define HCC_AML_ENTRY_BASIC_BLOCK_OPERAND HCC_AML_OPERAND(BASIC_BLOCK, 0)
+
+HccDataType hcc_aml_operand_data_type(HccCU* cu, const HccAMLFunction* function, HccAMLOperand operand);
 
 // ===========================================
 //
@@ -2246,9 +2368,22 @@ struct HccAMLValue {
 typedef struct HccAMLBasicBlock HccAMLBasicBlock;
 struct HccAMLBasicBlock {
 	uint32_t word_idx;
+	uint32_t terminating_instr_word_idx; // basic blocks will always end in any HCC_AML_OP_BRANCH or HCC_AML_OP_RETURN like instruction
 	uint16_t params_start_idx;
-	uint16_t params_count: 15;
-	uint16_t _has_branch_or_return: 1; // used internally to track while generating. basic blocks will always end with a HCC_AML_OP_BRANCH or HCC_AML_OP_RETURN
+	uint16_t params_count;
+};
+
+typedef struct HccAMLBasicBlockParam HccAMLBasicBlockParam;
+struct HccAMLBasicBlockParam {
+	HccDataType data_type;
+	uint16_t    srcs_start_idx;
+	uint16_t    srcs_count;
+};
+
+typedef struct HccAMLBasicBlockParamSrc HccAMLBasicBlockParamSrc;
+struct HccAMLBasicBlockParamSrc {
+	HccAMLOperand basic_block_operand;
+	HccAMLOperand operand;
 };
 
 typedef struct HccAMLFunctionAlctorSetup HccAMLFunctionAlctorSetup;
@@ -2264,7 +2399,7 @@ struct HccAMLSetup {
 	HccAMLFunctionAlctorSetup function_alctor;
 };
 
-HccAMLFunction* hcc_aml_function_get(HccCU* cu, HccDecl decl);
+const HccAMLFunction* hcc_aml_function_get(HccCU* cu, HccDecl decl);
 
 uint32_t hcc_aml_function_words_count(HccAMLFunction* function);
 HccAMLWord* hcc_aml_function_words(HccAMLFunction* function);
@@ -2276,7 +2411,10 @@ uint32_t hcc_aml_function_basic_blocks_count(HccAMLFunction* function);
 HccAMLBasicBlock* hcc_aml_function_basic_blocks(HccAMLFunction* function);
 
 uint32_t hcc_aml_function_basic_block_params_count(HccAMLFunction* function);
-HccAMLValue* hcc_aml_function_basic_block_params(HccAMLFunction* function);
+HccAMLBasicBlockParam* hcc_aml_function_basic_block_params(HccAMLFunction* function);
+
+uint32_t hcc_aml_function_basic_block_param_srcs_count(HccAMLFunction* function);
+HccAMLBasicBlockParamSrc* hcc_aml_function_basic_block_param_srcs(HccAMLFunction* function);
 
 // ===========================================
 //
@@ -2371,7 +2509,7 @@ enum HccTargetGfxAPI {
 
 typedef uint16_t HccTargetFormat;
 enum HccTargetFormat {
-	HCC_TARGET_FORMAT_SPIR_V,
+	HCC_TARGET_FORMAT_SPIRV,
 	HCC_TARGET_FORMAT_DXIL,
 	HCC_TARGET_FORMAT_METAL,
 	HCC_TARGET_FORMAT_GLSL,
@@ -2384,6 +2522,18 @@ typedef uint16_t HccTargetResourceModel;
 enum HccTargetResourceModel {
 	HCC_TARGET_RESOURCE_MODEL_BINDING,
 	HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS,
+};
+
+typedef uint8_t HccOptLevel;
+enum HccOptLevel {
+	HCC_OPT_LEVEL_0,
+	HCC_OPT_LEVEL_1,
+	HCC_OPT_LEVEL_2,
+	HCC_OPT_LEVEL_3,
+	HCC_OPT_LEVEL_S, // small
+	HCC_OPT_LEVEL_G, // debugging
+
+	HCC_OPT_LEVEL_COUNT,
 };
 
 // ===========================================
@@ -2407,6 +2557,7 @@ enum HccOptionKey {
 	HCC_OPTION_KEY_INT64_ENABLED,               // bool
 	HCC_OPTION_KEY_FLOAT16_ENABLED,             // bool
 	HCC_OPTION_KEY_FLOAT64_ENABLED,             // bool
+	HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED,    // bool
 	HCC_OPTION_KEY_RESOURCE_SET_SLOT_MAX,       // uint
 	HCC_OPTION_KEY_RESOURCE_CONSTANTS_MAX_SIZE, // uint
 
@@ -2466,38 +2617,15 @@ bool hcc_options_is_char_unsigned(HccOptions* o);
 
 typedef uint8_t HccWorkerJobType;
 enum HccWorkerJobType {
-	HCC_WORKER_JOB_TYPE_ATAGEN,
-	HCC_WORKER_JOB_TYPE_ASTGEN,
-	HCC_WORKER_JOB_TYPE_ASTLINK,
-	HCC_WORKER_JOB_TYPE_AMLGEN,
-	HCC_WORKER_JOB_TYPE_AMLOPT,
-	HCC_WORKER_JOB_TYPE_BINARY,
-	HCC_WORKER_JOB_TYPE_METADATA,
+	HCC_WORKER_JOB_TYPE_ATAGEN,      // CODE -> ATA
+	HCC_WORKER_JOB_TYPE_ASTGEN,      // ATA -> AST
+	HCC_WORKER_JOB_TYPE_ASTLINK,     // AST -> AST (linked)
+	HCC_WORKER_JOB_TYPE_AMLGEN,      // AST -> AML (per function)
+	HCC_WORKER_JOB_TYPE_AMLOPT,      // AML -> AML (optimized) (per function and per optimization)
+	HCC_WORKER_JOB_TYPE_BACKENDGEN,  // AML -> Target (per function)
+	HCC_WORKER_JOB_TYPE_BACKENDLINK, // Build Target Binary
 
 	HCC_WORKER_JOB_TYPE_COUNT,
-};
-
-typedef uint8_t HccStage;
-enum HccStage {
-	HCC_STAGE_CODE,
-	HCC_STAGE_AST,
-	HCC_STAGE_AML,
-	HCC_STAGE_BINARY,
-	HCC_STAGE_METADATA,
-
-	HCC_STAGE_COUNT,
-};
-#define HCC_STAGE_INPUT_END (HCC_STAGE_AML + 1)
-
-typedef uint8_t HccPhase;
-enum HccPhase {
-	HCC_PHASE_ASTGEN,  // ATA -> AST
-	HCC_PHASE_ASTLINK, // AST -> AST (linked)
-	HCC_PHASE_AMLGEN,  // AST (linked) -> AML
-	HCC_PHASE_AMLOPT,  // AML -> AML (optimized)
-	HCC_PHASE_BACKEND, // AML -> BINARY
-
-	HCC_PHASE_COUNT,
 };
 
 typedef struct HccTaskSetup HccTaskSetup;
@@ -2513,8 +2641,6 @@ struct HccTaskSetup {
 typedef struct HccTask HccTask;
 
 extern HccTaskSetup hcc_task_setup_default;
-extern const char* hcc_stage_strings[HCC_STAGE_COUNT];
-extern const char* hcc_phase_strings[HCC_PHASE_COUNT];
 extern const char* hcc_worker_job_type_strings[HCC_WORKER_JOB_TYPE_COUNT];
 
 HccResult hcc_task_init(HccTaskSetup* setup, HccTask** t_out);
@@ -2531,6 +2657,8 @@ HccResult hcc_task_add_output_aml_text(HccTask* t, HccIIO* iio);
 HccResult hcc_task_add_output_aml_binary(HccTask* t, HccIIO* iio);
 HccResult hcc_task_add_output_aml(HccTask* t, HccAML** aml_out);
 
+HccResult hcc_task_add_output_binary(HccTask* t, HccIIO* iio);
+
 bool hcc_task_has_started(HccTask* t);
 bool hcc_task_is_complete(HccTask* t);
 HccResult hcc_task_result(HccTask* t);
@@ -2538,7 +2666,6 @@ HccMessage* hcc_task_messages(HccTask* t, uint32_t* count_out);
 HccCU* hcc_task_cu(HccTask* t);
 HccResult hcc_task_wait_for_complete(HccTask* t);
 HccDuration hcc_task_duration(HccTask* t); // total duration from when the task started, must be called when the task is complete
-HccDuration hcc_task_phase_duration(HccTask* t, HccPhase phase); // duration spent on the task for that phase, must be called when the task is complete
 HccDuration hcc_task_worker_job_type_duration(HccTask* t, HccWorkerJobType type); // duration spent on the task by the workers for this job type, must be called when the task is complete
 
 // ===========================================
@@ -2593,18 +2720,25 @@ struct HccAMLGenSetup {
 	uint32_t placeholder;
 };
 
+typedef struct HccBackendLinkSetup HccBackendLinkSetup;
+struct HccBackendLinkSetup {
+	uint32_t binary_grow_size;
+	uint32_t binary_reserve_size;
+};
+
 typedef struct HccCompilerSetup HccCompilerSetup;
 struct HccCompilerSetup {
-	HccATAGenSetup  atagen;
-	HccASTGenSetup  astgen;
-	HccASTLinkSetup astlink;
-	HccAMLGenSetup  amlgen;
-	uint32_t        worker_string_buffer_grow_size;
-	uint32_t        worker_string_buffer_reserve_size;
-	uint32_t        worker_arena_size;
-	uint32_t        workers_count;
-	uint32_t        worker_jobs_queue_cap;
-	uint32_t        worker_call_stack_size;
+	HccATAGenSetup      atagen;
+	HccASTGenSetup      astgen;
+	HccASTLinkSetup     astlink;
+	HccAMLGenSetup      amlgen;
+	HccBackendLinkSetup backendlink;
+	uint32_t            worker_string_buffer_grow_size;
+	uint32_t            worker_string_buffer_reserve_size;
+	uint32_t            worker_arena_size;
+	uint32_t            workers_count;
+	uint32_t            worker_jobs_queue_cap;
+	uint32_t            worker_call_stack_size;
 };
 
 extern HccCompilerSetup hcc_compiler_setup_default;
@@ -2615,7 +2749,6 @@ HccResult hcc_compiler_dispatch_task(HccCompiler* c, HccTask* t);
 HccResult hcc_compiler_wait_for_all_tasks(HccCompiler* c);
 HccResult hcc_compiler_clear_mem_arenas(HccCompiler* c);
 HccDuration hcc_compiler_duration(HccCompiler* c); // total duration from when the compiler started, must be called when the compiler is complete
-HccDuration hcc_compiler_phase_duration(HccCompiler* c, HccPhase phase); // duration spent on the compiler for that phase, must be called when the compiler is complete
 HccDuration hcc_compiler_worker_job_type_duration(HccCompiler* c, HccWorkerJobType type); // duration spent on the compiler by the workers for this job type, must be called when the compiler is complete
 
 // ===========================================

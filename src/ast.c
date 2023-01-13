@@ -117,12 +117,12 @@ uint8_t hcc_ast_unary_op_precedence[HCC_AST_UNARY_OP_COUNT] = {
 //
 // ===========================================
 
-const char* hcc_ast_function_shader_stage_strings[HCC_AST_FUNCTION_SHADER_STAGE_COUNT] = {
-	[HCC_AST_FUNCTION_SHADER_STAGE_NONE] = "none",
-	[HCC_AST_FUNCTION_SHADER_STAGE_VERTEX] = "vertex",
-	[HCC_AST_FUNCTION_SHADER_STAGE_FRAGMENT] = "fragment",
-	[HCC_AST_FUNCTION_SHADER_STAGE_COMPUTE] = "compute",
-	[HCC_AST_FUNCTION_SHADER_STAGE_MESHTASK] = "meshtask",
+const char* hcc_ast_function_shader_stage_strings[HCC_SHADER_STAGE_COUNT] = {
+	[HCC_SHADER_STAGE_NONE] = "none",
+	[HCC_SHADER_STAGE_VERTEX] = "vertex",
+	[HCC_SHADER_STAGE_FRAGMENT] = "fragment",
+	[HCC_SHADER_STAGE_COMPUTE] = "compute",
+	[HCC_SHADER_STAGE_MESHTASK] = "meshtask",
 };
 
 HccASTForwardDecl* hcc_ast_forward_decl_get(HccCU* cu, HccDecl decl) {
@@ -179,7 +179,7 @@ HccASTFunction* hcc_ast_function_get(HccCU* cu, HccDecl decl) {
 	return hcc_stack_get(cu->ast.functions, HCC_DECL_AUX(decl));
 }
 
-HccASTFunctionShaderStage hcc_ast_function_shader_stage(HccASTFunction* function) {
+HccShaderStage hcc_ast_function_shader_stage(HccASTFunction* function) {
 	return function->shader_stage;
 }
 
@@ -245,6 +245,17 @@ void hcc_ast_function_to_string(HccCU* cu, HccDecl function_decl, HccIIO* iio) {
 		}
 	}
 	hcc_iio_write_fmt(iio, ")");
+}
+
+const char* hcc_ast_function_callstack_string(HccCU* cu, HccDecl* function_decls, uint32_t functions_count) {
+	static char callstack[1024];
+	uint32_t size = 0;
+	for (uint32_t idx = 0; idx < functions_count; idx += 1) {
+		HccASTFunction* function = hcc_ast_function_get(cu, function_decls[idx]);
+		HccString identifier_string = hcc_string_table_get(function->identifier_string_id);
+		size += snprintf(callstack + size, sizeof(callstack) - size, "%u: %.*s\n", idx, (int)identifier_string.size, identifier_string.data);
+	}
+	return callstack;
 }
 
 // ===========================================
@@ -366,7 +377,6 @@ void hcc_ast_init(HccCU* cu, HccCUSetup* setup) {
 	cu->ast.global_variables = hcc_stack_init(HccASTVariable, HCC_ALLOC_TAG_AST_GLOBAL_VARIBALES, setup->ast.global_variables_grow_count, setup->ast.global_variables_reserve_cap);
 	cu->ast.forward_declarations = hcc_stack_init(HccASTForwardDecl, HCC_ALLOC_TAG_AST_FORWARD_DECLARTIONS, setup->ast.forward_declarations_grow_count, setup->ast.forward_declarations_reserve_cap);
 	cu->ast.designated_initializer_elmt_indices = hcc_stack_init(uint64_t, HCC_ALLOC_TAG_AST_DESIGNATED_INITIALIZER_ELMT_INDICES, setup->ast.designated_initializer_elmt_indices_grow_count, setup->ast.designated_initializer_elmt_indices_reserve_cap);
-	cu->ast.unsupported_intrinsic_type_used = hcc_stack_init(HccASTUnsupportedIntrinsicTypeUsed, HCC_ALLOC_TAG_AST_UNSUPPORTED_INTRINSICTYPE_USED, setup->functions_grow_count, setup->functions_reserve_cap);
 
 	//
 	// preallocate all the intrinsic functions
@@ -693,10 +703,8 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 
 				if (initializer_expr->designated_initializer.value_expr) {
 					HccASTExpr* value_expr = initializer_expr->designated_initializer.value_expr;
-					if (value_expr->type == HCC_AST_EXPR_TYPE_CURLY_INITIALIZER) {
-						hcc_iio_write_fmt(iio, "\n");
-					}
-					hcc_ast_print_expr(cu, function, value_expr, value_expr->type == HCC_AST_EXPR_TYPE_CURLY_INITIALIZER ? indent + 2 : 0, iio);
+					hcc_iio_write_fmt(iio, "\n");
+					hcc_ast_print_expr(cu, function, value_expr, indent + 2, iio);
 				} else {
 					hcc_iio_write_fmt(iio, "<ZERO>\n");
 				}
@@ -1008,14 +1016,15 @@ CONSTANT: {}
 					HccASTVariable* param = &function->params_and_variables[param_idx];
 					hcc_iio_write_fmt(iio, "\t\t");
 					hcc_ast_variable_to_string(cu, param->data_type, param->identifier_string_id, iio);
+					hcc_iio_write_fmt(iio, "\n");
 				}
-				hcc_iio_write_fmt(iio, "\n\t}\n");
+				hcc_iio_write_fmt(iio, "\t}\n");
 			}
 
 			if (function->variables_count) {
-				hcc_iio_write_fmt(iio, "\tlocal_variables[%u]: {\n", function->variables_count);
-				for (uint32_t variable_idx = 0; variable_idx < function->variables_count; variable_idx += 1) {
-					HccASTVariable* variable = &function->params_and_variables[function->params_count + variable_idx];
+				hcc_iio_write_fmt(iio, "\tlocal_variables[%u]: {\n", function->variables_count - function->params_count);
+				for (uint32_t variable_idx = function->params_count; variable_idx < function->variables_count; variable_idx += 1) {
+					HccASTVariable* variable = &function->params_and_variables[variable_idx];
 					hcc_iio_write_fmt(iio, "\t\t");
 					if (variable->identifier_string_id.idx_plus_one) {
 						hcc_ast_variable_to_string(cu, variable->data_type, variable->identifier_string_id, iio);
