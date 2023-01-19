@@ -505,6 +505,10 @@ void hcc_task_deinit(HccTask* t) {
 HccResult hcc_task_add_include_path(HccTask* t, HccString path) {
 	HCC_SET_BAIL_JMP_LOC_GLOBAL();
 
+	if (!hcc_path_is_directory(path.data)) {
+		return HccResult(HCC_ERROR_NOT_A_DIR, 0, NULL);
+	}
+
 	*hcc_stack_push(t->include_path_strings) = path;
 	hcc_clear_bail_jmp_loc();
 	return HCC_RESULT_SUCCESS;

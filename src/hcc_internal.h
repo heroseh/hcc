@@ -177,7 +177,6 @@ uint32_t hcc_onebitscount32(uint32_t bits);
 uint32_t hcc_leastsetbitidx32(uint32_t bits);
 uint32_t hcc_mostsetbitidx32(uint32_t bits);
 void hcc_get_last_system_error_string(char* buf_out, uint32_t buf_out_size);
-bool hcc_file_exist(const char* path);
 bool hcc_change_working_directory(const char* path);
 uint32_t hcc_path_canonicalize_internal(const char* path, char* out_buf);
 HccString hcc_path_canonicalize(const char* path);
@@ -187,6 +186,9 @@ void hcc_stacktrace(uint32_t ignore_levels_count, char* buf, uint32_t buf_size);
 bool hcc_file_open_read(const char* path, HccIIO* out);
 bool hcc_file_open_write(const char* path, HccIIO* out);
 bool hcc_path_is_relative(const char* path);
+bool hcc_path_exists(const char* path);
+bool hcc_path_is_file(const char* path);
+bool hcc_path_is_directory(const char* path);
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name);
 uint32_t hcc_logical_cores_count();
 

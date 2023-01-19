@@ -578,7 +578,7 @@ void hcc_ppgen_parse_include(HccWorker* w) {
 			if (hcc_path_is_relative(path_string.data)) {
 				HccCodeFile* code_file = w->atagen.location.code_file;
 				HccString check_path = hcc_path_replace_file_name(code_file->path_string, path_string);
-				if (!hcc_file_exist(check_path.data)) {
+				if (!hcc_path_is_file(check_path.data)) {
 					search_the_include_paths = true;
 					break;
 				}
@@ -622,7 +622,7 @@ void hcc_ppgen_parse_include(HccWorker* w) {
 			hcc_stack_push_string(w->string_buffer, path_string);
 			*hcc_stack_push(w->string_buffer) = '\0';
 
-			if (hcc_file_exist(w->string_buffer)) {
+			if (hcc_path_is_file(w->string_buffer)) {
 				path_string = hcc_string(w->string_buffer, hcc_stack_count(w->string_buffer));
 				break;
 			}

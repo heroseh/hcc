@@ -1,9 +1,9 @@
 
-#include "../libc-gpu/stdbool.h"
-#include "../libc-gpu/stdint.h"
-#include "../libc-gpu/math.h"
-#include "../libhccstd/core.h"
-#include "../libhccstd/math.h"
+#include <libc-gpu/stdbool.h>
+#include <libc-gpu/stdint.h>
+#include <libc-gpu/math.h>
+#include <libhccstd/core.h>
+#include <libhccstd/math.h>
 
 typedef _Bool Bool;
 typedef uint32_t U32;

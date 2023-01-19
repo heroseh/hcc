@@ -19,16 +19,12 @@ void print_duration(const char* what, HccDuration d) {
 }
 
 int main(int argc, char** argv) {
-	HCC_UNUSED(argc);
-	HCC_UNUSED(argv);
-
 	HccSetup hcc_setup = hcc_setup_default;
 	HCC_ENSURE(hcc_init(&hcc_setup));
 
 	HccOptions* options;
 	HccOptionsSetup options_setup = hcc_options_setup_default;
 	HCC_ENSURE(hcc_options_init(&options_setup, &options));
-	hcc_options_set_bool(options, HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED, true);
 
 	HccCompiler* compiler;
 	HccCompilerSetup compiler_setup = hcc_compiler_setup_default;
@@ -39,14 +35,69 @@ int main(int argc, char** argv) {
 	task_setup.options = options;
 	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_BACKENDLINK;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
-	HCC_ENSURE(hcc_task_add_input_code_file(task, "tests/test.c", NULL));
+
+	int arg_idx = 1;
+	while (arg_idx < argc) {
+		if (strcmp(argv[arg_idx], "-I") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "command argument stream ended in a '-I', we expect an include path to follow '-I'");
+				exit(1);
+			}
+
+			const char* include_path = argv[arg_idx];
+			if (!hcc_path_exists(include_path)) {
+				fprintf(stderr, "-I '%s' path does not exist", include_path);
+				exit(1);
+			}
+			if (!hcc_path_is_directory(include_path)) {
+				fprintf(stderr, "-I '%s' is not a directory", include_path);
+				exit(1);
+			}
+
+			HCC_ENSURE(hcc_task_add_include_path(task, hcc_string_c((char*)include_path)));
+		} else if (strcmp(argv[arg_idx], "-fi") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "command argument stream ended in a '-fi', we expect an input file path to follow '-fi'");
+				exit(1);
+			}
+
+			const char* input_file_path = argv[arg_idx];
+			if (!hcc_path_exists(input_file_path)) {
+				fprintf(stderr, "-fi '%s' path does not exist", input_file_path);
+				exit(1);
+			}
+			if (!hcc_path_is_file(input_file_path)) {
+				fprintf(stderr, "-fi '%s' is not a directory", input_file_path);
+				exit(1);
+			}
+
+			HCC_ENSURE(hcc_task_add_input_code_file(task, input_file_path, NULL));
+		} else if (strcmp(argv[arg_idx], "-fo") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "command argument stream ended in a '-fo', we expect an output file path to follow '-fo'");
+				exit(1);
+			}
+
+			const char* output_file_path = argv[arg_idx];
+			HccIIO binary_iio = hcc_iio_file(fopen(output_file_path, "wb"));
+			HCC_ENSURE(hcc_task_add_output_binary(task, &binary_iio));
+		} else if (strcmp(argv[arg_idx], "--enable-physical-pointer") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED, true);
+		} else {
+			fprintf(stderr, "invalid argument '%s'", argv[arg_idx]);
+			exit(1);
+		}
+
+		arg_idx += 1;
+	}
 
 	HccIIO stdout_iio = hcc_iio_file(stdout);
-	HccIIO binary_iio = hcc_iio_file(fopen("tests/test.spirv", "wb"));
 	hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
 	//HCC_ENSURE(hcc_task_add_output_ast_text(task, &stdout_iio));
 	HCC_ENSURE(hcc_task_add_output_aml_text(task, &stdout_iio));
-	HCC_ENSURE(hcc_task_add_output_binary(task, &binary_iio));
 
 	hcc_compiler_dispatch_task(compiler, task);
 	HccResult result = hcc_task_wait_for_complete(task);

@@ -192,14 +192,6 @@ ERROR_2:
 	HCC_ABORT("invalid error %u", error);
 }
 
-bool hcc_file_exist(const char* path) {
-#ifdef HCC_OS_LINUX
-	return access(path, F_OK) == 0;
-#else
-#error "unimplemented for this platform"
-#endif
-}
-
 bool hcc_change_working_directory(const char* path) {
 #ifdef HCC_OS_LINUX
 	return chdir(path) == 0;
@@ -360,6 +352,38 @@ bool hcc_file_open_write(const char* path, HccIIO* out) {
 
 bool hcc_path_is_relative(const char* path) {
 	return !hcc_path_is_absolute(path);
+}
+
+bool hcc_path_exists(const char* path) {
+#ifdef HCC_OS_LINUX
+	return access(path, F_OK) == 0;
+#else
+#error "unimplemented for this platform"
+#endif
+}
+
+bool hcc_path_is_file(const char* path) {
+#ifdef HCC_OS_LINUX
+	struct stat s;
+	if (stat(path, &s) != 0) {
+		return false;
+	}
+	return S_ISREG(s.st_mode);
+#else
+#error "unimplemented for this platform"
+#endif
+}
+
+bool hcc_path_is_directory(const char* path) {
+#ifdef HCC_OS_LINUX
+	struct stat s;
+	if (stat(path, &s) != 0) {
+		return false;
+	}
+	return S_ISDIR(s.st_mode);
+#else
+#error "unimplemented for this platform"
+#endif
 }
 
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name) {
