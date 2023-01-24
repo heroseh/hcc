@@ -199,8 +199,8 @@ HccSPIRVId hcc_spirv_decl_deduplicate(HccCU* cu, HccDecl decl) {
 			case HCC_DECL_GLOBAL_VARIABLE: {
 				HccASTVariable* ast_global_variable = hcc_ast_global_variable_get(cu, decl);
 				HccSPIRVOperand* operands = hcc_spirv_add_global_variable(cu, 4);
-				HccSPIRVStorageClass storage_class = ast_global_variable->storage_duration == HCC_AST_STORAGE_DURATION_THREAD ? HCC_SPIRV_STORAGE_CLASS_PRIVATE : HCC_SPIRV_STORAGE_CLASS_WORKGROUP;
-				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, ast_global_variable->data_type);
+				HccSPIRVStorageClass storage_class = HCC_SPIRV_STORAGE_CLASS_PRIVATE; // TODO add HCC_SPIRV_STORAGE_CLASS_WORKGROUP support
+				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, hcc_pointer_data_type_deduplicate(cu, ast_global_variable->data_type));
 				operands[1] = spirv_id;
 				operands[2] = storage_class;
 				operands[3] = hcc_spirv_constant_deduplicate(cu, ast_global_variable->initializer_constant_id);

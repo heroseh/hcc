@@ -221,11 +221,11 @@ void hcc_ppgen_eval_binary_op(HccWorker* w, uint32_t* token_idx_mut, HccASTBinar
 	}
 }
 
-HccBasicEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
+HccPPEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
 	HccATAToken token = *hcc_stack_get(w->atagen.ast_file->token_bag.tokens, *token_idx_mut);
 	*token_idx_mut += 1;
 
-	HccBasicEval eval;
+	HccPPEval eval;
 	HccASTUnaryOp unary_op;
 	switch (token) {
 		case HCC_ATA_TOKEN_LIT_UINT:
@@ -238,8 +238,8 @@ HccBasicEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, ui
 			uint64_t u64;
 			HCC_DEBUG_ASSERT(hcc_constant_as_uint(w->cu, constant, &u64), "internal error: expected to be a unsigned int");
 
-			eval.is_signed = false;
-			eval.u64 = u64;
+			eval.data_type = HCC_DATA_TYPE_AML_INTRINSIC_U64;
+			eval.basic.u64 = u64;
 			break;
 		};
 
@@ -253,8 +253,8 @@ HccBasicEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, ui
 			int64_t s64;
 			HCC_DEBUG_ASSERT(hcc_constant_as_sint(w->cu, constant, &s64), "internal error: expected to be a signed int");
 
-			eval.is_signed = true;
-			eval.s64 = s64;
+			eval.data_type = HCC_DATA_TYPE_AML_INTRINSIC_S64;
+			eval.basic.s64 = s64;
 			break;
 		};
 
@@ -275,10 +275,10 @@ UNARY:
 		{
 			eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
 			switch (unary_op) {
-				case HCC_ATA_TOKEN_TILDE:            eval.u64 = ~eval.u64; break;
-				case HCC_ATA_TOKEN_EXCLAMATION_MARK: eval.u64 = !eval.u64; break;
+				case HCC_ATA_TOKEN_TILDE:            eval.basic.u64 = ~eval.basic.u64; break;
+				case HCC_ATA_TOKEN_EXCLAMATION_MARK: eval.basic.u64 = !eval.basic.u64; break;
 				case HCC_ATA_TOKEN_PLUS:                                   break;
-				case HCC_ATA_TOKEN_MINUS:            eval.u64 = -eval.u64; break;
+				case HCC_ATA_TOKEN_MINUS:            eval.basic.u64 = -eval.basic.u64; break;
 				default: HCC_UNREACHABLE();
 			}
 			break;
@@ -290,8 +290,8 @@ UNARY:
 				// the spec states that any identifier that is not evaluated during macro expansion
 				// gets substituded for a 0.
 				//
-				eval.is_signed = true;
-				eval.s64 = 0;
+				eval.data_type = HCC_DATA_TYPE_AML_INTRINSIC_S64;
+				eval.basic.s64 = 0;
 			} else {
 				*token_idx_mut -= 1;
 				hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_INVALID_PP_UNARY_EXPR, hcc_ata_token_strings[token]);
@@ -302,8 +302,8 @@ UNARY:
 	return eval;
 }
 
-HccBasicEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
-	HccBasicEval left_eval = hcc_ppgen_eval_unary_expr(w, token_idx_mut, token_value_idx_mut);
+HccPPEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut) {
+	HccPPEval left_eval = hcc_ppgen_eval_unary_expr(w, token_idx_mut, token_value_idx_mut);
 
 	while (*token_idx_mut < hcc_stack_count(w->atagen.ast_file->token_bag.tokens)) {
 		HccASTBinaryOp binary_op;
@@ -314,19 +314,20 @@ HccBasicEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t
 		}
 		*token_idx_mut += 1;
 
-		HccBasicEval eval;
+		HccPPEval eval;
 		if (binary_op == HCC_AST_BINARY_OP_TERNARY) {
-			HccBasicEval true_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
+			HccPPEval true_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
 			HccATAToken token = *hcc_stack_get(w->atagen.ast_file->token_bag.tokens, *token_idx_mut);
 			if (token != HCC_ATA_TOKEN_COLON) {
 				hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_COLON_FOR_TERNARY_OP);
 			}
 			*token_idx_mut += 1;
-			HccBasicEval false_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
-			eval = left_eval.u64 ? true_eval : false_eval;
+			HccPPEval false_eval = hcc_ppgen_eval_expr(w, 0, token_idx_mut, token_value_idx_mut);
+			eval = left_eval.basic.u64 ? true_eval : false_eval;
 		} else {
-			HccBasicEval right_eval = hcc_ppgen_eval_expr(w, precedence, token_idx_mut, token_value_idx_mut);
-			eval = hcc_basic_eval(binary_op, left_eval, right_eval);
+			HccPPEval right_eval = hcc_ppgen_eval_expr(w, precedence, token_idx_mut, token_value_idx_mut);
+			eval.data_type = left_eval.data_type;
+			eval.basic = hcc_basic_eval(w->cu, binary_op, left_eval.data_type, left_eval.basic, right_eval.basic);
 		}
 
 		left_eval = eval;
@@ -528,7 +529,7 @@ void hcc_ppgen_parse_undef(HccWorker* w) {
 
 	//
 	// remove the macro from the hash table. we do not need to error if the macro is not defined.
-	hcc_hash_table_remove(&w->atagen.ppgen.macro_declarations, &identifier_string_id);
+	hcc_hash_table_remove(w->atagen.ppgen.macro_declarations, &identifier_string_id);
 
 	hcc_ppgen_ensure_end_of_directive(w, HCC_ERROR_CODE_TOO_MANY_UNDEF_OPERANDS, HCC_PP_DIRECTIVE_UNDEF);
 }
@@ -681,7 +682,7 @@ bool hcc_ppgen_parse_if(HccWorker* w) {
 	// evaluate the tokens and compute a boolean value
 	uint32_t token_idx = tokens_start_idx;
 	uint32_t token_value_idx = token_values_start_idx;
-	bool is_true = !!hcc_ppgen_eval_expr(w, 0, &token_idx, &token_value_idx).u64;
+	bool is_true = !!hcc_ppgen_eval_expr(w, 0, &token_idx, &token_value_idx).basic.u64;
 
 	HCC_DEBUG_ASSERT(token_idx == hcc_stack_count(token_bag->tokens), "internal error: preprocessor expression has not been fully evaluated");
 
@@ -696,7 +697,6 @@ bool hcc_ppgen_parse_if(HccWorker* w) {
 }
 
 void hcc_ppgen_parse_defined(HccWorker* w) {
-	hcc_atagen_advance_column(w, sizeof("defined") - 1);
 	hcc_atagen_consume_whitespace(w);
 
 	bool has_parenthesis = w->atagen.code[w->atagen.location.code_end_idx] == '(';
@@ -709,7 +709,7 @@ void hcc_ppgen_parse_defined(HccWorker* w) {
 	HccStringId macro_string_id;
 	hcc_string_table_deduplicate(macro_ident_string.data, macro_ident_string.size, &macro_string_id);
 
-	bool does_macro_exist = hcc_hash_table_find_idx(&w->atagen.ppgen.macro_declarations, &macro_string_id) != UINTPTR_MAX;
+	bool does_macro_exist = hcc_hash_table_find_idx(w->atagen.ppgen.macro_declarations, &macro_string_id) != UINTPTR_MAX;
 	hcc_atagen_advance_column(w, macro_ident_string.size);
 
 	if (has_parenthesis) {
@@ -720,9 +720,8 @@ void hcc_ppgen_parse_defined(HccWorker* w) {
 		hcc_atagen_advance_column(w, 1); // skip ')'
 	}
 
-	HccConstantId* basic_type_constant_ids = does_macro_exist ? w->cu->dtt.basic_type_one_constant_ids : w->cu->dtt.basic_type_zero_constant_ids;
 	HccATAValue token_value;
-	token_value.constant_id = basic_type_constant_ids[HCC_AST_BASIC_DATA_TYPE_SINT];
+	token_value.constant_id = does_macro_exist ? hcc_constant_table_deduplicate_one(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT) : hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT);
 
 	hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
 	hcc_atagen_token_value_add(w, token_value);
@@ -2957,7 +2956,7 @@ CLOSE_BRACKET:
 					}
 				}
 
-				if (run_mode == HCC_ATAGEN_RUN_MODE_CODE) {
+				if (run_mode == HCC_ATAGEN_RUN_MODE_CODE || run_mode == HCC_ATAGEN_RUN_MODE_PP_OPERAND || run_mode == HCC_ATAGEN_RUN_MODE_PP_IF_OPERAND || run_mode == HCC_ATAGEN_RUN_MODE_PP_INCLUDE_OPERAND) {
 					uintptr_t found_idx = hcc_hash_table_find_idx(w->atagen.ppgen.macro_declarations, &ident_string_id);
 					if (found_idx != UINTPTR_MAX) {
 						if (HCC_STRING_ID_PREDEFINED_MACROS_START <= ident_string_id.idx_plus_one && ident_string_id.idx_plus_one < HCC_STRING_ID_PREDEFINED_MACROS_END) {

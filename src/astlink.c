@@ -52,8 +52,17 @@ void hcc_astlink_link_file(HccWorker* w) {
 			continue;
 		}
 
-		found_idx = hcc_hash_table_find_idx(cu->global_declarations, &forward_decl->identifier_string_id);
 		HccDecl found_decl = 0;
+		bool is_intrinsic =
+			HCC_STRING_ID_INTRINSIC_FUNCTIONS_START <= forward_decl->identifier_string_id.idx_plus_one &&
+			forward_decl->identifier_string_id.idx_plus_one < HCC_STRING_ID_INTRINSIC_FUNCTIONS_END;
+		if (is_intrinsic) {
+			uint32_t function_idx = forward_decl->identifier_string_id.idx_plus_one - HCC_STRING_ID_INTRINSIC_FUNCTIONS_START;
+			found_decl = HCC_DECL(FUNCTION, function_idx);
+			goto LINK_DECL_END;
+		}
+
+		found_idx = hcc_hash_table_find_idx(cu->global_declarations, &forward_decl->identifier_string_id);
 		if (found_idx != UINTPTR_MAX) {
 			//
 			// try and find the definition for the forward declaration in the compiliation unit

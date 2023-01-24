@@ -152,31 +152,35 @@ void hcc_amlopt_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* loca
 	va_end(va_args);
 }
 
-void hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl) {
+bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl) {
 	HCC_DEBUG_ASSERT(HCC_DECL_IS_FUNCTION(function_decl), "internal error: expected a function declaration");
 	HCC_DEBUG_ASSERT(!HCC_DECL_IS_FORWARD_DECL(function_decl), "internal error: expected a function declaration that is not a forward declaration");
 	HccCU* cu = w->cu;
 
-	//
-	// check for recursion
-	HccASTFunction* ast_function = hcc_ast_function_get(cu, function_decl);
-	for (uint32_t idx = 0; idx < w->amlopt.function_recursion_call_stack_count; idx += 1) {
-		if (w->amlopt.function_recursion_call_stack[idx] == function_decl) {
-			const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
-			HccString identifier_string = hcc_string_table_get(ast_function->identifier_string_id);
-			hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_RECURSION, ast_function->identifier_location, (int)identifier_string.size, identifier_string.data, callstack);
-			return;
-		}
-	}
+	// append function decl
 	HCC_DEBUG_ASSERT_ARRAY_BOUNDS(w->amlopt.function_recursion_call_stack_count, HCC_FUNCTION_CALL_STACK_CAP);
 	w->amlopt.function_recursion_call_stack[w->amlopt.function_recursion_call_stack_count] = function_decl;
 	w->amlopt.function_recursion_call_stack_count += 1;
 
+	//
+	// check for recursion
+	HccASTFunction* ast_function = hcc_ast_function_get(cu, function_decl);
+	for (uint32_t idx = 0; idx < w->amlopt.function_recursion_call_stack_count - 1; idx += 1) {
+		if (w->amlopt.function_recursion_call_stack[idx] == function_decl) {
+			const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
+			HccString identifier_string = hcc_string_table_get(ast_function->identifier_string_id);
+			hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_RECURSION, ast_function->identifier_location, (int)identifier_string.size, identifier_string.data, callstack);
+			return false;
+		}
+	}
+
 	HccAMLCallNode* node = *hcc_stack_get(cu->aml.function_call_node_lists, HCC_DECL_AUX(function_decl));
 	while (node) {
 		//
-		// descend down the call stack if we are not the first entry
-		hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(w, node->function_decl);
+		// descend down the call stack
+		if (!hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(w, node->function_decl)) {
+			return false;
+		}
 
 		node = node->next_call_node_idx == UINT32_MAX ? NULL : hcc_stack_get(cu->aml.call_graph_nodes, node->next_call_node_idx);
 	}
@@ -190,7 +194,7 @@ void hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 		uint32_t count = hcc_stack_count(optimize_functions);
 		for (; idx < count; idx += 1) {
 			if (optimize_functions[idx] == function_decl) {
-				return;
+				goto END;
 			}
 		}
 		hcc_spin_mutex_lock(&cu->aml.optimize_functions_mutex);
@@ -199,6 +203,11 @@ void hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 		}
 		hcc_spin_mutex_unlock(&cu->aml.optimize_functions_mutex);
 	}
+
+END:{}
+	// pop function decl
+	w->amlopt.function_recursion_call_stack_count -= 1;
+	return true;
 }
 
 bool hcc_amlopt_ensure_supported_type(HccWorker* w, HccDataType data_type, HccLocation* location) {

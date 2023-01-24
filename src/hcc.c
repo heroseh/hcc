@@ -301,7 +301,7 @@ HccTaskSetup hcc_task_setup_default = {
 				.macro_params_grow_count = 1024,
 				.macro_params_reserve_cap = 16384,
 				.tokens_grow_count = 1024,
-				.tokens_reserve_cap = 131072,
+				.tokens_reserve_cap = 262144,
 				.values_grow_count = 512,
 				.values_reserve_cap = 65536,
 				.unique_include_files_grow_count = 1024,
@@ -325,7 +325,7 @@ HccTaskSetup hcc_task_setup_default = {
 				.functions_grow_count = 1024,
 				.functions_reserve_cap = 131072,
 				.instrs_grow_count = 16384,
-				.instrs_reserve_cap = 1048576,
+				.instrs_reserve_cap = 4194304,
 			},
 		},
 		.functions_grow_count = 1024,
@@ -334,7 +334,6 @@ HccTaskSetup hcc_task_setup_default = {
 		.function_params_and_variables_reserve_cap = 131072,
 	},
 	.options = NULL,
-	.final_worker_job_type = HCC_WORKER_JOB_TYPE_COUNT,
 	.include_paths_cap = 1024,
 	.messages_cap = 4096,
 	.message_strings_cap = 32768,
@@ -482,7 +481,7 @@ HccResult hcc_task_init(HccTaskSetup* setup, HccTask** t_out) {
 	HccTask* t = HCC_ARENA_ALCTOR_ALLOC_ELMT_THREAD_SAFE(HccTask, &_hcc_gs.arena_alctor);
 	t->cu_setup = setup->cu;
 	t->options = setup->options;
-	t->final_worker_job_type = setup->final_worker_job_type;
+	t->final_worker_job_type = HCC_WORKER_JOB_TYPE_BACKENDLINK;
 	t->include_path_strings = hcc_stack_init(HccString, 0, setup->include_paths_cap, setup->include_paths_cap);
 	t->message_sys.elmts = hcc_stack_init(HccMessage, 0, setup->messages_cap, setup->messages_cap);
 	t->message_sys.locations = hcc_stack_init(HccLocation, 0, setup->messages_cap * 2, setup->messages_cap * 2);
@@ -500,6 +499,10 @@ void hcc_task_deinit(HccTask* t) {
 	hcc_stack_deinit(t->message_sys.strings);
 
 	hcc_cu_deinit(t->cu);
+}
+
+void hcc_task_set_final_worker_job_type(HccTask* t, HccWorkerJobType final_worker_job_type) {
+	t->final_worker_job_type = final_worker_job_type;
 }
 
 HccResult hcc_task_add_include_path(HccTask* t, HccString path) {
@@ -656,7 +659,7 @@ void hcc_worker_end_job(HccWorker* w) {
 		t->worker_job_type_durations[t->worker_job_type] = hcc_time_diff(end_time, t->worker_job_type_start_times[t->worker_job_type]);
 		c->worker_job_type_durations[t->worker_job_type] = hcc_duration_add(c->worker_job_type_durations[t->worker_job_type], t->worker_job_type_durations[t->worker_job_type]);
 
-		if (t->worker_job_type == t->final_worker_job_type) {
+		if (t->worker_job_type == t->final_worker_job_type || (t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR)) {
 			bool was_successful = true;
 			if (t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
 				t->result.code = HCC_ERROR_MESSAGES;
@@ -1175,6 +1178,14 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 	hcc_string_table_intrinsic_add(HCC_STRING_ID_ONCE, "once");
 	hcc_string_table_intrinsic_add(HCC_STRING_ID_DEFINED, "defined");
 	hcc_string_table_intrinsic_add(HCC_STRING_ID___VA_ARGS__, "__VA_ARGS__");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_X, "x");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_Y, "y");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_Z, "z");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_W, "w");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_R, "r");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_G, "g");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_B, "b");
+	hcc_string_table_intrinsic_add(HCC_STRING_ID_A, "a");
 
 	{
 		char buf[128];
@@ -1210,28 +1221,6 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 			}
 		}
 
-		//
-		// generate the vector names
-		for (uint32_t c = 2; c <= 4; c += 1) {
-			for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_BOOL; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
-				snprintf(buf, sizeof(buf), "%sx%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c);
-				uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_AML_START + HCC_AML_INTRINSIC_DATA_TYPE(intrinsic, c, 1);
-				hcc_string_table_intrinsic_add(expected_string_id, buf);
-			}
-		}
-
-		//
-		// generate the matrix names
-		for (uint32_t r = 2; r <= 4; r += 1) {
-			for (uint32_t c = 2; c <= 4; c += 1) {
-				for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_BOOL; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
-					snprintf(buf, sizeof(buf), "%sx%ux%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r);
-					uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_AML_START + HCC_AML_INTRINSIC_DATA_TYPE(intrinsic, c, r);
-					hcc_string_table_intrinsic_add(expected_string_id, buf);
-				}
-			}
-		}
-
 		for (uint32_t f = 0; f < HCC_FUNCTION_IDX_STRINGS_COUNT; f += 1) {
 			const char* string = hcc_intrinisic_function_strings[f];
 			uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_FUNCTIONS_START + f;
@@ -1261,65 +1250,6 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 				}
 			} else {
 				expected_string_id += 48;
-			}
-
-			//
-			// generate the matrix versions of this function if they are supported
-			if (support & HCC_MANY_TYPE_CLASS_OPS_MATRIX) {
-				switch (f) {
-					case HCC_FUNCTION_MANY_MATRIX_MUL:
-						for (uint32_t r = 2; r <= 4; r += 1) {
-							for (uint32_t c = 2; c <= 4; c += 1) {
-								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
-									snprintf(buf + insert_idx, sizeof(buf) - insert_idx, "%sx%ux%u_%sx%ux%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r, hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], r, c);
-									hcc_string_table_intrinsic_add(expected_string_id + intrinsic, buf);
-								}
-								expected_string_id += 16;
-							}
-						}
-						break;
-					case HCC_FUNCTION_MANY_MATRIX_MUL_VECTOR:
-						for (uint32_t r = 2; r <= 4; r += 1) {
-							for (uint32_t c = 2; c <= 4; c += 1) {
-								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
-									snprintf(buf + insert_idx, sizeof(buf) - insert_idx, "%sx%ux%u_%sx%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r, hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c);
-									hcc_string_table_intrinsic_add(expected_string_id + intrinsic, buf);
-								}
-								expected_string_id += 16;
-							}
-						}
-						break;
-					case HCC_FUNCTION_MANY_VECTOR_MUL_MATRIX:
-						for (uint32_t r = 2; r <= 4; r += 1) {
-							for (uint32_t c = 2; c <= 4; c += 1) {
-								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
-									snprintf(buf + insert_idx, sizeof(buf) - insert_idx, "%sx%u_%sx%ux%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], r, hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r);
-									hcc_string_table_intrinsic_add(expected_string_id + intrinsic, buf);
-								}
-								expected_string_id += 16;
-							}
-						}
-						break;
-					case HCC_FUNCTION_MANY_MATRIX_OUTER_PRODUCT:
-						for (uint32_t r = 2; r <= 4; r += 1) {
-							for (uint32_t c = 2; c <= 4; c += 1) {
-								for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_F16; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
-									snprintf(buf + insert_idx, sizeof(buf) - insert_idx, "%sx%u_%sx%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], r);
-									hcc_string_table_intrinsic_add(expected_string_id + intrinsic, buf);
-								}
-								expected_string_id += 16;
-							}
-						}
-						break;
-					default:
-						for (uint32_t r = 2; r <= 4; r += 1) {
-							for (uint32_t c = 2; c <= 4; c += 1) {
-								hcc_string_intrinsic_decl_add_function(buf, sizeof(buf), insert_idx, "%sx%ux%u", expected_string_id, support, c, r);
-								expected_string_id += 16;
-							}
-						}
-						break;
-				}
 			}
 		}
 

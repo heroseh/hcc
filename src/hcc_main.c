@@ -33,7 +33,6 @@ int main(int argc, char** argv) {
 	HccTask* task;
 	HccTaskSetup task_setup = hcc_task_setup_default;
 	task_setup.options = options;
-	task_setup.final_worker_job_type = HCC_WORKER_JOB_TYPE_BACKENDLINK;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
 
 	int arg_idx = 1;
@@ -86,6 +85,18 @@ int main(int argc, char** argv) {
 			HCC_ENSURE(hcc_task_add_output_binary(task, &binary_iio));
 		} else if (strcmp(argv[arg_idx], "--enable-physical-pointer") == 0) {
 			hcc_options_set_bool(options, HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED, true);
+		} else if (strcmp(argv[arg_idx], "--output-ast") == 0) {
+			HccIIO stdout_iio = hcc_iio_file(stdout);
+			hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
+			HCC_ENSURE(hcc_task_add_output_ast_text(task, &stdout_iio));
+		} else if (strcmp(argv[arg_idx], "--output-aml") == 0) {
+			HccIIO stdout_iio = hcc_iio_file(stdout);
+			hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
+			HCC_ENSURE(hcc_task_add_output_aml_text(task, &stdout_iio));
+		} else if (strcmp(argv[arg_idx], "--final-job-ast") == 0) {
+			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ASTLINK);
+		} else if (strcmp(argv[arg_idx], "--final-job-aml") == 0) {
+			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_AMLOPT);
 		} else {
 			fprintf(stderr, "invalid argument '%s'", argv[arg_idx]);
 			exit(1);
@@ -93,11 +104,6 @@ int main(int argc, char** argv) {
 
 		arg_idx += 1;
 	}
-
-	HccIIO stdout_iio = hcc_iio_file(stdout);
-	hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
-	//HCC_ENSURE(hcc_task_add_output_ast_text(task, &stdout_iio));
-	HCC_ENSURE(hcc_task_add_output_aml_text(task, &stdout_iio));
 
 	hcc_compiler_dispatch_task(compiler, task);
 	HccResult result = hcc_task_wait_for_complete(task);

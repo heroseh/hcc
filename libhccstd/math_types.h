@@ -8,6 +8,22 @@
 #define _HCC_STD_MATH_TYPES_H_
 
 
+#ifndef HCC_ENABLE_VECTOR_EXTENSIONS
+#if defined(__HCC__) || defined(__clang__)
+#define HCC_ENABLE_VECTOR_EXTENSIONS 1
+#else
+#define HCC_ENABLE_VECTOR_EXTENSIONS 0
+#endif
+#endif
+
+#if HCC_ENABLE_VECTOR_EXTENSIONS
+#if defined(__HCC__)
+#define HCC_DEFINE_VECTOR(vector_t, scalar_t, num_comps) typedef __hcc_vector_t(scalar_t, num_comps) vector_t
+#elif defined(__clang__)
+#define HCC_DEFINE_VECTOR(vector_t, scalar_t, num_comps) typedef scalar_t vector_t __attribute__((ext_vector_type(num_comps)))
+#endif
+#endif
+
 // ===========================================
 //
 //
@@ -132,6 +148,47 @@ typedef struct pu64x4 { uint64_t x; uint64_t y; uint64_t z; uint64_t w; } pu64x4
 // the vec3 is rounded up to the size and align of a vec4 due to hardware limitations
 //
 
+#if HCC_ENABLE_VECTOR_EXTENSIONS
+HCC_DEFINE_VECTOR(boolx2, bool, 2);
+HCC_DEFINE_VECTOR(f16x2, half, 2);
+HCC_DEFINE_VECTOR(f32x2, float, 2);
+HCC_DEFINE_VECTOR(f64x2, double, 2);
+HCC_DEFINE_VECTOR(s8x2, int8_t, 2);
+HCC_DEFINE_VECTOR(s16x2, int16_t, 2);
+HCC_DEFINE_VECTOR(s32x2, int32_t, 2);
+HCC_DEFINE_VECTOR(s64x2, int64_t, 2);
+HCC_DEFINE_VECTOR(u8x2, uint8_t, 2);
+HCC_DEFINE_VECTOR(u16x2, uint16_t, 2);
+HCC_DEFINE_VECTOR(u32x2, uint32_t, 2);
+HCC_DEFINE_VECTOR(u64x2, uint64_t, 2);
+
+HCC_DEFINE_VECTOR(boolx3, bool, 3);
+HCC_DEFINE_VECTOR(f16x3, half, 3);
+HCC_DEFINE_VECTOR(f32x3, float, 3);
+HCC_DEFINE_VECTOR(f64x3, double, 3);
+HCC_DEFINE_VECTOR(s8x3, int8_t, 3);
+HCC_DEFINE_VECTOR(s16x3, int16_t, 3);
+HCC_DEFINE_VECTOR(s32x3, int32_t, 3);
+HCC_DEFINE_VECTOR(s64x3, int64_t, 3);
+HCC_DEFINE_VECTOR(u8x3, uint8_t, 3);
+HCC_DEFINE_VECTOR(u16x3, uint16_t, 3);
+HCC_DEFINE_VECTOR(u32x3, uint32_t, 3);
+HCC_DEFINE_VECTOR(u64x3, uint64_t, 3);
+
+HCC_DEFINE_VECTOR(boolx4, bool, 4);
+HCC_DEFINE_VECTOR(f16x4, half, 4);
+HCC_DEFINE_VECTOR(f32x4, float, 4);
+HCC_DEFINE_VECTOR(f64x4, double, 4);
+HCC_DEFINE_VECTOR(s8x4, int8_t, 4);
+HCC_DEFINE_VECTOR(s16x4, int16_t, 4);
+HCC_DEFINE_VECTOR(s32x4, int32_t, 4);
+HCC_DEFINE_VECTOR(s64x4, int64_t, 4);
+HCC_DEFINE_VECTOR(u8x4, uint8_t, 4);
+HCC_DEFINE_VECTOR(u16x4, uint16_t, 4);
+HCC_DEFINE_VECTOR(u32x4, uint32_t, 4);
+HCC_DEFINE_VECTOR(u64x4, uint64_t, 4);
+
+#else //!HCC_ENABLE_VECTOR_EXTENSIONS
 typedef struct boolx2 boolx2;
 typedef struct f16x2 f16x2;
 typedef struct f32x2 f32x2;
@@ -171,44 +228,283 @@ typedef struct u16x4 u16x4;
 typedef struct u32x4 u32x4;
 typedef struct u64x4 u64x4;
 
-struct boolx2 { _Alignas(2) bool x; bool y; };
-struct f16x2 { _Alignas(4) half x; half y; };
-struct f32x2 { _Alignas(8) float x; float y; };
-struct f64x2 { _Alignas(16) double x; double y; };
-struct s8x2 { _Alignas(2) int8_t x; int8_t y; };
-struct s16x2 { _Alignas(4) int16_t x; int16_t y; };
-struct s32x2 { _Alignas(8) int32_t x; int32_t y; };
-struct s64x2 { _Alignas(16) int64_t x; int64_t y; };
-struct u8x2 { _Alignas(2) uint8_t x; uint8_t y; };
-struct u16x2 { _Alignas(4) uint16_t x; uint16_t y; };
-struct u32x2 { _Alignas(8) uint32_t x; uint32_t y; };
-struct u64x2 { _Alignas(16) uint64_t x; uint64_t y; };
+struct boolx2 {
+	_Alignas(2)
+	struct { bool x; bool y; };
+	struct { bool r; bool g; };
+};
 
-struct boolx3 { _Alignas(4) bool x; bool y; bool z; };
-struct f16x3 { _Alignas(8) half x; half y; half z; };
-struct f32x3 { _Alignas(16) float x; float y; float z; };
-struct f64x3 { _Alignas(32) double x; double y; double z; };
-struct s8x3 { _Alignas(4) int8_t x; int8_t y; int8_t z; };
-struct s16x3 { _Alignas(8) int16_t x; int16_t y; int16_t z; };
-struct s32x3 { _Alignas(16) int32_t x; int32_t y; int32_t z; };
-struct s64x3 { _Alignas(32) int64_t x; int64_t y; int64_t z; };
-struct u8x3 { _Alignas(4) uint8_t x; uint8_t y; uint8_t z; };
-struct u16x3 { _Alignas(8) uint16_t x; uint16_t y; uint16_t z; };
-struct u32x3 { _Alignas(16) uint32_t x; uint32_t y; uint32_t z; };
-struct u64x3 { _Alignas(32) uint64_t x; uint64_t y; uint64_t z; };
+struct f16x2 {
+	_Alignas(4)
+	struct { half x; half y; };
+	struct { half r; half g; };
+};
 
-struct boolx4 { _Alignas(4) bool x; bool y; bool z; bool w; };
-struct f16x4 { _Alignas(8) half x; half y; half z; half w; };
-struct f32x4 { _Alignas(16) float x; float y; float z; float w; };
-struct f64x4 { _Alignas(32) double x; double y; double z; double w; };
-struct s8x4 { _Alignas(4) int8_t x; int8_t y; int8_t z; int8_t w; };
-struct s16x4 { _Alignas(8) int16_t x; int16_t y; int16_t z; int16_t w; };
-struct s32x4 { _Alignas(16) int32_t x; int32_t y; int32_t z; int32_t w; };
-struct s64x4 { _Alignas(32) int64_t x; int64_t y; int64_t z; int64_t w; };
-struct u8x4 { _Alignas(4) uint8_t x; uint8_t y; uint8_t z; uint8_t w; };
-struct u16x4 { _Alignas(8) uint16_t x; uint16_t y; uint16_t z; uint16_t w; };
-struct u32x4 { _Alignas(16) uint32_t x; uint32_t y; uint32_t z; uint32_t w; };
-struct u64x4 { _Alignas(32) uint64_t x; uint64_t y; uint64_t z; uint64_t w; };
+struct f32x2 {
+	_Alignas(8)
+	struct { float x; float y; };
+	struct { float r; float g; };
+};
+
+struct f64x2 {
+	_Alignas(16)
+	struct { double x; double y; };
+	struct { double r; double g; };
+};
+
+struct s8x2 {
+	_Alignas(2)
+	struct { int8_t x; int8_t y; };
+	struct { int8_t r; int8_t g; };
+};
+
+struct s16x2 {
+	_Alignas(4)
+	struct { int16_t x; int16_t y; };
+	struct { int16_t r; int16_t g; };
+};
+
+struct s32x2 {
+	_Alignas(8)
+	struct { int32_t x; int32_t y; };
+	struct { int32_t r; int32_t g; };
+};
+
+struct s64x2 {
+	_Alignas(16)
+	struct { int64_t x; int64_t y; };
+	struct { int64_t r; int64_t g; };
+};
+
+struct u8x2 {
+	_Alignas(2)
+	struct { uint8_t x; uint8_t y; };
+	struct { uint8_t r; uint8_t g; };
+};
+
+struct u16x2 {
+	_Alignas(4)
+	struct { uint16_t x; uint16_t y; };
+	struct { uint16_t r; uint16_t g; };
+};
+
+struct u32x2 {
+	_Alignas(8)
+	struct { uint32_t x; uint32_t y; };
+	struct { uint32_t r; uint32_t g; };
+};
+
+struct u64x2 {
+	_Alignas(16)
+	struct { uint64_t x; uint64_t y; };
+	struct { uint64_t r; uint64_t g; };
+};
+
+struct boolx3 {
+	_Alignas(4)
+	struct { bool x; bool y; bool z; bool _w; };
+	struct { bool r; bool g; bool b; bool _a; };
+	boolx2 xy;
+	boolx2 rg;
+};
+
+struct f16x3 {
+	_Alignas(8)
+	struct { half x; half y; half z; half _w; };
+	struct { half r; half g; half b; half _a; };
+	f16x2 xy;
+	f16x2 rg;
+};
+
+struct f32x3 {
+	_Alignas(16)
+	struct { float x; float y; float z; float _w; };
+	struct { float r; float g; float b; float _a; };
+	f32x2 xy;
+	f32x2 rg;
+};
+
+struct f64x3 {
+	_Alignas(32)
+	struct { double x; double y; double z; double _w; };
+	struct { double r; double g; double b; double _a; };
+	f64x2 xy;
+	f64x2 rg;
+};
+
+struct s8x3 {
+	_Alignas(4)
+	struct { int8_t x; int8_t y; int8_t z; int8_t _w; };
+	struct { int8_t r; int8_t g; int8_t b; int8_t _a; };
+	s8x2 xy;
+	s8x2 rg;
+};
+
+struct s16x3 {
+	_Alignas(8)
+	struct { int16_t x; int16_t y; int16_t z; int16_t _w; };
+	struct { int16_t r; int16_t g; int16_t b; int16_t _a; };
+	s16x2 xy;
+	s16x2 rg;
+};
+
+struct s32x3 {
+	_Alignas(16)
+	struct { int32_t x; int32_t y; int32_t z; int32_t _w; };
+	struct { int32_t r; int32_t g; int32_t b; int32_t _a; };
+	s32x2 xy;
+	s32x2 rg;
+};
+
+struct s64x3 {
+	_Alignas(32)
+	struct { int64_t x; int64_t y; int64_t z; int64_t _w; };
+	struct { int64_t r; int64_t g; int64_t b; int64_t _a; };
+	s64x2 xy;
+	s64x2 rg;
+};
+
+struct u8x3 {
+	_Alignas(4)
+	struct { uint8_t x; uint8_t y; uint8_t z; uint8_t _w; };
+	struct { uint8_t r; uint8_t g; uint8_t b; uint8_t _a; };
+	u8x2 xy;
+	u8x2 rg;
+};
+
+struct u16x3 {
+	_Alignas(8)
+	struct { uint16_t x; uint16_t y; uint16_t z; uint16_t _w; };
+	struct { uint16_t r; uint16_t g; uint16_t b; uint16_t _a; };
+	u16x2 xy;
+	u16x2 rg;
+};
+
+struct u32x3 {
+	_Alignas(16)
+	struct { uint32_t x; uint32_t y; uint32_t z; uint32_t _w; };
+	struct { uint32_t r; uint32_t g; uint32_t b; uint32_t _a; };
+	u32x2 xy;
+	u32x2 rg;
+};
+
+struct u64x3 {
+	_Alignas(32)
+	struct { uint64_t x; uint64_t y; uint64_t z; uint64_t _w; };
+	struct { uint64_t r; uint64_t g; uint64_t b; uint64_t _a; };
+	u64x2 xy;
+	u64x2 rg;
+};
+
+struct boolx4 {
+	_Alignas(4)
+	struct { bool x; bool y; bool z; bool w; };
+	struct { bool r; bool g; bool b; bool a; };
+	struct { boolx2 xy; boolx2 zw; };
+	struct { boolx2 rg; boolx2 ba; };
+	boolx3 xyz;
+	boolx3 rgb;
+};
+struct f16x4 {
+	_Alignas(8)
+	struct { half x; half y; half z; half w; };
+	struct { half r; half g; half b; half a; };
+	struct { f16x2 xy; f16x2 zw; };
+	struct { f16x2 rg; f16x2 ba; };
+	f16x3 xyz;
+	f16x3 rgb;
+};
+struct f32x4 {
+	_Alignas(16)
+	struct { float x; float y; float z; float w; };
+	struct { float r; float g; float b; float a; };
+	struct { f32x2 xy; f32x2 zw; };
+	struct { f32x2 rg; f32x2 ba; };
+	f32x3 xyz;
+	f32x3 rgb;
+};
+struct f64x4 {
+	_Alignas(32)
+	struct { double x; double y; double z; double w; };
+	struct { double r; double g; double b; double a; };
+	struct { f64x2 xy; f64x2 zw; };
+	struct { f64x2 rg; f64x2 ba; };
+	f64x3 xyz;
+	f64x3 rgb;
+};
+struct s8x4 {
+	_Alignas(4)
+	struct { int8_t x; int8_t y; int8_t z; int8_t w; };
+	struct { int8_t r; int8_t g; int8_t b; int8_t a; };
+	struct { s8x2 xy; s8x2 zw; };
+	struct { s8x2 rg; s8x2 ba; };
+	s8x3 xyz;
+	s8x3 rgb;
+};
+struct s16x4 {
+	_Alignas(8)
+	struct { int16_t x; int16_t y; int16_t z; int16_t w; };
+	struct { int16_t r; int16_t g; int16_t b; int16_t a; };
+	struct { s16x2 xy; s16x2 zw; };
+	struct { s16x2 rg; s16x2 ba; };
+	s16x3 xyz;
+	s16x3 rgb;
+};
+struct s32x4 {
+	_Alignas(16)
+	struct { int32_t x; int32_t y; int32_t z; int32_t w; };
+	struct { int32_t r; int32_t g; int32_t b; int32_t a; };
+	struct { s32x2 xy; s32x2 zw; };
+	struct { s32x2 rg; s32x2 ba; };
+	s32x3 xyz;
+	s32x3 rgb;
+};
+struct s64x4 {
+	_Alignas(32)
+	struct { int64_t x; int64_t y; int64_t z; int64_t w; };
+	struct { int64_t r; int64_t g; int64_t b; int64_t a; };
+	struct { s64x2 xy; s64x2 zw; };
+	struct { s64x2 rg; s64x2 ba; };
+	s64x3 xyz;
+	s64x3 rgb;
+};
+struct u8x4 {
+	_Alignas(4)
+	struct { uint8_t x; uint8_t y; uint8_t z; uint8_t w; };
+	struct { uint8_t r; uint8_t g; uint8_t b; uint8_t a; };
+	struct { u8x2 xy; u8x2 zw; };
+	struct { u8x2 rg; u8x2 ba; };
+	u8x3 xyz;
+	u8x3 rgb;
+};
+struct u16x4 {
+	_Alignas(8)
+	struct { uint16_t x; uint16_t y; uint16_t z; uint16_t w; };
+	struct { uint16_t r; uint16_t g; uint16_t b; uint16_t a; };
+	struct { u16x2 xy; u16x2 zw; };
+	struct { u16x2 rg; u16x2 ba; };
+	u16x3 xyz;
+	u16x3 rgb;
+};
+struct u32x4 {
+	_Alignas(16)
+	struct { uint32_t x; uint32_t y; uint32_t z; uint32_t w; };
+	struct { uint32_t r; uint32_t g; uint32_t b; uint32_t a; };
+	struct { u32x2 xy; u32x2 zw; };
+	struct { u32x2 rg; u32x2 ba; };
+	u32x3 xyz;
+	u32x3 rgb;
+};
+struct u64x4 {
+	_Alignas(32)
+	struct { uint64_t x; uint64_t y; uint64_t z; uint64_t w; };
+	struct { uint64_t r; uint64_t g; uint64_t b; uint64_t a; };
+	struct { u64x2 xy; u64x2 zw; };
+	struct { u64x2 rg; u64x2 ba; };
+	u64x3 xyz;
+	u64x3 rgb;
+};
+#endif
 
 //
 // initializes a new vector with 2, 3 or 4 components of any of the following types:
@@ -410,24 +706,24 @@ struct u64x4 { _Alignas(32) uint64_t x; uint64_t y; uint64_t z; uint64_t w; };
 //
 // ===========================================
 
-typedef struct pf32x2x2 { float    scalars[4 ]; } pf32x2x2;
-typedef struct pf64x2x2 { double   scalars[4 ]; } pf64x2x2;
-typedef struct pf32x2x3 { float    scalars[6 ]; } pf32x2x3;
-typedef struct pf64x2x3 { double   scalars[6 ]; } pf64x2x3;
-typedef struct pf32x2x4 { float    scalars[8 ]; } pf32x2x4;
-typedef struct pf64x2x4 { double   scalars[8 ]; } pf64x2x4;
-typedef struct pf32x3x2 { float    scalars[6 ]; } pf32x3x2;
-typedef struct pf64x3x2 { double   scalars[6 ]; } pf64x3x2;
-typedef struct pf32x3x3 { float    scalars[9 ]; } pf32x3x3;
-typedef struct pf64x3x3 { double   scalars[9 ]; } pf64x3x3;
-typedef struct pf32x3x4 { float    scalars[12]; } pf32x3x4;
-typedef struct pf64x3x4 { double   scalars[12]; } pf64x3x4;
-typedef struct pf32x4x2 { float    scalars[8 ]; } pf32x4x2;
-typedef struct pf64x4x2 { double   scalars[8 ]; } pf64x4x2;
-typedef struct pf32x4x3 { float    scalars[12]; } pf32x4x3;
-typedef struct pf64x4x3 { double   scalars[12]; } pf64x4x3;
-typedef struct pf32x4x4 { float    scalars[16]; } pf32x4x4;
-typedef struct pf64x4x4 { double   scalars[16]; } pf64x4x4;
+typedef struct pf32x2x2 { pf32x2 cols[2]; } pf32x2x2;
+typedef struct pf64x2x2 { pf64x2 cols[2]; } pf64x2x2;
+typedef struct pf32x2x3 { pf32x2 cols[3]; } pf32x2x3;
+typedef struct pf64x2x3 { pf64x2 cols[3]; } pf64x2x3;
+typedef struct pf32x2x4 { pf32x2 cols[4]; } pf32x2x4;
+typedef struct pf64x2x4 { pf64x2 cols[4]; } pf64x2x4;
+typedef struct pf32x3x2 { pf32x3 cols[2]; } pf32x3x2;
+typedef struct pf64x3x2 { pf64x3 cols[2]; } pf64x3x2;
+typedef struct pf32x3x3 { pf32x3 cols[3]; } pf32x3x3;
+typedef struct pf64x3x3 { pf64x3 cols[3]; } pf64x3x3;
+typedef struct pf32x3x4 { pf32x3 cols[4]; } pf32x3x4;
+typedef struct pf64x3x4 { pf64x3 cols[4]; } pf64x3x4;
+typedef struct pf32x4x2 { pf32x4 cols[2]; } pf32x4x2;
+typedef struct pf64x4x2 { pf64x4 cols[2]; } pf64x4x2;
+typedef struct pf32x4x3 { pf32x4 cols[3]; } pf32x4x3;
+typedef struct pf64x4x3 { pf64x4 cols[3]; } pf64x4x3;
+typedef struct pf32x4x4 { pf32x4 cols[4]; } pf32x4x4;
+typedef struct pf64x4x4 { pf64x4 cols[4]; } pf64x4x4;
 
 // ===========================================
 //
@@ -437,42 +733,51 @@ typedef struct pf64x4x4 { double   scalars[16]; } pf64x4x4;
 //
 // ===========================================
 
-typedef union f32x2x2 { float    cols[4][2]; f32x4 vcols[2]; float    scalars[8 ]; } f32x2x2;
-typedef union f64x2x2 { double   cols[4][2]; f64x4 vcols[2]; double   scalars[8 ]; } f64x2x2;
-typedef union f32x2x3 { float    cols[4][3]; f32x4 vcols[3]; float    scalars[12]; } f32x2x3;
-typedef union f64x2x3 { double   cols[4][3]; f64x4 vcols[3]; double   scalars[12]; } f64x2x3;
-typedef union f32x2x4 { float    cols[4][4]; f32x4 vcols[4]; float    scalars[16]; } f32x2x4;
-typedef union f64x2x4 { double   cols[4][4]; f64x4 vcols[4]; double   scalars[16]; } f64x2x4;
-typedef union f32x3x2 { float    cols[4][2]; f32x4 vcols[2]; float    scalars[8 ]; } f32x3x2;
-typedef union f64x3x2 { double   cols[4][2]; f64x4 vcols[2]; double   scalars[8 ]; } f64x3x2;
-typedef union f32x3x3 { float    cols[4][3]; f32x4 vcols[3]; float    scalars[12]; } f32x3x3;
-typedef union f64x3x3 { double   cols[4][3]; f64x4 vcols[3]; double   scalars[12]; } f64x3x3;
-typedef union f32x3x4 { float    cols[4][4]; f32x4 vcols[4]; float    scalars[16]; } f32x3x4;
-typedef union f64x3x4 { double   cols[4][4]; f64x4 vcols[4]; double   scalars[16]; } f64x3x4;
-typedef union f32x4x2 { float    cols[4][2]; f32x4 vcols[2]; float    scalars[8 ]; } f32x4x2;
-typedef union f64x4x2 { double   cols[4][2]; f64x4 vcols[2]; double   scalars[8 ]; } f64x4x2;
-typedef union f32x4x3 { float    cols[4][3]; f32x4 vcols[3]; float    scalars[12]; } f32x4x3;
-typedef union f64x4x3 { double   cols[4][3]; f64x4 vcols[3]; double   scalars[12]; } f64x4x3;
-typedef union f32x4x4 { float    cols[4][4]; f32x4 vcols[4]; float    scalars[16]; } f32x4x4;
-typedef union f64x4x4 { double   cols[4][4]; f64x4 vcols[4]; double   scalars[16]; } f64x4x4;
+typedef struct f32x2x2 { f32x2 cols[2]; } f32x2x2;
+typedef struct f64x2x2 { f64x2 cols[2]; } f64x2x2;
 
-#define IDENTITY_F32X2X2 ((f32x2x2) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F64X2X2 ((f64x2x2) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F32X2X3 ((f32x2x3) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F64X2X3 ((f64x2x3) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F32X2X4 ((f32x2x4) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F64X2X4 ((f64x2x4) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F32X3X2 ((f32x3x2) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F64X3X2 ((f64x3x2) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F32X3X3 ((f32x3x3) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })
-#define IDENTITY_F64X3X3 ((f64x3x3) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })
-#define IDENTITY_F32X3X4 ((f32x3x4) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })
-#define IDENTITY_F64X3X4 ((f64x3x4) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })
-#define IDENTITY_F32X4X2 ((f32x4x2) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F64X4X2 ((f64x4x2) { .cols[0][0] = 1.0, .cols[1][1] = 1.0 })
-#define IDENTITY_F32X4X3 ((f32x4x3) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })
-#define IDENTITY_F64X4X3 ((f64x4x3) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0 })
-#define IDENTITY_F32X4X4 ((f32x4x4) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0, .cols[3][3] = 1.0 })
-#define IDENTITY_F64X4X4 ((f64x4x4) { .cols[0][0] = 1.0, .cols[1][1] = 1.0, .cols[2][2] = 1.0, .cols[3][3] = 1.0 })
+typedef struct f32x2x3 { f32x2 cols[3]; } f32x2x3;
+typedef struct f64x2x3 { f64x2 cols[3]; } f64x2x3;
+
+typedef struct f32x2x4 { f32x2 cols[4]; } f32x2x4;
+typedef struct f64x2x4 { f64x2 cols[4]; } f64x2x4;
+
+typedef struct f32x3x2 { f32x3 cols[2]; } f32x3x2;
+typedef struct f64x3x2 { f64x3 cols[2]; } f64x3x2;
+
+typedef struct f32x3x3 { f32x3 cols[3]; } f32x3x3;
+typedef struct f64x3x3 { f64x3 cols[3]; } f64x3x3;
+
+typedef struct f32x3x4 { f32x3 cols[4]; } f32x3x4;
+typedef struct f64x3x4 { f64x3 cols[4]; } f64x3x4;
+
+typedef struct f32x4x2 { f32x4 cols[2]; } f32x4x2;
+typedef struct f64x4x2 { f64x4 cols[2]; } f64x4x2;
+
+typedef struct f32x4x3 { f32x4 cols[3]; } f32x4x3;
+typedef struct f64x4x3 { f64x4 cols[3]; } f64x4x3;
+
+typedef struct f32x4x4 { f32x4 cols[4]; } f32x4x4;
+typedef struct f64x4x4 { f64x4 cols[4]; } f64x4x4;
+
+
+#define IDENTITY_F32X2X2 ((f32x2x2) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F64X2X2 ((f64x2x2) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F32X2X3 ((f32x2x3) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F64X2X3 ((f64x2x3) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F32X2X4 ((f32x2x4) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F64X2X4 ((f64x2x4) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F32X3X2 ((f32x3x2) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F64X3X2 ((f64x3x2) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F32X3X3 ((f32x3x3) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f })
+#define IDENTITY_F64X3X3 ((f64x3x3) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f })
+#define IDENTITY_F32X3X4 ((f32x3x4) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f })
+#define IDENTITY_F64X3X4 ((f64x3x4) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f })
+#define IDENTITY_F32X4X2 ((f32x4x2) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F64X4X2 ((f64x4x2) { .cols[0].x = 1.f, .cols[1].y = 1.f })
+#define IDENTITY_F32X4X3 ((f32x4x3) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f })
+#define IDENTITY_F64X4X3 ((f64x4x3) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f })
+#define IDENTITY_F32X4X4 ((f32x4x4) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f, .cols[3].w = 1.f })
+#define IDENTITY_F64X4X4 ((f64x4x4) { .cols[0].x = 1.f, .cols[1].y = 1.f, .cols[2].z = 1.f, .cols[3].w = 1.f })
 
 #endif // _HCC_STD_MATH_TYPES_H_

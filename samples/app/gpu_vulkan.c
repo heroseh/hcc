@@ -15,7 +15,7 @@
 #error "unsupported platform"
 #endif
 
-#define GPU_VK_DEBUG 0
+#define GPU_VK_DEBUG 1
 
 typedef struct GpuVk GpuVk;
 struct GpuVk {
@@ -531,9 +531,14 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 				.pNext = NULL,
 				.flags = 0,
-				.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+				.topology = 0,
 				.primitiveRestartEnable = false,
 			};
+			switch (sample->graphics.topology) {
+				case APP_TOPOLOGY_TRIANGLE_LIST: input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
+				case APP_TOPOLOGY_TRIANGLE_STRIP: input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; break;
+				default: APP_ABORT("unhandled topology");
+			}
 
 			VkViewport viewport = {
 				.x = 0,

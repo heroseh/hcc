@@ -1070,9 +1070,6 @@ struct HccDataTypeTable {
 	uint8_t*                      basic_type_size_and_aligns; // [HCC_AST_BASIC_DATA_TYPE_COUNT]
 	uint64_t*                     basic_type_int_mins; // [HCC_AST_BASIC_DATA_TYPE_COUNT]
 	uint64_t*                     basic_type_int_maxes; // [HCC_AST_BASIC_DATA_TYPE_COUNT]
-	HccConstantId                 basic_type_zero_constant_ids[HCC_AST_BASIC_DATA_TYPE_COUNT];
-	HccConstantId                 basic_type_one_constant_ids[HCC_AST_BASIC_DATA_TYPE_COUNT];
-	HccConstantId                 basic_type_minus_one_constant_ids[HCC_AST_BASIC_DATA_TYPE_COUNT];
 	HccStack(HccArrayDataType)    arrays;
 	HccStack(HccCompoundDataType) compounds;
 	HccStack(HccCompoundField)    compound_fields;
@@ -1139,25 +1136,6 @@ bool hcc_constant_entry_key_cmp(void* a, void* b, uintptr_t size);
 void hcc_constant_table_init(HccCU* cu, HccConstantTableSetup* setup);
 void hcc_constant_table_deinit(HccCU* cu);
 HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_type, void* data, uint32_t data_size, uint32_t data_align);
-
-// ===========================================
-//
-//
-// Basic Eval
-//
-//
-// ===========================================
-
-typedef struct HccBasicEval HccBasicEval;
-struct HccBasicEval {
-	union {
-		uint64_t u64;
-		int64_t s64;
-	};
-	bool is_signed;
-};
-
-HccBasicEval hcc_basic_eval(HccASTBinaryOp binary_op, HccBasicEval left_eval, HccBasicEval right_eval);
 
 // ===========================================
 //
@@ -1449,6 +1427,12 @@ enum HccPPExpandFlags {
 	HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS              = 0x4,
 };
 
+typedef struct HccPPEval HccPPEval;
+struct HccPPEval {
+	HccBasic basic;
+	HccDataType data_type;
+};
+
 void hcc_ppgen_init(HccWorker* w, HccPPGenSetup* setup);
 void hcc_ppgen_deinit(HccWorker* w);
 void hcc_ppgen_reset(HccWorker* w);
@@ -1464,8 +1448,8 @@ void hcc_ppgen_if_ensure_first_else(HccWorker* w, HccPPDirective directive);
 void hcc_ppgen_if_ensure_one_is_open(HccWorker* w, HccPPDirective directive);
 
 void hcc_ppgen_eval_binary_op(HccWorker* w, uint32_t* token_idx_mut, HccASTBinaryOp* binary_op_type_out, uint32_t* precedence_out);
-HccBasicEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut);
-HccBasicEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut);
+HccPPEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut);
+HccPPEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t* token_idx_mut, uint32_t* token_value_idx_mut);
 void hcc_ppgen_ensure_end_of_directive(HccWorker* w, HccErrorCode error_code, HccPPDirective directive);
 
 void hcc_ppgen_parse_define(HccWorker* w);
@@ -1936,7 +1920,7 @@ const char* hcc_astgen_type_specifier_string(HccASTGenTypeSpecifier specifier);
 void hcc_astgen_data_type_ensure_is_condition(HccWorker* w, HccDataType data_type);
 void hcc_astgen_compound_data_type_validate_field_names(HccWorker* w, HccDataType outer_data_type, HccCompoundDataType* compound_data_type);
 void hcc_astgen_validate_specifiers(HccWorker* w, HccASTGenSpecifierFlags non_specifiers, HccErrorCode invalid_specifier_error_code);
-void hcc_astgen_ensure_semicolon(HccWorker* w);
+HccATAToken hcc_astgen_ensure_semicolon(HccWorker* w);
 bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType target_data_type, HccASTExpr** source_expr_mut);
 void hcc_astgen_data_type_ensure_compatible_assignment(HccWorker* w, HccLocation* other_location, HccDataType target_data_type, HccASTExpr** source_expr_mut);
 bool hcc_astgen_data_type_check_compatible_arithmetic(HccWorker* w, HccASTExpr** left_expr_mut, HccASTExpr** right_expr_mut);
@@ -2247,7 +2231,7 @@ void hcc_amlopt_reset(HccWorker* w);
 void hcc_amlopt_error_1(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...);
 void hcc_amlopt_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* location, HccLocation* other_location, ...);
 
-void hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl);
+bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl);
 bool hcc_amlopt_ensure_supported_type(HccWorker* w, HccDataType data_type, HccLocation* location);
 
 const HccAMLFunction* hcc_amlopt_make_call_graph(HccWorker* w, HccDecl function_decl, const HccAMLFunction* aml_function);
@@ -2443,6 +2427,7 @@ enum {
 	HCC_SPIRV_GLSL_STD_450_OP_UNPACK_SNORM4X8 = 63,
 	HCC_SPIRV_GLSL_STD_450_OP_UNPACK_UNORM4X8 = 64,
 	HCC_SPIRV_GLSL_STD_450_OP_LENGTH = 66,
+	HCC_SPIRV_GLSL_STD_450_OP_CROSS = 68,
 	HCC_SPIRV_GLSL_STD_450_OP_NORMALIZE = 69,
 	HCC_SPIRV_GLSL_STD_450_OP_REFLECT = 71,
 	HCC_SPIRV_GLSL_STD_450_OP_REFRACT = 72,
@@ -2611,6 +2596,8 @@ struct HccSPIRVFunction {
 	HccSPIRVWord* words;
 	uint32_t      words_count;
 	uint32_t      words_cap;
+	HccSPIRVId*   global_variable_ids;
+	uint32_t      global_variables_count;
 };
 
 typedef struct HccSPIRVTypeKey HccSPIRVTypeKey;
@@ -2649,8 +2636,7 @@ struct HccSPIRVEntryPoint {
 	HccShaderStage shader_stage;
 	HccStringId    identifier_string_id;
 	HccSPIRVId     spirv_id;
-	HccSPIRVId*    global_variable_ids;
-	uint32_t       global_variables_count;
+	HccDecl        function_decl;
 };
 
 typedef struct HccSPIRV HccSPIRV;
@@ -2695,14 +2681,14 @@ HccHash hcc_spirv_type_key_hash(void* key, uintptr_t size);
 
 typedef struct HccSPIRVGen HccSPIRVGen;
 struct HccSPIRVGen {
-	HccSPIRVFunction* function;
-	HccAMLFunction*   aml_function;
-	HccSPIRVId        value_base_id;
-	HccSPIRVId        basic_block_base_id;
-	HccSPIRVId        basic_block_param_base_id;
+	HccSPIRVFunction*     function;
+	const HccAMLFunction* aml_function;
+	HccSPIRVId            value_base_id;
+	HccSPIRVId            basic_block_base_id;
+	HccSPIRVId            basic_block_param_base_id;
 
-	uint16_t          function_unique_globals_count;
-	HccSPIRVId        function_unique_globals[HCC_FUNCTION_UNIQUE_GLOBALS_CAP];
+	uint16_t              function_unique_globals_count;
+	HccSPIRVId            function_unique_globals[HCC_FUNCTION_UNIQUE_GLOBALS_CAP];
 };
 
 void hcc_spirvgen_init(HccWorker* w, HccCompilerSetup* setup);
@@ -2731,6 +2717,9 @@ struct HccSPIRVLink {
 	HccSPIRVOp             instr_op;
 	uint16_t               instr_operands_count;
 	HccSPIRVOperand        instr_operands[HCC_SPIRVLINK_INSTR_OPERANDS_CAP];
+
+	uint32_t               function_unique_globals_count;
+	HccSPIRVId             function_unique_globals[HCC_FUNCTION_UNIQUE_GLOBALS_CAP];
 };
 
 void hcc_spirvlink_init(HccWorker* w, HccCompilerSetup* setup);
@@ -2745,6 +2734,7 @@ void hcc_spirvlink_instr_add_operand(HccWorker* w, HccSPIRVWord word);
 void hcc_spirvlink_instr_add_operands_string(HccWorker* w, char* string, uint32_t string_size);
 #define hcc_spirvlink_instr_add_operands_string_lit(w, string) hcc_spirvlink_instr_add_operands_string(w, string, sizeof(string) - 1)
 void hcc_spirvlink_instr_end(HccWorker* w);
+bool hcc_spirvlink_add_used_global_variable_ids(HccWorker* w, HccDecl function_decl);
 
 void hcc_spirvlink_link(HccWorker* w);
 
@@ -3044,6 +3034,14 @@ enum {
 	HCC_STRING_ID_ONCE = HCC_STRING_ID_PREDEFINED_MACROS_END,
 	HCC_STRING_ID_DEFINED,
 	HCC_STRING_ID___VA_ARGS__,
+	HCC_STRING_ID_X,
+	HCC_STRING_ID_Y,
+	HCC_STRING_ID_Z,
+	HCC_STRING_ID_W,
+	HCC_STRING_ID_R,
+	HCC_STRING_ID_G,
+	HCC_STRING_ID_B,
+	HCC_STRING_ID_A,
 
 #define HCC_STRING_ID_INTRINSIC_START HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START
 

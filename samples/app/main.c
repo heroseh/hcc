@@ -26,8 +26,8 @@ int main(int argc, char** argv) {
 
 	gpu_init(window, width, height);
 
-	AppSampleEnum next_sample_enum_to_init = 0;
-	AppSampleEnum sample_enum = APP_SAMPLE_TRIANGLE;
+	AppSampleEnum next_sample_enum_to_init = 1;
+	AppSampleEnum sample_enum = APP_SAMPLE_TRIANGLE + 1;
 	while (1) {
 		if (next_sample_enum_to_init < APP_SAMPLE_COUNT) {
 			gpu_init_sample(next_sample_enum_to_init);

@@ -214,6 +214,7 @@ const char* hcc_ata_token_strings[HCC_ATA_TOKEN_COUNT] = {
 	[HCC_ATA_TOKEN_KEYWORD_ALIGNAS] = "_Alignas",
 	[HCC_ATA_TOKEN_KEYWORD_STATIC_ASSERT] = "_Static_assert",
 	[HCC_ATA_TOKEN_KEYWORD_RESTRICT] = "restrict",
+	[HCC_ATA_TOKEN_KEYWORD_VECTOR_T] = "__hcc_vector_t",
 	[HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE] = "__hcc_rasterizer_state",
 	[HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE] = "__hcc_fragment_state",
 	[HCC_ATA_TOKEN_KEYWORD_BUFFER_ELEMENT] = "__hcc_buffer_element",

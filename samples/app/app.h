@@ -12,6 +12,7 @@
 #define APP_SHADER_ENTRY_POINT_FRAGMENT "fs"
 #define APP_SHADER_ENTRY_POINT_COMPUTE "cs"
 
+#define APP_ABORT(...) APP_ASSERT(false, __VA_ARGS__)
 #define APP_ASSERT(cond, ...) if (!(cond)) { fprintf(stderr, __VA_ARGS__); exit(1); }
 #define APP_ARRAY_COUNT(array) (sizeof(array) / sizeof(*(array)))
 #define APP_UNUSED(expr) (void)(expr)
@@ -24,6 +25,7 @@
 typedef int AppSampleEnum;
 enum AppSampleEnum {
 	APP_SAMPLE_TRIANGLE,
+	APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER,
 
 	APP_SAMPLE_COUNT,
 };
@@ -36,12 +38,19 @@ enum AppShaderType {
 	APP_SHADER_TYPE_COUNT,
 };
 
+typedef int AppTopology;
+enum AppTopology {
+	APP_TOPOLOGY_TRIANGLE_LIST,
+	APP_TOPOLOGY_TRIANGLE_STRIP,
+};
+
 typedef struct AppSample AppSample;
 struct AppSample {
 	const char*   shader_name;
 	AppShaderType shader_type;
 
 	struct {
+		AppTopology  topology;
 		uint32_t vertices_count;
 	} graphics;
 	struct {
@@ -54,7 +63,17 @@ struct AppSample {
 static AppSample app_samples[APP_SAMPLE_COUNT] = {
 	[APP_SAMPLE_TRIANGLE] = {
 		.shader_name = "triangle",
-		.graphics.vertices_count = 3,
+		.graphics = {
+			.topology = APP_TOPOLOGY_TRIANGLE_LIST,
+			.vertices_count = 3,
+		},
+	},
+	[APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER] = {
+		.shader_name = "alt-2.5d-rgb-color-picker",
+		.graphics = {
+			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
+			.vertices_count = 4,
+		},
 	},
 };
 

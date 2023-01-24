@@ -201,9 +201,9 @@ static inline uint64_t clamp_u64(uint64_t v, uint64_t min, uint64_t max) { retur
 
 //
 // returns the absolute (positive) value of 'v'
-static inline half abs_f16(half v) { return f32tof16(f16tof32(v) * 1.0); }
-static inline float abs_f32(float v) { return v * 1.0; }
-static inline double abs_f64(double v) { return v * 1.0; }
+static inline half abs_f16(half v) { return f16tof32(v) < 0.f ? neg_f16(v) : v; }
+static inline float abs_f32(float v) { return v < 0.f ? -v : v; }
+static inline double abs_f64(double v) { return v < 0.f ? -v : v; }
 static inline int8_t abs_s8(int8_t v) { return (v &= ~0x80); }
 static inline int16_t abs_s16(int16_t v) { return (v &= ~0x8000); }
 static inline int32_t abs_s32(int32_t v) { return (v &= ~0x800000); }
@@ -242,13 +242,13 @@ static inline int32_t copysign_s32(int32_t v, int32_t sign) { return v | (sign &
 static inline int64_t copysign_s64(int64_t v, int64_t sign) { return v | (sign & 0x80000000); }
 
 //
-// returns a linear interpolation from 'start' to 'end' at the point of 't' where 't' = 0.0 = 'start' and 't' = 1.0 = 'end'
+// returns a linear interpolation from 'start' to 'end' at the point of 't' where 't' = 0.f = 'start' and 't' = 1.f = 'end'
 static inline half lerp_f16(half start, half end, half t) { return add_f16(mul_f16(sub_f16(end, start), t), start); }
 static inline float lerp_f32(float start, float end, float t) { return (end - start) * t + start; }
 static inline double lerp_f64(double start, double end, double t) { return (end - start) * t + start; }
 
 //
-// returns a value from 0.0 to 1.0 at the point where 'v' is in relation to 'start' and 'end' where 'v' = 0.0 = 'start' and 'v' = 1.0 = 'end'
+// returns a value from 0.f to 1.f at the point where 'v' is in relation to 'start' and 'end' where 'v' = 0.f = 'start' and 'v' = 1.f = 'end'
 static inline half invlerp_f16(half start, half end, half v) { return div_f16(sub_f16(v, start), sub_f16(end, start)); }
 static inline float invlerp_f32(float start, float end, float v) { return (v - start) / (end - start); }
 static inline double invlerp_f64(double start, double end, double v) { return (v - start) / (end - start); }
@@ -262,26 +262,26 @@ static inline double fract_f64(double v) { return v - floor_f64(v); }
 //
 // converts 'v' radians to degrees
 static inline half degrees_f16(half v) { return f32tof16(f16tof32(v) * (180.f / PI_F32)); }
-static inline float degrees_f32(float v) { return v * (180.0 / PI_F32); }
-static inline double degrees_f64(double v) { return v * (180.0 / PI_F64); }
+static inline float degrees_f32(float v) { return v * (180.f / PI_F32); }
+static inline double degrees_f64(double v) { return v * (180.f / PI_F64); }
 
 //
 // converts 'v' degrees to radians
 static inline half radians_f16(half v) { return f32tof16(f16tof32(v) * (PI_F32 / 180.f)); }
-static inline float radians_f32(float v) { return v * (PI_F32 / 180.0); }
-static inline double radians_f64(double v) { return v * (PI_F64 / 180.0); }
+static inline float radians_f32(float v) { return v * (PI_F32 / 180.f); }
+static inline double radians_f64(double v) { return v * (PI_F64 / 180.f); }
 
 //
-// returns 0.0 if 'v' < 'edge', otherwise 1.0 is returned
-static inline half step_f16(half edge, half v) { return f32tof16(f16tof32(v) ? 0.0 : 1.0); }
-static inline float step_f32(float edge, float v) { return v < edge ? 0.0 : 1.0; }
-static inline double step_f64(double edge, double v) { return v < edge ? 0.0 : 1.0; }
+// returns 0.f if 'v' < 'edge', otherwise 1.f is returned
+static inline half step_f16(half edge, half v) { return f32tof16(f16tof32(v) ? 0.f : 1.f); }
+static inline float step_f32(float edge, float v) { return v < edge ? 0.f : 1.f; }
+static inline double step_f64(double edge, double v) { return v < edge ? 0.f : 1.f; }
 
 //
-// returns a smooth Hermite interpolation between 0.0 and 1.0 when 'edge0' < 'x' < 'edge1'
-static inline half smoothstep_f16(half edge0, half edge1, half v) { float t = clamp_f32((f16tof32(v) - f16tof32(edge0)) / (f16tof32(edge1) - f16tof32(edge0)), 0.f, 1.f); return f32tof16(t * t * (3.0 - 2.0 * t)); }
-static inline float smoothstep_f32(float edge0, float edge1, float v) { float t = clamp_f32((v - edge0) / (edge1 - edge0), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
-static inline double smoothstep_f64(double edge0, double edge1, double v) { double t = clamp_f64((v - edge0) / (edge1 - edge0), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
+// returns a smooth Hermite interpolation between 0.f and 1.f when 'edge0' < 'x' < 'edge1'
+static inline half smoothstep_f16(half edge0, half edge1, half v) { float t = clamp_f32((f16tof32(v) - f16tof32(edge0)) / (f16tof32(edge1) - f16tof32(edge0)), 0.f, 1.f); return f32tof16(t * t * (3.f - 2.f * t)); }
+static inline float smoothstep_f32(float edge0, float edge1, float v) { float t = clamp_f32((v - edge0) / (edge1 - edge0), 0.f, 1.f); return t * t * (3.f - 2.f * t); }
+static inline double smoothstep_f64(double edge0, double edge1, double v) { double t = clamp_f64((v - edge0) / (edge1 - edge0), 0.f, 1.f); return t * t * (3.f - 2.f * t); }
 
 //
 // returns 'v' remapped from a range of 'from_min' to 'from_max' to the range of 'to_min' to 'to_max'
@@ -291,21 +291,21 @@ static inline double remap_f64(double v, double from_min, double from_max, doubl
 
 //
 // returns 'v' rounded to the nearest 'multiple'
-static inline half roundtomultiple_f16(half v, half multiple) { v = fma_f16(multiple, f32tof16(0.5), v); half rem = mod_f16(v, multiple); if (gt_f16(v, f32tof16(0.f))) { return sub_f16(v, rem); } else { return sub_f16(sub_f16(v, rem), multiple); } }
-static inline float roundtomultiple_f32(float v, float multiple) { v = fma_f32(multiple, 0.5, v); float rem = mod_f32(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
-static inline double roundtomultiple_f64(double v, double multiple) { v = fma_f64(multiple, 0.5, v); double rem = mod_f64(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
+static inline half roundtomultiple_f16(half v, half multiple) { v = fma_f16(multiple, f32tof16(0.5f), v); half rem = mod_f16(v, multiple); if (gt_f16(v, f32tof16(0.f))) { return sub_f16(v, rem); } else { return sub_f16(sub_f16(v, rem), multiple); } }
+static inline float roundtomultiple_f32(float v, float multiple) { v = fma_f32(multiple, 0.5f, v); float rem = mod_f32(v, multiple); if (v > 0.f) { return v - rem; } else { return v - rem - multiple; } }
+static inline double roundtomultiple_f64(double v, double multiple) { v = fma_f64(multiple, 0.5f, v); double rem = mod_f64(v, multiple); if (v > 0.f) { return v - rem; } else { return v - rem - multiple; } }
 
 //
 // returns 'v' rounded _up_ to the nearest 'multiple'
 static inline half rounduptomultiple_f16(half v, half multiple) { half rem = mod_f16(v, multiple); if (gt_f16(v, f32tof16(0.f))) { return sub_f16(add_f16(v, multiple), rem); } else { return sub_f16(v, rem); } }
-static inline float rounduptomultiple_f32(float v, float multiple) { float rem = mod_f32(v, multiple); if (v > 0.0) { return v + multiple - rem; } else { return v - rem; } }
-static inline double rounduptomultiple_f64(double v, double multiple) { double rem = mod_f64(v, multiple); if (v > 0.0) { return v + multiple - rem; } else { return v - rem; } }
+static inline float rounduptomultiple_f32(float v, float multiple) { float rem = mod_f32(v, multiple); if (v > 0.f) { return v + multiple - rem; } else { return v - rem; } }
+static inline double rounduptomultiple_f64(double v, double multiple) { double rem = mod_f64(v, multiple); if (v > 0.f) { return v + multiple - rem; } else { return v - rem; } }
 
 //
 // returns 'v' rounded _down_ to the nearest 'multiple'
 static inline half rounddowntomultiple_f16(half v, half multiple) { half rem = mod_f16(v, multiple); if (gt_f16(v, f32tof16(0.f))) { return sub_f16(v, rem); } else { return sub_f16(sub_f16(v, rem), multiple); } }
-static inline float rounddowntomultiple_f32(float v, float multiple) { float rem = mod_f32(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
-static inline double rounddowntomultiple_f64(double v, double multiple) { double rem = mod_f64(v, multiple); if (v > 0.0) { return v - rem; } else { return v - rem - multiple; } }
+static inline float rounddowntomultiple_f32(float v, float multiple) { float rem = mod_f32(v, multiple); if (v > 0.f) { return v - rem; } else { return v - rem - multiple; } }
+static inline double rounddowntomultiple_f64(double v, double multiple) { double rem = mod_f64(v, multiple); if (v > 0.f) { return v - rem; } else { return v - rem - multiple; } }
 
 //
 // returns 'v' bitcasted into a float from an integer, no convertion is performed
@@ -682,6 +682,42 @@ static inline u32x4 subs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); retu
 static inline u64x4 subs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return sub_u64x4(v, ss); }
 
 //
+// returns a vector where each component is the result from subtracting the value of 's' to that component in 'v'
+static inline f16x2 ssub_f16x2(half s, f16x2 v) { f16x2 ss = f16x2s(s); return sub_f16x2(ss, v); }
+static inline f32x2 ssub_f32x2(float s, f32x2 v) { f32x2 ss = f32x2s(s); return sub_f32x2(ss, v); }
+static inline f64x2 ssub_f64x2(double s, f64x2 v) { f64x2 ss = f64x2s(s); return sub_f64x2(ss, v); }
+static inline s8x2 ssub_s8x2(int8_t s, s8x2 v) { s8x2 ss = s8x2s(s); return sub_s8x2(ss, v); }
+static inline s16x2 ssub_s16x2(int16_t s, s16x2 v) { s16x2 ss = s16x2s(s); return sub_s16x2(ss, v); }
+static inline s32x2 ssub_s32x2(int32_t s, s32x2 v) { s32x2 ss = s32x2s(s); return sub_s32x2(ss, v); }
+static inline s64x2 ssub_s64x2(int64_t s, s64x2 v) { s64x2 ss = s64x2s(s); return sub_s64x2(ss, v); }
+static inline u8x2 ssub_u8x2(uint8_t s, u8x2 v) { u8x2 ss = u8x2s(s); return sub_u8x2(ss, v); }
+static inline u16x2 ssub_u16x2(uint16_t s, u16x2 v) { u16x2 ss = u16x2s(s); return sub_u16x2(ss, v); }
+static inline u32x2 ssub_u32x2(uint32_t s, u32x2 v) { u32x2 ss = u32x2s(s); return sub_u32x2(ss, v); }
+static inline u64x2 ssub_u64x2(uint64_t s, u64x2 v) { u64x2 ss = u64x2s(s); return sub_u64x2(ss, v); }
+static inline f16x3 ssub_f16x3(half s, f16x3 v) { f16x3 ss = f16x3s(s); return sub_f16x3(ss, v); }
+static inline f32x3 ssub_f32x3(float s, f32x3 v) { f32x3 ss = f32x3s(s); return sub_f32x3(ss, v); }
+static inline f64x3 ssub_f64x3(double s, f64x3 v) { f64x3 ss = f64x3s(s); return sub_f64x3(ss, v); }
+static inline s8x3 ssub_s8x3(int8_t s, s8x3 v) { s8x3 ss = s8x3s(s); return sub_s8x3(ss, v); }
+static inline s16x3 ssub_s16x3(int16_t s, s16x3 v) { s16x3 ss = s16x3s(s); return sub_s16x3(ss, v); }
+static inline s32x3 ssub_s32x3(int32_t s, s32x3 v) { s32x3 ss = s32x3s(s); return sub_s32x3(ss, v); }
+static inline s64x3 ssub_s64x3(int64_t s, s64x3 v) { s64x3 ss = s64x3s(s); return sub_s64x3(ss, v); }
+static inline u8x3 ssub_u8x3(uint8_t s, u8x3 v) { u8x3 ss = u8x3s(s); return sub_u8x3(ss, v); }
+static inline u16x3 ssub_u16x3(uint16_t s, u16x3 v) { u16x3 ss = u16x3s(s); return sub_u16x3(ss, v); }
+static inline u32x3 ssub_u32x3(uint32_t s, u32x3 v) { u32x3 ss = u32x3s(s); return sub_u32x3(ss, v); }
+static inline u64x3 ssub_u64x3(uint64_t s, u64x3 v) { u64x3 ss = u64x3s(s); return sub_u64x3(ss, v); }
+static inline f16x4 ssub_f16x4(half s, f16x4 v) { f16x4 ss = f16x4s(s); return sub_f16x4(ss, v); }
+static inline f32x4 ssub_f32x4(float s, f32x4 v) { f32x4 ss = f32x4s(s); return sub_f32x4(ss, v); }
+static inline f64x4 ssub_f64x4(double s, f64x4 v) { f64x4 ss = f64x4s(s); return sub_f64x4(ss, v); }
+static inline s8x4 ssub_s8x4(int8_t s, s8x4 v) { s8x4 ss = s8x4s(s); return sub_s8x4(ss, v); }
+static inline s16x4 ssub_s16x4(int16_t s, s16x4 v) { s16x4 ss = s16x4s(s); return sub_s16x4(ss, v); }
+static inline s32x4 ssub_s32x4(int32_t s, s32x4 v) { s32x4 ss = s32x4s(s); return sub_s32x4(ss, v); }
+static inline s64x4 ssub_s64x4(int64_t s, s64x4 v) { s64x4 ss = s64x4s(s); return sub_s64x4(ss, v); }
+static inline u8x4 ssub_u8x4(uint8_t s, u8x4 v) { u8x4 ss = u8x4s(s); return sub_u8x4(ss, v); }
+static inline u16x4 ssub_u16x4(uint16_t s, u16x4 v) { u16x4 ss = u16x4s(s); return sub_u16x4(ss, v); }
+static inline u32x4 ssub_u32x4(uint32_t s, u32x4 v) { u32x4 ss = u32x4s(s); return sub_u32x4(ss, v); }
+static inline u64x4 ssub_u64x4(uint64_t s, u64x4 v) { u64x4 ss = u64x4s(s); return sub_u64x4(ss, v); }
+
+//
 // returns a vector where each component is the result from multiplying that component in 'a' to that component in 'b'
 static inline f16x2 mul_f16x2(f16x2 a, f16x2 b) { return f16x2(mul_f16(a.x, b.x), mul_f16(a.y, b.y)); }
 static inline f32x2 mul_f32x2(f32x2 a, f32x2 b) { return f32x2(a.x * b.x, a.y * b.y); }
@@ -824,6 +860,42 @@ static inline u8x4 divs_u8x4(u8x4 v, uint8_t s) { u8x4 ss = u8x4s(s); return div
 static inline u16x4 divs_u16x4(u16x4 v, uint16_t s) { u16x4 ss = u16x4s(s); return div_u16x4(v, ss); }
 static inline u32x4 divs_u32x4(u32x4 v, uint32_t s) { u32x4 ss = u32x4s(s); return div_u32x4(v, ss); }
 static inline u64x4 divs_u64x4(u64x4 v, uint64_t s) { u64x4 ss = u64x4s(s); return div_u64x4(v, ss); }
+
+//
+// returns a vector where each component is the result from dividing the value of 's' to that component in 'v'
+static inline f16x2 sdiv_f16x2(half s, f16x2 v) { f16x2 ss = f16x2s(s); return div_f16x2(ss, v); }
+static inline f32x2 sdiv_f32x2(float s, f32x2 v) { f32x2 ss = f32x2s(s); return div_f32x2(ss, v); }
+static inline f64x2 sdiv_f64x2(double s, f64x2 v) { f64x2 ss = f64x2s(s); return div_f64x2(ss, v); }
+static inline s8x2 sdiv_s8x2(int8_t s, s8x2 v) { s8x2 ss = s8x2s(s); return div_s8x2(ss, v); }
+static inline s16x2 sdiv_s16x2(int16_t s, s16x2 v) { s16x2 ss = s16x2s(s); return div_s16x2(ss, v); }
+static inline s32x2 sdiv_s32x2(int32_t s, s32x2 v) { s32x2 ss = s32x2s(s); return div_s32x2(ss, v); }
+static inline s64x2 sdiv_s64x2(int64_t s, s64x2 v) { s64x2 ss = s64x2s(s); return div_s64x2(ss, v); }
+static inline u8x2 sdiv_u8x2(uint8_t s, u8x2 v) { u8x2 ss = u8x2s(s); return div_u8x2(ss, v); }
+static inline u16x2 sdiv_u16x2(uint16_t s, u16x2 v) { u16x2 ss = u16x2s(s); return div_u16x2(ss, v); }
+static inline u32x2 sdiv_u32x2(uint32_t s, u32x2 v) { u32x2 ss = u32x2s(s); return div_u32x2(ss, v); }
+static inline u64x2 sdiv_u64x2(uint64_t s, u64x2 v) { u64x2 ss = u64x2s(s); return div_u64x2(ss, v); }
+static inline f16x3 sdiv_f16x3(half s, f16x3 v) { f16x3 ss = f16x3s(s); return div_f16x3(ss, v); }
+static inline f32x3 sdiv_f32x3(float s, f32x3 v) { f32x3 ss = f32x3s(s); return div_f32x3(ss, v); }
+static inline f64x3 sdiv_f64x3(double s, f64x3 v) { f64x3 ss = f64x3s(s); return div_f64x3(ss, v); }
+static inline s8x3 sdiv_s8x3(int8_t s, s8x3 v) { s8x3 ss = s8x3s(s); return div_s8x3(ss, v); }
+static inline s16x3 sdiv_s16x3(int16_t s, s16x3 v) { s16x3 ss = s16x3s(s); return div_s16x3(ss, v); }
+static inline s32x3 sdiv_s32x3(int32_t s, s32x3 v) { s32x3 ss = s32x3s(s); return div_s32x3(ss, v); }
+static inline s64x3 sdiv_s64x3(int64_t s, s64x3 v) { s64x3 ss = s64x3s(s); return div_s64x3(ss, v); }
+static inline u8x3 sdiv_u8x3(uint8_t s, u8x3 v) { u8x3 ss = u8x3s(s); return div_u8x3(ss, v); }
+static inline u16x3 sdiv_u16x3(uint16_t s, u16x3 v) { u16x3 ss = u16x3s(s); return div_u16x3(ss, v); }
+static inline u32x3 sdiv_u32x3(uint32_t s, u32x3 v) { u32x3 ss = u32x3s(s); return div_u32x3(ss, v); }
+static inline u64x3 sdiv_u64x3(uint64_t s, u64x3 v) { u64x3 ss = u64x3s(s); return div_u64x3(ss, v); }
+static inline f16x4 sdiv_f16x4(half s, f16x4 v) { f16x4 ss = f16x4s(s); return div_f16x4(ss, v); }
+static inline f32x4 sdiv_f32x4(float s, f32x4 v) { f32x4 ss = f32x4s(s); return div_f32x4(ss, v); }
+static inline f64x4 sdiv_f64x4(double s, f64x4 v) { f64x4 ss = f64x4s(s); return div_f64x4(ss, v); }
+static inline s8x4 sdiv_s8x4(int8_t s, s8x4 v) { s8x4 ss = s8x4s(s); return div_s8x4(ss, v); }
+static inline s16x4 sdiv_s16x4(int16_t s, s16x4 v) { s16x4 ss = s16x4s(s); return div_s16x4(ss, v); }
+static inline s32x4 sdiv_s32x4(int32_t s, s32x4 v) { s32x4 ss = s32x4s(s); return div_s32x4(ss, v); }
+static inline s64x4 sdiv_s64x4(int64_t s, s64x4 v) { s64x4 ss = s64x4s(s); return div_s64x4(ss, v); }
+static inline u8x4 sdiv_u8x4(uint8_t s, u8x4 v) { u8x4 ss = u8x4s(s); return div_u8x4(ss, v); }
+static inline u16x4 sdiv_u16x4(uint16_t s, u16x4 v) { u16x4 ss = u16x4s(s); return div_u16x4(ss, v); }
+static inline u32x4 sdiv_u32x4(uint32_t s, u32x4 v) { u32x4 ss = u32x4s(s); return div_u32x4(ss, v); }
+static inline u64x4 sdiv_u64x4(uint64_t s, u64x4 v) { u64x4 ss = u64x4s(s); return div_u64x4(ss, v); }
 
 //
 // returns a vector where each component is the result from moduloing that component in 'a' to that component in 'b'
@@ -2588,6 +2660,27 @@ static inline f64x4 invlerp_f64x4(f64x4 start, f64x4 end, f64x4 v) { return f64x
 
 //
 // returns a vector which is the dot product of 'a' and 'b'
+static inline half cross_f16x2(f16x2 a, f16x2 b) { return sub_f16(mul_f16(a.x, b.y), mul_f16(b.x, a.y)); }
+static inline float cross_f32x2(f32x2 a, f32x2 b) { return (a.x * b.y) - (b.x * a.y); }
+static inline double cross_f64x2(f64x2 a, f64x2 b) { return (a.x * b.y) - (b.x * a.y); }
+static inline half cross_f16x3(f16x3 a, f16x3 b) { return add_f16(mul_f16(a.x, b.x), add_f16(mul_f16(a.y, b.y), mul_f16(a.z, b.z))); }
+static inline f32x3 cross_f32x3(f32x3 a, f32x3 b) {
+	return f32x3(
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x
+	);
+}
+static inline f64x3 cross_f64x3(f64x3 a, f64x3 b) {
+	return f64x3(
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x
+	);
+}
+
+//
+// returns a vector which is the dot product of 'a' and 'b'
 static inline half dot_f16x2(f16x2 a, f16x2 b) { return add_f16(mul_f16(a.x, b.x), mul_f16(a.y, b.y)); }
 static inline float dot_f32x2(f32x2 a, f32x2 b) { return (a.x * b.x) + (a.y * b.y); }
 static inline double dot_f64x2(f64x2 a, f64x2 b) { return (a.x * b.x) + (a.y * b.y); }
@@ -2647,7 +2740,7 @@ static inline uint32_t lensq_u32x4(u32x4 v) { return (v.x * v.x) + (v.y * v.y) +
 static inline uint64_t lensq_u64x4(u64x4 v) { return (v.x * v.x) + (v.y * v.y) + (v.z * v.z) + (v.w * v.w); }
 
 //
-// returns a version of 'v' where the magnatude is a unit length of 1.0
+// returns a version of 'v' where the magnatude is a unit length of 1.f
 static inline f16x2 norm_f16x2(f16x2 v) { half k = rsqrt_f16(add_f16(mul_f16(v.x, v.x), mul_f16(v.y, v.y))); return f16x2(mul_f16(v.x, k), mul_f16(v.y, k)); }
 static inline f32x2 norm_f32x2(f32x2 v) { float k = rsqrt_f32((v.x * v.x) + (v.y * v.y)); return f32x2(v.x * k, v.y * k); }
 static inline f64x2 norm_f64x2(f64x2 v) { double k = rsqrt_f64((v.x * v.x) + (v.y * v.y)); return f64x2(v.x * k, v.y * k); }
@@ -2672,15 +2765,15 @@ f64x4 reflect_f64x4(f64x4 v, f64x4 normal);
 
 //
 // returns the refraction vector for vector 'v' against surface 'normal' with the ratio 'eta'
-f16x2 refract_f16x2(f16x2 v, f16x2 normal, float eta);
+f16x2 refract_f16x2(f16x2 v, f16x2 normal, half eta);
 f32x2 refract_f32x2(f32x2 v, f32x2 normal, float eta);
-f64x2 refract_f64x2(f64x2 v, f64x2 normal, float eta);
-f16x3 refract_f16x3(f16x3 v, f16x3 normal, float eta);
+f64x2 refract_f64x2(f64x2 v, f64x2 normal, double eta);
+f16x3 refract_f16x3(f16x3 v, f16x3 normal, half eta);
 f32x3 refract_f32x3(f32x3 v, f32x3 normal, float eta);
-f64x3 refract_f64x3(f64x3 v, f64x3 normal, float eta);
-f16x4 refract_f16x4(f16x4 v, f16x4 normal, float eta);
+f64x3 refract_f64x3(f64x3 v, f64x3 normal, double eta);
+f16x4 refract_f16x4(f16x4 v, f16x4 normal, half eta);
 f32x4 refract_f32x4(f32x4 v, f32x4 normal, float eta);
-f64x4 refract_f64x4(f64x4 v, f64x4 normal, float eta);
+f64x4 refract_f64x4(f64x4 v, f64x4 normal, double eta);
 
 //
 // returns the minimum value from each of the components in 'v'
@@ -2888,7 +2981,7 @@ f32x2 unpack_s16x2_f32x2(uint32_t v);
 
 //
 // packs a unsigned normalized f32x4 into a 32 bit integer where each component is given 8 bits
-uint32_t pack_u8x4_f32x4(f32x4 v);
+uint32_t pack_s8x4_f32x4(f32x4 v);
 
 //
 // unpacks a unsigned normalized f32x4 from a 32 bit integer where each component is given 8 bits
@@ -2896,7 +2989,7 @@ f32x4 unpack_u8x4_f32x4(uint32_t v);
 
 //
 // packs a signed normalized f32x4 into a 32 bit integer where each component is given 8 bits
-uint32_t pack_u8x4_f32x4(f32x4 v);
+uint32_t pack_s8x4_f32x4(f32x4 v);
 
 //
 // unpacks a signed normalized f32x4 from a 32 bit integer where each component is given 8 bits
@@ -3038,12 +3131,12 @@ f64x4x4 outerproduct_f64x4_f64x4(f64x4 c, f64x4 r);
 
 //
 // returns the determinant of matrix 'm'
-f32x2x2 determinant_f32x2x2(f32x2x2 m);
-f64x2x2 determinant_f64x2x2(f64x2x2 m);
-f32x3x3 determinant_f32x3x3(f32x3x3 m);
-f64x3x3 determinant_f64x3x3(f64x3x3 m);
-f32x4x4 determinant_f32x4x4(f32x4x4 m);
-f64x4x4 determinant_f64x4x4(f64x4x4 m);
+float determinant_f32x2x2(f32x2x2 m);
+double determinant_f64x2x2(f64x2x2 m);
+float determinant_f32x3x3(f32x3x3 m);
+double determinant_f64x3x3(f64x3x3 m);
+float determinant_f32x4x4(f32x4x4 m);
+double determinant_f64x4x4(f64x4x4 m);
 
 //
 // returns the inverse of matrix 'm'
@@ -3053,5 +3146,11 @@ f32x3x3 inverse_f32x3x3(f32x3x3 m);
 f64x3x3 inverse_f64x3x3(f64x3x3 m);
 f32x4x4 inverse_f32x4x4(f32x4x4 m);
 f64x4x4 inverse_f64x4x4(f64x4x4 m);
+
+//
+// on HCC include the math.c file automatically so that all shaders files get the implementation of the larger functions compiled in.
+#ifdef __HCC__
+#include "math.c"
+#endif // __HCC__
 
 #endif // _HCC_STD_MATH_H_

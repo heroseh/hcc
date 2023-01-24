@@ -115,6 +115,10 @@ HccAMLOperand hcc_amlgen_generate_convert_to_bool(HccWorker* w, HccLocation* loc
 }
 
 HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool want_variable_ref) {
+	if (expr == NULL) {
+		return 0;
+	}
+
 	switch (expr->type) {
 		case HCC_AST_EXPR_TYPE_CURLY_INITIALIZER: {
 			HccCU* cu = w->cu;
@@ -317,11 +321,11 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					case HCC_AST_BINARY_OP_LOGICAL_OR: {
 						uint32_t success_idx = 1 + (expr->binary.op != HCC_AST_BINARY_OP_LOGICAL_AND);
 						uint32_t converging_idx = 1 + (expr->binary.op == HCC_AST_BINARY_OP_LOGICAL_AND);
-						HccAMLOperand basic_block_operand = hcc_amlgen_current_basic_block(w);
 
 						//
 						// current basic block
 						HccAMLOperand left_operand = hcc_amlgen_generate_instrs_condition(w, expr->binary.left_expr);
+						HccAMLOperand branch_conditional_basic_block_operand = hcc_amlgen_current_basic_block(w);
 						HccAMLOperand* selection_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_SELECTION_MERGE, 1);
 						HccAMLOperand* cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 4);
 
@@ -329,6 +333,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						// success basic block
 						HccAMLOperand success_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 						HccAMLOperand right_operand = hcc_amlgen_generate_instrs_condition(w, expr->binary.right_expr);
+						HccAMLOperand final_success_basic_block = hcc_amlgen_current_basic_block(w);
 						HccAMLOperand* success_converging_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 2);
 
 						//
@@ -349,8 +354,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						//
 						// add the result basic block parameter and return that operand
 						HccAMLOperand operand = hcc_amlgen_basic_block_param_add(w, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
-						hcc_amlgen_basic_block_param_src_add(w, basic_block_operand, cond_branch_operands[3]);
-						hcc_amlgen_basic_block_param_src_add(w, success_basic_block, success_converging_branch_operands[1]);
+						hcc_amlgen_basic_block_param_src_add(w, branch_conditional_basic_block_operand, cond_branch_operands[3]);
+						hcc_amlgen_basic_block_param_src_add(w, final_success_basic_block, success_converging_branch_operands[1]);
 						return operand;
 					};
 					case HCC_AST_BINARY_OP_TERNARY: {
@@ -391,24 +396,24 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						HccAMLOperand* true_converging_branch_operands;
 						HccAMLOperand true_final_basic_block;
 						if (!result_true_is_constant) {
-							HccAMLOperand true_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
+							HccAMLOperand true_basic_block_operand = hcc_amlgen_basic_block_add(w, expr->location);
 							HccAMLOperand result_true_operand = hcc_amlgen_generate_instrs(w, result_true_expr, false);
 							true_converging_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 2);
 							true_converging_branch_operands[1] = result_true_operand;
 
 							true_final_basic_block = hcc_amlgen_current_basic_block(w);
-							cond_branch_operands[1] = true_basic_block;
+							cond_branch_operands[1] = true_basic_block_operand;
 						}
 						HccAMLOperand* false_converging_branch_operands;
 						HccAMLOperand false_final_basic_block;
 						if (!result_false_is_constant) {
-							HccAMLOperand false_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
+							HccAMLOperand false_basic_block_operand = hcc_amlgen_basic_block_add(w, expr->location);
 							HccAMLOperand result_false_operand = hcc_amlgen_generate_instrs(w, result_false_expr, false);
 							false_converging_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 2);
 							false_converging_branch_operands[1] = result_false_operand;
 
 							false_final_basic_block = hcc_amlgen_current_basic_block(w);
-							cond_branch_operands[2] = false_basic_block;
+							cond_branch_operands[2] = false_basic_block_operand;
 						}
 
 						//
@@ -434,7 +439,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						if (result_false_is_constant) {
 							HccAMLOperand result_false_operand = HCC_AML_OPERAND(CONSTANT, result_false_expr->constant.id.idx_plus_one);
 							cond_branch_operands[2] = converging_basic_block;
-							cond_branch_operands[3 + result_false_is_constant] = result_false_operand;
+							cond_branch_operands[3 + result_true_is_constant] = result_false_operand;
 							hcc_amlgen_basic_block_param_src_add(w, basic_block_operand, cond_branch_operands[3]);
 						} else {
 							false_converging_branch_operands[0] = converging_basic_block;
@@ -490,12 +495,16 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						//
 						// generate the callee
 						HccASTExpr* callee_expr = expr->binary.left_expr;
+						HccDecl function_decl = 0;
+						if (callee_expr->type == HCC_AST_EXPR_TYPE_FUNCTION) {
+							function_decl = hcc_decl_resolve_and_keep_qualifiers(w->cu, callee_expr->function.decl);
+						}
 						HccAMLOperand callee_operand = hcc_amlgen_generate_instrs(w, callee_expr, false);
 						HccDataType return_data_type = hcc_decl_return_data_type(w->cu, callee_expr->data_type);
 						return_data_type = hcc_data_type_lower_ast_to_aml(w->cu, return_data_type);
 
 						HccAMLOperand return_operand;
-						if (callee_expr->type != HCC_AST_EXPR_TYPE_FUNCTION || HCC_AML_OPERAND_AUX(callee_expr->function.decl) >= HCC_FUNCTION_IDX_USER_START) {
+						if (callee_expr->type != HCC_AST_EXPR_TYPE_FUNCTION || HCC_AML_OPERAND_AUX(function_decl) >= HCC_FUNCTION_IDX_USER_START) {
 							//
 							// now create the call instruction
 							HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_CALL, args_count + 2);
@@ -507,7 +516,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 							return_operand = operands[0];
 						} else {
-							uint32_t function_idx = HCC_AML_OPERAND_AUX(callee_expr->function.decl);
+							uint32_t function_idx = HCC_AML_OPERAND_AUX(function_decl);
 
 							HccAMLOp op = HCC_AML_OP_NO_OP;
 							switch (function_idx) {
@@ -680,24 +689,36 @@ CALL_END:
 			HccAMLOperand* cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 3);
 			cond_branch_operands[0] = cond_operand;
 
-			HccAMLOperand true_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
-			cond_branch_operands[1] = true_basic_block;
+			HccAMLOperand true_basic_block_operand = hcc_amlgen_basic_block_add(w, expr->location);
+			cond_branch_operands[1] = true_basic_block_operand;
 			hcc_amlgen_generate_instrs(w, expr->if_.true_stmt, false);
-			HccAMLOperand* true_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
+
+			HccAMLBasicBlock* true_basic_block = &w->amlgen.function->basic_blocks[HCC_AML_OPERAND_AUX(true_basic_block_operand)];
+			HccAMLOperand* true_branch_operands = NULL;
+			if (true_basic_block->terminating_instr_word_idx == UINT32_MAX) {
+				true_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
+			}
 
 			HccASTExpr* false_stmt = expr->if_.false_stmt;
-			HccAMLOperand* false_branch_operands;
+			HccAMLOperand* false_branch_operands = NULL;
 			if (false_stmt) {
-				HccAMLOperand false_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
-				cond_branch_operands[2] = false_basic_block;
+				HccAMLOperand false_basic_block_operand = hcc_amlgen_basic_block_add(w, expr->location);
+				cond_branch_operands[2] = false_basic_block_operand;
 				hcc_amlgen_generate_instrs(w, false_stmt, false);
-				false_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
+				HccAMLBasicBlock* false_basic_block = &w->amlgen.function->basic_blocks[HCC_AML_OPERAND_AUX(false_basic_block_operand)];
+				if (false_basic_block->terminating_instr_word_idx == UINT32_MAX) {
+					false_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
+				}
 			}
 
 			HccAMLOperand converging_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
-			true_branch_operands[0] = converging_basic_block;
+			if (true_branch_operands) {
+				true_branch_operands[0] = converging_basic_block;
+			}
 			if (false_stmt) {
-				false_branch_operands[0] = converging_basic_block;
+				if (false_branch_operands) {
+					false_branch_operands[0] = converging_basic_block;
+				}
 			} else {
 				cond_branch_operands[2] = converging_basic_block;
 			}

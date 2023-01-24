@@ -71,6 +71,43 @@ void hcc_spirvlink_instr_end(HccWorker* w) {
 	w->spirvlink.instr_op = HCC_SPIRV_OP_NO_OP;
 }
 
+bool hcc_spirvlink_add_used_global_variable_ids(HccWorker* w, HccDecl function_decl) {
+	HccCU* cu = w->cu;
+
+	HccAMLCallNode* node = *hcc_stack_get(cu->aml.function_call_node_lists, HCC_DECL_AUX(function_decl));
+	while (node) {
+		//
+		// descend down the call stack
+		if (!hcc_spirvlink_add_used_global_variable_ids(w, node->function_decl)) {
+			return false;
+		}
+
+		node = node->next_call_node_idx == UINT32_MAX ? NULL : hcc_stack_get(cu->aml.call_graph_nodes, node->next_call_node_idx);
+	}
+
+	//
+	// add the global if it hasn't been added already
+	HccSPIRVFunction* function = hcc_stack_get(cu->spirv.functions, HCC_DECL_AUX(function_decl));
+	for (uint32_t global_variable_idx = 0; global_variable_idx < function->global_variables_count; global_variable_idx += 1) {
+		HccSPIRVId spirv_id = function->global_variable_ids[global_variable_idx];
+
+		for (uint32_t idx = 0; idx < w->spirvlink.function_unique_globals_count; idx += 1) {
+			if (w->spirvlink.function_unique_globals[idx] == spirv_id) {
+				goto NEXT;
+			}
+		}
+
+		HCC_DEBUG_ASSERT_ARRAY_BOUNDS(w->spirvlink.function_unique_globals_count, HCC_FUNCTION_UNIQUE_GLOBALS_CAP);
+		w->spirvlink.function_unique_globals[w->spirvlink.function_unique_globals_count] = spirv_id;
+		w->spirvlink.function_unique_globals_count += 1;
+
+		hcc_spirvlink_instr_add_operand(w, spirv_id);
+NEXT: {}
+	}
+
+	return true;
+}
+
 void hcc_spirvlink_link(HccWorker* w) {
 	HccCU* cu = w->cu;
 	HccSPIRVOperand* operands = NULL;
@@ -137,9 +174,8 @@ void hcc_spirvlink_link(HccWorker* w) {
 		HccString name = hcc_string_table_get(entry_point->identifier_string_id);
 		hcc_spirvlink_instr_add_operands_string(w, name.data, name.size);
 
-		for (uint32_t global_variable_idx = 0; global_variable_idx < entry_point->global_variables_count; global_variable_idx += 1) {
-			hcc_spirvlink_instr_add_operand(w, entry_point->global_variable_ids[global_variable_idx]);
-		}
+		w->spirvlink.function_unique_globals_count = 0;
+		hcc_spirvlink_add_used_global_variable_ids(w, entry_point->function_decl);
 
 		hcc_spirvlink_instr_end(w);
 	}

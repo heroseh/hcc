@@ -454,6 +454,10 @@ void hcc_ast_print_section_header(const char* name, const char* path, HccIIO* ii
 void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, uint32_t indent, HccIIO* iio) {
 	static char* indent_chars = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
 	hcc_iio_write_fmt(iio, "%.*s", indent, indent_chars);
+	if (expr == NULL) {
+		hcc_iio_write_fmt(iio, "NULL");
+		return;
+	}
 	if (!expr->is_stmt) {
 		HccString data_type_name = hcc_data_type_string(cu, expr->data_type);
 		hcc_iio_write_fmt(iio, "(%.*s)", (int)data_type_name.size, data_type_name.data);
@@ -635,15 +639,21 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 				uint32_t field_idx = expr->binary.field_idx;
 				hcc_ast_print_expr(cu, function, left_expr, indent + 1, iio);
 
-				HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, hcc_data_type_strip_pointer(cu, left_expr->data_type));
-				HccCompoundField* field = &compound_data_type->fields[field_idx];
-
-				HccString field_data_type_name = hcc_data_type_string(cu, field->data_type);
-				if (field->identifier_string_id.idx_plus_one) {
-					HccString identifier_string = hcc_string_table_get(field->identifier_string_id);
-					hcc_iio_write_fmt(iio, "%.*sfield_idx(%u): %.*s %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data, (int)identifier_string.size, identifier_string.data);
-				} else {
+				HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(cu, left_expr->data_type);
+				if (HCC_DATA_TYPE_IS_VECTOR(data_type)) {
+					HccString field_data_type_name = hcc_data_type_string(cu, HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type))));
 					hcc_iio_write_fmt(iio, "%.*sfield_idx(%u): %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data);
+				} else {
+					HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, hcc_data_type_strip_pointer(cu, left_expr->data_type));
+					HccCompoundField* field = &compound_data_type->fields[field_idx];
+
+					HccString field_data_type_name = hcc_data_type_string(cu, field->data_type);
+					if (field->identifier_string_id.idx_plus_one) {
+						HccString identifier_string = hcc_string_table_get(field->identifier_string_id);
+						hcc_iio_write_fmt(iio, "%.*sfield_idx(%u): %.*s %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data, (int)identifier_string.size, identifier_string.data);
+					} else {
+						hcc_iio_write_fmt(iio, "%.*sfield_idx(%u): %.*s\n", indent + 1, indent_chars, field_idx, (int)field_data_type_name.size, field_data_type_name.data);
+					}
 				}
 
 				hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
