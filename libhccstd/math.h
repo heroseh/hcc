@@ -137,9 +137,9 @@ half sqrt_f16(half v);
 float sqrt_f32(float v);
 double sqrt_f64(double v);
 
-half pow_f16(half v);
-float pow_f32(float v);
-double pow_f64(double v);
+half pow_f16(half a, half b);
+float pow_f32(float a, float b);
+double pow_f64(double a, double b);
 
 half exp_f16(half v);
 float exp_f32(float v);
@@ -2504,15 +2504,15 @@ static inline f64x4 atan2_f64x4(f64x4 y, f64x4 x) { return f64x4(atan2_f64(y.x, 
 
 //
 // return a vector where each component is the result of appling 'pow' to that component in 'v'
-static inline f16x2 pow_f16x2(f16x2 v) { return f16x2(pow_f16(v.x), pow_f16(v.y)); }
-static inline f32x2 pow_f32x2(f32x2 v) { return f32x2(pow_f32(v.x), pow_f32(v.y)); }
-static inline f64x2 pow_f64x2(f64x2 v) { return f64x2(pow_f64(v.x), pow_f64(v.y)); }
-static inline f16x3 pow_f16x3(f16x3 v) { return f16x3(pow_f16(v.x), pow_f16(v.y), pow_f16(v.z)); }
-static inline f32x3 pow_f32x3(f32x3 v) { return f32x3(pow_f32(v.x), pow_f32(v.y), pow_f32(v.z)); }
-static inline f64x3 pow_f64x3(f64x3 v) { return f64x3(pow_f64(v.x), pow_f64(v.y), pow_f64(v.z)); }
-static inline f16x4 pow_f16x4(f16x4 v) { return f16x4(pow_f16(v.x), pow_f16(v.y), pow_f16(v.z), pow_f16(v.w)); }
-static inline f32x4 pow_f32x4(f32x4 v) { return f32x4(pow_f32(v.x), pow_f32(v.y), pow_f32(v.z), pow_f32(v.w)); }
-static inline f64x4 pow_f64x4(f64x4 v) { return f64x4(pow_f64(v.x), pow_f64(v.y), pow_f64(v.z), pow_f64(v.w)); }
+static inline f16x2 pow_f16x2(f16x2 a, f16x2 b) { return f16x2(pow_f16(a.x, b.x), pow_f16(a.y, b.y)); }
+static inline f32x2 pow_f32x2(f32x2 a, f32x2 b) { return f32x2(pow_f32(a.x, b.x), pow_f32(a.y, b.y)); }
+static inline f64x2 pow_f64x2(f64x2 a, f64x2 b) { return f64x2(pow_f64(a.x, b.x), pow_f64(a.y, b.y)); }
+static inline f16x3 pow_f16x3(f16x3 a, f16x3 b) { return f16x3(pow_f16(a.x, b.x), pow_f16(a.y, b.y), pow_f16(a.z, b.z)); }
+static inline f32x3 pow_f32x3(f32x3 a, f32x3 b) { return f32x3(pow_f32(a.x, b.x), pow_f32(a.y, b.y), pow_f32(a.z, b.z)); }
+static inline f64x3 pow_f64x3(f64x3 a, f64x3 b) { return f64x3(pow_f64(a.x, b.x), pow_f64(a.y, b.y), pow_f64(a.z, b.z)); }
+static inline f16x4 pow_f16x4(f16x4 a, f16x4 b) { return f16x4(pow_f16(a.x, b.x), pow_f16(a.y, b.y), pow_f16(a.z, b.z), pow_f16(a.w, b.w)); }
+static inline f32x4 pow_f32x4(f32x4 a, f32x4 b) { return f32x4(pow_f32(a.x, b.x), pow_f32(a.y, b.y), pow_f32(a.z, b.z), pow_f32(a.w, b.w)); }
+static inline f64x4 pow_f64x4(f64x4 a, f64x4 b) { return f64x4(pow_f64(a.x, b.x), pow_f64(a.y, b.y), pow_f64(a.z, b.z), pow_f64(a.w, b.w)); }
 
 //
 // return a vector where each component is the result of appling 'exp' to that component in 'v'

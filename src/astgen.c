@@ -471,9 +471,6 @@ bool hcc_astgen_data_type_check_compatible_arithmetic(HccWorker* w, HccASTExpr**
 
 	HccDataType left_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, left_expr->data_type);
 	HccDataType right_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, right_expr->data_type);
-	if (left_data_type == right_data_type) {
-		return true;
-	}
 
 	if (HCC_DATA_TYPE_IS_AST_BASIC(left_data_type) && HCC_DATA_TYPE_IS_AST_BASIC(right_data_type)) {
 		HccASTBasicDataType left_basic_data_type = HCC_DATA_TYPE_AUX(left_data_type);
@@ -696,6 +693,132 @@ void hcc_astgen_ensure_no_unused_specifiers_data_type(HccWorker* w) {
 
 void hcc_astgen_ensure_no_unused_specifiers_identifier(HccWorker* w) {
 	_hcc_astgen_ensure_no_unused_specifiers(w, "an identifier");
+}
+
+bool hcc_astgen_check_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr) {
+	switch (expr->type) {
+		case HCC_AST_EXPR_TYPE_STMT_RETURN:
+			return true;
+		case HCC_AST_EXPR_TYPE_STMT_BLOCK: {
+			HccASTExpr* stmt = expr->stmt_block.first_stmt;
+			while (stmt) {
+				if (hcc_astgen_check_returns_from_all_diverging_paths(w, stmt)) {
+					return true;
+				}
+				stmt = stmt->next_stmt;
+			}
+			return false;
+		};
+		case HCC_AST_EXPR_TYPE_STMT_IF:
+			if (expr->if_.false_stmt == NULL) {
+				return false;
+			}
+
+			return hcc_astgen_check_returns_from_all_diverging_paths(w, expr->if_.true_stmt)
+				&& hcc_astgen_check_returns_from_all_diverging_paths(w, expr->if_.false_stmt);
+		case HCC_AST_EXPR_TYPE_STMT_SWITCH: {
+			HccASTExpr* stmt = expr->switch_.block_expr->stmt_block.first_stmt;
+			HccASTExpr* case_stmt = NULL;
+			while (stmt) {
+				switch (stmt->type) {
+					case HCC_AST_EXPR_TYPE_STMT_CASE:
+						case_stmt = stmt;
+						break;
+					case HCC_AST_EXPR_TYPE_STMT_DEFAULT:
+						case_stmt = stmt;
+						break;
+					case HCC_AST_EXPR_TYPE_STMT_BREAK:
+						if (case_stmt) {
+							return false;
+						}
+						break;
+					case HCC_AST_EXPR_TYPE_STMT_RETURN:
+						case_stmt = NULL;
+						break;
+				}
+				stmt = stmt->next_stmt;
+			}
+			if (case_stmt) {
+				return false;
+			}
+			return true;
+		};
+		case HCC_AST_EXPR_TYPE_STMT_FOR:
+			return hcc_astgen_check_returns_from_all_diverging_paths(w, expr->for_.loop_stmt);
+		case HCC_AST_EXPR_TYPE_STMT_WHILE:
+			return hcc_astgen_check_returns_from_all_diverging_paths(w, expr->while_.loop_stmt);
+		default:
+			return false;
+	}
+}
+
+void hcc_astgen_ensure_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr) {
+	switch (expr->type) {
+		case HCC_AST_EXPR_TYPE_STMT_RETURN:
+			return;
+		case HCC_AST_EXPR_TYPE_STMT_BLOCK:
+			if (!hcc_astgen_check_returns_from_all_diverging_paths(w, expr)) {
+				hcc_astgen_error_1_manual(w, HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE, expr->stmt_block.last_stmt ? expr->stmt_block.last_stmt->location : expr->location );
+			}
+			return;
+		case HCC_AST_EXPR_TYPE_STMT_IF:
+			if (expr->if_.false_stmt == NULL) {
+				hcc_astgen_error_1_manual(w, HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE, expr->location);
+				return;
+			}
+
+			hcc_astgen_ensure_returns_from_all_diverging_paths(w, expr->if_.true_stmt);
+			hcc_astgen_ensure_returns_from_all_diverging_paths(w, expr->if_.false_stmt);
+			return;
+		case HCC_AST_EXPR_TYPE_STMT_SWITCH: {
+			HccASTExpr* stmt = expr->switch_.block_expr->stmt_block.first_stmt;
+			HccASTExpr* case_stmt = NULL;
+			HccASTExpr* last_stmt = NULL;
+			while (stmt) {
+				switch (stmt->type) {
+					case HCC_AST_EXPR_TYPE_STMT_CASE:
+						case_stmt = stmt;
+						break;
+					case HCC_AST_EXPR_TYPE_STMT_DEFAULT:
+						case_stmt = stmt;
+						break;
+					case HCC_AST_EXPR_TYPE_STMT_BREAK:
+						if (case_stmt) {
+							hcc_astgen_error_1_manual(w, HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE, stmt->location);
+						}
+						break;
+					case HCC_AST_EXPR_TYPE_STMT_RETURN:
+						case_stmt = NULL;
+						break;
+					case HCC_AST_EXPR_TYPE_STMT_FOR:
+						if (hcc_astgen_check_returns_from_all_diverging_paths(w, stmt->for_.loop_stmt)) {
+							case_stmt = NULL;
+						}
+						return;
+					case HCC_AST_EXPR_TYPE_STMT_WHILE:
+						if (hcc_astgen_check_returns_from_all_diverging_paths(w, stmt->while_.loop_stmt)) {
+							case_stmt = NULL;
+						}
+						return;
+				}
+				last_stmt = stmt;
+				stmt = stmt->next_stmt;
+			}
+			if (case_stmt) {
+				hcc_astgen_error_1_manual(w, HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE, last_stmt->location);
+			}
+			return;
+		};
+		case HCC_AST_EXPR_TYPE_STMT_FOR:
+			hcc_astgen_ensure_returns_from_all_diverging_paths(w, expr->for_.loop_stmt);
+			return;
+		case HCC_AST_EXPR_TYPE_STMT_WHILE:
+			hcc_astgen_ensure_returns_from_all_diverging_paths(w, expr->while_.loop_stmt);
+			return;
+		default:
+			hcc_astgen_error_1_manual(w, HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE, expr->location);
+			return;
+	}
 }
 
 void hcc_astgen_variable_stack_open(HccWorker* w) {
@@ -3247,8 +3370,11 @@ HccASTExpr* hcc_astgen_generate_ternary_expr(HccWorker* w, HccASTExpr* cond_expr
 
 	HccASTExpr* false_expr = hcc_astgen_generate_expr(w, 0);
 
+	HccDataType true_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, true_expr->data_type);
+	HccDataType false_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, false_expr->data_type);
+
 	HccLocation* other_location = NULL;
-	if (!hcc_astgen_data_type_check_compatible_arithmetic(w, &true_expr, &false_expr)) {
+	if (true_data_type != false_data_type && !hcc_astgen_data_type_check_compatible_arithmetic(w, &true_expr, &false_expr)) {
 		HccString true_data_type_name = hcc_data_type_string(w->cu, true_expr->data_type);
 		HccString false_data_type_name = hcc_data_type_string(w->cu, false_expr->data_type);
 		hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_TYPE_MISMATCH, other_location, (int)false_data_type_name.size, false_data_type_name.data, (int)true_data_type_name.size, true_data_type_name.data);
@@ -3354,7 +3480,7 @@ FIELD_ACCESS: {}
 			HccASTExpr* right_expr = hcc_astgen_generate_expr(w, precedence);
 
 			HccLocation* other_location = NULL;
-			if (is_assign) {
+			if (binary_op == HCC_AST_BINARY_OP_ASSIGN) {
 				hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, resolved_left_expr_data_type, &right_expr);
 			} else {
 				hcc_astgen_data_type_ensure_compatible_arithmetic(w, other_location, &left_expr, &right_expr, operator_token);
@@ -3770,6 +3896,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 				prev_stmt = stmt;
 			}
 
+			stmt_block->stmt_block.last_stmt = prev_stmt;
 			hcc_astgen_variable_stack_close(w);
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 			w->astgen.stmt_block = prev_stmt_block;
@@ -4321,6 +4448,9 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 	if (token == HCC_ATA_TOKEN_CURLY_OPEN) {
 		function.max_instrs_count = 0;
 		function.block_expr = hcc_astgen_generate_stmt(w);
+		if (function.return_data_type != 0) {
+			hcc_astgen_ensure_returns_from_all_diverging_paths(w, function.block_expr->stmt_block.last_stmt);
+		}
 	}
 
 END: {}

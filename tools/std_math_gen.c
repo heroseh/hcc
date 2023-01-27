@@ -516,7 +516,7 @@ unsigned vector_fn_number_params[VECTOR_FN_COUNT] = {
 	[VECTOR_FN_ACOSH] = 1,
 	[VECTOR_FN_ATANH] = 1,
 	[VECTOR_FN_ATAN2] = 2,
-	[VECTOR_FN_POW] = 1,
+	[VECTOR_FN_POW] = 2,
 	[VECTOR_FN_EXP] = 1,
 	[VECTOR_FN_LOG] = 1,
 	[VECTOR_FN_EXP2] = 1,
@@ -1781,7 +1781,7 @@ void generate_math_header_file() {
 	print_entry("\n");
 	for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {
 		ctx.data_type = data_type;
-		print_entry("$di pow_$dx($di v);\n");
+		print_entry("$di pow_$dx($di a, $di b);\n");
 	}
 	print_entry("\n");
 	for (DataType data_type = DATA_TYPE_HALF; data_type <= DATA_TYPE_DOUBLE; data_type += 1) {

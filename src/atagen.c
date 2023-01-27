@@ -2107,11 +2107,6 @@ uint32_t hcc_atagen_parse_num(HccWorker* w, HccATAToken* token_out) {
 	uint32_t remaining_size = w->atagen.code_size - w->atagen.location.code_end_idx;
 	uint32_t token_size = 0;
 
-	bool is_negative = num_string[0] == '-';
-	if (is_negative) {
-		token_size += 1; // skip the '-'
-	}
-
 	//
 	// parse the radix prefix if there is a 0x or 0
 	HccATAToken token = HCC_ATA_TOKEN_LIT_SINT;
@@ -2132,7 +2127,6 @@ uint32_t hcc_atagen_parse_num(HccWorker* w, HccATAToken* token_out) {
 	}
 
 	uint64_t u64 = 0;
-	int64_t s64 = 0;
 	double f64 = 0.0;
 	double pow_10 = 10.0;
 	while (token_size < remaining_size) {
@@ -2228,28 +2222,7 @@ uint32_t hcc_atagen_parse_num(HccWorker* w, HccATAToken* token_out) {
 			};
 		}
 	}
-NUM_END:
-
-	//
-	// apply the negate if it is negative and a signed type
-	if (is_negative) {
-		switch (token) {
-			case HCC_ATA_TOKEN_LIT_SINT:
-			case HCC_ATA_TOKEN_LIT_SLONG:
-			case HCC_ATA_TOKEN_LIT_SLONGLONG:
-			{
-				if (u64 > (uint64_t)INT64_MAX + 1) {
-					hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_MAX_SINT_OVERFLOW);
-				}
-				s64 = -u64;
-				break;
-			};
-			case HCC_ATA_TOKEN_LIT_FLOAT:
-			case HCC_ATA_TOKEN_LIT_DOUBLE:
-				f64 = -f64;
-				break;
-		}
-	}
+NUM_END: {}
 
 	//
 	// perform literal type upgrades if they exceed their current type
@@ -2268,65 +2241,38 @@ NUM_END:
 			token = HCC_ATA_TOKEN_LIT_ULONGLONG;
 			break;
 		case HCC_ATA_TOKEN_LIT_SINT:
-			if (is_negative) {
-				if (s64 > (int64_t)cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SLONG] || s64 < (int64_t)cu->dtt.basic_type_int_mins[HCC_AST_BASIC_DATA_TYPE_SLONG]) {
-					token = HCC_ATA_TOKEN_LIT_SLONGLONG;
-				} else if (s64 > (int64_t)cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SINT] || s64 < (int64_t)cu->dtt.basic_type_int_mins[HCC_AST_BASIC_DATA_TYPE_SINT]) {
+			if (u64 > (uint64_t)INT64_MAX) {
+				hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_MAX_SINT_OVERFLOW);
+			}
+			if (u64 > cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SINT]) {
+				if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_UINT]) {
+					token = HCC_ATA_TOKEN_LIT_UINT;
+				} else if (u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
 					token = HCC_ATA_TOKEN_LIT_SLONG;
+				} else if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
+					token = HCC_ATA_TOKEN_LIT_ULONG;
+				} else if (u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SLONGLONG]) {
+					token = HCC_ATA_TOKEN_LIT_SLONGLONG;
+				} else if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONGLONG]) {
+					token = HCC_ATA_TOKEN_LIT_ULONGLONG;
+				} else {
+					hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL);
 				}
-			} else {
-				if (u64 > cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SINT]) {
-					if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_UINT]) {
-						token = HCC_ATA_TOKEN_LIT_UINT;
-					} else if (u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
-						token = HCC_ATA_TOKEN_LIT_SLONG;
-					} else if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
-						token = HCC_ATA_TOKEN_LIT_ULONG;
-					} else if (u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SLONGLONG]) {
-						token = HCC_ATA_TOKEN_LIT_SLONGLONG;
-					} else if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONGLONG]) {
-						token = HCC_ATA_TOKEN_LIT_ULONGLONG;
-					} else {
-						hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL);
-					}
-				}
-				s64 = u64;
 			}
 			break;
 		case HCC_ATA_TOKEN_LIT_SLONG:
-			if (is_negative) {
-				if (s64 > (int64_t)cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG] || s64 < (int64_t)cu->dtt.basic_type_int_mins[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
+			if (u64 > cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
+				if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
+					token = HCC_ATA_TOKEN_LIT_ULONG;
+				} else if (u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SLONGLONG]) {
 					token = HCC_ATA_TOKEN_LIT_SLONGLONG;
+				} else if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONGLONG]) {
+					token = HCC_ATA_TOKEN_LIT_ULONGLONG;
+				} else {
+					hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL);
 				}
-			} else {
-				if (u64 > cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
-					if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONG]) {
-						token = HCC_ATA_TOKEN_LIT_ULONG;
-					} else if (u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_SLONGLONG]) {
-						token = HCC_ATA_TOKEN_LIT_SLONGLONG;
-					} else if (radix != 10 && u64 <= cu->dtt.basic_type_int_maxes[HCC_AST_BASIC_DATA_TYPE_ULONGLONG]) {
-						token = HCC_ATA_TOKEN_LIT_ULONGLONG;
-					} else {
-						hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_MAX_SINT_OVERFLOW_DECIMAL);
-					}
-				}
-				s64 = u64;
 			}
 			break;
-	}
-
-	//
-	// apply the negate for if it is an unsigned literal
-	if (is_negative) {
-		switch (token) {
-			case HCC_ATA_TOKEN_LIT_UINT:
-			case HCC_ATA_TOKEN_LIT_ULONG:
-			case HCC_ATA_TOKEN_LIT_ULONGLONG:
-			{
-				u64 = -u64;
-				break;
-			};
-		}
 	}
 
 	if (token_out == NULL) {
@@ -2350,7 +2296,7 @@ NUM_END:
 	switch (token) {
 		case HCC_ATA_TOKEN_LIT_SINT:
 		case HCC_ATA_TOKEN_LIT_SLONG:
-		case HCC_ATA_TOKEN_LIT_SLONGLONG: basic = hcc_basic_from_sint(w->cu, data_type, s64); break;
+		case HCC_ATA_TOKEN_LIT_SLONGLONG: basic = hcc_basic_from_sint(w->cu, data_type, u64); break;
 		case HCC_ATA_TOKEN_LIT_UINT:
 		case HCC_ATA_TOKEN_LIT_ULONG:
 		case HCC_ATA_TOKEN_LIT_ULONGLONG: basic = hcc_basic_from_uint(w->cu, data_type, u64); break;
@@ -2678,9 +2624,7 @@ void hcc_atagen_run(HccWorker* w, HccATATokenBag* dst_token_bag, HccATAGenRunMod
 			};
 			case '-': {
 				char next_byte = w->atagen.code[w->atagen.location.code_end_idx + 1];
-				if (hcc_ascii_is_digit(next_byte)) {
-					token_size = hcc_atagen_parse_num(w, &token);
-				} else if (next_byte == '=') {
+				if (next_byte == '=') {
 					token_size = 2;
 					token = HCC_ATA_TOKEN_SUBTRACT_ASSIGN;
 				} else if (next_byte == '-') {

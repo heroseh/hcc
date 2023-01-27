@@ -653,6 +653,7 @@ enum {
 	HCC_ERROR_CODE_INCOMPLETE_TYPE_USED_BY_VALUE,
 	HCC_ERROR_CODE_STATIC_AND_EXTERN,
 	HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL,
+	HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE,
 
 	//
 	// ASTLINK
@@ -1683,6 +1684,7 @@ struct HccASTExpr {
 			HccASTExprType  type: 7;
 			uint8_t         is_stmt: 1;
 			HccASTExpr*     first_stmt;
+			HccASTExpr*     last_stmt;
 		} stmt_block;
 		struct {
 			HccASTExprType  type: 7;

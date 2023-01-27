@@ -153,7 +153,7 @@ f32x4 distance_cubes(
 
 				//
 				// bring the sample position in to local space of this cube
-				f32x3 local_sample_pos = ray_sample_pos + cube_split_axis_offset + selected_offset;
+				f32x3 local_sample_pos = add_f32x3(ray_sample_pos, add_f32x3(cube_split_axis_offset, selected_offset));
 
 				float next_dist_sq = distance_sq_cube(local_sample_pos, cube_half_size) * scale;
 				if (next_dist_sq < last_dist_sq.w) {

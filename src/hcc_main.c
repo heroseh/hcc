@@ -93,6 +93,8 @@ int main(int argc, char** argv) {
 			HccIIO stdout_iio = hcc_iio_file(stdout);
 			hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
 			HCC_ENSURE(hcc_task_add_output_aml_text(task, &stdout_iio));
+		} else if (strcmp(argv[arg_idx], "--final-job-ata") == 0) {
+			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ATAGEN);
 		} else if (strcmp(argv[arg_idx], "--final-job-ast") == 0) {
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ASTLINK);
 		} else if (strcmp(argv[arg_idx], "--final-job-aml") == 0) {

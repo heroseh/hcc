@@ -26,8 +26,8 @@ int main(int argc, char** argv) {
 
 	gpu_init(window, width, height);
 
-	AppSampleEnum next_sample_enum_to_init = 1;
-	AppSampleEnum sample_enum = APP_SAMPLE_TRIANGLE + 1;
+	AppSampleEnum next_sample_enum_to_init = 0;
+	AppSampleEnum sample_enum = 0;
 	while (1) {
 		if (next_sample_enum_to_init < APP_SAMPLE_COUNT) {
 			gpu_init_sample(next_sample_enum_to_init);
@@ -40,6 +40,21 @@ int main(int argc, char** argv) {
 				case DM_EVENT_TYPE_WINDOW_CLOSED:
 					exit(0);
 				case DM_EVENT_TYPE_KEY_PRESSED:
+					switch (event.key) {
+						case '[':
+							if (sample_enum == 0) {
+								sample_enum = APP_SAMPLE_COUNT;
+							}
+							sample_enum -= 1;
+							break;
+						case ']':
+							sample_enum += 1;
+							if (sample_enum == APP_SAMPLE_COUNT) {
+								sample_enum = 0;
+							}
+							break;
+					}
+
 					printf("key pressed %c\n", event.key);
 					break;
 				case DM_EVENT_TYPE_KEY_RELEASED:

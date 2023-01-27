@@ -1931,6 +1931,8 @@ HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType el
 void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what);
 void hcc_astgen_ensure_no_unused_specifiers_data_type(HccWorker* w);
 void hcc_astgen_ensure_no_unused_specifiers_identifier(HccWorker* w);
+bool hcc_astgen_check_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr);
+void hcc_astgen_ensure_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr);
 
 void hcc_astgen_variable_stack_open(HccWorker* w);
 void hcc_astgen_variable_stack_close(HccWorker* w);
@@ -2156,6 +2158,7 @@ struct HccAMLGen {
 	uint32_t                break_stmt_list_prev_id;
 	HccAMLOp                last_op;
 	HccLocation*            last_location;
+	bool                    is_inside_basic_block;
 };
 
 void hcc_amlgen_init(HccWorker* w, HccCompilerSetup* setup);

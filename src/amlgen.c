@@ -35,6 +35,8 @@ HccAMLOperand hcc_amlgen_value_add(HccWorker* w, HccDataType data_type) {
 HccAMLOperand hcc_amlgen_basic_block_add(HccWorker* w, HccLocation* location) {
 	HccLocation** dst_location = hcc_stack_push_thread_safe(w->cu->aml.locations);
 	*dst_location = location;
+	w->amlgen.last_op = HCC_AML_OP_BASIC_BLOCK;
+	w->amlgen.last_location = location;
 	uint32_t location_idx = dst_location - w->cu->aml.locations;
 	return hcc_aml_function_basic_block_add(w->amlgen.function, location_idx);
 }
@@ -49,13 +51,25 @@ void hcc_amlgen_basic_block_param_src_add(HccWorker* w, HccAMLOperand basic_bloc
 
 HccAMLOperand* hcc_amlgen_instr_add(HccWorker* w, HccLocation* location, HccAMLOp op, uint16_t operands_count) {
 	HCC_DEBUG_ASSERT(location, "expected the location for this AML instruction to not be NULL");
+	HCC_DEBUG_ASSERT(op != HCC_AML_OP_BASIC_BLOCK, "please use hcc_amlgen_basic_block_add to add new basic block");
+
+	if (!w->amlgen.is_inside_basic_block) {
+		w->amlgen.is_inside_basic_block = true;
+		hcc_amlgen_basic_block_add(w, location);
+	}
 
 	HccLocation** dst_location = hcc_stack_push_thread_safe(w->cu->aml.locations);
 	*dst_location = location;
 	w->amlgen.last_op = op;
 	w->amlgen.last_location = location;
 	uint32_t location_idx = dst_location - w->cu->aml.locations;
-	return hcc_aml_function_instr_add(w->amlgen.function, location_idx, op, operands_count);
+	HccAMLOperand* operands = hcc_aml_function_instr_add(w->amlgen.function, location_idx, op, operands_count);
+
+	if (op == HCC_AML_OP_BRANCH || op == HCC_AML_OP_BRANCH_CONDITIONAL || op == HCC_AML_OP_SWITCH || op == HCC_AML_OP_RETURN) {
+		w->amlgen.is_inside_basic_block = false;
+	}
+
+	return operands;
 }
 
 HccAMLOperand hcc_amlgen_instr_add_1(HccWorker* w, HccLocation* location, HccAMLOp op, HccAMLOperand operand_0) {
@@ -606,10 +620,19 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 							return_operand = operands[0];
 						}
 
+CALL_END:{}
 						//
 						// restore the temp_operands back to the size it was
-CALL_END:
 						hcc_stack_resize(w->amlgen.temp_operands, temp_operands_start_idx);
+
+						if (want_variable_ref) {
+							HccDataType data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, return_operand);
+							HccAMLOperand value_operand = hcc_amlgen_value_add(w, hcc_pointer_data_type_deduplicate(w->cu, data_type));
+							HccAMLOperand dst_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STATIC_ALLOC, value_operand, data_type);
+							hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STORE, dst_operand, return_operand);
+							return_operand = dst_operand;
+						}
+
 						return return_operand;
 					};
 				}
@@ -692,6 +715,7 @@ CALL_END:
 			HccAMLOperand true_basic_block_operand = hcc_amlgen_basic_block_add(w, expr->location);
 			cond_branch_operands[1] = true_basic_block_operand;
 			hcc_amlgen_generate_instrs(w, expr->if_.true_stmt, false);
+			true_basic_block_operand = hcc_amlgen_current_basic_block(w);
 
 			HccAMLBasicBlock* true_basic_block = &w->amlgen.function->basic_blocks[HCC_AML_OPERAND_AUX(true_basic_block_operand)];
 			HccAMLOperand* true_branch_operands = NULL;
@@ -705,6 +729,7 @@ CALL_END:
 				HccAMLOperand false_basic_block_operand = hcc_amlgen_basic_block_add(w, expr->location);
 				cond_branch_operands[2] = false_basic_block_operand;
 				hcc_amlgen_generate_instrs(w, false_stmt, false);
+				false_basic_block_operand = hcc_amlgen_current_basic_block(w);
 				HccAMLBasicBlock* false_basic_block = &w->amlgen.function->basic_blocks[HCC_AML_OPERAND_AUX(false_basic_block_operand)];
 				if (false_basic_block->terminating_instr_word_idx == UINT32_MAX) {
 					false_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
@@ -1262,8 +1287,12 @@ void hcc_amlgen_generate(HccWorker* w) {
 	hcc_amlgen_generate_instrs(w, block_expr, false);
 
 	if (w->amlgen.last_op != HCC_AML_OP_RETURN) {
-		HccAMLOperand* operands = hcc_amlgen_instr_add(w, w->amlgen.last_location, HCC_AML_OP_RETURN, 1);
-		operands[0] = 0;
+		if (ast_function->return_data_type == 0) {
+			HccAMLOperand* operands = hcc_amlgen_instr_add(w, w->amlgen.last_location, HCC_AML_OP_RETURN, 1);
+			operands[0] = 0;
+		} else {
+			hcc_amlgen_instr_add(w, w->amlgen.last_location, HCC_AML_OP_UNREACHABLE, 0);
+		}
 	}
 
 	HccStack(HccDecl) optimize_functions = hcc_aml_optimize_functions(w->cu);

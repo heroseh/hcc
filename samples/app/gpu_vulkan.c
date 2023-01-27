@@ -540,6 +540,13 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 				default: APP_ABORT("unhandled topology");
 			}
 
+			VkPipelineTessellationStateCreateInfo tessellation_state = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.patchControlPoints = 0,
+			};
+
 			VkViewport viewport = {
 				.x = 0,
 				.y = gpu.swapchain_height,
@@ -655,7 +662,7 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 				.pStages = shader_stages,
 				.pVertexInputState = &vertex_input_state,
 				.pInputAssemblyState = &input_assembly_state,
-				.pTessellationState = NULL,
+				.pTessellationState = &tessellation_state,
 				.pViewportState = &viewport_state,
 				.pRasterizationState = &rasterization_state,
 				.pMultisampleState = &multisample_state,

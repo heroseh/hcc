@@ -26,6 +26,7 @@ typedef int AppSampleEnum;
 enum AppSampleEnum {
 	APP_SAMPLE_TRIANGLE,
 	APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER,
+	APP_SAMPLE_BLOB_VACATION,
 
 	APP_SAMPLE_COUNT,
 };
@@ -70,6 +71,13 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 	},
 	[APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER] = {
 		.shader_name = "alt-2.5d-rgb-color-picker",
+		.graphics = {
+			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
+			.vertices_count = 4,
+		},
+	},
+	[APP_SAMPLE_BLOB_VACATION] = {
+		.shader_name = "blob-vacation",
 		.graphics = {
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
