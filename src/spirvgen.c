@@ -24,9 +24,42 @@ void hcc_spirvgen_reset(HccWorker* w) {
 HccSPIRVId hcc_spirvgen_convert_operand(HccWorker* w, HccAMLOperand aml_operand) {
 	HccSPIRVId spirv_id;
 	switch (HCC_AML_OPERAND_TYPE(aml_operand)) {
-		case HCC_AML_OPERAND_VALUE:
-			spirv_id = w->spirvgen.value_base_id + HCC_AML_OPERAND_AUX(aml_operand);
+		case HCC_AML_OPERAND_VALUE: {
+			uint32_t value_idx = HCC_AML_OPERAND_AUX(aml_operand);
+			spirv_id = w->spirvgen.value_base_id + value_idx;
+
+			// the first 'params_count' value registers are the immuatable parameters.
+			// all of the mutable parameters and variables come after that.
+			const HccAMLFunction* aml_function = w->spirvgen.aml_function;
+			if (aml_function->shader_stage != HCC_SHADER_STAGE_NONE && value_idx < aml_function->params_count * 2) {
+				value_idx %= aml_function->params_count;
+
+				HccAMLOp op = HCC_AML_OP_NO_OP;
+				switch (aml_function->shader_stage) {
+					case HCC_SHADER_STAGE_VERTEX:
+						switch (value_idx) {
+							case HCC_VERTEX_SHADER_PARAM_VERTEX_SV: spirv_id = HCC_SPIRV_ID_VARIABLE_INPUT_VERTEX_SV; break;
+							case HCC_VERTEX_SHADER_PARAM_VERTEX_SV_OUT: spirv_id = HCC_SPIRV_ID_VARIABLE_OUTPUT_VERTEX_SV_OUT; break;
+							case HCC_VERTEX_SHADER_PARAM_BC: spirv_id = w->spirvgen.bc_spirv_id; break;
+							case HCC_VERTEX_SHADER_PARAM_RASTERIZER_STATE: spirv_id = w->spirvgen.rasterizer_state_variable_spirv_id; break;
+							default: HCC_ABORT("unhandled vertex shader parameter: %u", value_idx);
+						}
+						break;
+					case HCC_SHADER_STAGE_FRAGMENT:
+						switch (value_idx) {
+							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV: spirv_id = HCC_SPIRV_ID_VARIABLE_INPUT_FRAGMENT_SV; break;
+							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV_OUT: spirv_id = HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAGMENT_SV_OUT; break;
+							case HCC_FRAGMENT_SHADER_PARAM_BC: spirv_id = w->spirvgen.bc_spirv_id; break;
+							case HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE: spirv_id = w->spirvgen.rasterizer_state_variable_spirv_id; break;
+							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE: spirv_id = w->spirvgen.fragment_state_variable_spirv_id; break;
+							default: HCC_ABORT("unhandled fragment shader parameter: %u", value_idx);
+						}
+						break;
+					default: HCC_ABORT("unhandled shader stage: %u", aml_function->shader_stage);
+				}
+			}
 			break;
+		};
 		case HCC_AML_OPERAND_CONSTANT:
 			spirv_id = hcc_spirv_constant_deduplicate(w->cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operand)));
 			break;
@@ -73,7 +106,6 @@ void hcc_spirvgen_found_global(HccWorker* w, HccSPIRVId spirv_id) {
 void hcc_spirvgen_generate(HccWorker* w) {
 	HccCU* cu = w->cu;
 	HccDecl function_decl = (HccDecl)(uintptr_t)w->job.arg;
-	HccASTFunction* ast_function = hcc_ast_function_get(cu, function_decl);
 	const HccAMLFunction* aml_function = hcc_aml_function_get(cu, function_decl);
 	HccSPIRVFunction* function = hcc_stack_get(cu->spirv.functions, HCC_DECL_AUX(function_decl));
 	w->spirvgen.function = function;
@@ -88,8 +120,31 @@ void hcc_spirvgen_generate(HccWorker* w) {
 	HccSPIRVId function_spirv_id = hcc_spirv_decl_deduplicate(cu, function_decl);
 
 	HccDataType function_data_type = aml_function->function_data_type;
+	w->spirvgen.bc_spirv_id = HCC_SPIRV_ID_INVALID;
 	if (aml_function->shader_stage != HCC_SHADER_STAGE_NONE) {
 		function_data_type = hcc_function_data_type_deduplicate(cu, HCC_DATA_TYPE_AML_INTRINSIC_VOID, NULL, 0, 0);
+
+		uint32_t param_idx;
+		switch (aml_function->shader_stage) {
+			case HCC_SHADER_STAGE_VERTEX:
+				param_idx = HCC_VERTEX_SHADER_PARAM_BC;
+				break;
+			case HCC_SHADER_STAGE_FRAGMENT:
+				param_idx = HCC_FRAGMENT_SHADER_PARAM_BC;
+				break;
+			HCC_ABORT("unhandled shader type %u", aml_function->shader_stage);
+		}
+
+		//
+		// add the bundled constants global variable for this shader
+		w->spirvgen.bc_spirv_id = hcc_spirv_next_id(cu);
+		HccDataType bc_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, aml_function->values[param_idx].data_type);
+		HccSPIRVOperand* operands = hcc_spirv_add_global_variable(cu, 3);
+		HccSPIRVStorageClass storage_class = HCC_SPIRV_STORAGE_CLASS_PUSH_CONSTANT;
+		operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, bc_data_type);
+		operands[1] = w->spirvgen.bc_spirv_id;
+		operands[2] = storage_class;
+		hcc_spirvgen_found_global(w, w->spirvgen.bc_spirv_id);
 	}
 
 	HccSPIRVOperand* operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_FUNCTION, 4);
@@ -98,9 +153,8 @@ void hcc_spirvgen_generate(HccWorker* w) {
 	operands[2] = HCC_SPIRV_FUNCTION_CTRL_NONE;
 	operands[3] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, function_data_type);
 
-	HccSPIRVId rasterizer_state_variable_start_spirv_id;
-	HccSPIRVId fragment_state_variable_start_spirv_id;
-	uint32_t rasterizer_state_variable_position_field_idx;
+	w->spirvgen.rasterizer_state_variable_spirv_id = HCC_SPIRV_ID_INVALID;
+	w->spirvgen.fragment_state_variable_spirv_id = HCC_SPIRV_ID_INVALID;
 	switch (aml_function->shader_stage) {
 		case HCC_SHADER_STAGE_NONE:
 			//
@@ -113,88 +167,104 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			}
 			break;
 		case HCC_SHADER_STAGE_VERTEX: {
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_VERTEX_SV);
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_OUTPUT_VERTEX_SV_OUT);
+
 			//
 			// create the rasterizer state output variables
-			HccDataType rasterizer_state_ptr_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, ast_function->params_and_variables[HCC_VERTEX_SHADER_PARAM_RASTERIZER_STATE].data_type);
-			HccCompoundDataType* rasterizer_state_compound_data_type = hcc_compound_data_type_get(cu, hcc_data_type_strip_pointer(cu, rasterizer_state_ptr_data_type));
-			rasterizer_state_variable_start_spirv_id = hcc_spirv_next_id_many(cu, rasterizer_state_compound_data_type->fields_count);
-			for (uint32_t field_idx = 0; field_idx < rasterizer_state_compound_data_type->fields_count; field_idx += 1) {
-				HccCompoundField* field = &rasterizer_state_compound_data_type->fields[field_idx];
-				HccSPIRVId variable_spirv_id = rasterizer_state_variable_start_spirv_id + field_idx;
-
-				if (field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_POSITION) {
-					rasterizer_state_variable_position_field_idx = field_idx;
-					continue;
-				}
+			HccDataType rasterizer_state_ptr_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, aml_function->values[HCC_VERTEX_SHADER_PARAM_RASTERIZER_STATE].data_type);
+			HccDataType rasterizer_state_data_type = hcc_data_type_strip_pointer(cu, rasterizer_state_ptr_data_type);
+			if (rasterizer_state_data_type != HCC_DATA_TYPE_AML_INTRINSIC_VOID) {
+				HccSPIRVId rasterizer_data_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, rasterizer_state_data_type);
+				HccCompoundDataType* rasterizer_state_compound_data_type = hcc_compound_data_type_get(cu, rasterizer_state_data_type);
+				w->spirvgen.rasterizer_state_variable_spirv_id = hcc_spirv_next_id(cu);
 
 				operands = hcc_spirv_add_global_variable(cu, 3);
-				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, field->data_type));
-				operands[1] = variable_spirv_id;
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, rasterizer_state_ptr_data_type);
+				operands[1] = w->spirvgen.rasterizer_state_variable_spirv_id;
 				operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
 
-				operands = hcc_spirv_add_decorate(cu, 3);
-				operands[0] = variable_spirv_id;
-				operands[1] = HCC_SPIRV_DECORATION_LOCATION;
-				operands[2] = field_idx;
+				for (uint32_t field_idx = 0; field_idx < rasterizer_state_compound_data_type->fields_count; field_idx += 1) {
+					HccCompoundField* field = &rasterizer_state_compound_data_type->fields[field_idx];
 
-				if (field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP) {
-					operands = hcc_spirv_add_decorate(cu, 2);
-					operands[0] = variable_spirv_id;
-					operands[1] = HCC_SPIRV_DECORATION_FLAT;
+					operands = hcc_spirv_add_member_decorate(cu, 4);
+					operands[0] = rasterizer_data_type_spirv_id;
+					operands[1] = field_idx;
+					operands[2] = HCC_SPIRV_DECORATION_LOCATION;
+					operands[3] = field_idx;
+
+					if (field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP) {
+						operands = hcc_spirv_add_member_decorate(cu, 3);
+						operands[0] = rasterizer_data_type_spirv_id;
+						operands[1] = field_idx;
+						operands[2] = HCC_SPIRV_DECORATION_FLAT;
+					}
 				}
+
+				hcc_spirvgen_found_global(w, w->spirvgen.rasterizer_state_variable_spirv_id);
 			}
 			break;
 		};
 		case HCC_SHADER_STAGE_FRAGMENT: {
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_FRAGMENT_SV);
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAGMENT_SV_OUT);
+
 			//
 			// create the fragment state output variables
-			HccDataType fragment_state_ptr_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, ast_function->params_and_variables[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE].data_type);
-			HccCompoundDataType* fragment_state_compound_data_type = hcc_compound_data_type_get(cu, hcc_data_type_strip_pointer(cu, fragment_state_ptr_data_type));
-			fragment_state_variable_start_spirv_id = hcc_spirv_next_id_many(cu, fragment_state_compound_data_type->fields_count);
+			HccDataType fragment_state_ptr_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, aml_function->values[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE].data_type);
+			HccDataType fragment_state_data_type = hcc_data_type_strip_pointer(cu, fragment_state_ptr_data_type);
+			HccSPIRVId fragment_data_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, fragment_state_data_type);
+			HccCompoundDataType* fragment_state_compound_data_type = hcc_compound_data_type_get(cu, fragment_state_data_type);
+			w->spirvgen.fragment_state_variable_spirv_id = hcc_spirv_next_id_many(cu, fragment_state_compound_data_type->fields_count);
+
+			operands = hcc_spirv_add_global_variable(cu, 3);
+			operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, fragment_state_ptr_data_type);
+			operands[1] = w->spirvgen.fragment_state_variable_spirv_id;
+			operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
+
 			for (uint32_t field_idx = 0; field_idx < fragment_state_compound_data_type->fields_count; field_idx += 1) {
 				HccCompoundField* field = &fragment_state_compound_data_type->fields[field_idx];
-				HccSPIRVId variable_spirv_id = fragment_state_variable_start_spirv_id + field_idx;
 
-				operands = hcc_spirv_add_global_variable(cu, 3);
-				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, field->data_type));
-				operands[1] = variable_spirv_id;
-				operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
-
-				operands = hcc_spirv_add_decorate(cu, 3);
-				operands[0] = variable_spirv_id;
-				operands[1] = HCC_SPIRV_DECORATION_LOCATION;
-				operands[2] = field_idx;
+				operands = hcc_spirv_add_member_decorate(cu, 4);
+				operands[0] = fragment_data_type_spirv_id;
+				operands[1] = field_idx;
+				operands[2] = HCC_SPIRV_DECORATION_LOCATION;
+				operands[3] = field_idx;
 			}
+			hcc_spirvgen_found_global(w, w->spirvgen.fragment_state_variable_spirv_id);
 
 			//
 			// create the rasterizer state input variables
-			HccDataType rasterizer_state_ptr_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, ast_function->params_and_variables[HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE].data_type);
-			HccCompoundDataType* rasterizer_state_compound_data_type = hcc_compound_data_type_get(cu, hcc_data_type_strip_pointer(cu, rasterizer_state_ptr_data_type));
-			rasterizer_state_variable_start_spirv_id = hcc_spirv_next_id_many(cu, rasterizer_state_compound_data_type->fields_count);
-			for (uint32_t field_idx = 0; field_idx < rasterizer_state_compound_data_type->fields_count; field_idx += 1) {
-				HccCompoundField* field = &rasterizer_state_compound_data_type->fields[field_idx];
-				HccSPIRVId variable_spirv_id = rasterizer_state_variable_start_spirv_id + field_idx;
-
-				if (field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_POSITION) {
-					rasterizer_state_variable_position_field_idx = field_idx;
-					continue;
-				}
+			HccDataType rasterizer_state_ptr_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, aml_function->values[HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE].data_type);
+			HccDataType rasterizer_state_data_type = hcc_data_type_strip_pointer(cu, rasterizer_state_ptr_data_type);
+			if (rasterizer_state_data_type != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE_AML_INTRINSIC_VOID)) {
+				HccSPIRVId rasterizer_data_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INPUT, rasterizer_state_data_type);
+				HccCompoundDataType* rasterizer_state_compound_data_type = hcc_compound_data_type_get(cu, rasterizer_state_data_type);
+				w->spirvgen.rasterizer_state_variable_spirv_id = hcc_spirv_next_id_many(cu, rasterizer_state_compound_data_type->fields_count);
 
 				operands = hcc_spirv_add_global_variable(cu, 3);
-				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, field->data_type));
-				operands[1] = variable_spirv_id;
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INPUT, rasterizer_state_ptr_data_type);
+				operands[1] = w->spirvgen.rasterizer_state_variable_spirv_id;
 				operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
 
-				operands = hcc_spirv_add_decorate(cu, 3);
-				operands[0] = variable_spirv_id;
-				operands[1] = HCC_SPIRV_DECORATION_LOCATION;
-				operands[2] = field_idx;
+				for (uint32_t field_idx = 0; field_idx < rasterizer_state_compound_data_type->fields_count; field_idx += 1) {
+					HccCompoundField* field = &rasterizer_state_compound_data_type->fields[field_idx];
+					HccSPIRVId variable_spirv_id = w->spirvgen.rasterizer_state_variable_spirv_id + field_idx;
 
-				if (field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP) {
-					operands = hcc_spirv_add_decorate(cu, 2);
-					operands[0] = variable_spirv_id;
-					operands[1] = HCC_SPIRV_DECORATION_FLAT;
+					operands = hcc_spirv_add_member_decorate(cu, 4);
+					operands[0] = rasterizer_data_type_spirv_id;
+					operands[1] = field_idx;
+					operands[2] = HCC_SPIRV_DECORATION_LOCATION;
+					operands[3] = field_idx;
+
+					if (field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP) {
+						operands = hcc_spirv_add_member_decorate(cu, 3);
+						operands[0] = rasterizer_data_type_spirv_id;
+						operands[1] = field_idx;
+						operands[2] = HCC_SPIRV_DECORATION_FLAT;
+					}
 				}
+				hcc_spirvgen_found_global(w, w->spirvgen.rasterizer_state_variable_spirv_id);
 			}
 			break;
 		};
@@ -248,7 +318,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					memory_operands |= HCC_SPIRV_MEMORY_OPERANDS_VOLATILE;
 				}
 
-				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_operands[1]);
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
 
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3 + (memory_operands != 0));
 				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
@@ -279,7 +349,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				uint32_t memory_operands = HCC_SPIRV_MEMORY_OPERANDS_NONE;
 				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
 
-				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_operands[1]);
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
 
 				operands = hcc_spirv_function_add_instr(function, aml_op == HCC_AML_OP_PTR_ACCESS_CHAIN ? HCC_SPIRV_OP_ACCESS_CHAIN : HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, aml_operands_count + 1);
 				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
@@ -492,7 +562,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 
 				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
 				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 1);
-				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_operands[1]);
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
 				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
 				for (uint32_t operand_idx = 0; operand_idx < aml_operands_count; operand_idx += 1) {
 					operands[1 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
@@ -646,129 +716,26 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[2] = HCC_SPIRV_LOOP_CONTROL_NONE;
 				break;
 
-			case HCC_AML_OP_SYSTEM_VALUE_LOAD: {
-				uint32_t return_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+			case HCC_AML_OP_RESOURCE_DESCRIPTOR_LOAD: {
+				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HccSPIRVDescriptorBindingInfo info;
+				hcc_spirv_resource_descriptor_binding_deduplicate(w->cu, data_type, &info);
+				hcc_spirvgen_found_global(w, info.variable_spirv_id);
 
-				HccConstant constant = hcc_constant_table_get(cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operands[1])));
-				uint32_t system_value_idx = hcc_constant_read_32(constant);
+				HccSPIRVId descriptor_idx_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 
-				switch (aml_function->shader_stage) {
-					case HCC_SHADER_STAGE_VERTEX:
-						switch (system_value_idx) {
-							case HCC_VERTEX_SV_VERTEX_IDX:
-								operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3);
-								operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_S32);
-								operands[1] = return_spirv_id;
-								operands[2] = HCC_SPIRV_ID_VARIABLE_INPUT_VERTEX_INDEX;
-								hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_VERTEX_INDEX);
-								break;
-							case HCC_VERTEX_SV_INSTANCE_IDX:
-								operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3);
-								operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_S32);
-								operands[1] = return_spirv_id;
-								operands[2] = HCC_SPIRV_ID_VARIABLE_INPUT_INSTANCE_INDEX;
-								hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_INSTANCE_INDEX);
-								break;
-						}
-						break;
-					case HCC_SHADER_STAGE_FRAGMENT:
-					default: HCC_ABORT("unhandled shader stage: %u", aml_function->shader_stage);
-				}
-				break;
-			};
-
-			case HCC_AML_OP_RASTERIZER_STATE_LOAD_FIELD: {
-				uint32_t return_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
-				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
-
-				HccConstant constant = hcc_constant_table_get(cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operands[1])));
-				uint32_t field_idx = hcc_constant_read_32(constant);
-
-				HccSPIRVId src_spirv_id;
-				if (field_idx == rasterizer_state_variable_position_field_idx) {
-					src_spirv_id = HCC_SPIRV_ID_VARIABLE_INPUT_FRAG_COORD;
-				} else {
-					src_spirv_id = rasterizer_state_variable_start_spirv_id + field_idx;
-				}
-				hcc_spirvgen_found_global(w, src_spirv_id);
-
-				if (aml_operands_count > 2) {
-					uint32_t dst_spirv_id = hcc_spirv_next_id(cu);
-					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 3 + (aml_operands_count - 2));
-					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(w->cu, return_data_type));
-					operands[1] = dst_spirv_id;
-					operands[2] = src_spirv_id;
-					for (uint32_t operand_idx = 2; operand_idx < aml_operands_count; operand_idx += 1) {
-						operands[operand_idx + 1] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
-					}
-					src_spirv_id = dst_spirv_id;
+				bool is_buffer = HCC_DATA_TYPE_IS_BUFFER(data_type);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 4 + is_buffer);
+				operands[0] = info.data_type_ptr_spirv_id;
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = info.variable_spirv_id;
+				operands[3] = descriptor_idx_spirv_id;
+				if (is_buffer) {
+					// because of GLSL and it's terrible design, storage buffers need to be a structure and we only have a single element which is a runtime array
+					// this final operand will access that runtime array.
+					operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
 				}
 
-				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3);
-				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
-				operands[1] = return_spirv_id;
-				operands[2] = src_spirv_id;
-				break;
-			};
-
-			case HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD: {
-				uint32_t src_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
-				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
-
-				HccConstant constant = hcc_constant_table_get(cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operands[1])));
-				uint32_t field_idx = hcc_constant_read_32(constant);
-
-				HccSPIRVId dst_spirv_id;
-				if (field_idx == rasterizer_state_variable_position_field_idx) {
-					dst_spirv_id = HCC_SPIRV_ID_VARIABLE_OUTPUT_POSITION;
-				} else {
-					dst_spirv_id = rasterizer_state_variable_start_spirv_id + field_idx;
-				}
-				hcc_spirvgen_found_global(w, dst_spirv_id);
-
-				if (aml_operands_count > 2) {
-					uint32_t new_dst_spirv_id = hcc_spirv_next_id(cu);
-					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 3 + (aml_operands_count - 2));
-					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(w->cu, src_data_type));
-					operands[1] = new_dst_spirv_id;
-					operands[2] = dst_spirv_id;
-					for (uint32_t operand_idx = 2; operand_idx < aml_operands_count; operand_idx += 1) {
-						operands[operand_idx + 1] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
-					}
-					dst_spirv_id = new_dst_spirv_id;
-				}
-
-				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_STORE, 2);
-				operands[0] = dst_spirv_id;
-				operands[1] = src_spirv_id;
-				break;
-			};
-
-			case HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD: {
-				uint32_t src_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
-				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
-
-				HccConstant constant = hcc_constant_table_get(cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operands[1])));
-				uint32_t field_idx = hcc_constant_read_32(constant);
-
-				uint32_t dst_spirv_id = fragment_state_variable_start_spirv_id + field_idx;
-				hcc_spirvgen_found_global(w, dst_spirv_id);
-
-				if (aml_operands_count > 2) {
-					uint32_t new_dst_spirv_id = hcc_spirv_next_id(cu);
-					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 3 + (aml_operands_count - 2));
-					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(w->cu, src_data_type));
-					operands[1] = new_dst_spirv_id;
-					operands[2] = dst_spirv_id;
-					for (uint32_t operand_idx = 2; operand_idx < aml_operands_count; operand_idx += 1) {
-						operands[operand_idx + 1] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
-					}
-					dst_spirv_id = new_dst_spirv_id;
-				}
-
-				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_STORE, 2);
-				operands[0] = dst_spirv_id;
-				operands[1] = src_spirv_id;
 				break;
 			};
 

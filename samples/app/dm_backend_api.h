@@ -23,7 +23,7 @@ struct DmWindow {
 	void* handle;
 };
 
-void dm_init();
+void dm_init(void);
 void dm_screen_dims(int* width_out, int* height_out);
 DmWindow dm_window_open(int width, int height);
 bool dm_process_events(DmEvent* e);

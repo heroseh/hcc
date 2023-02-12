@@ -103,14 +103,15 @@ HccAMLOperand hcc_amlgen_instr_add_4(HccWorker* w, HccLocation* location, HccAML
 }
 
 HccAMLOperand hcc_amlgen_local_variable_operand(HccWorker* w, uint32_t local_variable_idx) {
-	if (w->amlgen.function->shader_stage == HCC_SHADER_STAGE_NONE) {
-		// the first 'params_count' value registers are the immuatable parameters.
-		// all of the mutable parameters and variables come after that.
-		return HCC_AML_OPERAND(VALUE, w->amlgen.ast_function->params_count + local_variable_idx);
-	} else {
-		// shaders have no parameters as they are remove when AST -> AML, so just use the local variable index.
-		return HCC_AML_OPERAND(VALUE, local_variable_idx - w->amlgen.ast_function->params_count);
+	// the first 'params_count' value registers are the immuatable parameters.
+	// all of the mutable parameters and variables come after that.
+	if (local_variable_idx < w->amlgen.ast_function->params_count * 2) {
+		HccAMLValue* value = &w->amlgen.function->values[w->amlgen.ast_function->params_count + local_variable_idx];
+		if (value->data_type == 0) {
+			return HCC_AML_OPERAND(VALUE, local_variable_idx); // return immutable parameter as the parameter was create with const
+		}
 	}
+	return HCC_AML_OPERAND(VALUE, w->amlgen.ast_function->params_count + local_variable_idx);
 }
 
 HccAMLOperand hcc_amlgen_current_basic_block(HccWorker* w) {
@@ -153,7 +154,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				// to get a pointer that we can store the value in.
 				HccDataType data_type = variable_data_type;
 				HccAMLInstr* access_chain_instr = &w->amlgen.function->words[w->amlgen.function->words_count];
-				HccAMLOperand dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, variable_operand, initializer_expr->designated_initializer.elmts_count, true);
+				HccAMLOperand dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, variable_operand, initializer_expr->designated_initializer.elmts_count);
 				for (uint32_t elmt_indices_idx = 0; elmt_indices_idx < initializer_expr->designated_initializer.elmts_count; elmt_indices_idx += 1) {
 					uint64_t elmt_idx = elmt_indices[elmt_indices_idx];
 
@@ -169,7 +170,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						if (elmt_indices_idx + 1 < initializer_expr->designated_initializer.elmts_count) {
 							uint32_t expected_operands_count = initializer_expr->designated_initializer.elmts_count - elmt_idx;
 							access_chain_instr = &w->amlgen.function->words[w->amlgen.function->words_count];
-							dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, dst_elmt_operand, expected_operands_count, true);
+							dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, dst_elmt_operand, expected_operands_count);
 						}
 					} else if (
 						HCC_DATA_TYPE_IS_STRUCT(data_type) ||
@@ -471,22 +472,9 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT:
 					case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT: {
 						HccAMLOperand result_operand;
-						if (w->amlgen.ast_function->shader_stage != HCC_SHADER_STAGE_NONE) {
-							result_operand = hcc_amlgen_generate_instr_shader_param(w, expr, 0);
-							if (result_operand != 0) {
-								if (!want_variable_ref && (w->amlgen.access_chain_op == HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD || w->amlgen.access_chain_op == HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD)) {
-									hcc_amlgen_error_1(w, HCC_ERROR_CODE_BUILT_IN_WRITE_ONLY_POINTER_CANNOT_BE_READ, expr->location);
-								}
-								return result_operand;
-							}
-						}
-
-						result_operand = hcc_amlgen_generate_instr_access_chain(w, expr, 0);
-						HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
-						hcc_amlgen_generate_instr_access_chain_end(w, dst_data_type);
-
-						if (!want_variable_ref) {
-							result_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD, hcc_amlgen_value_add(w, dst_data_type), result_operand);
+						result_operand = hcc_amlgen_generate_instr_access_chain(w, expr, 0, want_variable_ref);
+						if (!want_variable_ref && expr->type == HCC_AST_EXPR_TYPE_LOCAL_VARIABLE && HCC_DECL_AUX(expr->variable.decl) < w->amlgen.ast_function->params_count && w->amlgen.ast_function->shader_stage != HCC_SHADER_STAGE_NONE) {
+							hcc_amlgen_error_1(w, HCC_ERROR_CODE_BUILT_IN_WRITE_ONLY_POINTER_CANNOT_BE_READ, expr->location);
 						}
 
 						return result_operand;
@@ -990,94 +978,10 @@ HccAMLOperand hcc_amlgen_generate_instrs_condition(HccWorker* w, HccASTExpr* con
 	return cond_operand;
 }
 
-HccAMLOperand hcc_amlgen_generate_instr_shader_param(HccWorker* w, HccASTExpr* expr, uint32_t recursion_count) {
-	switch (expr->type) {
-		case HCC_AST_EXPR_TYPE_BINARY_OP:
-			switch (expr->binary.op) {
-				case HCC_AST_BINARY_OP_FIELD_ACCESS:
-				case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT:
-				case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT: {
-					HccAMLOperand operand = hcc_amlgen_generate_instr_shader_param(w, expr->binary.left_expr, recursion_count + 1);
-					if (operand == 0) {
-						return 0;
-					}
-
-					HccAMLOperand right_operand;
-					switch (expr->binary.op) {
-						case HCC_AST_BINARY_OP_FIELD_ACCESS:
-						case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT: {
-							HccBasic basic = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, expr->binary.field_idx);
-							HccConstantId constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, &basic);
-							right_operand = HCC_AML_OPERAND(CONSTANT, constant_id.idx_plus_one);
-							break;
-						};
-						case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT:
-							//
-							// generate the indexee from the right expression
-							right_operand = hcc_amlgen_generate_instrs(w, expr->binary.right_expr, false);
-							break;
-					}
-
-					hcc_amlgen_generate_instr_access_chain_set_next_operand(w, right_operand);
-					if (recursion_count == 0) {
-						if (w->amlgen.access_chain_op != HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD && w->amlgen.access_chain_op != HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD) {
-							// the read instructions complete here, but the write instructions will be completed where the assignment code is
-							// set the value operand's data type to the most root expression
-							w->amlgen.function->values[HCC_AML_OPERAND_AUX(operand)].data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
-							w->amlgen.access_chain_operands = NULL;
-						}
-					}
-					return operand;
-				};
-			}
-			break;
-		case HCC_AST_EXPR_TYPE_LOCAL_VARIABLE: {
-			uint32_t variable_idx = HCC_DECL_AUX(expr->variable.decl);
-
-			HccASTFunction* ast_function = w->amlgen.ast_function;
-			if (variable_idx < ast_function->params_count) {
-				HccAMLOp op = HCC_AML_OP_NO_OP;
-				switch (ast_function->shader_stage) {
-					case HCC_SHADER_STAGE_VERTEX:
-						switch (variable_idx) {
-							case HCC_VERTEX_SHADER_PARAM_VERTEX_SV: op = HCC_AML_OP_SYSTEM_VALUE_LOAD; break;
-							case HCC_VERTEX_SHADER_PARAM_RASTERIZER_STATE: op = HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD; break;
-							default: HCC_ABORT("unhandled vertex shader parameter: %u", variable_idx);
-						}
-						break;
-					case HCC_SHADER_STAGE_FRAGMENT:
-						switch (variable_idx) {
-							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV: op = HCC_AML_OP_SYSTEM_VALUE_LOAD; break;
-							case HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE: op = HCC_AML_OP_RASTERIZER_STATE_LOAD_FIELD; break;
-							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE: op = HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD; break;
-							default: HCC_ABORT("unhandled fragment shader parameter: %u", variable_idx);
-						}
-						break;
-					default: HCC_ABORT("unhandled shader stage: %u", ast_function->shader_stage);
-				}
-
-				if (op != HCC_AML_OP_NO_OP) {
-					HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, op, recursion_count + 1);
-					if (op != HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD && op != HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD) {
-						operands[0] = hcc_amlgen_value_add(w, 0);
-					} else {
-						operands[0] = 1;
-					}
-					w->amlgen.access_chain_operands = operands;
-					w->amlgen.access_chain_op = op;
-					w->amlgen.access_chain_operand_idx = 1;
-					return operands[0];
-				}
-			}
-			break;
-		};
-	}
-
-	// this expression does not target a shader parameter
-	return 0;
-}
-
-HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* expr, uint32_t count) {
+HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* expr, uint32_t count, bool want_variable_ref) {
+	HccAMLOperand result_operand = 0;
+	uint32_t child_count = 0;
+	bool child_want_variable_ref = want_variable_ref;
 	if (expr->type == HCC_AST_EXPR_TYPE_BINARY_OP) {
 		switch (expr->binary.op) {
 			case HCC_AST_BINARY_OP_FIELD_ACCESS:
@@ -1088,40 +992,28 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 				//
 				// if we have '->' operator and/or a union, we want to end the generation of the access chain here
 				// so we can load and/or bitcast the pointer.
-				uint32_t child_count;
 				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type)) {
 					child_count = 0;
+					child_want_variable_ref = HCC_DATA_TYPE_IS_UNION(left_data_type);
 				} else {
 					child_count = count + 1;
 				}
 
 				//
 				// recursive down the left expression tree and generate the access chain
-				HccAMLOperand result_operand = hcc_amlgen_generate_instr_access_chain(w, left_expr, child_count);
+				result_operand = hcc_amlgen_generate_instr_access_chain(w, left_expr, child_count, child_want_variable_ref);
 				uint32_t field_idx = expr->binary.field_idx;
 
 				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type)) {
 					hcc_amlgen_generate_instr_access_chain_end(w, left_data_type);
-				}
 
-				//
-				// load in pointer if we have an '->' operator
-				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT) {
-					result_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD,
-						hcc_amlgen_value_add(w, hcc_data_type_strip_pointer(w->cu, left_data_type)),
-						result_operand);
-				}
+					if (HCC_DATA_TYPE_IS_UNION(left_data_type)) {
+						//
+						// bitcast if we are accessing a union field
+						result_operand = hcc_amlgen_generate_bitcast_union_field(w, expr->location, left_data_type, field_idx, result_operand);
+					}
 
-				//
-				// bitcast if we are accessing a union field
-				if (HCC_DATA_TYPE_IS_UNION(left_data_type)) {
-					result_operand = hcc_amlgen_generate_bitcast_union_field(w, expr->location, left_data_type, field_idx, result_operand);
-				}
-
-				//
-				// start the next access chain if we ended it's generation on this instance of the recursion
-				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type)) {
-					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, result_operand, count + !HCC_DATA_TYPE_IS_UNION(left_data_type), true);
+					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, result_operand, count + !HCC_DATA_TYPE_IS_UNION(left_data_type));
 				}
 
 				//
@@ -1132,7 +1024,7 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 					hcc_amlgen_generate_instr_access_chain_set_next_operand(w, HCC_AML_OPERAND(CONSTANT, constant_id.idx_plus_one));
 				}
 
-				return result_operand;
+				goto END;
 			};
 			case HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT: {
 				//
@@ -1146,47 +1038,84 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 				// if we are indexing a pointer data type, we want to end the generation of the access chain here
 				// so we can load the pointer.
 				uint32_t child_count;
-				if (HCC_DATA_TYPE_IS_POINTER(left_data_type)) {
+				if (HCC_DATA_TYPE_IS_POINTER(left_data_type) || HCC_DATA_TYPE_IS_RESOURCE(left_data_type)) {
 					child_count = 0;
+					child_want_variable_ref = false;
 				} else {
 					child_count = count + 1;
 				}
 
 				//
 				// recursive down the left expression tree and generate the access chain
-				HccAMLOperand result_operand = hcc_amlgen_generate_instr_access_chain(w, left_expr, child_count);
+				result_operand = hcc_amlgen_generate_instr_access_chain(w, left_expr, child_count, child_want_variable_ref);
 
-				//
-				// load in pointer if we have are indexing one and start the next access chain
-				if (HCC_DATA_TYPE_IS_POINTER(left_data_type)) {
-					result_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD,
-						hcc_amlgen_value_add(w, hcc_data_type_strip_pointer(w->cu, left_data_type)),
-						result_operand);
-					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, result_operand, count + 1, child_count > 0);
+				if (HCC_DATA_TYPE_IS_POINTER(left_data_type) || HCC_DATA_TYPE_IS_RESOURCE(left_data_type)) {
+					hcc_amlgen_generate_instr_access_chain_end(w, left_data_type);
+
+					//
+					// load in pointer if we have are indexing one and start the next access chain
+					if (HCC_DATA_TYPE_IS_RESOURCE(left_data_type)) {
+						result_operand = hcc_amlgen_generate_resource_descriptor_load(w, expr->location, result_operand);
+					}
+					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, result_operand, count + 1);
 				}
 
 				hcc_amlgen_generate_instr_access_chain_set_next_operand(w, right_operand);
-				return result_operand;
+				goto END;
 			};
 			default: break;
 		}
 	}
 
 	HccAMLOperand variable_ref = hcc_amlgen_generate_instrs(w, expr, true);
-	return hcc_amlgen_generate_instr_access_chain_start(w, expr->location, variable_ref, count, true);
+	if (count == 0) {
+		return variable_ref;
+	}
+
+	result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, variable_ref, count);
+
+END: {}
+
+	if (count == 0) {
+		HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
+		hcc_amlgen_generate_instr_access_chain_end(w, dst_data_type);
+
+		if (!want_variable_ref) {
+			result_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD, hcc_amlgen_value_add(w, dst_data_type), result_operand);
+		}
+	}
+
+	return result_operand;
 }
 
-HccAMLOperand hcc_amlgen_generate_instr_access_chain_start(HccWorker* w, HccLocation* location, HccAMLOperand base_ptr_operand, uint32_t count, bool is_in_bounds) {
+HccAMLOperand hcc_amlgen_generate_instr_access_chain_start(HccWorker* w, HccLocation* location, HccAMLOp op, HccAMLOperand base_ptr_operand, uint32_t count) {
 	if (count == 0) {
 		return base_ptr_operand;
 	}
 
-	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, is_in_bounds ? HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS : HCC_AML_OP_PTR_ACCESS_CHAIN, count + 2);
-	operands[0] = hcc_amlgen_value_add(w, (HccDataType)0);
-	operands[1] = base_ptr_operand;
+	uint32_t extra_operands_count;
+	switch (op) {
+		case HCC_AML_OP_PTR_ACCESS_CHAIN:
+		case HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS:
+			extra_operands_count = 2;
+			break;
+		default: HCC_ABORT("unexpected access chain op: %u\n", op);
+	}
 
+	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, op, count + extra_operands_count);
+
+	switch (op) {
+		case HCC_AML_OP_PTR_ACCESS_CHAIN:
+		case HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS:
+			operands[0] = hcc_amlgen_value_add(w, (HccDataType)0);
+			operands[1] = base_ptr_operand;
+			break;
+		default: HCC_ABORT("unexpected access chain op: %u\n", op);
+	}
+
+	w->amlgen.access_chain_op = op;
 	w->amlgen.access_chain_operands = operands;
-	w->amlgen.access_chain_operand_idx = 2;
+	w->amlgen.access_chain_operand_idx = extra_operands_count;
 	return operands[0];
 }
 
@@ -1208,8 +1137,14 @@ void hcc_amlgen_generate_instr_access_chain_end(HccWorker* w, HccDataType dst_da
 	*instr = HCC_AML_INSTR(HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, operands_count);
 	w->amlgen.function->words_count -= expected_operands_count - operands_count;
 
-	w->amlgen.function->values[HCC_AML_OPERAND_AUX(w->amlgen.access_chain_operands[0])].data_type = hcc_pointer_data_type_deduplicate(w->cu, dst_data_type);
-	w->amlgen.access_chain_operands = NULL;
+	switch (w->amlgen.access_chain_op) {
+		case HCC_AML_OP_PTR_ACCESS_CHAIN:
+		case HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS:
+			w->amlgen.function->values[HCC_AML_OPERAND_AUX(w->amlgen.access_chain_operands[0])].data_type = hcc_pointer_data_type_deduplicate(w->cu, dst_data_type);
+			w->amlgen.access_chain_operands = NULL;
+			break;
+		default: HCC_ABORT("unexpected access chain op: %u\n", w->amlgen.access_chain_op);
+	}
 }
 
 HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation* location, HccDataType union_data_type, uint32_t field_idx, HccAMLOperand union_ptr_operand) {
@@ -1222,10 +1157,20 @@ HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation*
 		union_ptr_operand);
 }
 
+HccAMLOperand hcc_amlgen_generate_resource_descriptor_load(HccWorker* w, HccLocation* location, HccAMLOperand operand) {
+	HccDataType resource_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, operand);
+	if (HCC_DATA_TYPE_IS_POINTER(resource_data_type)) {
+		resource_data_type = hcc_data_type_strip_pointer(w->cu, resource_data_type);
+		operand = hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_PTR_LOAD, hcc_amlgen_value_add(w, resource_data_type), operand);
+	}
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_RESOURCE(resource_data_type), "expected data type to be a resource data type but got %u", resource_data_type);
+	HccDataType descriptor_data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, HCC_DATA_TYPE_AUX(resource_data_type));
+	return hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_RESOURCE_DESCRIPTOR_LOAD, hcc_amlgen_value_add(w, descriptor_data_type), operand);
+}
+
 void hcc_amlgen_generate(HccWorker* w) {
 	HccDecl function_decl = (HccDecl)(uintptr_t)w->job.arg;
 	HccASTFunction* ast_function = hcc_ast_function_get(w->cu, function_decl);
-	bool is_not_shader = ast_function->shader_stage == HCC_SHADER_STAGE_NONE;
 
 	HccAMLFunction* function = hcc_aml_function_alctor_alloc(w->cu, ast_function->max_instrs_count);
 	function->identifier_location = ast_function->identifier_location;
@@ -1233,7 +1178,7 @@ void hcc_amlgen_generate(HccWorker* w) {
 	function->function_data_type = ast_function->function_data_type;
 	function->return_data_type = hcc_data_type_lower_ast_to_aml(w->cu, ast_function->return_data_type);
 	function->shader_stage = ast_function->shader_stage;
-	function->params_count = is_not_shader ? ast_function->params_count : 0;
+	function->params_count = ast_function->params_count;
 	function->opt_level = ast_function->opt_level;
 	*hcc_stack_get(w->cu->aml.functions, HCC_DECL_AUX(function_decl)) = function;
 	w->amlgen.function_decl = function_decl;
@@ -1242,32 +1187,34 @@ void hcc_amlgen_generate(HccWorker* w) {
 
 	//
 	// immutable parameters
-	if (is_not_shader) {
-		for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
-			HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
-			HccDataType data_type = hcc_data_type_lower_ast_to_aml(w->cu, variable->data_type);
-			hcc_amlgen_value_add(w, data_type);
-		}
+	for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
+		HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
+		HccDataType data_type = hcc_data_type_lower_ast_to_aml(w->cu, variable->data_type);
+		hcc_amlgen_value_add(w, data_type);
 	}
 
 	HccASTExpr* block_expr = ast_function->block_expr;
 	hcc_amlgen_basic_block_add(w, block_expr->location);
 
-	if (is_not_shader) {
-		//
-		// mutable parameters
-		for (uint32_t variable_idx = 0; variable_idx < ast_function->params_count; variable_idx += 1) {
-			HccASTVariable* variable = &ast_function->params_and_variables[variable_idx];
+	//
+	// mutable parameters
+	for (uint32_t variable_idx = 0; variable_idx < ast_function->params_count; variable_idx += 1) {
+		HccASTVariable* variable = &ast_function->params_and_variables[variable_idx];
+		if (HCC_DATA_TYPE_IS_CONST(variable->data_type)) {
+			HccAMLOperand value_operand = hcc_amlgen_value_add(w, 0); // add a dummy value if parameter was marked as const
+		} else {
 			HccDataType data_type = hcc_data_type_lower_ast_to_aml(w->cu, variable->data_type);
 			HccDataType ptr_data_type = hcc_pointer_data_type_deduplicate(w->cu, data_type);
 			HccAMLOperand value_operand = hcc_amlgen_value_add(w, ptr_data_type);
 			hcc_amlgen_instr_add_2(w, variable->identifier_location, HCC_AML_OP_PTR_STATIC_ALLOC, value_operand, data_type);
 		}
+	}
 
-		//
-		// store the value from the immutable parameters in the mutable parameters
-		for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
-			HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
+	//
+	// store the value from the immutable parameters in the mutable parameters
+	for (uint32_t param_idx = 0; param_idx < ast_function->params_count; param_idx += 1) {
+		HccASTVariable* variable = &ast_function->params_and_variables[param_idx];
+		if (!HCC_DATA_TYPE_IS_CONST(variable->data_type)) {
 			HccAMLOperand dst_operand = hcc_amlgen_local_variable_operand(w, param_idx);
 			HccAMLOperand src_operand = HCC_AML_OPERAND(VALUE, param_idx);
 			hcc_amlgen_instr_add_2(w, variable->identifier_location, HCC_AML_OP_PTR_STORE, dst_operand, src_operand);

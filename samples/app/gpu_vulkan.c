@@ -17,6 +17,14 @@
 
 #define GPU_VK_DEBUG 1
 
+typedef struct GpuVkResource GpuVkResource;
+struct GpuVkResource {
+	VkBuffer       buffer;
+	VkDeviceMemory device_memory;
+	uint32_t       device_memory_size;
+	void*          device_memory_mapped;
+};
+
 typedef struct GpuVk GpuVk;
 struct GpuVk {
 	AppSampleEnum         sample_enum;
@@ -26,6 +34,7 @@ struct GpuVk {
 
 	VkInstance            instance;
 	VkPhysicalDevice      physical_device;
+	VkPhysicalDeviceMemoryProperties memory_properties;
 	VkDevice              device;
 	VkQueue               queue;
 	VkSurfaceKHR          surface;
@@ -34,6 +43,10 @@ struct GpuVk {
 	VkImageView*          swapchain_image_views;
 	VkImage               depth_image;
 	VkImageView           depth_image_view;
+	VkShaderStageFlags    push_constants_stage_flags;
+
+	uint32_t              next_resource_id;
+	GpuVkResource         resources[128];
 
 	VkCommandPool         command_pools[APP_FRAMES_IN_FLIGHT];
 	VkFence               fences[APP_FRAMES_IN_FLIGHT];
@@ -160,6 +173,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		APP_VK_ASSERT(vkEnumeratePhysicalDevices(gpu.instance, &physical_devices_count, physical_devices));
 
 		gpu.physical_device = physical_devices[0];
+
+		vkGetPhysicalDeviceMemoryProperties(gpu.physical_device, &gpu.memory_properties);
 	}
 
 	{
@@ -195,6 +210,15 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
 			.pNext = &features_1_1,
 			.vulkanMemoryModel = VK_TRUE,
+			.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
+			.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE,
+			.shaderStorageImageArrayNonUniformIndexing = VK_TRUE,
+			.shaderStorageTexelBufferArrayNonUniformIndexing = VK_TRUE,
+			.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
+			.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE,
+			.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE,
+			.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_TRUE,
+			.descriptorBindingPartiallyBound = VK_TRUE,
 		};
 		VkPhysicalDeviceVulkan13Features features_1_3 = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
@@ -421,6 +445,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 
 		APP_VK_ASSERT(vkCreateImageView(gpu.device, &image_view_create_info, NULL, &gpu.depth_image_view));
 	}
+
+	gpu.push_constants_stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
 }
 
 void gpu_init_sample(AppSampleEnum sample_enum) {
@@ -430,24 +456,50 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 	GpuVkSample* gpu_sample = &gpu_samples[sample_enum];
 
 	{
+		VkDescriptorBindingFlags bindless_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
+
+		VkDescriptorSetLayoutBinding bindings[] = {
+			[0] = {
+				.binding = 0,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+				.descriptorCount = 1024,
+				.stageFlags = gpu.push_constants_stage_flags,
+				.pImmutableSamplers = 0,
+			},
+		};
+
+		VkDescriptorSetLayoutBindingFlagsCreateInfoEXT bindless_create_info;
+		bindless_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
+		bindless_create_info.pNext = NULL;
+		bindless_create_info.bindingCount = APP_ARRAY_COUNT(bindings);
+		bindless_create_info.pBindingFlags = &bindless_flags;
+
 		VkDescriptorSetLayoutCreateInfo create_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			.pNext = NULL,
-			.bindingCount = 0,
-			.pBindings = NULL,
+			.pNext = &bindless_create_info,
+			.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
+			.bindingCount = APP_ARRAY_COUNT(bindings),
+			.pBindings = bindings,
 		};
 
 		APP_VK_ASSERT(vkCreateDescriptorSetLayout(gpu.device, &create_info, NULL, &gpu_sample->descriptor_set_layout));
 	}
 
 	{
+		VkDescriptorPoolSize pool_sizes[] = {
+			[0] = {
+				.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+				.descriptorCount = 1024,
+			},
+		};
 
 		VkDescriptorPoolCreateInfo create_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 			.pNext = NULL,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
 			.maxSets = 1,
-			.poolSizeCount = 0,
-			.pPoolSizes = NULL,
+			.poolSizeCount = APP_ARRAY_COUNT(pool_sizes),
+			.pPoolSizes = pool_sizes,
 		};
 
 		APP_VK_ASSERT(vkCreateDescriptorPool(gpu.device, &create_info, NULL, &gpu_sample->descriptor_pool));
@@ -466,11 +518,19 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 	}
 
 	{
+		VkPushConstantRange push_constant_range = {
+			.stageFlags = gpu.push_constants_stage_flags,
+			.offset = 0,
+			.size = 128,
+		};
+
 		VkPipelineLayoutCreateInfo create_info = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.pNext = NULL,
 			.setLayoutCount = 1,
 			.pSetLayouts = &gpu_sample->descriptor_set_layout,
+			.pushConstantRangeCount = 1,
+			.pPushConstantRanges = &push_constant_range,
 		};
 
 		APP_VK_ASSERT(vkCreatePipelineLayout(gpu.device, &create_info, NULL, &gpu_sample->pipeline_layout));
@@ -704,13 +764,48 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 	}
 }
 
-void gpu_render_frame(AppSampleEnum sample_enum) {
+void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 	VkResult vk_result;
 
 	AppSample* sample = &app_samples[sample_enum];
 	GpuVkSample* gpu_sample = &gpu_samples[sample_enum];
 
 	uint32_t active_frame_idx = gpu.frame_idx % APP_FRAMES_IN_FLIGHT;
+
+	for (uint32_t res_idx = 0; res_idx < gpu.next_resource_id; res_idx += 1) {
+		GpuVkResource* res = &gpu.resources[res_idx];
+
+		VkMappedMemoryRange range = {
+			.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+			.pNext = NULL,
+			.memory = res->device_memory,
+			.offset = 0,
+			.size = res->device_memory_size,
+		};
+
+		APP_VK_ASSERT(vkFlushMappedMemoryRanges(gpu.device, 1, &range));
+
+		VkDescriptorBufferInfo buffer_info = {
+			.buffer = res->buffer,
+			.offset = 0,
+			.range = VK_WHOLE_SIZE,
+		};
+
+		VkWriteDescriptorSet vk_descriptor_write = {
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.pNext = NULL,
+			.dstSet = gpu_sample->descriptor_set,
+			.dstBinding = 0,
+			.dstArrayElement = 0,
+			.descriptorCount = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			.pImageInfo = NULL,
+			.pBufferInfo = &buffer_info,
+			.pTexelBufferView = NULL,
+		};
+
+		vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL);
+	}
 
 	//
 	// wait for two frames ago to be finished on the GPU so we can start using it's stuff!
@@ -747,6 +842,8 @@ void gpu_render_frame(AppSampleEnum sample_enum) {
 
 		APP_VK_ASSERT(vkBeginCommandBuffer(vk_command_buffer, &begin_info));
 	}
+
+	vkCmdPushConstants(vk_command_buffer, gpu_sample->pipeline_layout, gpu.push_constants_stage_flags, 0, bc_size, bc);
 
 	switch (sample->shader_type) {
 		case APP_SHADER_TYPE_GRAPHICS: {
@@ -858,6 +955,7 @@ void gpu_render_frame(AppSampleEnum sample_enum) {
 			}
 
 			vkCmdBindPipeline(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu_sample->pipeline);
+			vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu_sample->pipeline_layout, 0, 1, &gpu_sample->descriptor_set, 0, NULL);
 			vkCmdDraw(vk_command_buffer, sample->graphics.vertices_count, 1, 0, 0);
 			vkCmdEndRendering(vk_command_buffer);
 
@@ -942,6 +1040,7 @@ void gpu_render_frame(AppSampleEnum sample_enum) {
 			}
 
 			vkCmdBindPipeline(vk_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, gpu_sample->pipeline);
+			vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, gpu_sample->pipeline_layout, 0, 1, &gpu_sample->descriptor_set, 0, NULL);
 			vkCmdDispatch(vk_command_buffer, sample->compute.dispatch_size_x, sample->compute.dispatch_size_y, sample->compute.dispatch_size_z);
 
 			{
@@ -1044,5 +1143,61 @@ void gpu_render_frame(AppSampleEnum sample_enum) {
 		APP_VK_ASSERT(vkQueuePresentKHR(gpu.queue, &present_info));
 	}
 	gpu.frame_idx += 1;
+}
+
+GpuResourceId gpu_create_buffer(uint32_t size) {
+	VkResult vk_result;
+	GpuResourceId res_id = gpu.next_resource_id;
+	APP_ASSERT(res_id < APP_ARRAY_COUNT(gpu.resources), "resources full");
+	gpu.next_resource_id += 1;
+
+	GpuVkResource* res = &gpu.resources[res_id];
+
+	VkBufferCreateInfo create_info = {
+		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		.size = size,
+		.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.queueFamilyIndexCount = 0,
+		.pQueueFamilyIndices = NULL,
+	};
+
+	APP_VK_ASSERT(vkCreateBuffer(gpu.device, &create_info, NULL, &res->buffer));
+
+	VkMemoryRequirements mem_req;
+	vkGetBufferMemoryRequirements(gpu.device, res->buffer, &mem_req);
+	res->device_memory_size = mem_req.size;
+
+	uint32_t memory_type_idx = 0;
+	while (1) {
+		if (mem_req.memoryTypeBits & (1 << memory_type_idx)) {
+			if (gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+				break;
+			}
+		}
+		memory_type_idx += 1;
+	}
+	APP_ASSERT(memory_type_idx < VK_MAX_MEMORY_TYPES, "failed to find memory type");
+
+	VkMemoryAllocateInfo alloc_info = {
+		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+		.pNext = NULL,
+		.allocationSize = mem_req.size,
+		.memoryTypeIndex = memory_type_idx,
+	};
+	APP_VK_ASSERT(vkAllocateMemory(gpu.device, &alloc_info, NULL, &res->device_memory));
+	APP_VK_ASSERT(vkBindBufferMemory(gpu.device, res->buffer, res->device_memory, 0));
+	APP_VK_ASSERT(vkMapMemory(gpu.device, res->device_memory, 0, mem_req.size, 0, &res->device_memory_mapped));
+
+	return res_id;
+}
+
+void* gpu_map_buffer(GpuResourceId res_id) {
+	VkResult vk_result;
+	APP_ASSERT(res_id < APP_ARRAY_COUNT(gpu.resources), "resource id out of bounds");
+	GpuVkResource* res = &gpu.resources[res_id];
+	return res->device_memory_mapped;
 }
 

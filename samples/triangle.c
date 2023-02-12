@@ -1,20 +1,38 @@
+
+#ifdef __HCC__
 #include <libc-gpu/stdbool.h>
 #include <libc-gpu/stdint.h>
+#else
+#include <stdbool.h>
+#include <stdint.h>
+#endif
+#include <libhccstd/core.h>
+#include <libhccstd/math_types.h>
+
+typedef struct TriangleVertex TriangleVertex;
+struct TriangleVertex {
+	f32x2 pos;
+};
+
+typedef struct TriangleBC TriangleBC;
+struct TriangleBC {
+	HccRoBuffer(TriangleVertex) vertices;
+	f32x4 tint;
+};
+
+#ifdef __HCC__
 #include <libhccstd/core.h>
 #include <libhccstd/math.h>
 
-HCC_DEFINE_RASTERIZER_STATE(
-	RasterizerState,
-	(POSITION, f32x4, position),
-	(INTERP,   f32x4, color)
-);
+typedef struct RasterizerState RasterizerState;
+HCC_RASTERIZER_STATE struct RasterizerState {
+	HCC_INTERP f32x4 color;
+};
 
-vertex void vs(HccVertexSV const sv, RasterizerState* const state_out) {
-	f32x2 vertices[3] = {
-		f32x2(-0.5f, -0.5f),
-		f32x2(0.f, 0.5f),
-		f32x2(0.5f, -0.5f),
-	};
+HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, TriangleBC const* const bc, RasterizerState* const state_out) {
+	RoBuffer(TriangleVertex) vertices = bc->vertices;
+
+	TriangleVertex vertex = bc->vertices[sv->vertex_idx];
 
 	f32x4 colors[3] = {
 		f32x4(1.f, 0.f, 0.f, 1.f),
@@ -22,16 +40,17 @@ vertex void vs(HccVertexSV const sv, RasterizerState* const state_out) {
 		f32x4(0.f, 0.f, 1.f, 1.f),
 	};
 
-	state_out->position = f32x4(vertices[sv.vertex_idx].x, vertices[sv.vertex_idx].y, 0.f, 1.f);
-	state_out->color = colors[sv.vertex_idx];
+	sv_out->position = f32x4(vertex.pos.x, vertices[sv->vertex_idx].pos.y, 0.f, 1.f);
+	state_out->color = mul_f32x4(colors[sv->vertex_idx], bc->tint);
 }
 
-HCC_DEFINE_FRAGMENT_STATE(
-	Fragment,
-	(f32x4, color)
-);
+typedef struct Fragment Fragment;
+HCC_FRAGMENT_STATE struct Fragment {
+	f32x4 color;
+};
 
-fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fragment* const frag_out) {
+HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, TriangleBC const* const bc, RasterizerState const* const state, Fragment* const frag_out) {
 	frag_out->color = state->color;
 }
 
+#endif // __HCC__

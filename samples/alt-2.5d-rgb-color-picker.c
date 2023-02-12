@@ -1,5 +1,20 @@
+
+#ifdef __HCC__
 #include <libc-gpu/stdbool.h>
 #include <libc-gpu/stdint.h>
+#else
+#include <stdbool.h>
+#include <stdint.h>
+#endif
+#include <libhccstd/math_types.h>
+
+typedef struct ColorPickerBC ColorPickerBC;
+struct ColorPickerBC {
+	float time_;
+};
+
+#ifdef __HCC__
+
 #include <libhccstd/core.h>
 #include <libhccstd/math.h>
 
@@ -15,15 +30,13 @@
 #define SELECTED_SPEED		4.f
 #define SELECTED_MAX_OFFSET   (CUBE_HALF_SIZE * 2.f)
 
-#define TODO_TIME 5.f
-
 //
 // these sin_f32 functions (mostly ANIM_WAVE) is slowing down the shader.
 // in a real application these will be passed in to the shader.
-#define ANIM_ROTATION_Y	   (is_at_timeline_range(TIMELINE_SPIN_START, TIMELINE_SPIN_END) ? sin_f32(TODO_TIME * 1.5f) * PI_F32 * 2.f : 0.f)
-#define ANIM_AXIS			 (is_at_timeline_range(TIMELINE_OPEN_START, TIMELINE_OPEN_END) ? (sin_f32(TODO_TIME * 2.f - PI_F32 / 2.f) * 0.5f + 0.5f) : 1.f)
-#define ANIM_WAVE			 (is_at_timeline_range(TIMELINE_WAVE_START, TIMELINE_WAVE_END) ? sin_f32(TODO_TIME * 8.f + (float)(color_idx.x + color_idx.z)) * (sin_f32(smoothstep_f32(TIMELINE_WAVE_START, TIMELINE_WAVE_END, TODO_TIME) * (PI_F32 * 1.5f)) * 0.5f + 0.5f) * 0.045f : 0.f)
-#define ANIM_SELECTED		 (is_at_timeline_range(TIMELINE_SELECT_START, TIMELINE_SELECT_END) ? 1.f : 0.f)
+#define ANIM_ROTATION_Y	   (is_at_timeline_range(TIMELINE_SPIN_START, TIMELINE_SPIN_END, time_) ? sin_f32(time_ * 1.5f) * PI_F32 * 2.f : 0.f)
+#define ANIM_AXIS			 (is_at_timeline_range(TIMELINE_OPEN_START, TIMELINE_OPEN_END, bc->time_) ? (sin_f32(bc->time_ * 2.f - PI_F32 / 2.f) * 0.5f + 0.5f) : 1.f)
+#define ANIM_WAVE			 (is_at_timeline_range(TIMELINE_WAVE_START, TIMELINE_WAVE_END, time_) ? sin_f32(time_ * 8.f + (float)(color_idx.x + color_idx.z)) * (sin_f32(smoothstep_f32(TIMELINE_WAVE_START, TIMELINE_WAVE_END, time_) * (PI_F32 * 1.5f)) * 0.5f + 0.5f) * 0.045f : 0.f)
+#define ANIM_SELECTED		 (is_at_timeline_range(TIMELINE_SELECT_START, TIMELINE_SELECT_END, time_) ? 1.f : 0.f)
 
 #define TIMELINE_SPIN_START   0.f
 #define TIMELINE_SPIN_END	 1.1f
@@ -40,18 +53,13 @@ const float cube_border_half_size = CUBE_BORDER_HALF_SIZE;
 const float cube_axis_offset = CUBE_AXIS_OFFSET;
 const float selected_max_offset = SELECTED_MAX_OFFSET;
 
-HCC_DEFINE_RASTERIZER_STATE(
-	RasterizerState,
-	(POSITION, f32x4, position)
-);
+typedef struct Fragment Fragment;
+HCC_FRAGMENT_STATE struct Fragment {
+	f32x4 color;
+};
 
-HCC_DEFINE_FRAGMENT_STATE(
-	Fragment,
-	(f32x4, color)
-);
-
-vertex void vs(HccVertexSV const sv, RasterizerState* const state_out) {
-	state_out->position = f32x4((sv.vertex_idx & 1) * 2.f - 1.f, (sv.vertex_idx / 2) * 2.f - 1.f, 0.f, 1.f);
+HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, ColorPickerBC const* const bc, void* const state_out) {
+	sv_out->position = f32x4((sv->vertex_idx & 1) * 2.f - 1.f, (sv->vertex_idx / 2) * 2.f - 1.f, 0.f, 1.f);
 }
 
 float distance_sq_cube(f32x3 pos, float size) {
@@ -82,9 +90,8 @@ f32x2x2 mat2_identity_rotation(float angle)
 	return m;
 }
 
-bool is_at_timeline_range(float start, float end) {
-	float time = TODO_TIME;
-	return start <= time && time <= end;
+bool is_at_timeline_range(float start, float end, float time_) {
+	return start <= time_ && time_ <= end;
 }
 
 float scale = 1.f;
@@ -93,7 +100,8 @@ f32x4 distance_cubes(
 	f32x3 is_split_axis_v3,
 	f32x3 split_axis_offset,
 	u32x3 selected_color_idx,
-	float offset_ratio
+	float offset_ratio,
+	float time_
 ) {
 	//
 	// rotate the sample position towards local space of the cube
@@ -163,7 +171,7 @@ f32x4 distance_cubes(
 						//
 						// we hit the frame of the cube
 						float grey = sumelmts_f32x3(divs_f32x3(ssub_f32x3(1.f, color), 3.f));
-						grey += is_selected_f * sin_f32(TODO_TIME * SELECTED_SPEED) * ANIM_SELECTED;
+						grey += is_selected_f * sin_f32(time_ * SELECTED_SPEED) * ANIM_SELECTED;
 						last_dist_sq = f32x4(grey, grey, grey, next_dist_sq);
 					 } else {
 						//
@@ -179,13 +187,13 @@ f32x4 distance_cubes(
 	return last_dist_sq;
 }
 
-fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fragment* const frag_out) {
+HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, ColorPickerBC const* const bc, void const* const state, Fragment* const frag_out) {
 	f32x2 TODO_screen_size = f32x2(640, 480);
 
 	// a value from -1.f to 1.f
 	f32x2 screen_pos = f32x2(
-		(state->position.x * 2.f - TODO_screen_size.x) / TODO_screen_size.y,
-		(state->position.y * 2.f - TODO_screen_size.y) / -TODO_screen_size.y
+		(sv->frag_coord.x * 2.f - TODO_screen_size.x) / TODO_screen_size.y,
+		(sv->frag_coord.y * 2.f - TODO_screen_size.y) / -TODO_screen_size.y
 	);
 
 	f32x3 world_up = f32x3(0.f, -1.f, 0.f);
@@ -209,7 +217,7 @@ fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fra
 	f32x3 axis = muls_f32x3(f32x3(0.f, 1.f, 0.f), ANIM_AXIS);
 	f32x3 axis_offset = adds_f32x3(muls_f32x3(axis, cube_axis_offset), cube_size);
 
-	float offset_ratio = sin_f32(TODO_TIME * SELECTED_SPEED) * 0.5f + 0.5f;
+	float offset_ratio = sin_f32(bc->time_ * SELECTED_SPEED) * 0.5f + 0.5f;
 
 	for (int i = 0; i < MAX_ITER; i += 1) {
 		if (dist.w < EPSILON || total_dist > MAX_DIST) {
@@ -221,7 +229,8 @@ fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fra
 			axis,
 			axis_offset,
 			selected_color_idx,
-			offset_ratio
+			offset_ratio,
+			bc->time_
 		);
 		total_dist += dist.w;
 		ray_sample_pos = add_f32x3(ray_sample_pos, muls_f32x3(ray_dir, dist.w));
@@ -237,3 +246,4 @@ fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fra
 	frag_out->color = f32x4(color.x, color.y, color.z, 1.f);
 }
 
+#endif // __HCC__

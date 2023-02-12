@@ -94,15 +94,14 @@ HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
 	[HCC_OPTION_KEY_TARGET_OS] =                HCC_TARGET_OS_LINUX,
 	[HCC_OPTION_KEY_TARGET_GFX_API] =           HCC_TARGET_GFX_API_VULKAN,
 	[HCC_OPTION_KEY_TARGET_FORMAT] =            HCC_TARGET_FORMAT_SPIRV,
-	[HCC_OPTION_KEY_TARGET_RESOURCE_MODEL] =    HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS,
 	[HCC_OPTION_KEY_INT8_ENABLED] =             false,
 	[HCC_OPTION_KEY_INT16_ENABLED] =            false,
 	[HCC_OPTION_KEY_INT64_ENABLED] =            false,
 	[HCC_OPTION_KEY_FLOAT16_ENABLED] =          false,
 	[HCC_OPTION_KEY_FLOAT64_ENABLED] =          false,
 	[HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED] = false,
-	[HCC_OPTION_KEY_RESOURCE_SET_SLOT_MAX] = { .uint = 4 },
-	[HCC_OPTION_KEY_RESOURCE_CONSTANTS_MAX_SIZE] = { .uint = 32 },
+	[HCC_OPTION_KEY_BUNDLED_CONSTANTS_MAX_SIZE] = { .uint = 32 },
+	[HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX] = { .uint = 1024 },
 };
 
 HccResult hcc_options_init(HccOptionsSetup* setup, HccOptions** o_out) {
@@ -1059,7 +1058,7 @@ HccResult hcc_compiler_dispatch_task(HccCompiler* c, HccTask* t) {
 		// - write the code that refetches the file when the timestamp is out of date
 		//
 		HCC_CONTRIBUTOR_TASK(keep code files around between compiles);
-		hcc_clear_code_files(c);
+		hcc_clear_code_files();
 	}
 
 	{
@@ -1196,8 +1195,6 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 			uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + f;
 			hcc_string_table_intrinsic_add(expected_string_id, string);
 		}
-
-		hcc_string_table_intrinsic_add(HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_HALF, "half");
 
 		//
 		// generate the packed vector names
@@ -1499,7 +1496,7 @@ HccResult hcc_init(HccSetup* setup) {
 	return HCC_RESULT_SUCCESS;
 }
 
-void hcc_deinit() {
+void hcc_deinit(void) {
 	hcc_arena_alctor_deinit(&_hcc_gs.arena_alctor);
 	hcc_string_table_deinit(&_hcc_gs.string_table);
 	for (uint32_t idx = 0; idx < hcc_hash_table_cap(_hcc_gs.path_to_code_file_map); idx += 1) {
@@ -1511,7 +1508,7 @@ void hcc_deinit() {
 	hcc_hash_table_deinit(_hcc_gs.path_to_code_file_map);
 }
 
-HccResult hcc_clear_global_mem_arena() {
+HccResult hcc_clear_global_mem_arena(void) {
 	HCC_SET_BAIL_JMP_LOC_GLOBAL();
 
 	hcc_arena_alctor_reset(&_hcc_gs.arena_alctor);
@@ -1520,7 +1517,7 @@ HccResult hcc_clear_global_mem_arena() {
 	return HCC_RESULT_SUCCESS;
 }
 
-HccResult hcc_clear_code_files() {
+HccResult hcc_clear_code_files(void) {
 	HCC_SET_BAIL_JMP_LOC_GLOBAL();
 
 	for (uint32_t idx = 0; idx < hcc_hash_table_cap(_hcc_gs.path_to_code_file_map); idx += 1) {

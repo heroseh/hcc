@@ -5,6 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+//
+// include the samples here so we have access to their structures
+#include "../triangle.c"
+#include "../alt-2.5d-rgb-color-picker.c"
+#include "../blob-vacation.c"
+
 #define APP_NAME "Hcc Samples"
 
 // these name can be what ever you want, we just want to make it consistant and easy for this sample codebase

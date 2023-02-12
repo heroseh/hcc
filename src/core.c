@@ -58,11 +58,11 @@ noreturn uintptr_t _hcc_abort(const char* file, int line, const char* message, .
 	abort();
 }
 
-HccResult hcc_get_last_global_result() {
+HccResult hcc_get_last_global_result(void) {
 	return _hcc_tls.result_data.result;
 }
 
-void hcc_clear_bail_jmp_loc() {
+void hcc_clear_bail_jmp_loc(void) {
 	_hcc_tls.jmp_loc_recursive_set_count -= 1;
 	if (_hcc_tls.jmp_loc_recursive_set_count == 0) {
 		_hcc_tls.jmp_result_data = NULL;
@@ -405,7 +405,7 @@ HccString hcc_path_replace_file_name(HccString parent, HccString file_name) {
 	return hcc_string(new_buf, new_buf_size);
 }
 
-uint32_t hcc_logical_cores_count() {
+uint32_t hcc_logical_cores_count(void) {
 #ifdef HCC_OS_LINUX
 	return get_nprocs();
 #else
@@ -810,10 +810,10 @@ const char* hcc_alloc_tag_strings[HCC_ALLOC_TAG_COUNT] = {
 //
 HCC_CONTRIBUTOR_TASK(memory tracking system)
 
-void hcc_mem_tracker_init() {
+void hcc_mem_tracker_init(void) {
 }
 
-void hcc_mem_tracker_deinit() {
+void hcc_mem_tracker_deinit(void) {
 }
 
 void hcc_mem_tracker_update(HccAllocMode mode, HccAllocTag tag, void* addr, uintptr_t size) {
@@ -822,7 +822,7 @@ void hcc_mem_tracker_update(HccAllocMode mode, HccAllocTag tag, void* addr, uint
 	}
 }
 
-HccMemTrackerIter* hcc_mem_tracker_iter_start() {
+HccMemTrackerIter* hcc_mem_tracker_iter_start(void) {
 	return NULL;
 }
 
@@ -994,7 +994,7 @@ static DWORD _hcc_virt_mem_prot_windows(HccVirtMemProtection prot) {
 #define HCC_DEBUG_ASSERT_RESERVE_ALIGN(v) HCC_DEBUG_ASSERT((uintptr_t)v % _hcc_gs.virt_mem_reserve_align == 0, #v " must be aligned to the return value of hcc_virt_mem_reserve_align")
 #define HCC_DEBUG_ASSERT_RESERVE_ALIGN_OR_ZERO(v) HCC_DEBUG_ASSERT(v == 0 || (uintptr_t)v % _hcc_gs.virt_mem_reserve_align == 0, #v " must be aligned to the return value of hcc_virt_mem_reserve_align")
 
-void hcc_virt_mem_update_page_size_reserve_align() {
+void hcc_virt_mem_update_page_size_reserve_align(void) {
 #ifdef HCC_OS_LINUX
 	long page_size = sysconf(_SC_PAGESIZE);
 	HCC_ASSERT(page_size != (long)-1, "error: we failed to get the page size");
@@ -1011,8 +1011,8 @@ void hcc_virt_mem_update_page_size_reserve_align() {
 #endif
 }
 
-uintptr_t hcc_virt_mem_page_size() { return _hcc_gs.virt_mem_page_size; }
-uintptr_t hcc_virt_mem_reserve_align() { return _hcc_gs.virt_mem_reserve_align; }
+uintptr_t hcc_virt_mem_page_size(void) { return _hcc_gs.virt_mem_page_size; }
+uintptr_t hcc_virt_mem_reserve_align(void) { return _hcc_gs.virt_mem_reserve_align; }
 
 void hcc_virt_mem_reserve_commit(HccAllocTag tag, void* requested_addr, uintptr_t size, HccVirtMemProtection protection, void** addr_out) {
 	HCC_DEBUG_ASSERT_RESERVE_ALIGN_OR_ZERO(requested_addr);
@@ -1504,7 +1504,7 @@ void hcc_generate_enum_hashes(char* array_name, char** strings, char** enum_stri
 	printf("};\n");
 }
 
-void hcc_generate_hashes() {
+void hcc_generate_hashes(void) {
 	// TODO reenabled this once pp directive is back in
 	//hcc_generate_enum_hashes("hcc_pp_directive_hashes", hcc_pp_directive_strings, hcc_pp_directive_enum_strings, HCC_PP_DIRECTIVE_COUNT);
 	exit(0);
@@ -2388,6 +2388,7 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 		uint32_t string_size = snprintf(buf, sizeof(buf), fmt, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type)], HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type), HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type));
 		string = hcc_string(buf, string_size);
 	} else {
+		bool is_descriptor;
 		switch (HCC_DATA_TYPE_TYPE(data_type)) {
 			case HCC_DATA_TYPE_TYPEDEF: {
 				HccTypedef* typedef_ = hcc_typedef_get(cu, data_type);
@@ -2445,6 +2446,33 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 				string = hcc_string(buf, string_size);
 				break;
 			};
+			case HCC_DATA_TYPE_RESOURCE:
+				is_descriptor = false;
+				goto RESOURCE;
+			case HCC_DATA_TYPE_RESOURCE_DESCRIPTOR:
+				is_descriptor = true;
+RESOURCE:   {
+				HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(data_type);
+				switch (HCC_RESOURCE_DATA_TYPE_TYPE(resource_data_type)) {
+					case HCC_RESOURCE_DATA_TYPE_BUFFER: {
+						HccBufferDataType* d = hcc_buffer_data_type_get(cu, data_type);
+						HccString elmt_string = hcc_data_type_string(cu, d->element_data_type);
+						uint32_t string_size = snprintf(buf, sizeof(buf), is_descriptor ? "BufferDescriptor(%.*s)" : "Buffer(%.*s)", (int)elmt_string.size, elmt_string.data);
+						string = hcc_string(buf, string_size);
+						break;
+					};
+					case HCC_RESOURCE_DATA_TYPE_ANYBUFFER:
+						string = hcc_string_lit(is_descriptor ? "AnyBufferDescriptor" : "AnyBuffer");
+						break;
+					case HCC_RESOURCE_DATA_TYPE_TEXTURE:
+						HCC_ABORT("TODO");
+						break;
+					case HCC_RESOURCE_DATA_TYPE_SAMPLER:
+						HCC_ABORT("TODO");
+						break;
+				}
+				break;
+			};
 			default:
 				HCC_ABORT("unhandled data type '%u'", data_type);
 		}
@@ -2473,9 +2501,7 @@ void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_o
 		*size_out = hcc_aml_intrinsic_data_type_scalar_size_aligns[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type)];
 		*align_out = hcc_aml_intrinsic_data_type_scalar_size_aligns[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type)];
 		*size_out *= HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
-		*align_out *= HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
 		*size_out *= HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type);
-		*align_out *= HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type);
 	} else {
 		switch (HCC_DATA_TYPE_TYPE(data_type)) {
 			case HCC_DATA_TYPE_STRUCT:
@@ -2499,6 +2525,10 @@ void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_o
 				*align_out = align;
 				break;
 			};
+			case HCC_DATA_TYPE_RESOURCE:
+				*size_out = sizeof(uint32_t);
+				*align_out = alignof(uint32_t);
+				break;
 			default:
 				HCC_ABORT("unhandled data type '%u'", data_type);
 		}
@@ -2631,89 +2661,6 @@ bool hcc_data_type_is_fragment_state(HccCU* cu, HccDataType data_type) {
 	return HCC_DATA_TYPE_IS_STRUCT(data_type) && (hcc_compound_data_type_get(cu, data_type)->kind == HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE);
 }
 
-HccCompoundDataType* hcc_data_type_get_resource_table(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
-	if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
-		return NULL;
-	}
-	resolved_data_type = hcc_data_type_strip_pointer(cu, resolved_data_type);
-	resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, resolved_data_type);
-	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
-		HccCompoundDataType* d = hcc_compound_data_type_get(cu, resolved_data_type);
-		switch (d->kind) {
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_TABLE:
-				return d;
-		}
-	}
-	return NULL;
-}
-
-HccCompoundDataType* hcc_data_type_get_resource_set(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
-	if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
-		return NULL;
-	}
-	resolved_data_type = hcc_data_type_strip_pointer(cu, resolved_data_type);
-	resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, resolved_data_type);
-	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
-		HccCompoundDataType* d = hcc_compound_data_type_get(cu, resolved_data_type);
-		switch (d->kind) {
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_SET:
-				return d;
-		}
-	}
-	return NULL;
-}
-
-bool hcc_data_type_is_resource_table_pointer(HccCU* cu, HccDataType data_type) {
-	return hcc_data_type_get_resource_table(cu, data_type) != NULL;
-}
-
-bool hcc_data_type_is_resource_set_pointer(HccCU* cu, HccDataType data_type) {
-	return hcc_data_type_get_resource_set(cu, data_type) != NULL;
-}
-
-bool hcc_data_type_is_resource_set_or_table_pointer(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
-	if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
-		return false;
-	}
-	resolved_data_type = hcc_data_type_strip_pointer(cu, resolved_data_type);
-	resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, resolved_data_type);
-	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
-		HccCompoundDataType* d = hcc_compound_data_type_get(cu, resolved_data_type);
-		switch (d->kind) {
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_TABLE:
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_SET:
-				return true;
-		}
-	}
-	return false;
-}
-
-bool hcc_data_type_has_resources(HccCU* cu, HccDataType data_type) {
-	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
-	if (HCC_DATA_TYPE_IS_RESOURCE(resolved_data_type)) {
-		return true;
-	}
-
-	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
-		HccCompoundDataType* d = hcc_compound_data_type_get(cu, resolved_data_type);
-		return d->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE;
-	}
-
-	if (HCC_DATA_TYPE_IS_ARRAY(resolved_data_type)) {
-		HccArrayDataType* d = hcc_array_data_type_get(cu, resolved_data_type);
-		return d->has_resource;
-	}
-
-	if (hcc_data_type_is_resource_set_or_table_pointer(cu, resolved_data_type)) {
-		return true;
-	}
-
-	return false;
-}
-
 HccDataType hcc_data_type_strip_pointer(HccCU* cu, HccDataType data_type) {
 	if (HCC_DATA_TYPE_IS_POINTER(data_type)) {
 		HccPointerDataType* d = hcc_pointer_data_type_get(cu, data_type);
@@ -2780,8 +2727,6 @@ HccDataType hcc_data_type_lower_ast_to_aml(HccCU* cu, HccDataType data_type) {
 			uint32_t compound_data_type_idx = HCC_DATA_TYPE_AUX(data_type);
 			if (HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START <= compound_data_type_idx && compound_data_type_idx < HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_END) {
 				data_type = HCC_DATA_TYPE(AML_INTRINSIC, compound_data_type_idx - HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START);
-			} else if (compound_data_type_idx == HCC_COMPOUND_DATA_TYPE_IDX_HALF) {
-				data_type = HCC_DATA_TYPE_AML_INTRINSIC_F16;
 			}
 			break;
 		};
@@ -2849,7 +2794,7 @@ HccDataType hcc_data_type_higher_aml_to_ast(HccCU* cu, HccDataType data_type) {
 						data_type = HCC_DATA_TYPE_AST_BASIC_ULONGLONG;
 					}
 					break;
-				case HCC_AML_INTRINSIC_DATA_TYPE_F16: data_type = HCC_DATA_TYPE_HALF; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_F16: data_type = HCC_DATA_TYPE_AST_BASIC_HALF; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_F32: data_type = HCC_DATA_TYPE_AST_BASIC_FLOAT; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_F64: data_type = HCC_DATA_TYPE_AST_BASIC_DOUBLE; break;
 				default: HCC_ABORT("unhandled data type: %u\n", data_type);
@@ -3536,19 +3481,10 @@ HccDataType hcc_array_data_type_deduplicate(HccCU* cu, HccDataType element_data_
 
 	if (HCC_DATA_TYPE_IS_COMPOUND(element_data_type)) {
 		HccCompoundDataType* field_compound_data_type = hcc_compound_data_type_get(cu, element_data_type);
-		if (field_compound_data_type->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE) {
-			d->has_resource = true;
-		}
-		if (field_compound_data_type->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER) {
-			d->has_pointer = true;
-		}
-	} else if (HCC_DATA_TYPE_IS_RESOURCE(element_data_type)) {
-		d->has_resource = true;
 	} else if (HCC_DATA_TYPE_IS_POINTER(element_data_type)) {
 		d->has_pointer = true;
 	} else if (HCC_DATA_TYPE_IS_ARRAY(element_data_type)) {
 		HccArrayDataType* other_d = hcc_array_data_type_get(cu, element_data_type);
-		d->has_resource |= other_d->has_resource;
 		d->has_pointer |= other_d->has_pointer;
 	}
 
@@ -3560,14 +3496,7 @@ HccDataType hcc_array_data_type_deduplicate(HccCU* cu, HccDataType element_data_
 
 HccBufferDataType* hcc_buffer_data_type_get(HccCU* cu, HccDataType data_type) {
 	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
-	HCC_DEBUG_ASSERT(
-		HCC_DATA_TYPE_IS_RESOURCE(data_type) &&
-		(
-			HCC_RESOURCE_DATA_TYPE_TYPE(HCC_DATA_TYPE_AUX(data_type)) == HCC_RESOURCE_DATA_TYPE_CONSTBUFFER ||
-			HCC_RESOURCE_DATA_TYPE_TYPE(HCC_DATA_TYPE_AUX(data_type)) == HCC_RESOURCE_DATA_TYPE_BUFFER
-		),
-		"internal error: expected buffer data type"
-	);
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_BUFFER(data_type), "internal error: expected buffer data type");
 	return hcc_stack_get(cu->dtt.buffers, HCC_DATA_TYPE_AUX(data_type));
 }
 
@@ -4395,29 +4324,19 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ANON_STRUCT_TYPE] = "expected '{' to declare fields for an anonymous struct",
 		[HCC_ERROR_CODE_EXPECTED_CURLY_OPEN_ANON_UNION_TYPE] = "expected '{' to declare fields for an anonymous union",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_STRUCT_FIELD] = "the '%s' keyword cannot be used on this structure field declaration",
-		[HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD] = "only one of these can be used per field: '%s' or '%s'",
+		[HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD] = "only one of these can be used per field: '%s'",
 		[HCC_ERROR_CODE_COMPOUND_FIELD_INVALID_TERMINATOR] = "expected 'type name', 'struct' or 'union' to declare another field or '}' to finish declaring the compound type fields",
 		[HCC_ERROR_CODE_COMPOUND_FIELD_MISSING_NAME] = "expected an identifier for the field name",
 		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELDS_COUNT] = "expected intrinsic struct '%.*s' to have '%u' fields but got '%u'",
 		[HCC_ERROR_CODE_INTRINSIC_INVALID_COMPOUND_STRUCT_FIELD] = "expected this intrinsic field to be '%.*s %.*s' for this compiler version",
 		[HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN] = "expected the size and align for the intrinsic vector type '%.*s' to be size '%u' and align '%u' but got size '%u' and align '%u'",
-		[HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER] = "'%s' specifier must be placed before this struct definition before using '%s' or '%s'",
-		[HCC_ERROR_CODE_POSITION_ALREADY_SPECIFIED] = "'%s' has already been specified once before in rasterizer state structure",
+		[HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER] = "'%s' specifier must be placed before this struct definition before using '%s'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_ALIGNAS] = "expected '(' to follow _Alignas that contains a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
 		[HCC_ERROR_CODE_ALIGNAS_ON_SPECIAL_COMPOUND_DATA_TYPE] = "_Alignas cannot be used on structs declare with the HCC_DEFINE_* macros",
 		[HCC_ERROR_CODE_INVALID_ALIGNAS_INT_CONSTANT] = "_Alignas integer constant must be an unsigned value",
 		[HCC_ERROR_CODE_INVALID_ALIGNAS_OPERAND] = "invalid _Alignas operand. expected a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_ALIGNAS] = "expected ')' to follow the type or integer constant for _Alignas",
 		[HCC_ERROR_CODE_ALIGNAS_REDUCES_ALIGNMENT] = "_Alignas cannot specify a lower alignment to '%zu' when it already has '%zu'",
-		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_RESOURCE_SET_SLOT] = "expected '(' to follow __hcc_resource_set that contains the slot integer",
-		[HCC_ERROR_CODE_RESOURCE_SET_SLOT_OUT_OF_BOUNDS] = "resource set slot must '0' to '%u' but got '%zu'. this can be changed in the compiler by using 'TODO compiler option'",
-		[HCC_ERROR_CODE_RESOURCE_SET_MUST_BE_A_UINT] = "resource set slot must an unsigned integer value of '0' to '%u'",
-		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_SET_SLOT] = "expected ')' to follow the slot integer for the resource set",
-		[HCC_ERROR_CODE_CONST_BUFFER_IN_RESOURCES_USING_BINDLESS] = "HCC_DEFINE_RESOURCES cannot contain ConstBuffer while using bindless resource model",
-		[HCC_ERROR_CODE_MATCHING_RESOURCE_SLOTS_IN_RESOURCES] = "'%.*s' and '%.*s' use the same resource slot '%u'",
-		[HCC_ERROR_CODE_OVERFLOW_RESOURCE_CONSTANTS_SIZE] = "HCC_DEFINE_RESOURCES constants size has a maximum size of '%u' but got '%u'",
-		[HCC_ERROR_CODE_POSITION_MUST_BE_VEC4_F32] = "field marked with '%s' must be a '%.*s' but got '%.*s'",
-		[HCC_ERROR_CODE_POSITION_NOT_SPECIFIED] = "'%s' must be specified for a rasterizer state structure",
 		[HCC_ERROR_CODE_EXPECTED_TYPE_NAME] = "expected a 'type name' here but got '%s'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_VECTOR_T] = "expected '(' to specify the arguments eg: __hcc_vector_t(scalar_t, num_comps)",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_VECTOR_T] = "expected ')' to finish the vector type",
@@ -4426,9 +4345,11 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_INTEGER_VECTOR_T] = "expected a positive integer between 2 ... 4 to define the number of components for the vector type",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_RESOURCE_TYPE_GENERIC] = "expected '(' to specify the generic type for the '%s' resource type",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC] = "expected ')' to follow the resource generic type",
+		[HCC_ERROR_CODE_EXPECTED_NO_CONST_QUALIFIERS_FOR_BUFFER_TYPE] = "buffer element data type is does not allow 'const' qualifier, please use the RoBuffer(T) instead",
+		[HCC_ERROR_CODE_EXPECTED_NO_VOLATILE_QUALIFIERS_FOR_BUFFER_TYPE] = "buffer element data type is does not allow 'volatile' qualifier",
+		[HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE] = "texture element data type is does not allow 'const', 'volatile' or '_Atomic' qualifier",
 		[HCC_ERROR_CODE_INVALID_TEXEL_TYPE] = "expected texel type to be a intrinsic type but got '%.*s'",
 		[HCC_ERROR_CODE_INVALID_BUFFER_ELEMENT_TYPE] = "expected the ConstBuffer/RO/RWElementBuffer type to be defined using the HCC_DEFINE_BUFFER_ELEMENT macro but '%.*s' is not",
-		[HCC_ERROR_CODE_INVALID_RESOURCE_TABLE_RESOURCE_MODEL] = "resource table types can only be used on the binding_and_bindless resource model",
 		[HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE] = "'unsigned' and 'signed' cannot be used on this non-integer type",
 		[HCC_ERROR_CODE_COMPLEX_ON_NON_FLOAT_TYPE] = "'_Complex' cannot be used on this non-floating-point type",
 		[HCC_ERROR_CODE_MULTIPLE_TYPES_SPECIFIED] = "multiple types specfied",
@@ -4466,7 +4387,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_ACCESS] = "expected an identifier for the field you wish to access from '%.*s'",
 		[HCC_ERROR_CODE_MISSING_COLON_TERNARY_OP] = "expected a ':' for the false side of the ternary operator",
 		[HCC_ERROR_CODE_PARENTHISES_USED_ON_NON_FUNCTION] = "unexpected '(', this can only be used when the left expression is a function or pointer to a function",
-		[HCC_ERROR_CODE_SQUARE_BRACE_USED_ON_NON_ARRAY_DATA_TYPE] = "unexpected '[', this can only be used when the left expression is an array or pointer but got '%.*s'",
+		[HCC_ERROR_CODE_SQUARE_BRACE_USED_ON_NON_ARRAY_DATA_TYPE] = "unexpected '[', this can only be used when the left expression is an array, pointer, RoBuffer or RwBuffer but got '%.*s'",
 		[HCC_ERROR_CODE_FULL_STOP_USED_ON_NON_COMPOUND_DATA_TYPE] = "unexpected '.', this can only be used when the left expression is a struct, union or vector type but got '%.*s'",
 		[HCC_ERROR_CODE_ARROW_RIGHT_USED_ON_NON_COMPOUND_DATA_TYPE_POINTER] = "unexpected '->', this can only be used when the left expression is a pointer to a struct, union or vector type but got '%.*s'",
 		[HCC_ERROR_CODE_CANNOT_ASSIGN_TO_CONST] = "cannot assign to a target that has a constant data type of '%.*s'",
@@ -4505,8 +4426,8 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_FRAGMENT_SHADER_MUST_RETURN_FRAGMENT_STATE] = "fragment shader must return a type that was declare with HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM] = "expected an identifier for a function parameter e.g. uint32_t param_identifier",
 		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM] = "redefinition of '%.*s' function parameter identifier",
-		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(HccVertexSV const sv, R const *const resources, S *const state_out); where R defined with HCC_DEFINE_RESOURCES and S defined with HCC_DEFINE_RASTERIZER_STATE'",
-		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT] = "invalid function prototype for fragment shader, expected to be 'void fragment(HccFragmentSV const sv, R const* const resources, S const* const state, F* const frag_out); where R defined with HCC_DEFINE_RESOURCES, S defined with HCC_DEFINE_RASTERIZER_STATE' and F defined with HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BC const *const bc, S *const state_out); where BC is your structure of bundled constants and S defined with HCC_DEFINE_RASTERIZER_STATE or void'",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT] = "invalid function prototype for fragment shader, expected to be 'void fragment(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BC const* const bc, S const* const state, F* const frag_out); where BC is your structure of bundled constants, S defined with HCC_DEFINE_RASTERIZER_STATE or void' and F defined with HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR] = "expected a ',' to declaring more function parameters or a ')' to finish declaring function parameters",
 		[HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION] = "cannot call shaders like regular functions. they can only be used as entry points",
 		[HCC_ERROR_CODE_CANNOT_CALL_UNIMPLEMENTED_FUNCTION] = "cannot call a function with no implemention",
@@ -4514,18 +4435,11 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_UNEXPECTED_TOKEN] = "unexpected token '%s'",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE] = "'%.*s' data type is not supported as a RasterizerState field. data type must be an intrinsic type (scalar, vector or matrix)",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE] = "'%.*s' data type is not supported as a FragmentState field. data type must be an intrinsic type (scalar, vector or matrix)",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_COMPOUND_DATA_TYPE] = "'%.*s' data type is not supported as a CompoundDataType field. data type cannot be HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE, HCC_DEFINE_BUFFER_ELEMENT or HCC_DEFINE_RESOURCE_SET",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT] = "'%.*s' data type is not supported as a buffer element field. data type cannot be a resource, a pointer type, HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE, HCC_DEFINE_BUFFER_ELEMENT, HCC_DEFINE_RESOURCE_SET, HCC_DEFINE_RESOURCE_TABLE or HCC_DEFINE_RESOURCES",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCE_SET] = "'%.*s' data type is not supported as a ResourceSet field. data type must be a resource",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCE_TABLE] = "'%.*s' data type is not supported as a ResourceTable field. data type cannot be a ResourceSet pointer, a compound data type with resources, HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE, HCC_DEFINE_BUFFER_ELEMENT, HCC_DEFINE_RESOURCE_SET, HCC_DEFINE_RESOURCE_TABLE or HCC_DEFINE_RESOURCES",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCES_BINDING] = "'%.*s' data type is not supported as a Resources field. data type cannot be a ResourceTable pointer, HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE, HCC_DEFINE_BUFFER_ELEMENT, HCC_DEFINE_RESOURCE_SET, HCC_DEFINE_RESOURCE_TABLE or HCC_DEFINE_RESOURCES",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCES_BINDING_AND_BINDLESS] = "'%.*s' data type is not supported as a Resources field. data type cannot a be ConstBuffer, HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE, HCC_DEFINE_BUFFER_ELEMENT, HCC_DEFINE_RESOURCE_SET, HCC_DEFINE_RESOURCE_TABLE or HCC_DEFINE_RESOURCES",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM] = "'%.*s' data type is not supported as a function parameter. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE, HCC_DEFINE_BUFFER_ELEMENT or HCC_DEFINE_RESOURCE_SET",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM] = "'%.*s' data type is not supported as a function parameter. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM_INLINE] = "the function must be 'inline' if you want to use the '%.*s' data type as a function parameter. resources and array data types are only supported with the 'inline' function specifier",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE] = "'%.*s' data type is not supported as a variable. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE, HCC_DEFINE_BUFFER_ELEMENT or HCC_DEFINE_RESOURCE_SET",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE] = "'%.*s' data type is not supported as a pointer data type. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE or HCC_DEFINE_RESOURCES",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE] = "'%.*s' data type is not supported as a variable. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE] = "'%.*s' data type is not supported as a pointer data type. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_ONLY_SINGLE_POINTERS_ARE_SUPPORTED] = "only a single pointer is supported",
-		[HCC_ERROR_CODE_POINTER_TO_RESOURCE_SET_TABLE_MUST_BE_CONST] = "pointers to ResourceSet's and ResourceTable's must be 'const'",
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_VAR_USED_BEFORE_ASSIGNED] = "texture, buffer or pointer has been used before it has been assigned too",
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_CONDITIONALLY_ASSIGNED_BEFORE_USE] = "texture, buffer or pointer has been conditionally assigned too before being used. we need to know these value of this variable at compile time.",
 		[HCC_ERROR_CODE_NON_CONST_STATIC_VARIABLE_CANNOT_BE_LOGICALLY_ADDRESSED] = "non-const static variable cannot be a texture, buffer or pointer",
@@ -4533,6 +4447,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_STATIC_AND_EXTERN] = "a declaration cannot be both 'static' and 'extern', please pick one",
 		[HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL] = "'_Thread_local' can only be on global variables",
 		[HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE] = "not all control flow paths return a value, please place a return statement here",
+		[HCC_ERROR_CODE_BUNDLED_CONSTANTS_MAX_SIZE_EXCEEDED] = "the maximum bundled constants size of '%u' has been exceed with '%s' with a size of '%u'",
 
 		//
 		// ASTLINK
@@ -4837,8 +4752,9 @@ void hcc_message_print_code(HccIIO* iio, HccLocation* location) {
 
 const char* hcc_intrinisic_compound_data_type_strings[HCC_COMPOUND_DATA_TYPE_IDX_STRINGS_COUNT] = {
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV] = "HccVertexSV",
+	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV_OUT] = "HccVertexSVOut",
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV] = "HccFragmentSV",
-	[HCC_COMPOUND_DATA_TYPE_IDX_HALF] = "half",
+	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV_OUT] = "HccFragmentSVOut",
 };
 
 const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {

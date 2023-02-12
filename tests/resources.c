@@ -122,41 +122,209 @@ HCC_DEFINE_RESOURCES(BillboardResources,
 
 #endif
 
+RoBuffer(T)      // storage buffer / structured buffer - allow indexing on type T
+RwBuffer(T)      // storage buffer / structured buffer - allow indexing on type T
+RoAnyBuffer      // byte addres buffer - allow loading any type T at a byte offset
+RwAnyBuffer      // byte addres buffer - allow loading any type T at a byte offset
+RoTexture1D
+RoTexture1DArray
+RoTexture2D
+RoTexture2DArray
+RoTexture2DMS
+RoTexture2DMSArray
+RoTextureCube
+RoTextureCubeArray
+RoTextureCubeMS
+RoTextureCubeMSArray
+RoTexture3D
+RwTexture1D(T)
+RwTexture1DArray(T)
+RwTexture2D(T)
+RwTexture2DArray(T)
+RwTexture2DMS(T)
+RwTexture2DMSArray(T)
+RwTextureCube(T)
+RwTextureCubeArray(T)
+RwTextureCubeMS(T)
+RwTextureCubeMSArray(T)
+RwTexture3D(T)
+RoSampler
+
+/////////////////////////////////////////////////////////////////
+//
+// Texture functions
+//
+// texture functions context aware print formating
+// $tt - texture type (snake case)
+// $tT - texture type (camel case)
+// $ti - texture index type
+// $tc - texture coord type
+// $dx - data type suffix
+// $di - data type identifer
+// $vi - vector type identifier
+//
+
+// foreach ro/rw texture type
+//     foreach data type
+//         foreach vector type
+$vi load_$tt_$vi($tT texture, $ti idx);
+
+// foreach ro/rw texture type
+//     foreach data type
+//         foreach vector type
+$vi sample_$tt_$vi($tT texture, RoSampler sampler, $tc coord);
+
+// foreach ro/rw texture type
+//     foreach data type
+//         foreach vector type
+$vi sample_mip_bias_$tt_$vi($tT texture, RoSampler sampler, $tc coord, float mip_bias);
+
+// foreach ro/rw texture type
+//     foreach data type
+//         foreach vector type
+$vi sample_gradient_$tt_$vi($tT texture, RoSampler sampler, $tc coord, float ddx, float ddy);
+
+// foreach ro/rw texture type
+//     foreach data type
+//         foreach vector type
+$vi sample_level_$tt_$vi($tT texture, RoSampler sampler, $tc coord, float lod);
+
+// foreach ro/rw texture type
+//     foreach scalar data type
+$vi gather_red_$tt_$dx($tT texture, RoSampler sampler, $tc coord);
+
+// foreach ro/rw texture type
+//     foreach scalar data type
+$vi gather_green_$tt_$dx($tT texture, RoSampler sampler, $tc coord);
+
+// foreach ro/rw texture type
+//     foreach scalar data type
+$vi gather_blue_$tt_$dx($tT texture, RoSampler sampler, $tc coord);
+
+// foreach ro/rw texture type
+//     foreach scalar data type
+$vi gather_alpha_$tt_$dx($tT texture, RoSampler sampler, $tc coord);
+
+// foreach RW texture type
+//     foreach data type
+//         foreach vector type
+void store_$tt_$dx($tT($di) texture, $ti idx, $di value);
+
+//
+// Texture functions
+//
+/////////////////////////////////////////////////////////////////
+
+struct Vertex {
+	f32x4 position;
+	f32x2 uv;
+};
+
+#ifndef __HCC__
+#define RoBuffer(T) uint32_t
+#define RoAnyBuffer uint32_t
+#define RoTexture1D uint32_t
+#define RoTexture1DArray uint32_t
+#define RoTexture2D uint32_t
+#define RoTexture2DArray uint32_t
+#define RoTexture2DMS uint32_t
+#define RoTexture2DMSArray uint32_t
+#define RoTextureCube uint32_t
+#define RoTextureCubeArray uint32_t
+#define RoTextureCubeMS uint32_t
+#define RoTextureCubeMSArray uint32_t
+#define RoTexture3D uint32_t
+#define RoSampler uint32_t
+#define RwBuffer(T) uint32_t
+#define RwAnyBuffer uint32_t
+#define RwTexture1D(T) uint32_t
+#define RwTexture1DArray(T) uint32_t
+#define RwTexture2D(T) uint32_t
+#define RwTexture2DArray(T) uint32_t
+#define RwTexture2DMS(T) uint32_t
+#define RwTexture2DMSArray(T) uint32_t
+#define RwTextureCube(T) uint32_t
+#define RwTextureCubeArray(T) uint32_t
+#define RwTextureCubeMS(T) uint32_t
+#define RwTextureCubeMSArray(T) uint32_t
+#define RwTexture3D(T) uint32_t
+#endif
+
+//
+// bundled constants are vulkan's push constants and dx12's root constants.
+// you will tell the compiler your maximum size of bundled constants you want.
+// you can upload resources or and other constant data that you want.
+// each resource is 4 bytes as it is just an index.
+// in future when resources are no longer bindless indices and move to pointers
+// or passing direct descriptors, this size may change
+struct TriangleBC {
+	RoBuffer(Vertex) vertices;
+	RwBuffer(Vertex) vertices_out;
+	RoAnyBuffer any_buffer;
+	uint32_t num_vertices;
+};
+
 HCC_DEFINE_RASTERIZER_STATE(
-	JohnboardRasterizerState,
-	(POSITION, vec4f32, position),
-	(INTERP,   vec4f32, color),
-	(INTERP,   vec2f32, snorm)
+	RasterizerState,
+	(POSITION, f32x4, position),
+	(INTERP,   f32x4, color)
 );
 
-vertex JohnboardRasterizerState johnboard_shader_vertex(const HccVertexInput input, const JohnboardResources resources) {
-	JohnboardRasterizerState state;
-	vec2f32 unorm = v2f32(input.vertex_idx & 1, input.vertex_idx / 2);
-	vec2f32 snorm = subsv2f32(mulsv2f32(unorm, 2.f), 1.f);
-	state.position = v4f32(snorm.x, snorm.y, 0.25f, 1.f);
-	state.color = v4f32(unorm.x, unorm.y, 0.f, 1.f);
-	state.snorm = snorm;
-	return state;
+#ifdef __HCC__
+__hcc_generic_t load_any_buffer(__hcc_type T, RoAnyBuffer any_buffer, uint32_t byte_offset);
+void store_any_buffer(RoAnyBuffer any_buffer, uint32_t byte_offset, __hcc_generic_t value);
+#else
+#define load_any_buffer(T, any_buffer, byte_offset) (*(const T*)(const char*)any_buffer + byte_offset)
+#define store_any_buffer(any_buffer, byte_offset, value) ((*(T*)(char*)any_buffer + byte_offset) = value)
+#endif
+
+vertex void vs(HccVertexSV const sv, TriangleBC const* const bc, RasterizerState* const state_out) {
+	RoBuffer(Vertex) vertices = bc->vertices;
+	const Vertex* vertex = &vertices[sv.vertex_idx];        // fetch pointer but is logical so must be known at compile time when it is dereferenced
+	Vertex vertex = vertices[sv.vertex_idx];                // load full struct from buffer directly
+	Vertex vertex = *vertex;                                // dereference logical pointer
+	f32x4 position = vertex->position;                      // field access using logical pointer
+	f32x4 position = vertices[sv.vertex_idx].position;      // field access from buffer directly
+	float position_x = vertices[sv.vertex_idx].position.x;  // deeper field access from buffer directly
+	const Vertex* vertex = vertices;                        // also implicitly casts into pointer
+
+	RwBuffer(Vertex) vertices_out = bc->vertices_out;
+
+	//
+	// physical pointer support adds:
+	const Vertex* vertices_ptr = &vertices[sv.vertex_idx];  // fetching pointer but this one can be passed around and used like a regular C pointer
+	const Vertex* vertex = &vertices_ptr[sv.vertex_idx];    // array index using pointer into buffer and can be passed around
+	f32x4 position = *(f32x4*)vertices_ptr;                 // cast pointer and dereference as a different type
+
+	//
+	// this is basically HLSL's ByteAddressBuffer but will be removed once most "modern" GPU's support physical pointers.
+	// this can be used to load any type T that only consists of 4 byte scalar types from a byte offset that is 4 byte aligned.
+	RoAnyBuffer any_buffer = bc->any_buffer;
+	Vertex vertex = load_any_buffer(Vertex, any_buffer, sv.vertex_idx * sizeof(Vertex));
+	store_any_buffer(Vertex, any_buffer, sv.vertex_idx * sizeof(Vertex), vertex);
+
+	f32x2 vertices[3] = {
+		f32x2(-0.5f, -0.5f),
+		f32x2(0.f, 0.5f),
+		f32x2(0.5f, -0.5f),
+	};
+
+	f32x4 colors[3] = {
+		f32x4(1.f, 0.f, 0.f, 1.f),
+		f32x4(0.f, 1.f, 0.f, 1.f),
+		f32x4(0.f, 0.f, 1.f, 1.f),
+	};
+
+	state_out->position = f32x4(vertices[sv.vertex_idx].x, vertices[sv.vertex_idx].y, 0.f, 1.f);
+	state_out->color = colors[sv.vertex_idx];
 }
 
 HCC_DEFINE_FRAGMENT_STATE(
-	JohnboardFragment,
-	(vec4f32, color)
+	Fragment,
+	(f32x4, color)
 );
 
-float circle_distance(vec2f32 pt, float radius) {
-	return lenv2f32(pt) - radius;
-}
-
-fragment JohnboardFragment johnboard_shader_fragment(
-	const HccFragmentInput input,
-	const JohnboardRasterizerState state,
-	const JohnboardResources resources
-) {
-	float distance = circle_distance(state.snorm, 0.75f);
-
-	JohnboardFragment frag;
-	frag.color = distance < 0.f ? state.color : ZEROV4F32;
-	return frag;
+fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fragment* const frag_out) {
+	frag_out->color = state->color;
 }
 

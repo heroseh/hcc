@@ -1,5 +1,20 @@
+
+#ifdef __HCC__
 #include <libc-gpu/stdbool.h>
 #include <libc-gpu/stdint.h>
+#else
+#include <stdbool.h>
+#include <stdint.h>
+#endif
+#include <libhccstd/math_types.h>
+
+typedef struct BlobBC BlobBC;
+struct BlobBC {
+	float time_;
+};
+
+#ifdef __HCC__
+
 #include <libhccstd/core.h>
 #include <libhccstd/math.h>
 
@@ -8,20 +23,13 @@ const float MAX_DIST = 100.f;
 const float EPSILON = 0.0001f;
 const int MAX_MARCHING_STEPS = 1024;
 
-#define TODO_TIME 5.f
+typedef struct Fragment Fragment;
+HCC_FRAGMENT_STATE struct Fragment {
+	f32x4 color;
+};
 
-HCC_DEFINE_RASTERIZER_STATE(
-	RasterizerState,
-	(POSITION, f32x4, position)
-);
-
-HCC_DEFINE_FRAGMENT_STATE(
-	Fragment,
-	(f32x4, color)
-);
-
-vertex void vs(HccVertexSV const sv, RasterizerState* const state_out) {
-	state_out->position = f32x4((sv.vertex_idx & 1) * 2.f - 1.f, (sv.vertex_idx / 2) * 2.f - 1.f, 0.f, 1.f);
+HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BlobBC const* const bc, void* const state_out) {
+	sv_out->position = f32x4((sv->vertex_idx & 1) * 2.f - 1.f, (sv->vertex_idx / 2) * 2.f - 1.f, 0.f, 1.f);
 }
 
 //
@@ -103,15 +111,15 @@ f32x4x4 gen_mat_rotate_y(float theta) {
 	return m;
 }
 
-f32x4 map_world(f32x3 sample_pt) {
-	f32x3 sphere_pos = f32x3(4.f, sin_f32(TODO_TIME) + 2.5f, 5.5f);
+f32x4 map_world(f32x3 sample_pt, float time_) {
+	f32x3 sphere_pos = f32x3(4.f, sin_f32(time_) + 2.5f, 5.5f);
 
 	// rotate the sphere around world origin 0, 0, 0
-	f32x4 v = mul_f32x4x4_f32x4(gen_mat_rotate_y(TODO_TIME), f32x4(sphere_pos.x, sphere_pos.y,  sphere_pos.z, 1.f));
+	f32x4 v = mul_f32x4x4_f32x4(gen_mat_rotate_y(time_), f32x4(sphere_pos.x, sphere_pos.y,  sphere_pos.z, 1.f));
 	sphere_pos = f32x3(v.x, v.y, v.z);
 
 	f32x4 sphere = sd_sphere(sample_pt, sphere_pos, 2.f, f32x3(0.8f, 0.2f, 0.8f));
-	sphere.x += distort(adds_f32x3(muls_f32x3(sample_pt, sin_f32(TODO_TIME * 0.05f)), 1.f));
+	sphere.x += distort(adds_f32x3(muls_f32x3(sample_pt, sin_f32(time_ * 0.05f)), 1.f));
 	sphere.x *= 0.5f;
 
 	f32x4 terrain = sd_terrain(adds_f32x3(sample_pt, 2.f), f32x3(0.3f, 0.3f, 0.6f));
@@ -123,10 +131,10 @@ f32x4 map_world(f32x3 sample_pt) {
 //
 // marches a ray starting from 'start' until we find a shape close enough
 // or we have gone past the 'end'
-f32x4 ray_march_get_closest_shape(f32x3 ray_orgin, f32x3 march_dir, float start, float end) {
+f32x4 ray_march_get_closest_shape(f32x3 ray_orgin, f32x3 march_dir, float start, float end, float time_) {
 	float depth = start;
 	for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
-		f32x4 shape = map_world(add_f32x3(ray_orgin, muls_f32x3(march_dir, depth)));
+		f32x4 shape = map_world(add_f32x3(ray_orgin, muls_f32x3(march_dir, depth)), time_);
 		float dist = shape.x;
 		if (dist < EPSILON) {
 			shape.x = depth;
@@ -150,25 +158,25 @@ f32x3 ray_direction_for_uv(float fov, f32x2 size, f32x2 uv) {
 // map_world(...).x returns <= 0.f when the sample point is inside the closest shape and > 0.f when outside.
 // we use this to shift each component by a little each way and subtract to roughly see how much
 // that component contributes to the surface normal.
-f32x3 estimate_normal(f32x3 p) {
+f32x3 estimate_normal(f32x3 p, float time_) {
 	return norm_f32x3(f32x3(
-		map_world(f32x3(p.x + EPSILON, p.y, p.z)).x - map_world(f32x3(p.x - EPSILON, p.y, p.z)).x,
-		map_world(f32x3(p.x, p.y + EPSILON, p.z)).x - map_world(f32x3(p.x, p.y - EPSILON, p.z)).x,
-		map_world(f32x3(p.x, p.y, p.z  + EPSILON)).x - map_world(f32x3(p.x, p.y, p.z - EPSILON)).x
+		map_world(f32x3(p.x + EPSILON, p.y, p.z), time_).x - map_world(f32x3(p.x - EPSILON, p.y, p.z), time_).x,
+		map_world(f32x3(p.x, p.y + EPSILON, p.z), time_).x - map_world(f32x3(p.x, p.y - EPSILON, p.z), time_).x,
+		map_world(f32x3(p.x, p.y, p.z  + EPSILON), time_).x - map_world(f32x3(p.x, p.y, p.z - EPSILON), time_).x
 	));
 }
 
 //
 // the diffuse contribution from a light source
-f32x3 diffuse_contribution(f32x3 diffuse_color, f32x3 p, f32x3 camera_pos, f32x3 light_dir, f32x3 light_intensity) {
-	f32x3 N = estimate_normal(p);
+f32x3 diffuse_contribution(f32x3 diffuse_color, f32x3 p, f32x3 camera_pos, f32x3 light_dir, f32x3 light_intensity, float time_) {
+	f32x3 N = estimate_normal(p, time_);
 	f32x3 L = norm_f32x3(light_dir);
 
 	float NdotL = dot_f32x3(N, L);
 	return mul_f32x3(light_intensity, muls_f32x3(diffuse_color, NdotL));
 }
 
-f32x3 phong_illumination(f32x3 ambient_color, f32x3 diffuse_color, f32x3 p, f32x3 camera_pos) {
+f32x3 phong_illumination(f32x3 ambient_color, f32x3 diffuse_color, f32x3 p, f32x3 camera_pos, float time_) {
 	const f32x3 ambient_light = f32x3(0.7f, 0.7f, 0.9f);
 	f32x3 color = mul_f32x3(ambient_light, ambient_color);
 
@@ -176,7 +184,7 @@ f32x3 phong_illumination(f32x3 ambient_color, f32x3 diffuse_color, f32x3 p, f32x
 	// fake the sun's light
 	f32x3 light_pos = f32x3(0.f, 18.f, 50.5f);
 	f32x3 light_intensity = f32x3s(3.5f);
-	color = add_f32x3(color, diffuse_contribution(diffuse_color, p, camera_pos, light_pos, light_intensity));
+	color = add_f32x3(color, diffuse_contribution(diffuse_color, p, camera_pos, light_pos, light_intensity, time_));
 	return color;
 }
 
@@ -204,15 +212,15 @@ f32x4x4 gen_mat_view(f32x3 camera_pos, f32x3 center, f32x3 up) {
 	return m;
 }
 
-fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fragment* const frag_out) {
+HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BlobBC const* const bc, void const* const state, Fragment* const frag_out) {
 	f32x2 TODO_screen_size = f32x2(640, 480);
 
-	f32x3 view_dir = ray_direction_for_uv(45.f, TODO_screen_size, f32x2(state->position.x, state->position.y));
+	f32x3 view_dir = ray_direction_for_uv(45.f, TODO_screen_size, f32x2(sv->frag_coord.x, sv->frag_coord.y));
 	f32x3 camera_pos = f32x3(4.f, 6.f, 42.f);
 
 	// animate camera
-	camera_pos.x += sin_f32(TODO_TIME * 0.6) * 9.f;
-	camera_pos.y += sin_f32(TODO_TIME * 0.7) * 3.f;
+	camera_pos.x += sin_f32(bc->time_ * 0.6f) * 9.f;
+	camera_pos.y += sin_f32(bc->time_ * 0.7f) * 3.f;
 
 	// translate our ray direction from view space to world space
 	f32x4x4 view_to_world = gen_mat_view(camera_pos, f32x3(0.f, 0.f, 0.f), f32x3(0.f, 1.f, 0.f));
@@ -220,7 +228,7 @@ fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fra
 	f32x3 world_dir = f32x3(temp_world_dir.x, temp_world_dir.y, temp_world_dir.z);
 
 	// ray march to get the closest distance and color for the shape we hit
-	f32x4 shape = ray_march_get_closest_shape(camera_pos, world_dir, MIN_DIST, MAX_DIST);
+	f32x4 shape = ray_march_get_closest_shape(camera_pos, world_dir, MIN_DIST, MAX_DIST, bc->time_);
 	float dist = shape.x;
 	f32x3 color = f32x3(shape.y, shape.z, shape.w);
 
@@ -250,8 +258,10 @@ fragment void fs(HccFragmentSV const sv, RasterizerState const* const state, Fra
 	f32x3 ambient_color = mul_f32x3(f32x3(0.2f, 0.2f, 0.2f), color);
 	f32x3 diffuse_color = mul_f32x3(f32x3(0.7f, 0.2f, 0.2f), color);
 
-	color = phong_illumination(ambient_color, diffuse_color, p, camera_pos);
+	color = phong_illumination(ambient_color, diffuse_color, p, camera_pos, bc->time_);
 
 	frag_out->color = f32x4(color.x, color.y, color.z, 1.f);
 }
+
+#endif // __HCC__
 

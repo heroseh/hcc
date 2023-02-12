@@ -7,11 +7,6 @@ HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 	[HCC_ASTGEN_SPECIFIER_NO_RETURN] =        HCC_ATA_TOKEN_KEYWORD_NO_RETURN,
 	[HCC_ASTGEN_SPECIFIER_RASTERIZER_STATE] = HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE,
 	[HCC_ASTGEN_SPECIFIER_FRAGMENT_STATE] =   HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE,
-	[HCC_ASTGEN_SPECIFIER_BUFFER_ELEMENT] =   HCC_ATA_TOKEN_KEYWORD_BUFFER_ELEMENT,
-	[HCC_ASTGEN_SPECIFIER_RESOURCE_SET] =     HCC_ATA_TOKEN_KEYWORD_RESOURCE_SET,
-	[HCC_ASTGEN_SPECIFIER_RESOURCE_TABLE] =   HCC_ATA_TOKEN_KEYWORD_RESOURCE_TABLE,
-	[HCC_ASTGEN_SPECIFIER_RESOURCES] =        HCC_ATA_TOKEN_KEYWORD_RESOURCES,
-	[HCC_ASTGEN_SPECIFIER_POSITION] =         HCC_ATA_TOKEN_KEYWORD_POSITION,
 	[HCC_ASTGEN_SPECIFIER_NOINTERP] =         HCC_ATA_TOKEN_KEYWORD_NOINTERP,
 	[HCC_ASTGEN_SPECIFIER_VERTEX] =           HCC_ATA_TOKEN_KEYWORD_VERTEX,
 	[HCC_ASTGEN_SPECIFIER_FRAGMENT] =         HCC_ATA_TOKEN_KEYWORD_FRAGMENT,
@@ -189,12 +184,7 @@ void hcc_astgen_data_type_ensure_valid_variable(HccWorker* w, HccDataType data_t
 			switch (d->kind) {
 				case HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE:
 				case HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE:
-				case HCC_COMPOUND_DATA_TYPE_KIND_BUFFER_ELEMENT:
-				case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_SET:
 					goto ERROR;
-				case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_TABLE:
-				case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCES:
-					break;
 			}
 		}
 	}
@@ -203,24 +193,6 @@ void hcc_astgen_data_type_ensure_valid_variable(HccWorker* w, HccDataType data_t
 ERROR: {}
 	HccString data_type_name = hcc_data_type_string(w->cu, data_type);
 	hcc_astgen_bail_error_1(w, error_code, (int)data_type_name.size, data_type_name.data);
-}
-
-void hcc_astgen_data_type_ensure_compound_type_has_no_resources(HccWorker* w, HccDataType data_type, HccErrorCode error_code) {
-	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
-	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
-		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_data_type);
-		if (d->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE) {
-			HccString data_type_name = hcc_data_type_string(w->cu, data_type);
-			hcc_astgen_bail_error_1(w, error_code, (int)data_type_name.size, data_type_name.data);
-		}
-	}
-}
-
-void hcc_astgen_data_type_ensure_has_no_resources(HccWorker* w, HccDataType data_type, HccErrorCode error_code) {
-	if (hcc_data_type_has_resources(w->cu, data_type)) {
-		HccString data_type_name = hcc_data_type_string(w->cu, data_type);
-		hcc_astgen_bail_error_1(w, error_code, (int)data_type_name.size, data_type_name.data);
-	}
 }
 
 void hcc_astgen_data_type_ensure_has_no_pointers(HccWorker* w, HccDataType data_type, HccErrorCode error_code) {
@@ -601,10 +573,12 @@ void hcc_astgen_ensure_function_args_count(HccWorker* w, HccDecl function_decl, 
 	}
 }
 
-HccDataType hcc_astgen_deduplicate_constbuffer_data_type(HccWorker* w, HccDataType element_data_type) {
+HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type, bool is_rw) {
+	HCC_DEBUG_ASSERT(!(element_data_type & (HCC_DATA_TYPE_CONST_QUALIFIER_MASK | HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK)), "expected no type qualifiers");
+
 	HccCU* cu = w->cu;
 	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
-	uint64_t key = (uint64_t)element_data_type | ((uint64_t)HCC_RESOURCE_DATA_TYPE_CONSTBUFFER << 32);
+	uint64_t key = ((uint64_t)element_data_type << 1) | is_rw;
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.buffers_dedup_hash_table, &key);
 	HccDataTypeDedupEntry* entry = &cu->dtt.buffers_dedup_hash_table[insert.idx];
 	if (!insert.is_new) {
@@ -613,7 +587,7 @@ HccDataType hcc_astgen_deduplicate_constbuffer_data_type(HccWorker* w, HccDataTy
 			HCC_CPU_RELAX();
 		}
 
-		return HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_CONSTBUFFER(id - 1));
+		return HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(id - 1, is_rw));
 	}
 
 	HccBufferDataType* d = hcc_stack_push_thread_safe(cu->dtt.buffers);
@@ -621,31 +595,7 @@ HccDataType hcc_astgen_deduplicate_constbuffer_data_type(HccWorker* w, HccDataTy
 
 	uint32_t buffer_idx = d - cu->dtt.buffers;
 	atomic_store(&entry->id, buffer_idx + 1);
-	HccDataType data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_CONSTBUFFER(buffer_idx));
-	return data_type;
-}
-
-HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type) {
-	HccCU* cu = w->cu;
-	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
-	uint64_t key = (uint64_t)element_data_type | ((uint64_t)HCC_RESOURCE_DATA_TYPE_BUFFER << 32);
-	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.buffers_dedup_hash_table, &key);
-	HccDataTypeDedupEntry* entry = &cu->dtt.buffers_dedup_hash_table[insert.idx];
-	if (!insert.is_new) {
-		uint32_t id;
-		while ((id = atomic_load(&entry->id)) == 0) {
-			HCC_CPU_RELAX();
-		}
-
-		return HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(id - 1));
-	}
-
-	HccBufferDataType* d = hcc_stack_push_thread_safe(cu->dtt.buffers);
-	d->element_data_type = element_data_type;
-
-	uint32_t buffer_idx = d - cu->dtt.buffers;
-	atomic_store(&entry->id, buffer_idx + 1);
-	HccDataType data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(buffer_idx));
+	HccDataType data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(buffer_idx, is_rw));
 	return data_type;
 }
 
@@ -664,18 +614,8 @@ void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_NO_RETURN;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_RASTERIZER_STATE) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_BUFFER_ELEMENT) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_BUFFER_ELEMENT;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_RESOURCE_SET) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_RESOURCE_SET;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_RESOURCE_TABLE) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_RESOURCE_TABLE;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_RESOURCES) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_RESOURCES;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT_STATE) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_POSITION) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_POSITION;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_NOINTERP) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_NOINTERP;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX) {
@@ -1251,63 +1191,12 @@ HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 			case HCC_ATA_TOKEN_KEYWORD_INLINE:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_INLINE;           break;
 			case HCC_ATA_TOKEN_KEYWORD_NO_RETURN:        flag = HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN;        break;
 			case HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE: flag = HCC_ASTGEN_SPECIFIER_FLAGS_RASTERIZER_STATE; break;
-			case HCC_ATA_TOKEN_KEYWORD_BUFFER_ELEMENT:   flag = HCC_ASTGEN_SPECIFIER_FLAGS_BUFFER_ELEMENT;   break;
-			case HCC_ATA_TOKEN_KEYWORD_RESOURCE_TABLE:   flag = HCC_ASTGEN_SPECIFIER_FLAGS_RESOURCE_TABLE;   break;
-			case HCC_ATA_TOKEN_KEYWORD_RESOURCES:        flag = HCC_ASTGEN_SPECIFIER_FLAGS_RESOURCES;        break;
 			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE:   flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT_STATE;   break;
-			case HCC_ATA_TOKEN_KEYWORD_POSITION:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_POSITION;         break;
 			case HCC_ATA_TOKEN_KEYWORD_NOINTERP:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_NOINTERP;         break;
 			case HCC_ATA_TOKEN_KEYWORD_VERTEX:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX;           break;
 			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT;         break;
 			case HCC_ATA_TOKEN_KEYWORD_AUTO: break;
 			case HCC_ATA_TOKEN_KEYWORD_VOLATILE:
-			case HCC_ATA_TOKEN_KEYWORD_RESOURCE_SET:
-				flag = HCC_ASTGEN_SPECIFIER_FLAGS_RESOURCE_SET;
-
-				token = hcc_ata_iter_next(w->astgen.token_iter);
-				if (token != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_RESOURCE_SET_SLOT);
-				}
-				token = hcc_ata_iter_next(w->astgen.token_iter);
-
-				uint32_t max_resource_set_slot = hcc_options_get_u32(w->cu->options, HCC_OPTION_KEY_RESOURCE_SET_SLOT_MAX);
-				switch (token) {
-					case HCC_ATA_TOKEN_LIT_UINT:
-					case HCC_ATA_TOKEN_LIT_ULONG:
-					case HCC_ATA_TOKEN_LIT_ULONGLONG:
-					case HCC_ATA_TOKEN_LIT_SINT:
-					case HCC_ATA_TOKEN_LIT_SLONG:
-					case HCC_ATA_TOKEN_LIT_SLONGLONG:
-						token = hcc_ata_iter_next(w->astgen.token_iter);
-						HccConstantId constant_id = hcc_ata_iter_next_value(w->astgen.token_iter).constant_id;
-						HccConstant constant = hcc_constant_table_get(w->cu, constant_id);
-
-						//
-						// skip the associated HccStringId kept around to turn the
-						// literal back into the exact string it was parsed from.
-						hcc_ata_iter_next_value(w->astgen.token_iter);
-						bool out_of_bounds = false;
-						uint64_t resource_set_slot;
-						if (hcc_constant_as_uint(w->cu, constant, &resource_set_slot)) {
-							out_of_bounds = resource_set_slot < max_resource_set_slot;
-						} else {
-							out_of_bounds = true;
-						}
-						if (out_of_bounds) {
-							hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_RESOURCE_SET_SLOT_OUT_OF_BOUNDS, max_resource_set_slot, resource_set_slot);
-						}
-						w->astgen.resource_set_slot = resource_set_slot;
-						break;
-					default:
-						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_RESOURCE_SET_MUST_BE_A_UINT, max_resource_set_slot);
-						break;
-
-				}
-				if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_SET_SLOT);
-				}
-				token = hcc_ata_iter_next(w->astgen.token_iter);
-				break;
 			default: return token;
 		}
 
@@ -1596,22 +1485,6 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 				case HCC_ASTGEN_SPECIFIER_FRAGMENT_STATE:
 					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE;
 					break;
-				case HCC_ASTGEN_SPECIFIER_BUFFER_ELEMENT:
-					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_BUFFER_ELEMENT;
-					break;
-				case HCC_ASTGEN_SPECIFIER_RESOURCE_SET:
-					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_SET;
-					compound_data_type.resource_set_slot = w->astgen.resource_set_slot;
-					break;
-				case HCC_ASTGEN_SPECIFIER_RESOURCE_TABLE:
-					if (hcc_options_get_u32(cu->options, HCC_OPTION_KEY_TARGET_RESOURCE_MODEL) == HCC_TARGET_RESOURCE_MODEL_BINDING) {
-						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_RESOURCE_TABLE_RESOURCE_MODEL);
-					}
-					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_TABLE;
-					break;
-				case HCC_ASTGEN_SPECIFIER_RESOURCES:
-					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_RESOURCES;
-					break;
 			}
 		}
 
@@ -1648,23 +1521,16 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			if (w->astgen.specifier_flags) {
 				if (compound_data_type.kind != HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE) {
 					w->astgen.token_iter->token_idx -= 1;
-					hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER, compound_data_type_location, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_POSITION], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
+					hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER, compound_data_type_location, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
 				}
 
 				//
 				// ensure only one specifier is enabled
 				if (!HCC_IS_POWER_OF_TWO_OR_ZERO(w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_ALL_STRUCT_FIELD_SPECIFIERS)) {
-					hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_POSITION], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
+					hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
 				}
 
 				switch (hcc_leastsetbitidx32(w->astgen.specifier_flags)) {
-					case HCC_ASTGEN_SPECIFIER_POSITION:
-						if (found_position) {
-							hcc_astgen_error_1(w, HCC_ERROR_CODE_POSITION_ALREADY_SPECIFIED, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_POSITION]);
-						}
-						found_position = true;
-						compound_field->rasterizer_state_field_kind = HCC_RASTERIZER_STATE_FIELD_KIND_POSITION;
-						break;
 					case HCC_ASTGEN_SPECIFIER_NOINTERP: compound_field->rasterizer_state_field_kind = HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP; break;
 				}
 
@@ -1747,18 +1613,15 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		} else if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
 			HccCompoundDataType* field_compound_data_type = hcc_compound_data_type_get(w->cu, data_type);
 			compound_data_type.scalar_data_types_mask |= field_compound_data_type->scalar_data_types_mask;
-			compound_data_type.flags |= (field_compound_data_type->flags & (HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE | HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER));
+			compound_data_type.flags |= (field_compound_data_type->flags & (HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER));
 		} else if (HCC_DATA_TYPE_IS_TYPEDEF(data_type)) {
 			compound_data_type.scalar_data_types_mask |= hcc_data_type_scalar_data_types_mask(w->cu, data_type);
-		} else if (HCC_DATA_TYPE_IS_RESOURCE(data_type)) {
-			compound_data_type.flags |= HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE;
 		} else if (HCC_DATA_TYPE_IS_POINTER(data_type)) {
 			compound_data_type.flags |= HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER;
 		} else if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
 			HccArrayDataType* d = hcc_array_data_type_get(w->cu, data_type);
-			compound_data_type.flags |= d->has_resource ? HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE : 0;
 			compound_data_type.flags |= d->has_pointer ? HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER : 0;
-		} else if (data_type == HCC_DATA_TYPE_HALF) {
+		} else if (data_type == HCC_DATA_TYPE_AST_BASIC_HALF) {
 			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&compound_data_type.scalar_data_types_mask, HCC_AML_INTRINSIC_DATA_TYPE_F16);
 		}
 
@@ -1769,18 +1632,6 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			case HCC_COMPOUND_DATA_TYPE_KIND_DEFAULT:
 				hcc_astgen_data_type_ensure_valid_variable(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_COMPOUND_DATA_TYPE);
 				break;
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_TABLE:
-				if (hcc_data_type_is_resource_set_pointer(w->cu, data_type)) {
-					HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCE_TABLE, (int)data_type_name.size, data_type_name.data);
-				}
-
-				hcc_astgen_data_type_ensure_compound_type_has_no_resources(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCE_TABLE);
-				hcc_astgen_data_type_ensure_compound_type_default_kind(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCE_TABLE);
-				if (!hcc_data_type_is_resource_table_pointer(w->cu, data_type)) {
-					hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
-				}
-				break;
 			case HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE: {
 				HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
 				if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type)) {
@@ -1788,14 +1639,6 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE, (int)data_type_name.size, data_type_name.data);
 				}
 
-				if (
-					compound_field->rasterizer_state_field_kind == HCC_RASTERIZER_STATE_FIELD_KIND_POSITION &&
-					data_type != HCC_DATA_TYPE_AML_INTRINSIC_F32X4
-				) {
-					HccString expected_data_type_name = hcc_data_type_string(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_F32X4);
-					HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_POSITION_MUST_BE_VEC4_F32, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_POSITION], (int)expected_data_type_name.size, expected_data_type_name.data, (int)data_type_name.size, data_type_name.data);
-				}
 				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
 				break;
 			};
@@ -1806,60 +1649,6 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE, (int)data_type_name.size, data_type_name.data);
 				}
 				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
-				break;
-			};
-			case HCC_COMPOUND_DATA_TYPE_KIND_BUFFER_ELEMENT:
-				hcc_astgen_data_type_ensure_compound_type_default_kind(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
-				hcc_astgen_data_type_ensure_has_no_resources(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
-				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
-				break;
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_SET:
-				if (!HCC_DATA_TYPE_IS_RESOURCE(data_type)) {
-					HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCE_SET, (int)data_type_name.size, data_type_name.data);
-				}
-				break;
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCES: {
-				HccErrorCode error_code;
-				switch (hcc_options_get_u32(cu->options, HCC_OPTION_KEY_TARGET_RESOURCE_MODEL)) {
-					case HCC_TARGET_RESOURCE_MODEL_BINDING:
-						error_code = HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCES_BINDING;
-						if (hcc_data_type_is_resource_table_pointer(w->cu, data_type)) {
-							hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_RESOURCE_TABLE_RESOURCE_MODEL);
-						}
-						break;
-					case HCC_TARGET_RESOURCE_MODEL_BINDING_AND_BINDLESS:
-						error_code = HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_RESOURCES_BINDING_AND_BINDLESS;
-						if (HCC_DATA_TYPE_IS_RESOURCE(data_type) && HCC_RESOURCE_DATA_TYPE_TYPE(HCC_DATA_TYPE_AUX(data_type)) == HCC_RESOURCE_DATA_TYPE_CONSTBUFFER) {
-							hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_CONST_BUFFER_IN_RESOURCES_USING_BINDLESS);
-						}
-						break;
-				}
-				hcc_astgen_data_type_ensure_compound_type_default_kind(w, compound_field->data_type, error_code);
-				hcc_astgen_data_type_ensure_compound_type_has_no_resources(w, compound_field->data_type, error_code);
-
-				HccCompoundDataType* rs_d = hcc_data_type_get_resource_set(w->cu, data_type);
-				if (rs_d) {
-					//
-					// ensure the resource set slot is unique
-					for (uint32_t other_field_idx = 0; other_field_idx < field_idx; other_field_idx += 1) {
-						HccCompoundField* prev_field = &fields[other_field_idx];
-						HccDataType prev_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, prev_field->data_type);
-						HccCompoundDataType* prev_rs_d = hcc_data_type_get_resource_set(w->cu, prev_data_type);
-						if (!prev_rs_d) {
-							continue;
-						}
-
-						if (rs_d->resource_set_slot == prev_rs_d->resource_set_slot) {
-							HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
-							HccString other_data_type_name = hcc_data_type_string(w->cu, prev_field->data_type);
-							hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_MATCHING_RESOURCE_SLOTS_IN_RESOURCES, prev_field->identifier_location, (int)data_type_name.size, data_type_name.data, (int)other_data_type_name.size, other_data_type_name.data, rs_d->resource_set_slot);
-						}
-					}
-				} else if (!hcc_data_type_has_resources(w->cu, data_type)) {
-					hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
-					is_resource_constant = true;
-				}
 				break;
 			};
 		}
@@ -1907,8 +1696,11 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 				compound_data_type.largest_sized_field_idx = field_idx;
 				compound_data_type.size = size;
 			}
+			compound_field->byte_offset = 0;
 		} else {
-			compound_data_type.size = HCC_INT_ROUND_UP_ALIGN(compound_data_type.size, align) + size;
+			compound_data_type.size = HCC_INT_ROUND_UP_ALIGN(compound_data_type.size, align);
+			compound_field->byte_offset = compound_data_type.size;
+			compound_data_type.size += size;
 		}
 		compound_data_type.align = HCC_MAX(compound_data_type.align, align);
 
@@ -1923,17 +1715,9 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 	hcc_stack_clear(w->astgen.compound_field_names);
 	hcc_stack_clear(w->astgen.compound_field_locations);
 	hcc_astgen_compound_data_type_validate_field_names(w, data_type, &compound_data_type);
-	uint32_t max_resource_constants_size = hcc_options_get_u32(cu->options, HCC_OPTION_KEY_RESOURCE_CONSTANTS_MAX_SIZE);
-	if (resource_constants_size > max_resource_constants_size) {
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_OVERFLOW_RESOURCE_CONSTANTS_SIZE, max_resource_constants_size, resource_constants_size);
-	}
 
 	if (!is_union) {
 		compound_data_type.size = HCC_INT_ROUND_UP_ALIGN(compound_data_type.size, compound_data_type.align);
-	}
-
-	if (compound_data_type.kind == HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE && !found_position) {
-		hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_POSITION_NOT_SPECIFIED, compound_data_type_location, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_POSITION]);
 	}
 
 	if (table_entry && data_type && HCC_DATA_TYPE_IS_FORWARD_DECL(data_type)) {
@@ -2026,6 +1810,7 @@ HccATAToken hcc_astgen_generate_type_specifiers(HccWorker* w, HccLocation* locat
 			case HCC_ATA_TOKEN_KEYWORD_SHORT: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_SHORT; break;
 			case HCC_ATA_TOKEN_KEYWORD_INT: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_INT; break;
 			case HCC_ATA_TOKEN_KEYWORD_LONG: found_specifier = *type_specifiers_mut & HCC_ASTGEN_TYPE_SPECIFIER_LONG ? HCC_ASTGEN_TYPE_SPECIFIER_LONGLONG : HCC_ASTGEN_TYPE_SPECIFIER_LONG; break;
+			case HCC_ATA_TOKEN_KEYWORD_HALF_T: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_HALF; break;
 			case HCC_ATA_TOKEN_KEYWORD_FLOAT: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_FLOAT; break;
 			case HCC_ATA_TOKEN_KEYWORD_DOUBLE: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_DOUBLE; break;
 			case HCC_ATA_TOKEN_KEYWORD_UNSIGNED: found_specifier = HCC_ASTGEN_TYPE_SPECIFIER_UNSIGNED; break;
@@ -2074,6 +1859,7 @@ HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code,
 	HccDataType data_type = 0;
 	bool was_enum = false;
 	if (!(type_specifiers & HCC_ASTGEN_TYPE_SPECIFIER_TYPES)) {
+		bool is_rw;
 		bool is_tex_array;
 		bool is_tex_ms;
 		HccTextureDim tex_dim;
@@ -2158,42 +1944,62 @@ HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code,
 				hcc_astgen_generate_type_specifiers(w, location, &type_specifiers);
 				break;
 			};
-			case HCC_ATA_TOKEN_KEYWORD_CONSTBUFFER:
-			case HCC_ATA_TOKEN_KEYWORD_BUFFER: {
+			case HCC_ATA_TOKEN_KEYWORD_ROBUFFER:
+			case HCC_ATA_TOKEN_KEYWORD_RWBUFFER: {
 				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_RESOURCE_TYPE_GENERIC, hcc_ata_token_strings[token]);
 				}
+				hcc_ata_iter_next(w->astgen.token_iter);
 
 				HccDataType generic_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, false);
 				HccDataType resolved_generic_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, generic_data_type);
+
+				if (generic_data_type & HCC_DATA_TYPE_CONST_QUALIFIER_MASK) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_CONST_QUALIFIERS_FOR_BUFFER_TYPE, hcc_ata_token_strings[token]);
+				}
+
+				if (generic_data_type & HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_CONST_QUALIFIERS_FOR_BUFFER_TYPE, hcc_ata_token_strings[token]);
+				}
+
 				token = hcc_ata_iter_peek(w->astgen.token_iter);
 				if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC);
 				}
+				hcc_ata_iter_next(w->astgen.token_iter);
 
-				bool is_error = !HCC_DATA_TYPE_IS_COMPOUND(resolved_generic_data_type);
-				if (!is_error) {
-					HccCompoundDataType* cdt = hcc_compound_data_type_get(w->cu, resolved_generic_data_type);
-					is_error = cdt->kind != HCC_COMPOUND_DATA_TYPE_KIND_BUFFER_ELEMENT;
-				}
-				if (is_error) {
-					HccString data_type_name = hcc_data_type_string(w->cu, generic_data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_BUFFER_ELEMENT_TYPE, (int)data_type_name.size, data_type_name.data);
-				}
-				data_type = hcc_astgen_deduplicate_buffer_data_type(w, resolved_generic_data_type);
+				data_type = hcc_astgen_deduplicate_buffer_data_type(w, resolved_generic_data_type, token == HCC_ATA_TOKEN_KEYWORD_RWBUFFER);
 				break;
 			};
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURECUBE: tex_dim = HCC_TEXTURE_DIM_CUBE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEMS: tex_dim = HCC_TEXTURE_DIM_CUBE; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURECUBEMSARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_TEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROANYBUFFER:
+				data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_ROANYBUFFER);
+				break;
+			case HCC_ATA_TOKEN_KEYWORD_RWANYBUFFER:
+				data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_RWANYBUFFER);
+				break;
+
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = false; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBE: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMS: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMSARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = true; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBE: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMS: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMSARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
 			{
 TEXTURE:{}
 				HccAMLIntrinsicDataType intrinsic_type = HCC_AML_INTRINSIC_DATA_TYPE_VOID;
@@ -2205,21 +2011,24 @@ TEXTURE:{}
 						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC);
 					}
 
-
 					HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(w->cu, data_type);
 					if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type)) {
 						HccString data_type_name = hcc_data_type_string(w->cu, generic_data_type);
 						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_TEXEL_TYPE, (int)data_type_name.size, data_type_name.data);
 					}
 
+					if (generic_data_type & HCC_DATA_TYPE_QUALIFIERS_MASK) {
+						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE, hcc_ata_token_strings[token]);
+					}
+
 					intrinsic_type = HCC_DATA_TYPE_AUX(lowered_data_type);
 				}
-				HccResourceDataType resource_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE(tex_dim, intrinsic_type, is_tex_array, is_tex_ms);
+				HccResourceDataType resource_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE(tex_dim, intrinsic_type, is_rw, is_tex_array, is_tex_ms);
 				data_type = HCC_DATA_TYPE(RESOURCE, resource_data_type);
 				break;
 			}
-			case HCC_ATA_TOKEN_KEYWORD_SAMPLERSTATE:
-				data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_SAMPLER_STATE);
+			case HCC_ATA_TOKEN_KEYWORD_ROSAMPLER:
+				data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_ROSAMPLER);
 				break;
 			default:
 				break;
@@ -2287,6 +2096,8 @@ NON_NUM_TYPE: {}
 					data_type = HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_FLOAT);
 				} else if (type_specifiers & HCC_ASTGEN_TYPE_SPECIFIER_DOUBLE) {
 					data_type = HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_DOUBLE);
+				} else if (type_specifiers & HCC_ASTGEN_TYPE_SPECIFIER_HALF) {
+					data_type = HCC_DATA_TYPE(AST_BASIC, HCC_AST_BASIC_DATA_TYPE_HALF);
 				} else {
 					HCC_ABORT("wat?");
 				}
@@ -2427,32 +2238,6 @@ HccDataType hcc_astgen_generate_pointer_data_type_if_exists(HccWorker* w, HccDat
 	bool TODO_POINTER_TYPE_FOR_ALL_THE_OTHER_THINGS = false;
 
 	HccDataType resolved_element_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, element_data_type);
-	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_element_data_type)) {
-		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_element_data_type);
-		switch (d->kind) {
-			case HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE:
-			case HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE:
-				TODO_POINTER_TYPE_FOR_ALL_THE_OTHER_THINGS = true;
-				break;
-
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCES: {
-				HccString data_type_name = hcc_data_type_string(w->cu, element_data_type);
-				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE, (int)data_type_name.size, data_type_name.data);
-			};
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_SET:
-			case HCC_COMPOUND_DATA_TYPE_KIND_RESOURCE_TABLE:
-				TODO_POINTER_TYPE_FOR_ALL_THE_OTHER_THINGS = true;
-				if (!HCC_DATA_TYPE_IS_CONST(element_data_type)) {
-
-				}
-
-				hcc_fallthrough;
-			case HCC_COMPOUND_DATA_TYPE_KIND_BUFFER_ELEMENT:
-				break;
-		}
-	}
-	HCC_ASSERT(TODO_POINTER_TYPE_FOR_ALL_THE_OTHER_THINGS, "pointer type has only been implemented for ResourceSet and ResourceTable atm");
-
 	HccDataType data_type = hcc_pointer_data_type_deduplicate(w->cu, element_data_type);
 	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 	HccASTGenTypeSpecifier type_specifiers;
@@ -3261,7 +3046,17 @@ HccASTExpr* hcc_astgen_generate_array_subscript_expr(HccWorker* w, HccASTExpr* a
 	}
 	hcc_ata_iter_next(w->astgen.token_iter);
 
-	HccArrayDataType* d = hcc_array_data_type_get(w->cu, array_expr->data_type);
+	HccDataType resolved_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, array_expr->data_type);
+	HccDataType element_data_type;
+	if (HCC_DATA_TYPE_IS_ARRAY(resolved_data_type)) {
+		HccArrayDataType* d = hcc_array_data_type_get(w->cu, resolved_data_type);
+		element_data_type = d->element_data_type;
+	} else if (HCC_DATA_TYPE_IS_BUFFER(resolved_data_type)) {
+		HccBufferDataType* d = hcc_buffer_data_type_get(w->cu, resolved_data_type);
+		element_data_type = d->element_data_type;
+	} else {
+		HCC_ABORT("unexpected data type: %u\n", resolved_data_type);
+	}
 
 	if (w->astgen.function) {
 		w->astgen.function->max_instrs_count += 1; // HCC_AML_OP_PTR_ACCESS_CHAIN
@@ -3270,7 +3065,7 @@ HccASTExpr* hcc_astgen_generate_array_subscript_expr(HccWorker* w, HccASTExpr* a
 	expr->binary.op = HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT;
 	expr->binary.left_expr = array_expr;
 	expr->binary.right_expr = index_expr;
-	expr->data_type = d->element_data_type | (array_expr->data_type & HCC_DATA_TYPE_QUALIFIERS_MASK);
+	expr->data_type = element_data_type | (resolved_data_type & HCC_DATA_TYPE_QUALIFIERS_MASK);
 	expr->location = hcc_ata_iter_location(w->astgen.token_iter);
 	return expr;
 }
@@ -3452,7 +3247,7 @@ HccASTExpr* hcc_astgen_generate_expr_(HccWorker* w, uint32_t min_precedence, boo
 
 			left_expr = hcc_astgen_generate_call_expr(w, left_expr);
 		} else if (binary_op == HCC_AST_BINARY_OP_ARRAY_SUBSCRIPT) {
-			if (!HCC_DATA_TYPE_IS_ARRAY(resolved_left_expr_data_type)) { // TODO add pointer support
+			if (!HCC_DATA_TYPE_IS_ARRAY(resolved_left_expr_data_type) && !HCC_DATA_TYPE_IS_BUFFER(resolved_left_expr_data_type)) { // TODO add pointer support
 				HccString left_data_type_name = hcc_data_type_string(w->cu, left_expr->data_type);
 				hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_SQUARE_BRACE_USED_ON_NON_ARRAY_DATA_TYPE, callee_location, (int)left_data_type_name.size, left_data_type_name.data);
 			}
@@ -4321,7 +4116,6 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 				hcc_astgen_data_type_ensure_valid_variable(w, param_data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM);
 			}
 			if (!(flags & HCC_AST_FUNCTION_FLAGS_INLINE)) {
-				hcc_astgen_data_type_ensure_has_no_resources(w, param_data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM_INLINE);
 				if (HCC_DATA_TYPE_IS_ARRAY(param_data_type)) {
 					HccString data_type_name = hcc_data_type_string(w->cu, param_data_type);
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM_INLINE, (int)data_type_name.size, data_type_name.data);
@@ -4367,7 +4161,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 	// validate the function prototype for shader stage entry points if this function is one
 	switch (function.shader_stage) {
 		case HCC_SHADER_STAGE_VERTEX: {
-			if (function.params_count != 2) {
+			if (function.params_count != 4) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, params_location);
 			}
 			HccASTVariable* param;
@@ -4380,23 +4174,40 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			}
 
 			//
-			// param[0]: HccVertexSV
-			param = hcc_stack_get(w->astgen.function_params_and_variables, 0);
-			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV))) {
+			// param[HCC_VERTEX_SHADER_PARAM_VERTEX_SV]: HccVertexSV const* const
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_VERTEX_SHADER_PARAM_VERTEX_SV);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, param->identifier_location);
 			}
 
 			//
-			// param[1]: HCC_DEFINE_RASTERIZER_STATE
-			param = hcc_stack_get(w->astgen.function_params_and_variables, 1);
+			// param[HCC_VERTEX_SHADER_PARAM_VERTEX_SV_OUT]: HccVertexSVOut* const
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_VERTEX_SHADER_PARAM_VERTEX_SV_OUT);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_rasterizer_state(w->cu, param_data_type)) {
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV_OUT)) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, param->identifier_location);
+			}
+
+			//
+			// param[HCC_VERTEX_SHADER_PARAM_BC]: Bundled Constants
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_VERTEX_SHADER_PARAM_BC);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_STRUCT(hcc_decl_resolve_and_keep_qualifiers(w->cu, hcc_data_type_strip_pointer(w->cu, param_data_type)))) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, param->identifier_location);
+			}
+
+			//
+			// param[HCC_VERTEX_SHADER_PARAM_RASTERIZER_STATE]: HCC_DEFINE_RASTERIZER_STATE
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_VERTEX_SHADER_PARAM_RASTERIZER_STATE);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || (param_data_type != 0 && !hcc_data_type_is_rasterizer_state(w->cu, param_data_type))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX, param->identifier_location);
 			}
 			break;
 		};
 		case HCC_SHADER_STAGE_FRAGMENT: {
-			if (function.params_count != 3) {
+			if (function.params_count != 5) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, params_location);
 			}
 			HccASTVariable* param;
@@ -4409,23 +4220,40 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			}
 
 			//
-			// param[0]: HccFragmentSV
-			param = hcc_stack_get(w->astgen.function_params_and_variables, 0);
-			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV))) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
-			}
-
-			//
-			// param[1]: HCC_DEFINE_RASTERIZER_STATE
-			param = hcc_stack_get(w->astgen.function_params_and_variables, 1);
+			// param[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV]: HccFragmentSV const* const
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_rasterizer_state(w->cu, param_data_type)) {
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
 			}
 
 			//
-			// param[2]: HCC_DEFINE_FRAGMENT_STATE
-			param = hcc_stack_get(w->astgen.function_params_and_variables, 2);
+			// param[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV_OUT]: HccFragmentSVOut* const
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV_OUT);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV_OUT)) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+			}
+
+			//
+			// param[HCC_FRAGMENT_SHADER_PARAM_BC]: Bundled Constants
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_BC);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_STRUCT(hcc_decl_resolve_and_keep_qualifiers(w->cu, hcc_data_type_strip_pointer(w->cu, param_data_type)))) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+			}
+
+			//
+			// param[HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE]: HCC_DEFINE_RASTERIZER_STATE
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || (param_data_type != HCC_DATA_TYPE_CONST(0) && !hcc_data_type_is_rasterizer_state(w->cu, param_data_type))) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+			}
+
+			//
+			// param[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE]: HCC_DEFINE_FRAGMENT_STATE
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
 			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_fragment_state(w->cu, param_data_type)) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
@@ -4450,6 +4278,17 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 		function.block_expr = hcc_astgen_generate_stmt(w);
 		if (function.return_data_type != 0) {
 			hcc_astgen_ensure_returns_from_all_diverging_paths(w, function.block_expr->stmt_block.last_stmt);
+		}
+	}
+
+	if (function.shader_stage != HCC_SHADER_STAGE_NONE) {
+		HccDataType bundled_constants_data_type = hcc_stack_get(w->astgen.function_params_and_variables, 1)->data_type;
+		bundled_constants_data_type = hcc_data_type_strip_pointer(cu, hcc_decl_resolve_and_strip_qualifiers(cu, bundled_constants_data_type));
+		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, bundled_constants_data_type);
+		uint32_t max_size = hcc_options_get_u32(w->cu->options, HCC_OPTION_KEY_BUNDLED_CONSTANTS_MAX_SIZE);
+		if (d->size > max_size) {
+			HccString data_type_name = hcc_data_type_string(w->cu, bundled_constants_data_type);
+			hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_BUNDLED_CONSTANTS_MAX_SIZE_EXCEEDED, function.identifier_location, d->identifier_location, (uint32_t)d->size, (int)data_type_name.size, data_type_name.data, max_size);
 		}
 	}
 

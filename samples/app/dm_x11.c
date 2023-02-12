@@ -9,7 +9,7 @@ struct DmX11 {
 
 DmX11 dm;
 
-void dm_init() {
+void dm_init(void) {
 	dm.display = XOpenDisplay(NULL);
 	APP_ASSERT(dm.display, "could not open X11 display connection");
 	dm.delete_message_atom = XInternAtom(dm.display, "WM_DELETE_WINDOW", False);

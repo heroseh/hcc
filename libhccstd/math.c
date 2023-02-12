@@ -13,6 +13,9 @@
 // ===========================================
 
 float f16tof32(half v) {
+#ifdef HCC_NATIVE_F16_SUPPORT
+	return (float)v;
+#else
 	if ((v._bits & 0x7c00) == 0x7c00) { // inf, -inf or nan
 		if (v._bits & 0x03ff) return NAN_F32;
 		else if (v._bits & 0x8000) return -INFINITY_F32;
@@ -37,6 +40,7 @@ float f16tof32(half v) {
 	t1.u |= t2;                  // re-insert sign bit
 
 	return t1.f;
+#endif
 }
 
 double f16tof64(half v) {
@@ -44,6 +48,9 @@ double f16tof64(half v) {
 }
 
 half f32tof16(float v) {
+#ifdef HCC_NATIVE_F16_SUPPORT
+	return (half)v;
+#else
 	if (isinf_f32(v)) return (half){ ._bits = v < 0.f ? 0xfc00 : 0x7c00 };
 	if (isnan_f32(v)) return (half){ ._bits = 0xffff };
 
@@ -68,6 +75,7 @@ half f32tof16(float v) {
 	t1 |= t2;                              // re-insert sign bit
 
 	return (half){ ._bits = t1 };
+#endif
 }
 
 half f64tof16(double v) {

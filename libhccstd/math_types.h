@@ -20,8 +20,21 @@
 #if defined(__HCC__)
 #define HCC_DEFINE_VECTOR(vector_t, scalar_t, num_comps) typedef __hcc_vector_t(scalar_t, num_comps) vector_t
 #elif defined(__clang__)
-#define HCC_DEFINE_VECTOR(vector_t, scalar_t, num_comps) typedef scalar_t vector_t __attribute__((ext_vector_type(num_comps)))
+#define HCC_DEFINE_VECTOR(vector_t, scalar_t, num_comps) typedef scalar_t vector_t __attribute__((ext_vector_type(num_comps))) __attribute__((aligned(sizeof(scalar_t))))
 #endif
+#endif
+
+#if defined(__HCC__)
+typedef __hcc_half_t half;
+#define HALF_CONST(lit, bits) (lit)
+#define HCC_NATIVE_F16_SUPPORT
+#elif defined(__clang__)
+typedef _Float16 half;
+#define HALF_CONST(lit, bits) (lit)
+#define HCC_NATIVE_F16_SUPPORT
+#else
+typedef struct half { uint16_t _bits; } half;
+#define HALF_CONST(lit, bits_) ((half) { .bits = bits_ })
 #endif
 
 // ===========================================
@@ -32,15 +45,14 @@
 //
 // ===========================================
 
-typedef struct half { uint16_t _bits; } half;
 
-#define PI_F16 ((half){ _bits = 0x4248; })
+#define PI_F16 HALF_CONST(3.14159265358979323846f16, 0x4248)
 #define PI_F32 3.14159265358979323846f
 #define PI_F64 3.14159265358979323846
-#define INFINITY_F16 ((half){ _bits = 0x7c00; })
+#define INFINITY_F16 HALF_CONST(1.f16 / 0.f16, 0x7c00)
 #define INFINITY_F32 (1.f / 0.f)
 #define INFINITY_F64 (1.0 / 0.0)
-#define NAN_F16 ((half){ _bits = 0xfc00; })
+#define NAN_F16 HALF_CONST(0.f16 / 0.f16, 0xfc00)
 #define NAN_F32 (0.f / 0.f)
 #define NAN_F64 (0.0 / 0.0)
 
