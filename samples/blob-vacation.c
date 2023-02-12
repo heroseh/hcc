@@ -1,12 +1,8 @@
 
-#ifdef __HCC__
-#include <libc-gpu/stdbool.h>
-#include <libc-gpu/stdint.h>
-#else
 #include <stdbool.h>
 #include <stdint.h>
-#endif
-#include <libhccstd/math_types.h>
+#include <hmaths/types.h>
+#include <hcc_shader.h>
 
 typedef struct BlobBC BlobBC;
 struct BlobBC {
@@ -14,9 +10,7 @@ struct BlobBC {
 };
 
 #ifdef __HCC__
-
-#include <libhccstd/core.h>
-#include <libhccstd/math.h>
+#include <hmaths/maths.h>
 
 const float MIN_DIST = 0.f;
 const float MAX_DIST = 100.f;

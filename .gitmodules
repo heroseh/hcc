@@ -1,0 +1,3 @@
+[submodule "hmaths"]
+	path = shader-include/hmaths
+	url = https://github.com/heroseh/hmaths.git

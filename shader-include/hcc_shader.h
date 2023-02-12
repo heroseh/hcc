@@ -1,8 +1,6 @@
 #pragma once
-#ifndef _HCC_STD_CORE_H_
-#define _HCC_STD_CORE_H_
-
-#include "math_types.h"
+#ifndef _HCC_SHADER_H_
+#define _HCC_SHADER_H_
 
 // ===========================================
 //
@@ -50,35 +48,7 @@
 //
 // ===========================================
 
-#ifdef __HCC_GPU__
-#define HccRoSampler __hcc_sampler
-#define HccRoBuffer(T) __hcc_ro_buffer_t(T)
-#define HccRoAnyBuffer __hcc_ro_any_buffer_t
-#define HccRoTexture1D(T) __hcc_ro_texture_1d_t(T)
-#define HccRoTexture1DArray(T) __hcc_ro_texture_1d_array_t(T)
-#define HccRoTexture2D(T) __hcc_ro_texture_2d_t(T)
-#define HccRoTexture2DArray(T) __hcc_ro_texture_2d_array_t(T)
-#define HccRoTexture2DMS(T) __hcc_ro_texture_2d_t(T)
-#define HccRoTexture2DMSArray(T) __hcc_ro_texture_2d_array_t(T)
-#define HccRoTextureCube(T) __hcc_ro_texture_cube_t(T)
-#define HccRoTextureCubeArray(T) __hcc_ro_texture_cube_array_t(T)
-#define HccRoTextureCubeMS(T) __hcc_ro_texture_cube_ms_t(T)
-#define HccRoTextureCubeMSArray(T) __hcc_ro_texture_cube_ms_array_t(T)
-#define HccRoTexture3D(T) __hcc_ro_texture_3d_t(T)
-#define HccRwBuffer(T) __hcc_rw_buffer_t(T)
-#define HccRwAnyBuffer __hcc_rw_any_buffer_t
-#define HccRwTexture1D(T) __hcc_rw_texture_1d_t(T)
-#define HccRwTexture1DArray(T) __hcc_rw_texture_1d_array_t(T)
-#define HccRwTexture2D(T) __hcc_rw_texture_2d_t(T)
-#define HccRwTexture2DArray(T) __hcc_rw_texture_2d_array_t(T)
-#define HccRwTexture2DMS(T) __hcc_rw_texture_2d_t(T)
-#define HccRwTexture2DMSArray(T) __hcc_rw_texture_2d_array_t(T)
-#define HccRwTextureCube(T) __hcc_rw_texture_cube_t(T)
-#define HccRwTextureCubeArray(T) __hcc_rw_texture_cube_array_t(T)
-#define HccRwTextureCubeMS(T) __hcc_rw_texture_cube_ms_t(T)
-#define HccRwTextureCubeMSArray(T) __hcc_ro_texture_cube_ms_array_t(T)
-#define HccRwTexture3D(T) __hcc_rw_texture_3d_t(T)
-#else // !__HCC_GPU__
+#ifndef __HCC_GPU__
 #define HccRoSampler uint32_t
 #define HccRoBuffer(T) uint32_t
 #define HccRoAnyBuffer uint32_t
@@ -137,5 +107,5 @@ struct HccFragmentSVOut {
 	float depth;
 };
 
-#endif // _HCC_STD_CORE_H_
+#endif // _HCC_SHADER_H_
 

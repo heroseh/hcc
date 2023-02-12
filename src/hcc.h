@@ -840,10 +840,9 @@ enum HccManyTypeClass {
 
 	HCC_MANY_TYPE_CLASS_OPS_SCALAR = 0x10,
 	HCC_MANY_TYPE_CLASS_OPS_VECTOR = 0x20,
-	HCC_MANY_TYPE_CLASS_OPS_MATRIX = 0x40,
 	HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
-	HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR_MATRIX = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
-	HCC_MANY_TYPE_CLASS_ALL_OPS = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR | HCC_MANY_TYPE_CLASS_OPS_MATRIX,
+	HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR_MATRIX = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	HCC_MANY_TYPE_CLASS_ALL_OPS = HCC_MANY_TYPE_CLASS_OPS_SCALAR | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
 };
 
 enum {
@@ -2747,8 +2746,8 @@ HccDuration hcc_compiler_worker_job_type_duration(HccCompiler* c, HccWorkerJobTy
 
 typedef struct HccStringTable HccStringTable;
 
-#define hcc_string_table_deduplicate_lit(string_lit) hcc_string_table_deduplicate(string_lit, sizeof(string_lit) - 1)
-#define hcc_string_table_deduplicate_c_string(c_string) hcc_string_table_deduplicate(c_string, strlen(c_string))
+#define hcc_string_table_deduplicate_lit(string_lit, out) hcc_string_table_deduplicate(string_lit, sizeof(string_lit) - 1, out)
+#define hcc_string_table_deduplicate_c_string(c_string) hcc_string_table_deduplicate(c_string, strlen(c_string), out)
 HccResult hcc_string_table_deduplicate(const char* string, uint32_t string_size, HccStringId* out);
 HccString hcc_string_table_get(HccStringId id);
 HccString hcc_string_table_get_or_empty(HccStringId id);

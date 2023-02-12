@@ -1,13 +1,8 @@
 
-#ifdef __HCC__
-#include <libc-gpu/stdbool.h>
-#include <libc-gpu/stdint.h>
-#else
 #include <stdbool.h>
 #include <stdint.h>
-#endif
-#include <libhccstd/core.h>
-#include <libhccstd/math_types.h>
+#include <hmaths/types.h>
+#include <hcc_shader.h>
 
 typedef struct TriangleVertex TriangleVertex;
 struct TriangleVertex {
@@ -21,8 +16,7 @@ struct TriangleBC {
 };
 
 #ifdef __HCC__
-#include <libhccstd/core.h>
-#include <libhccstd/math.h>
+#include <hmaths/maths.h>
 
 typedef struct RasterizerState RasterizerState;
 HCC_RASTERIZER_STATE struct RasterizerState {
@@ -30,7 +24,7 @@ HCC_RASTERIZER_STATE struct RasterizerState {
 };
 
 HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, TriangleBC const* const bc, RasterizerState* const state_out) {
-	RoBuffer(TriangleVertex) vertices = bc->vertices;
+	HccRoBuffer(TriangleVertex) vertices = bc->vertices;
 
 	TriangleVertex vertex = bc->vertices[sv->vertex_idx];
 

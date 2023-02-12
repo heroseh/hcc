@@ -256,7 +256,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 			return HCC_AML_OPERAND(CONSTANT, expr->constant.id.idx_plus_one);
 
 		case HCC_AST_EXPR_TYPE_FUNCTION:
-			return (HccAMLOperand)expr->function.decl;
+			return (HccAMLOperand)hcc_decl_resolve_and_keep_qualifiers(w->cu, expr->function.decl);
 
 		case HCC_AST_EXPR_TYPE_BINARY_OP: {
 			if (expr->binary.op < HCC_AST_BINARY_OP_LANG_FEATURES_START) {
