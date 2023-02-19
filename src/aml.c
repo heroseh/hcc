@@ -247,6 +247,7 @@ HccAMLFunction* hcc_aml_function_alctor_alloc(HccCU* cu, uint32_t max_instrs_cou
 	function->basic_block_params_cap = basic_block_params_cap;
 	function->basic_block_param_srcs_count = 0;
 	function->basic_block_param_srcs_cap = basic_block_param_srcs_cap;
+	function->found_texture_sample_location = NULL;
 
 	return function;
 }
@@ -357,8 +358,6 @@ const char* hcc_aml_op_code_strings[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_ISINF] = "ISINF",
 	[HCC_AML_OP_ISNAN] = "ISNAN",
 	[HCC_AML_OP_LERP] = "LERP",
-	[HCC_AML_OP_PACK] = "PACK",
-	[HCC_AML_OP_UNPACK] = "UNPACK",
 	[HCC_AML_OP_ANY] = "ANY",
 	[HCC_AML_OP_ALL] = "ALL",
 	[HCC_AML_OP_DOT] = "DOT",
@@ -376,6 +375,17 @@ const char* hcc_aml_op_code_strings[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_UNPACK_U8X4_F32X4] = "UNPACK_U8X4_F32X4",
 	[HCC_AML_OP_PACK_S8X4_F32X4] = "PACK_S8X4_F32X4",
 	[HCC_AML_OP_UNPACK_S8X4_F32X4] = "UNPACK_S8X4_F32X4",
+	[HCC_AML_OP_LOAD_TEXTURE] = "LOAD_TEXTURE",
+	[HCC_AML_OP_FETCH_TEXTURE] = "FETCH_TEXTURE",
+	[HCC_AML_OP_SAMPLE_TEXTURE] = "SAMPLE_TEXTURE",
+	[HCC_AML_OP_SAMPLE_MIP_BIAS_TEXTURE] = "SAMPLE_MIP_BIAS_TEXTURE",
+	[HCC_AML_OP_SAMPLE_MIP_GRADIENT_TEXTURE] = "SAMPLE_MIP_GRADIENT_TEXTURE",
+	[HCC_AML_OP_SAMPLE_MIP_LEVEL_TEXTURE] = "SAMPLE_MIP_LEVEL_TEXTURE",
+	[HCC_AML_OP_GATHER_RED_TEXTURE] = "GATHER_RED_TEXTURE",
+	[HCC_AML_OP_GATHER_GREEN_TEXTURE] = "GATHER_GREEN_TEXTURE",
+	[HCC_AML_OP_GATHER_BLUE_TEXTURE] = "GATHER_BLUE_TEXTURE",
+	[HCC_AML_OP_GATHER_ALPHA_TEXTURE] = "GATHER_ALPHA_TEXTURE",
+	[HCC_AML_OP_STORE_TEXTURE] = "STORE_TEXTURE",
 };
 
 bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
@@ -456,8 +466,6 @@ bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_ISINF] = true,
 	[HCC_AML_OP_ISNAN] = true,
 	[HCC_AML_OP_LERP] = true,
-	[HCC_AML_OP_PACK] = true,
-	[HCC_AML_OP_UNPACK] = true,
 	[HCC_AML_OP_ANY] = true,
 	[HCC_AML_OP_ALL] = true,
 	[HCC_AML_OP_DOT] = true,
@@ -475,6 +483,16 @@ bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_UNPACK_U8X4_F32X4] = true,
 	[HCC_AML_OP_PACK_S8X4_F32X4] = true,
 	[HCC_AML_OP_UNPACK_S8X4_F32X4] = true,
+	[HCC_AML_OP_LOAD_TEXTURE] = true,
+	[HCC_AML_OP_SAMPLE_TEXTURE] = true,
+	[HCC_AML_OP_SAMPLE_MIP_BIAS_TEXTURE] = true,
+	[HCC_AML_OP_SAMPLE_MIP_GRADIENT_TEXTURE] = true,
+	[HCC_AML_OP_SAMPLE_MIP_LEVEL_TEXTURE] = true,
+	[HCC_AML_OP_GATHER_RED_TEXTURE] = true,
+	[HCC_AML_OP_GATHER_GREEN_TEXTURE] = true,
+	[HCC_AML_OP_GATHER_BLUE_TEXTURE] = true,
+	[HCC_AML_OP_GATHER_ALPHA_TEXTURE] = true,
+	[HCC_AML_OP_STORE_TEXTURE] = false,
 };
 
 // ===========================================

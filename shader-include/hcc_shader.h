@@ -5,10 +5,14 @@
 // ===========================================
 //
 //
-// Config
+// Misc
 //
 //
 // ===========================================
+
+#if __STDC__ == 1 && __STDC_VERSION__ >= 201112L
+#define HCC_HAS_C_GENERIC_SUPPORT
+#endif
 
 // ===========================================
 //
@@ -51,31 +55,36 @@
 #ifndef __HCC_GPU__
 #define HccRoSampler uint32_t
 #define HccRoBuffer(T) uint32_t
-#define HccRoAnyBuffer uint32_t
 #define HccRoTexture1D(T) uint32_t
 #define HccRoTexture1DArray(T) uint32_t
 #define HccRoTexture2D(T) uint32_t
 #define HccRoTexture2DArray(T) uint32_t
 #define HccRoTexture2DMS(T) uint32_t
 #define HccRoTexture2DMSArray(T) uint32_t
-#define HccRoTextureCube(T) uint32_t
-#define HccRoTextureCubeArray(T) uint32_t
-#define HccRoTextureCubeMS(T) uint32_t
-#define HccRoTextureCubeMSArray(T) uint32_t
 #define HccRoTexture3D(T) uint32_t
+#define HccWoBuffer(T) uint32_t
+#define HccWoTexture1D(T) uint32_t
+#define HccWoTexture1DArray(T) uint32_t
+#define HccWoTexture2D(T) uint32_t
+#define HccWoTexture2DArray(T) uint32_t
+#define HccWoTexture2DMS(T) uint32_t
+#define HccWoTexture2DMSArray(T) uint32_t
+#define HccWoTexture3D(T) uint32_t
 #define HccRwBuffer(T) uint32_t
-#define HccRwAnyBuffer uint32_t
 #define HccRwTexture1D(T) uint32_t
 #define HccRwTexture1DArray(T) uint32_t
 #define HccRwTexture2D(T) uint32_t
 #define HccRwTexture2DArray(T) uint32_t
 #define HccRwTexture2DMS(T) uint32_t
 #define HccRwTexture2DMSArray(T) uint32_t
-#define HccRwTextureCube(T) uint32_t
-#define HccRwTextureCubeArray(T) uint32_t
-#define HccRwTextureCubeMS(T) uint32_t
-#define HccRwTextureCubeMSArray(T) uint32_t
 #define HccRwTexture3D(T) uint32_t
+#define HccSampleTexture1D(T) uint32_t
+#define HccSampleTexture1DArray(T) uint32_t
+#define HccSampleTexture2D(T) uint32_t
+#define HccSampleTexture2DArray(T) uint32_t
+#define HccSampleTextureCube(T) uint32_t
+#define HccSampleTextureCubeArray(T) uint32_t
+#define HccSampleTexture3D(T) uint32_t
 #endif // !__HCC_GPU__
 
 // ===========================================

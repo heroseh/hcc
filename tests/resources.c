@@ -167,27 +167,27 @@ RoSampler
 // foreach ro/rw texture type
 //     foreach data type
 //         foreach vector type
-$vi load_$tt_$vi($tT texture, $ti idx);
+$vi load_$tt_$vx($tT texture, $ti idx);
 
 // foreach ro/rw texture type
 //     foreach data type
 //         foreach vector type
-$vi sample_$tt_$vi($tT texture, RoSampler sampler, $tc coord);
+$vi sample_$tt_$vx($tT texture, RoSampler sampler, $tc coord);
 
 // foreach ro/rw texture type
 //     foreach data type
 //         foreach vector type
-$vi sample_mip_bias_$tt_$vi($tT texture, RoSampler sampler, $tc coord, float mip_bias);
+$vi sample_mip_bias_$tt_$vx($tT texture, RoSampler sampler, $tc coord, float mip_bias);
 
 // foreach ro/rw texture type
 //     foreach data type
 //         foreach vector type
-$vi sample_gradient_$tt_$vi($tT texture, RoSampler sampler, $tc coord, float ddx, float ddy);
+$vi sample_gradient_$tt_$vx($tT texture, RoSampler sampler, $tc coord, float ddx, float ddy);
 
 // foreach ro/rw texture type
 //     foreach data type
 //         foreach vector type
-$vi sample_level_$tt_$vi($tT texture, RoSampler sampler, $tc coord, float lod);
+$vi sample_level_$tt_$vx($tT texture, RoSampler sampler, $tc coord, float lod);
 
 // foreach ro/rw texture type
 //     foreach scalar data type

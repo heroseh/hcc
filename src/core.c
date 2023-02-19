@@ -2164,6 +2164,49 @@ HccString hcc_aml_scalar_data_type_mask_string(HccAMLScalarDataTypeMask mask) {
 // ===========================================
 //
 //
+// Resource Data Type
+//
+//
+// ===========================================
+
+const char* hcc_texture_dim_strings_lower[HCC_TEXTURE_DIM_COUNT] = {
+	[HCC_TEXTURE_DIM_1D] = "1d",
+	[HCC_TEXTURE_DIM_2D] = "2d",
+	[HCC_TEXTURE_DIM_3D] = "3d",
+	[HCC_TEXTURE_DIM_CUBE] = "cube",
+};
+
+const char* hcc_texture_dim_strings_upper[HCC_TEXTURE_DIM_COUNT] = {
+	[HCC_TEXTURE_DIM_1D] = "1D",
+	[HCC_TEXTURE_DIM_2D] = "2D",
+	[HCC_TEXTURE_DIM_3D] = "3D",
+	[HCC_TEXTURE_DIM_CUBE] = "CUBE",
+};
+
+const char* hcc_resource_access_mode_strings_lower[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
+	[HCC_RESOURCE_ACCESS_MODE_READ_ONLY] = "ro",
+	[HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY] = "wo",
+	[HCC_RESOURCE_ACCESS_MODE_READ_WRITE] = "rw",
+	[HCC_RESOURCE_ACCESS_MODE_SAMPLE] = "sample",
+};
+
+const char* hcc_resource_access_mode_strings_upper[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
+	[HCC_RESOURCE_ACCESS_MODE_READ_ONLY] = "RO",
+	[HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY] = "WO",
+	[HCC_RESOURCE_ACCESS_MODE_READ_WRITE] = "RW",
+	[HCC_RESOURCE_ACCESS_MODE_SAMPLE] = "SAMPLE",
+};
+
+const char* hcc_resource_access_mode_strings_title[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
+	[HCC_RESOURCE_ACCESS_MODE_READ_ONLY] = "Ro",
+	[HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY] = "Wo",
+	[HCC_RESOURCE_ACCESS_MODE_READ_WRITE] = "Rw",
+	[HCC_RESOURCE_ACCESS_MODE_SAMPLE] = "Sample",
+};
+
+// ===========================================
+//
+//
 // Declarations
 //
 //
@@ -2453,23 +2496,25 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 				is_descriptor = true;
 RESOURCE:   {
 				HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(data_type);
+				const char* access_mode_string = hcc_resource_access_mode_strings_title[HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type)];
 				switch (HCC_RESOURCE_DATA_TYPE_TYPE(resource_data_type)) {
 					case HCC_RESOURCE_DATA_TYPE_BUFFER: {
 						HccBufferDataType* d = hcc_buffer_data_type_get(cu, data_type);
 						HccString elmt_string = hcc_data_type_string(cu, d->element_data_type);
-						uint32_t string_size = snprintf(buf, sizeof(buf), is_descriptor ? "BufferDescriptor(%.*s)" : "Buffer(%.*s)", (int)elmt_string.size, elmt_string.data);
+						uint32_t string_size = snprintf(buf, sizeof(buf), is_descriptor ? "Hcc%sBufferDescriptor(%.*s)" : "Hcc%sBuffer(%.*s)", access_mode_string, (int)elmt_string.size, elmt_string.data);
 						string = hcc_string(buf, string_size);
 						break;
 					};
-					case HCC_RESOURCE_DATA_TYPE_ANYBUFFER:
-						string = hcc_string_lit(is_descriptor ? "AnyBufferDescriptor" : "AnyBuffer");
+					case HCC_RESOURCE_DATA_TYPE_TEXTURE: {
+						HccString elmt_string = hcc_data_type_string(cu, HCC_DATA_TYPE(AML_INTRINSIC, HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(resource_data_type)));
+						uint32_t string_size = snprintf(buf, sizeof(buf), is_descriptor ? "Hcc%sTextureDescriptor(%.*s)" : "Hcc%sTexture(%.*s)", access_mode_string, (int)elmt_string.size, elmt_string.data);
+						string = hcc_string(buf, string_size);
 						break;
-					case HCC_RESOURCE_DATA_TYPE_TEXTURE:
-						HCC_ABORT("TODO");
+					};
+					case HCC_RESOURCE_DATA_TYPE_SAMPLER: {
+						string = hcc_string_lit("HccRoSampler");
 						break;
-					case HCC_RESOURCE_DATA_TYPE_SAMPLER:
-						HCC_ABORT("TODO");
-						break;
+					};
 				}
 				break;
 			};
@@ -4337,6 +4382,14 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_ALIGNAS_OPERAND] = "invalid _Alignas operand. expected a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_ALIGNAS] = "expected ')' to follow the type or integer constant for _Alignas",
 		[HCC_ERROR_CODE_ALIGNAS_REDUCES_ALIGNMENT] = "_Alignas cannot specify a lower alignment to '%zu' when it already has '%zu'",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_GENERIC] = "expected '(' to specify the _Generic(expression, data_type: expression, ...)",
+		[HCC_ERROR_CODE_EXPECTED_COMMA_GENERIC] = "expected ',' to begin the data_type: expression list for _Generic",
+		[HCC_ERROR_CODE_EXPECTED_COMMA_OR_PARENTHESIS_CLOSE_GENERIC] = "expected ')' to finish the _Generic or ',' to define the next data_type: expression list entry",
+		[HCC_ERROR_CODE_EXPECTED_DATA_TYPE_CASE_GENERIC] = "expected data type for _Generic case but got '%s'",
+		[HCC_ERROR_CODE_EXPECTED_COLON_GENERIC] = "expected ':' after data type followed by expression",
+		[HCC_ERROR_CODE_EXPECTED_DUPLICATE_CASE_GENERIC] = "duplicate _Generic case for data type '%.*s'",
+		[HCC_ERROR_CODE_NO_DATA_TYPE_CASE_GENERIC] = "no case for data type '%.*s' for _Generic",
+		[HCC_ERROR_CODE_EXPECTED_NON_VOID_DATA_TYPE] = "expected non 'void' data type",
 		[HCC_ERROR_CODE_EXPECTED_TYPE_NAME] = "expected a 'type name' here but got '%s'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_VECTOR_T] = "expected '(' to specify the arguments eg: __hcc_vector_t(scalar_t, num_comps)",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_VECTOR_T] = "expected ')' to finish the vector type",
@@ -4464,6 +4517,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_FUNCTION_RECURSION] = "function '%.*s' is recursively called! callstack:\n%s",
 		[HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED] = "unsupported intrinsic type '%.*s' has been used. if you wish to use this type, please turn on extension support for the follow types: %.*s",
 		[HCC_ERROR_CODE_UNION_ONLY_ALLOW_WITH_PHYSICAL_POINTERS] = "the '%.*s' union data type cannot be used unless you enable 'physical pointer' compiler option",
+		[HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_FRAGMENT_SHADER] = "function '%.*s' has sample with implicit mip used outside of a fragment shader! callstack:\n%s",
 	},
 };
 
@@ -4775,8 +4829,6 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 };
 
 const char* hcc_intrinisic_function_many_strings[HCC_FUNCTION_MANY_COUNT] = {
-	[HCC_FUNCTION_MANY_PACK] = "pack",
-	[HCC_FUNCTION_MANY_UNPACK] = "unpack",
 	[HCC_FUNCTION_MANY_ANY] = "any",
 	[HCC_FUNCTION_MANY_ALL] = "all",
 	[HCC_FUNCTION_MANY_ADD] = "add",
@@ -4844,11 +4896,20 @@ const char* hcc_intrinisic_function_many_strings[HCC_FUNCTION_MANY_COUNT] = {
 	[HCC_FUNCTION_MANY_NORM] = "norm",
 	[HCC_FUNCTION_MANY_REFLECT] = "reflect",
 	[HCC_FUNCTION_MANY_REFRACT] = "refract",
+	[HCC_FUNCTION_MANY_LOAD_TEXTURE] = "load_texture",
+	[HCC_FUNCTION_MANY_FETCH_TEXTURE] = "fetch_texture",
+	[HCC_FUNCTION_MANY_SAMPLE_TEXTURE] = "sample_texture",
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_BIAS_TEXTURE] = "sample_mip_bias_texture",
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_GRADIENT_TEXTURE] = "sample_mip_gradient_texture",
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_LEVEL_TEXTURE] = "sample_mip_level_texture",
+	[HCC_FUNCTION_MANY_GATHER_RED_TEXTURE] = "gather_red_texture",
+	[HCC_FUNCTION_MANY_GATHER_GREEN_TEXTURE] = "gather_green_texture",
+	[HCC_FUNCTION_MANY_GATHER_BLUE_TEXTURE] = "gather_blue_texture",
+	[HCC_FUNCTION_MANY_GATHER_ALPHA_TEXTURE] = "gather_alpha_texture",
+	[HCC_FUNCTION_MANY_STORE_TEXTURE] = "store_texture",
 };
 
 HccManyTypeClass hcc_intrinisic_function_many_support[HCC_FUNCTION_MANY_COUNT] = {
-	[HCC_FUNCTION_MANY_PACK] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
-	[HCC_FUNCTION_MANY_UNPACK] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
 	[HCC_FUNCTION_MANY_ANY] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
 	[HCC_FUNCTION_MANY_ALL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
 	[HCC_FUNCTION_MANY_ADD] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
@@ -4916,11 +4977,20 @@ HccManyTypeClass hcc_intrinisic_function_many_support[HCC_FUNCTION_MANY_COUNT] =
 	[HCC_FUNCTION_MANY_NORM] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
 	[HCC_FUNCTION_MANY_REFLECT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
 	[HCC_FUNCTION_MANY_REFRACT] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_VECTOR,
+	[HCC_FUNCTION_MANY_LOAD_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_FETCH_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_BIAS_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_GRADIENT_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_LEVEL_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_RED_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_GREEN_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_BLUE_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_ALPHA_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
+	[HCC_FUNCTION_MANY_STORE_TEXTURE] = HCC_MANY_TYPE_CLASS_TEXTURE,
 };
 
 HccAMLOp hcc_intrinisic_function_many_aml_ops[HCC_FUNCTION_MANY_COUNT] = {
-	[HCC_FUNCTION_MANY_PACK] = HCC_AML_OP_PACK,
-	[HCC_FUNCTION_MANY_UNPACK] = HCC_AML_OP_UNPACK,
 	[HCC_FUNCTION_MANY_ADD] = HCC_AML_OP_ADD,
 	[HCC_FUNCTION_MANY_SUB] = HCC_AML_OP_SUBTRACT,
 	[HCC_FUNCTION_MANY_MUL] = HCC_AML_OP_MULTIPLY,
@@ -4984,5 +5054,16 @@ HccAMLOp hcc_intrinisic_function_many_aml_ops[HCC_FUNCTION_MANY_COUNT] = {
 	[HCC_FUNCTION_MANY_NORM] = HCC_AML_OP_NORM,
 	[HCC_FUNCTION_MANY_REFLECT] = HCC_AML_OP_REFLECT,
 	[HCC_FUNCTION_MANY_REFRACT] = HCC_AML_OP_REFRACT,
+	[HCC_FUNCTION_MANY_LOAD_TEXTURE] = HCC_AML_OP_LOAD_TEXTURE,
+	[HCC_FUNCTION_MANY_FETCH_TEXTURE] = HCC_AML_OP_FETCH_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_TEXTURE] = HCC_AML_OP_SAMPLE_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_BIAS_TEXTURE] = HCC_AML_OP_SAMPLE_MIP_BIAS_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_GRADIENT_TEXTURE] = HCC_AML_OP_SAMPLE_MIP_GRADIENT_TEXTURE,
+	[HCC_FUNCTION_MANY_SAMPLE_MIP_LEVEL_TEXTURE] = HCC_AML_OP_SAMPLE_MIP_LEVEL_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_RED_TEXTURE] = HCC_AML_OP_GATHER_RED_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_GREEN_TEXTURE] = HCC_AML_OP_GATHER_GREEN_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_BLUE_TEXTURE] = HCC_AML_OP_GATHER_BLUE_TEXTURE,
+	[HCC_FUNCTION_MANY_GATHER_ALPHA_TEXTURE] = HCC_AML_OP_GATHER_ALPHA_TEXTURE,
+	[HCC_FUNCTION_MANY_STORE_TEXTURE] = HCC_AML_OP_STORE_TEXTURE,
 };
 

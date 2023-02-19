@@ -426,6 +426,20 @@ bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType 
 		return true;
 	}
 
+	if (HCC_DATA_TYPE_IS_TEXTURE(target_data_type) && HCC_DATA_TYPE_IS_TEXTURE(source_data_type)) {
+		HccResourceDataType target_resource_data_type = HCC_DATA_TYPE_AUX(target_data_type);
+		HccResourceDataType source_resource_data_type = HCC_DATA_TYPE_AUX(source_data_type);
+		HccResourceAccessMode target_access_mode = HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(target_resource_data_type);
+		if (
+			HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(target_resource_data_type) == HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(source_resource_data_type) &&
+			HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(source_resource_data_type) == HCC_RESOURCE_ACCESS_MODE_READ_WRITE &&
+			(target_access_mode == HCC_RESOURCE_ACCESS_MODE_READ_ONLY || target_access_mode == HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY)
+		) {
+			hcc_astgen_generate_implicit_cast(w, target_data_type, source_expr_mut);
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -573,12 +587,12 @@ void hcc_astgen_ensure_function_args_count(HccWorker* w, HccDecl function_decl, 
 	}
 }
 
-HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type, bool is_rw) {
+HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type, HccResourceAccessMode access_mode) {
 	HCC_DEBUG_ASSERT(!(element_data_type & (HCC_DATA_TYPE_CONST_QUALIFIER_MASK | HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK)), "expected no type qualifiers");
 
 	HccCU* cu = w->cu;
 	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
-	uint64_t key = ((uint64_t)element_data_type << 1) | is_rw;
+	uint64_t key = ((uint64_t)element_data_type << 2) | access_mode;
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.buffers_dedup_hash_table, &key);
 	HccDataTypeDedupEntry* entry = &cu->dtt.buffers_dedup_hash_table[insert.idx];
 	if (!insert.is_new) {
@@ -587,7 +601,7 @@ HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType el
 			HCC_CPU_RELAX();
 		}
 
-		return HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(id - 1, is_rw));
+		return HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(id - 1, access_mode));
 	}
 
 	HccBufferDataType* d = hcc_stack_push_thread_safe(cu->dtt.buffers);
@@ -595,7 +609,7 @@ HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType el
 
 	uint32_t buffer_idx = d - cu->dtt.buffers;
 	atomic_store(&entry->id, buffer_idx + 1);
-	HccDataType data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(buffer_idx, is_rw));
+	HccDataType data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_BUFFER(buffer_idx, access_mode));
 	return data_type;
 }
 
@@ -1859,7 +1873,7 @@ HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code,
 	HccDataType data_type = 0;
 	bool was_enum = false;
 	if (!(type_specifiers & HCC_ASTGEN_TYPE_SPECIFIER_TYPES)) {
-		bool is_rw;
+		HccResourceAccessMode access_mode;
 		bool is_tex_array;
 		bool is_tex_ms;
 		HccTextureDim tex_dim;
@@ -1945,7 +1959,16 @@ HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code,
 				break;
 			};
 			case HCC_ATA_TOKEN_KEYWORD_ROBUFFER:
-			case HCC_ATA_TOKEN_KEYWORD_RWBUFFER: {
+				access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY;
+				goto BUFFER;
+			case HCC_ATA_TOKEN_KEYWORD_WOBUFFER:
+				access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY;
+				goto BUFFER;
+			case HCC_ATA_TOKEN_KEYWORD_RWBUFFER:
+				access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE;
+				goto BUFFER;
+			{
+BUFFER:{}
 				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_RESOURCE_TYPE_GENERIC, hcc_ata_token_strings[token]);
 				}
@@ -1968,66 +1991,71 @@ HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code,
 				}
 				hcc_ata_iter_next(w->astgen.token_iter);
 
-				data_type = hcc_astgen_deduplicate_buffer_data_type(w, resolved_generic_data_type, token == HCC_ATA_TOKEN_KEYWORD_RWBUFFER);
+				data_type = hcc_astgen_deduplicate_buffer_data_type(w, resolved_generic_data_type, access_mode);
 				break;
 			};
-			case HCC_ATA_TOKEN_KEYWORD_ROANYBUFFER:
-				data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_ROANYBUFFER);
-				break;
-			case HCC_ATA_TOKEN_KEYWORD_RWANYBUFFER:
-				data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_RWANYBUFFER);
-				break;
 
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = false; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = false; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBE: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMS: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURECUBEMSARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = false; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; is_rw = false; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; is_rw = true; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; is_rw = true; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBE: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMS: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURECUBEMSARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; is_rw = true; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
-			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; is_rw = true; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_ROTEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_ONLY; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_WOTEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_WOTEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_WOTEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_WOTEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_WOTEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_WOTEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_WOTEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; access_mode = HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMS: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE; is_tex_array = false; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE2DMSARRAY: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE; is_tex_array = true; is_tex_ms = true; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_RWTEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; access_mode = HCC_RESOURCE_ACCESS_MODE_READ_WRITE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_SAMPLETEXTURE1D: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_SAMPLE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_SAMPLETEXTURE1DARRAY: tex_dim = HCC_TEXTURE_DIM_1D; access_mode = HCC_RESOURCE_ACCESS_MODE_SAMPLE; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_SAMPLETEXTURE2D: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_SAMPLE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_SAMPLETEXTURE2DARRAY: tex_dim = HCC_TEXTURE_DIM_2D; access_mode = HCC_RESOURCE_ACCESS_MODE_SAMPLE; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_SAMPLETEXTURECUBE: tex_dim = HCC_TEXTURE_DIM_CUBE; access_mode = HCC_RESOURCE_ACCESS_MODE_SAMPLE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_SAMPLETEXTURECUBEARRAY: tex_dim = HCC_TEXTURE_DIM_CUBE; access_mode = HCC_RESOURCE_ACCESS_MODE_SAMPLE; is_tex_array = true; is_tex_ms = false; goto TEXTURE;
+			case HCC_ATA_TOKEN_KEYWORD_SAMPLETEXTURE3D: tex_dim = HCC_TEXTURE_DIM_3D; access_mode = HCC_RESOURCE_ACCESS_MODE_SAMPLE; is_tex_array = false; is_tex_ms = false; goto TEXTURE;
 			{
 TEXTURE:{}
-				HccAMLIntrinsicDataType intrinsic_type = HCC_AML_INTRINSIC_DATA_TYPE_VOID;
-				if (hcc_ata_iter_next(w->astgen.token_iter) == HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
-					HccDataType generic_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, false);
-					HccDataType resolved_generic_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, generic_data_type);
-					token = hcc_ata_iter_peek(w->astgen.token_iter);
-					if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
-						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC);
-					}
-
-					HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(w->cu, data_type);
-					if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type)) {
-						HccString data_type_name = hcc_data_type_string(w->cu, generic_data_type);
-						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_TEXEL_TYPE, (int)data_type_name.size, data_type_name.data);
-					}
-
-					if (generic_data_type & HCC_DATA_TYPE_QUALIFIERS_MASK) {
-						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE, hcc_ata_token_strings[token]);
-					}
-
-					intrinsic_type = HCC_DATA_TYPE_AUX(lowered_data_type);
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_RESOURCE_TYPE_GENERIC, hcc_ata_token_strings[token]);
 				}
-				HccResourceDataType resource_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE(tex_dim, intrinsic_type, is_rw, is_tex_array, is_tex_ms);
+				hcc_ata_iter_next(w->astgen.token_iter);
+
+				HccDataType generic_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, false);
+				HccDataType resolved_generic_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, generic_data_type);
+				token = hcc_ata_iter_peek(w->astgen.token_iter);
+
+				if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC);
+				}
+				hcc_ata_iter_next(w->astgen.token_iter);
+
+				HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(w->cu, generic_data_type);
+				if (generic_data_type == 0 || !HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type)) {
+					HccString data_type_name = hcc_data_type_string(w->cu, generic_data_type);
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_TEXEL_TYPE, (int)data_type_name.size, data_type_name.data);
+				}
+
+				if (generic_data_type & HCC_DATA_TYPE_QUALIFIERS_MASK) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE, hcc_ata_token_strings[token]);
+				}
+
+				HccAMLIntrinsicDataType intrinsic_type = HCC_DATA_TYPE_AUX(lowered_data_type);
+				HccResourceDataType resource_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE(tex_dim, intrinsic_type, access_mode, is_tex_array, is_tex_ms);
 				data_type = HCC_DATA_TYPE(RESOURCE, resource_data_type);
 				break;
 			}
 			case HCC_ATA_TOKEN_KEYWORD_ROSAMPLER:
+				hcc_ata_iter_next(w->astgen.token_iter);
 				data_type = HCC_DATA_TYPE(RESOURCE, HCC_RESOURCE_DATA_TYPE_ROSAMPLER);
 				break;
 			default:
@@ -2776,6 +2804,98 @@ CURLY_INITIALIZER_FINISH: {}
 			expr->constant.id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AST_BASIC_UINT, &TODO_intptr_support_plz);
 			expr->data_type = HCC_DATA_TYPE_AST_BASIC_UINT;
 			return expr;
+		};
+
+		case HCC_ATA_TOKEN_KEYWORD_GENERIC: {
+			if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
+				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_GENERIC, hcc_ata_token_strings[token]);
+			}
+			hcc_ata_iter_next(w->astgen.token_iter);
+
+			HccDataType target_data_type;
+			{
+				HccASTExpr* expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
+				target_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, expr->data_type);
+			}
+
+			if (hcc_ata_iter_peek(w->astgen.token_iter) != HCC_ATA_TOKEN_COMMA) {
+				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_COMMA_GENERIC);
+			}
+			hcc_ata_iter_next(w->astgen.token_iter);
+
+			HccASTExpr* case_stmt_head = NULL;
+			HccASTExpr* case_stmt_tail = NULL;
+			HccASTExpr* default_stmt = NULL;
+			while (1) {
+				HccASTExpr* case_stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_STMT_GENERIC_CASE);
+				case_stmt->location = hcc_ata_iter_location(w->astgen.token_iter);
+
+				token = hcc_ata_iter_peek(w->astgen.token_iter);
+				if (token == HCC_ATA_TOKEN_KEYWORD_DEFAULT) {
+					case_stmt->generic_case.data_type = 0;
+					token = hcc_ata_iter_next(w->astgen.token_iter);
+					if (default_stmt) {
+						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_DEFAULT_STATEMENT_ALREADY_DECLARED);
+					}
+					default_stmt = case_stmt;
+				} else {
+					HccDataType data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_DATA_TYPE_CASE_GENERIC, true);
+					if (data_type == 0) {
+						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_VOID_DATA_TYPE);
+					}
+					data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
+					case_stmt->generic_case.data_type = hcc_astgen_generate_array_data_type_if_exists(w, data_type);
+
+					HccASTExpr* case_stmt_iter = case_stmt_head;
+					while (case_stmt_iter) {
+						if (case_stmt_iter->generic_case.data_type == case_stmt->generic_case.data_type) {
+							HccString data_type_name = hcc_data_type_string(w->cu, case_stmt->generic_case.data_type);
+							hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_DUPLICATE_CASE_GENERIC, (int)data_type_name.size, data_type_name.data);
+						}
+						case_stmt_iter = case_stmt_iter->generic_case.next_case_stmt;
+					}
+
+					token = hcc_ata_iter_peek(w->astgen.token_iter);
+				}
+				if (token != HCC_ATA_TOKEN_COLON) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_COLON_GENERIC);
+				}
+				token = hcc_ata_iter_next(w->astgen.token_iter);
+
+				case_stmt->generic_case.expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
+				if (case_stmt_tail) {
+					case_stmt_tail->generic_case.next_case_stmt = case_stmt;
+				} else {
+					case_stmt_head = case_stmt;
+				}
+				case_stmt_tail = case_stmt;
+
+				token = hcc_ata_iter_peek(w->astgen.token_iter);
+				if (token == HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
+					hcc_ata_iter_next(w->astgen.token_iter);
+					break;
+				}
+
+				if (token != HCC_ATA_TOKEN_COMMA) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_COMMA_OR_PARENTHESIS_CLOSE_GENERIC);
+				}
+				hcc_ata_iter_next(w->astgen.token_iter);
+			}
+
+			HccASTExpr* case_stmt_iter = case_stmt_head;
+			while (case_stmt_iter) {
+				if (case_stmt_iter->generic_case.data_type == target_data_type) {
+					return case_stmt_iter->generic_case.expr;
+				}
+				case_stmt_iter = case_stmt_iter->generic_case.next_case_stmt;
+			}
+
+			if (!default_stmt) {
+				HccString data_type_name = hcc_data_type_string(w->cu, target_data_type);
+				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_NO_DATA_TYPE_CASE_GENERIC, (int)data_type_name.size, data_type_name.data);
+			}
+
+			return default_stmt->generic_case.expr;
 		};
 
 		case HCC_ATA_TOKEN_KEYWORD_VOID:
@@ -3791,7 +3911,6 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			HccASTExpr* block_stmt = hcc_astgen_generate_stmt(w);
 			block_stmt->is_stmt = true;
 
-			stmt->switch_.cond_expr = switch_state->first_switch_case;
 			stmt->switch_.block_expr = block_stmt;
 			stmt->switch_.case_stmts_count = switch_state->case_stmts_count;
 			stmt->switch_.has_default_case = switch_state->default_switch_case != NULL;

@@ -1276,6 +1276,8 @@ typedef uint32_t HccPPPredefinedMacro;
 enum HccPPPredefinedMacro {
 	HCC_PP_PREDEFINED_MACRO___FILE__,
 	HCC_PP_PREDEFINED_MACRO___LINE__,
+	HCC_PP_PREDEFINED_MACRO___STDC__,
+	HCC_PP_PREDEFINED_MACRO___STDC_VERSION__,
 	HCC_PP_PREDEFINED_MACRO___COUNTER__,
 	HCC_PP_PREDEFINED_MACRO___HCC__,
 	HCC_PP_PREDEFINED_MACRO___HCC_GPU__,
@@ -1912,7 +1914,7 @@ void hcc_astgen_data_type_ensure_compatible_assignment(HccWorker* w, HccLocation
 bool hcc_astgen_data_type_check_compatible_arithmetic(HccWorker* w, HccASTExpr** left_expr_mut, HccASTExpr** right_expr_mut);
 void hcc_astgen_data_type_ensure_compatible_arithmetic(HccWorker* w, HccLocation* other_location, HccASTExpr** left_expr_mut, HccASTExpr** right_expr_mut, HccATAToken operator_token);
 void hcc_astgen_ensure_function_args_count(HccWorker* w, HccDecl function_decl, uint32_t args_count);
-HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type, bool is_rw);
+HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type, HccResourceAccessMode access_mode);
 void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what);
 void hcc_astgen_ensure_no_unused_specifiers_data_type(HccWorker* w);
 void hcc_astgen_ensure_no_unused_specifiers_identifier(HccWorker* w);
@@ -2020,6 +2022,8 @@ struct HccAMLFunction {
 	uint32_t                  basic_block_params_cap;
 	uint32_t                  basic_block_param_srcs_count;
 	uint32_t                  basic_block_param_srcs_cap;
+
+	HccLocation*              found_texture_sample_location;
 
 	HccAtomic(uint32_t)       ref_count;
 	HccAtomic(bool)           can_free;
@@ -2219,12 +2223,12 @@ void hcc_amlopt_reset(HccWorker* w);
 void hcc_amlopt_error_1(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...);
 void hcc_amlopt_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* location, HccLocation* other_location, ...);
 
-bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl);
+bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl, HccShaderStage used_in_shader_stage);
 bool hcc_amlopt_ensure_supported_type(HccWorker* w, HccDataType data_type, HccLocation* location);
 
 const HccAMLFunction* hcc_amlopt_make_call_graph(HccWorker* w, HccDecl function_decl, const HccAMLFunction* aml_function);
 const HccAMLFunction* hcc_amlopt_check_for_recursion_and_make_ordered_function_list(HccWorker* w, HccDecl function_decl, const HccAMLFunction* aml_function);
-const HccAMLFunction* hcc_amlopt_check_for_unsupported_types(HccWorker* w, HccDecl function_decl, const HccAMLFunction* aml_function);
+const HccAMLFunction* hcc_amlopt_check_for_unsupported_features(HccWorker* w, HccDecl function_decl, const HccAMLFunction* aml_function);
 
 void hcc_amlopt_optimize(HccWorker* w);
 
@@ -2259,6 +2263,7 @@ enum {
 	HCC_SPIRV_OP_TYPE_MATRIX = 24,
 	HCC_SPIRV_OP_TYPE_IMAGE = 25,
 	HCC_SPIRV_OP_TYPE_SAMPLER = 26,
+	HCC_SPIRV_OP_TYPE_SAMPLED_IMAGE = 27,
 	HCC_SPIRV_OP_TYPE_ARRAY = 28,
 	HCC_SPIRV_OP_TYPE_RUNTIME_ARRAY = 29,
 	HCC_SPIRV_OP_TYPE_STRUCT = 30,
@@ -2283,8 +2288,17 @@ enum {
 	HCC_SPIRV_OP_PTR_ACCESS_CHAIN = 67,
 	HCC_SPIRV_OP_DECORATE = 71,
 	HCC_SPIRV_OP_MEMBER_DECORATE = 72,
+	HCC_SPIRV_OP_VECTOR_SHUFFLE = 79,
 	HCC_SPIRV_OP_COMPOSITE_CONSTRUCT = 80,
+	HCC_SPIRV_OP_COMPOSITE_EXTRACT = 81,
 	HCC_SPIRV_OP_TRANSPOSE = 84,
+	HCC_SPIRV_OP_SAMPLED_IMAGE = 86,
+	HCC_SPIRV_OP_IMAGE_SAMPLE_IMPLICIT_LOD = 87,
+	HCC_SPIRV_OP_IMAGE_SAMPLE_EXPLICIT_LOD = 88,
+	HCC_SPIRV_OP_IMAGE_FETCH = 95,
+	HCC_SPIRV_OP_IMAGE_GATHER = 96,
+	HCC_SPIRV_OP_IMAGE_READ = 98,
+	HCC_SPIRV_OP_IMAGE_WRITE = 99,
 	HCC_SPIRV_OP_CONVERT_F_TO_U = 109,
 	HCC_SPIRV_OP_CONVERT_F_TO_S = 110,
 	HCC_SPIRV_OP_CONVERT_S_TO_F = 111,
@@ -2447,6 +2461,8 @@ enum {
 
 enum {
 	HCC_SPIRV_CAPABILITY_SHADER = 1,
+	HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_READ_WITHOUT_FORMAT = 55,
+	HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT = 56,
 	HCC_SPIRV_CAPABILITY_VULKAN_MEMORY_MODEL = 5345,
 	HCC_SPIRV_CAPABILITY_PHYSICAL_STORAGE_BUFFER = 5347,
 };
@@ -2466,51 +2482,6 @@ enum {
 	HCC_SPIRV_STORAGE_CLASS_PHYSICAL_STORAGE_BUFFER = 5349,
 
 	HCC_SPIRV_STORAGE_CLASS_INVALID = -1,
-};
-
-enum {
-	HCC_SPIRV_IMAGE_FORMAT_UNKNOWN = 0,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA32F = 1,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA16F = 2,
-	HCC_SPIRV_IMAGE_FORMAT_R32F = 3,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA8 = 4,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA8SNORM = 5,
-	HCC_SPIRV_IMAGE_FORMAT_RG32F = 6,
-	HCC_SPIRV_IMAGE_FORMAT_RG16F = 7,
-	HCC_SPIRV_IMAGE_FORMAT_R11FG11FB10F = 8,
-	HCC_SPIRV_IMAGE_FORMAT_R16F = 9,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA16 = 10,
-	HCC_SPIRV_IMAGE_FORMAT_RGB10A2 = 11,
-	HCC_SPIRV_IMAGE_FORMAT_RG16 = 12,
-	HCC_SPIRV_IMAGE_FORMAT_RG8 = 13,
-	HCC_SPIRV_IMAGE_FORMAT_R16 = 14,
-	HCC_SPIRV_IMAGE_FORMAT_R8 = 15,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA16SNORM = 16,
-	HCC_SPIRV_IMAGE_FORMAT_RG16SNORM = 17,
-	HCC_SPIRV_IMAGE_FORMAT_RG8SNORM = 18,
-	HCC_SPIRV_IMAGE_FORMAT_R16SNORM = 19,
-	HCC_SPIRV_IMAGE_FORMAT_R8SNORM = 20,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA32I = 21,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA16I = 22,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA8I = 23,
-	HCC_SPIRV_IMAGE_FORMAT_R32I = 24,
-	HCC_SPIRV_IMAGE_FORMAT_RG32I = 25,
-	HCC_SPIRV_IMAGE_FORMAT_RG16I = 26,
-	HCC_SPIRV_IMAGE_FORMAT_RG8I = 27,
-	HCC_SPIRV_IMAGE_FORMAT_R16I = 28,
-	HCC_SPIRV_IMAGE_FORMAT_R8I = 29,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA32UI = 30,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA16UI = 31,
-	HCC_SPIRV_IMAGE_FORMAT_RGBA8UI = 32,
-	HCC_SPIRV_IMAGE_FORMAT_R32UI = 33,
-	HCC_SPIRV_IMAGE_FORMAT_RGB10A2UI = 34,
-	HCC_SPIRV_IMAGE_FORMAT_RG32UI = 35,
-	HCC_SPIRV_IMAGE_FORMAT_RG16UI = 36,
-	HCC_SPIRV_IMAGE_FORMAT_RG8UI = 37,
-	HCC_SPIRV_IMAGE_FORMAT_R16UI = 38,
-	HCC_SPIRV_IMAGE_FORMAT_R8UI = 39,
-	HCC_SPIRV_IMAGE_FORMAT_R64UI = 40,
-	HCC_SPIRV_IMAGE_FORMAT_R64I = 41,
 };
 
 enum {
@@ -2579,6 +2550,14 @@ enum {
 	HCC_SPIRV_FUNCTION_CTRL_CONST        = 0x8,
 };
 
+enum {
+	HCC_SPIRV_IMAGE_OPERAND_NONE = 0x0,
+	HCC_SPIRV_IMAGE_OPERAND_BIAS = 0x1,
+	HCC_SPIRV_IMAGE_OPERAND_LOD = 0x2,
+	HCC_SPIRV_IMAGE_OPERAND_GRAD = 0x4,
+	HCC_SPIRV_IMAGE_OPERAND_SAMPLE = 0x40,
+};
+
 enum { // some hardcoded SPIR-V ids
 	HCC_SPIRV_ID_INVALID,
 
@@ -2590,8 +2569,12 @@ enum { // some hardcoded SPIR-V ids
 	HCC_SPIRV_ID_USER_START,
 };
 
+typedef uint8_t HccSPIRVDescriptorSetBinding;
 enum {
-	HCC_SPIRV_DESCRIPTOR_SET_BINDING_STORAGE_BUFFER,
+	HCC_SPIRV_DESCRIPTOR_SET_BINDING_STORAGE_BUFFER, // Ro/Rw Buffer
+	HCC_SPIRV_DESCRIPTOR_SET_BINDING_SAMPLED_IMAGE,  // Ro Texture
+	HCC_SPIRV_DESCRIPTOR_SET_BINDING_STORAGE_IMAGE,  // Rw Texture
+	HCC_SPIRV_DESCRIPTOR_SET_BINDING_SAMPLER,        // Ro Sampler
 };
 
 typedef struct HccSPIRVFunction HccSPIRVFunction;
@@ -2678,6 +2661,7 @@ struct HccSPIRV {
 typedef struct HccSPIRVDescriptorBindingInfo HccSPIRVDescriptorBindingInfo;
 struct HccSPIRVDescriptorBindingInfo {
 	HccSPIRVId variable_spirv_id;
+	HccSPIRVId data_type_spirv_id;
 	HccSPIRVId data_type_ptr_spirv_id;
 };
 

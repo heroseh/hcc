@@ -8,7 +8,7 @@ HccAMLOptFn hcc_aml_opts_phase_1_level_0[] = {
 };
 
 HccAMLOptFn hcc_aml_opts_phase_2_level_0[] = {
-	hcc_amlopt_check_for_unsupported_types,
+	hcc_amlopt_check_for_unsupported_features,
 };
 
 HccAMLOptFn hcc_aml_opts_phase_0_level_1[] = {
@@ -20,7 +20,7 @@ HccAMLOptFn hcc_aml_opts_phase_1_level_1[] = {
 };
 
 HccAMLOptFn hcc_aml_opts_phase_2_level_1[] = {
-	hcc_amlopt_check_for_unsupported_types,
+	hcc_amlopt_check_for_unsupported_features,
 };
 
 HccAMLOptFn hcc_aml_opts_phase_0_level_2[] = {
@@ -32,7 +32,7 @@ HccAMLOptFn hcc_aml_opts_phase_1_level_2[] = {
 };
 
 HccAMLOptFn hcc_aml_opts_phase_2_level_2[] = {
-	hcc_amlopt_check_for_unsupported_types,
+	hcc_amlopt_check_for_unsupported_features,
 };
 
 HccAMLOptFn hcc_aml_opts_phase_0_level_3[] = {
@@ -44,7 +44,7 @@ HccAMLOptFn hcc_aml_opts_phase_1_level_3[] = {
 };
 
 HccAMLOptFn hcc_aml_opts_phase_2_level_3[] = {
-	hcc_amlopt_check_for_unsupported_types,
+	hcc_amlopt_check_for_unsupported_features,
 };
 
 HccAMLOptFn hcc_aml_opts_phase_0_level_s[] = {
@@ -56,7 +56,7 @@ HccAMLOptFn hcc_aml_opts_phase_1_level_s[] = {
 };
 
 HccAMLOptFn hcc_aml_opts_phase_2_level_s[] = {
-	hcc_amlopt_check_for_unsupported_types,
+	hcc_amlopt_check_for_unsupported_features,
 };
 
 HccAMLOptFn hcc_aml_opts_phase_0_level_g[] = {
@@ -68,7 +68,7 @@ HccAMLOptFn hcc_aml_opts_phase_1_level_g[] = {
 };
 
 HccAMLOptFn hcc_aml_opts_phase_2_level_g[] = {
-	hcc_amlopt_check_for_unsupported_types,
+	hcc_amlopt_check_for_unsupported_features,
 };
 
 HccAMLOptFn* hcc_aml_opts[HCC_AML_OPT_PHASE_COUNT][HCC_OPT_LEVEL_COUNT] = {
@@ -152,7 +152,7 @@ void hcc_amlopt_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* loca
 	va_end(va_args);
 }
 
-bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl) {
+bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w, HccDecl function_decl, HccShaderStage used_in_shader_stage) {
 	HCC_DEBUG_ASSERT(HCC_DECL_IS_FUNCTION(function_decl), "internal error: expected a function declaration");
 	HCC_DEBUG_ASSERT(!HCC_DECL_IS_FORWARD_DECL(function_decl), "internal error: expected a function declaration that is not a forward declaration");
 	HccCU* cu = w->cu;
@@ -164,12 +164,12 @@ bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 
 	//
 	// check for recursion
-	HccASTFunction* ast_function = hcc_ast_function_get(cu, function_decl);
+	const HccAMLFunction* aml_function = hcc_aml_function_get(cu, function_decl);
 	for (uint32_t idx = 0; idx < w->amlopt.function_recursion_call_stack_count - 1; idx += 1) {
 		if (w->amlopt.function_recursion_call_stack[idx] == function_decl) {
 			const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
-			HccString identifier_string = hcc_string_table_get(ast_function->identifier_string_id);
-			hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_RECURSION, ast_function->identifier_location, (int)identifier_string.size, identifier_string.data, callstack);
+			HccString identifier_string = hcc_string_table_get(aml_function->identifier_string_id);
+			hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_RECURSION, aml_function->identifier_location, (int)identifier_string.size, identifier_string.data, callstack);
 			return false;
 		}
 	}
@@ -178,11 +178,31 @@ bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 	while (node) {
 		//
 		// descend down the call stack
-		if (!hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(w, node->function_decl)) {
+		if (!hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(w, node->function_decl, used_in_shader_stage)) {
 			return false;
 		}
 
 		node = node->next_call_node_idx == UINT32_MAX ? NULL : hcc_stack_get(cu->aml.call_graph_nodes, node->next_call_node_idx);
+	}
+
+	for (uint32_t aml_word_idx = 0; aml_word_idx < aml_function->words_count; ) {
+		HccAMLInstr* aml_instr = &aml_function->words[aml_word_idx];
+		HccAMLOp aml_op = HCC_AML_INSTR_OP(aml_instr);
+
+		if (used_in_shader_stage != HCC_SHADER_STAGE_FRAGMENT) {
+			switch (aml_op) {
+				case HCC_AML_OP_SAMPLE_TEXTURE:
+				case HCC_AML_OP_SAMPLE_MIP_BIAS_TEXTURE: {
+					const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
+					HccString identifier_string = hcc_string_table_get(aml_function->identifier_string_id);
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_FRAGMENT_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
+					break;
+				};
+			}
+		}
+
+CONTINUE:
+		aml_word_idx += HCC_AML_INSTR_WORDS_COUNT(aml_instr);
 	}
 
 	//
@@ -280,12 +300,12 @@ const HccAMLFunction* hcc_amlopt_check_for_recursion_and_make_ordered_function_l
 	}
 
 	w->amlopt.function_recursion_call_stack_count = 0;
-	hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(w, function_decl);
+	hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(w, function_decl, aml_function->shader_stage);
 
 	return aml_function;
 }
 
-const HccAMLFunction* hcc_amlopt_check_for_unsupported_types(HccWorker* w, HccDecl function_decl, const HccAMLFunction* aml_function) {
+const HccAMLFunction* hcc_amlopt_check_for_unsupported_features(HccWorker* w, HccDecl function_decl, const HccAMLFunction* aml_function) {
 	HccCU* cu = w->cu;
 	HccASTFunction* ast_function = hcc_ast_function_get(cu, function_decl);
 	for (uint32_t param_idx = 0; param_idx < aml_function->params_count; param_idx += 1) {

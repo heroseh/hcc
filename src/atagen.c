@@ -232,7 +232,7 @@ HccPPEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint3
 		case HCC_ATA_TOKEN_LIT_ULONG:
 		case HCC_ATA_TOKEN_LIT_ULONGLONG: {
 			HccConstantId constant_id = hcc_stack_get(w->atagen.ast_file->token_bag.values, *token_value_idx_mut)->constant_id;
-			*token_value_idx_mut += 1;
+			*token_value_idx_mut += 2; // skip the constant and it's associated string id
 
 			HccConstant constant = hcc_constant_table_get(w->cu, constant_id);
 			uint64_t u64;
@@ -247,7 +247,7 @@ HccPPEval hcc_ppgen_eval_unary_expr(HccWorker* w, uint32_t* token_idx_mut, uint3
 		case HCC_ATA_TOKEN_LIT_SLONG:
 		case HCC_ATA_TOKEN_LIT_SLONGLONG: {
 			HccConstantId constant_id = hcc_stack_get(w->atagen.ast_file->token_bag.values, *token_value_idx_mut)->constant_id;
-			*token_value_idx_mut += 1;
+			*token_value_idx_mut += 2; // skip the constant and it's associated string id
 
 			HccConstant constant = hcc_constant_table_get(w->cu, constant_id);
 			int64_t s64;
@@ -292,6 +292,10 @@ UNARY:
 				//
 				eval.data_type = HCC_DATA_TYPE_AML_INTRINSIC_S64;
 				eval.basic.s64 = 0;
+
+				if (token == HCC_ATA_TOKEN_IDENT) {
+					*token_value_idx_mut += 1; // skip the identifier's string id
+				}
 			} else {
 				*token_idx_mut -= 1;
 				hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_INVALID_PP_UNARY_EXPR, hcc_ata_token_strings[token]);
@@ -724,6 +728,9 @@ void hcc_ppgen_parse_defined(HccWorker* w) {
 	token_value.constant_id = does_macro_exist ? hcc_constant_table_deduplicate_one(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT) : hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT);
 
 	hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
+	hcc_atagen_token_value_add(w, token_value);
+
+	hcc_string_table_deduplicate_c_string(does_macro_exist ? "1" : "0", &token_value.string_id);
 	hcc_atagen_token_value_add(w, token_value);
 }
 
@@ -1206,6 +1213,34 @@ void hcc_ppgen_copy_expand_predefined_macro(HccWorker* w, HccPPPredefinedMacro p
 			};
 			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
 			hcc_atagen_token_value_add(w, token_value);
+
+			char buf[128];
+			snprintf(buf, sizeof(buf), "%u", w->atagen.location.line_end - 1);
+			hcc_string_table_deduplicate_c_string(buf, &token_value.string_id);
+			hcc_atagen_token_value_add(w, token_value);
+			break;
+		};
+		case HCC_PP_PREDEFINED_MACRO___STDC__: {
+			HccATAValue token_value = {
+				.constant_id = hcc_constant_table_deduplicate_one(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT),
+			};
+			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
+			hcc_atagen_token_value_add(w, token_value);
+
+			hcc_string_table_deduplicate_lit("1", &token_value.string_id);
+			hcc_atagen_token_value_add(w, token_value);
+			break;
+		};
+		case HCC_PP_PREDEFINED_MACRO___STDC_VERSION__: {
+			HccBasic line_num = hcc_basic_from_sint(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT, 201112L);
+			HccATAValue token_value = {
+				.constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT, &line_num),
+			};
+			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
+			hcc_atagen_token_value_add(w, token_value);
+
+			hcc_string_table_deduplicate_lit("201112L", &token_value.string_id);
+			hcc_atagen_token_value_add(w, token_value);
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___COUNTER__: {
@@ -1215,6 +1250,12 @@ void hcc_ppgen_copy_expand_predefined_macro(HccWorker* w, HccPPPredefinedMacro p
 			};
 			hcc_atagen_token_add(w, HCC_ATA_TOKEN_LIT_SINT);
 			hcc_atagen_token_value_add(w, token_value);
+
+			char buf[128];
+			snprintf(buf, sizeof(buf), "%u", w->atagen.__counter__);
+			hcc_string_table_deduplicate_c_string(buf, &token_value.string_id);
+			hcc_atagen_token_value_add(w, token_value);
+
 			w->atagen.__counter__ += 1;
 			break;
 		};

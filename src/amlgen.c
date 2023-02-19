@@ -228,7 +228,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 			HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
 			HccDataType src_data_type = hcc_data_type_lower_ast_to_aml(w->cu, src_expr->data_type);
-			if (dst_data_type == src_data_type) {
+			if (dst_data_type == src_data_type || HCC_DATA_TYPE_IS_RESOURCE(dst_data_type)) {
 				return src_operand;
 			}
 
@@ -589,6 +589,28 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 												hcc_amlgen_value_add(w, return_data_type),
 												src_operand);
 											goto CALL_END;
+										};
+
+										case HCC_FUNCTION_MANY_SAMPLE_TEXTURE:
+										case HCC_FUNCTION_MANY_SAMPLE_MIP_BIAS_TEXTURE:
+										case HCC_FUNCTION_MANY_SAMPLE_MIP_GRADIENT_TEXTURE:
+										case HCC_FUNCTION_MANY_SAMPLE_MIP_LEVEL_TEXTURE:
+										case HCC_FUNCTION_MANY_GATHER_RED_TEXTURE:
+										case HCC_FUNCTION_MANY_GATHER_GREEN_TEXTURE:
+										case HCC_FUNCTION_MANY_GATHER_BLUE_TEXTURE:
+										case HCC_FUNCTION_MANY_GATHER_ALPHA_TEXTURE: {
+											w->amlgen.temp_operands[temp_operands_start_idx + 0] = hcc_amlgen_generate_resource_descriptor_load(w, expr->location, w->amlgen.temp_operands[temp_operands_start_idx + 0]);
+											w->amlgen.temp_operands[temp_operands_start_idx + 1] = hcc_amlgen_generate_resource_descriptor_load(w, expr->location, w->amlgen.temp_operands[temp_operands_start_idx + 1]);
+											op = hcc_intrinisic_function_many_aml_ops[many];
+											break;
+										};
+
+										case HCC_FUNCTION_MANY_LOAD_TEXTURE:
+										case HCC_FUNCTION_MANY_FETCH_TEXTURE:
+										case HCC_FUNCTION_MANY_STORE_TEXTURE: {
+											w->amlgen.temp_operands[temp_operands_start_idx + 0] = hcc_amlgen_generate_resource_descriptor_load(w, expr->location, w->amlgen.temp_operands[temp_operands_start_idx + 0]);
+											op = hcc_intrinisic_function_many_aml_ops[many];
+											break;
 										};
 
 										default:
