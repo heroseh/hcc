@@ -10,6 +10,7 @@ HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 	[HCC_ASTGEN_SPECIFIER_NOINTERP] =         HCC_ATA_TOKEN_KEYWORD_NOINTERP,
 	[HCC_ASTGEN_SPECIFIER_VERTEX] =           HCC_ATA_TOKEN_KEYWORD_VERTEX,
 	[HCC_ASTGEN_SPECIFIER_FRAGMENT] =         HCC_ATA_TOKEN_KEYWORD_FRAGMENT,
+	[HCC_ASTGEN_SPECIFIER_COMPUTE] =          HCC_ATA_TOKEN_KEYWORD_COMPUTE,
 };
 
 void hcc_astgen_init(HccWorker* w, HccASTGenSetup* setup) {
@@ -636,6 +637,8 @@ void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_VERTEX;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_FRAGMENT;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE) {
+			keyword_token = HCC_ATA_TOKEN_KEYWORD_COMPUTE;
 		}
 		hcc_astgen_error_1(w, HCC_ERROR_CODE_UNUSED_SPECIFIER, hcc_ata_token_strings[keyword_token], what, hcc_ata_token_strings[hcc_ata_iter_peek(w->astgen.token_iter)]);
 	}
@@ -1196,6 +1199,9 @@ HccASTExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccWork
 
 HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
+	uint64_t dispatch_group_size_x, dispatch_group_size_y, dispatch_group_size_z;
+	HccConstantId constant_id;
+	HccConstant constant;
 	while (1) {
 		HccASTGenSpecifierFlags flag = 0;
 		switch (token) {
@@ -1209,6 +1215,58 @@ HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 			case HCC_ATA_TOKEN_KEYWORD_NOINTERP:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_NOINTERP;         break;
 			case HCC_ATA_TOKEN_KEYWORD_VERTEX:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX;           break;
 			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT;         break;
+			case HCC_ATA_TOKEN_KEYWORD_COMPUTE:
+				flag = HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE;
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_COMPUTE);
+				}
+
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_LIT_SINT) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE);
+				}
+				constant_id = hcc_ata_iter_next_value(w->astgen.token_iter).constant_id;
+				constant = hcc_constant_table_get(w->cu, constant_id);
+				if (!hcc_constant_as_uint(w->cu, constant, &dispatch_group_size_x)) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE);
+				}
+				hcc_ata_iter_next_value(w->astgen.token_iter); // skip the associated HccStringId
+
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_COMMA) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_COMMA_COMPUTE);
+				}
+
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_LIT_SINT) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE);
+				}
+				constant_id = hcc_ata_iter_next_value(w->astgen.token_iter).constant_id;
+				constant = hcc_constant_table_get(w->cu, constant_id);
+				if (!hcc_constant_as_uint(w->cu, constant, &dispatch_group_size_y)) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE);
+				}
+				hcc_ata_iter_next_value(w->astgen.token_iter); // skip the associated HccStringId
+
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_COMMA) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_COMMA_COMPUTE);
+				}
+
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_LIT_SINT) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE);
+				}
+				constant_id = hcc_ata_iter_next_value(w->astgen.token_iter).constant_id;
+				constant = hcc_constant_table_get(w->cu, constant_id);
+				if (!hcc_constant_as_uint(w->cu, constant, &dispatch_group_size_z)) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE);
+				}
+				hcc_ata_iter_next_value(w->astgen.token_iter); // skip the associated HccStringId
+
+				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_COMPUTE);
+				}
+
+				w->astgen.compute_dispatch_group_size_x = dispatch_group_size_x;
+				w->astgen.compute_dispatch_group_size_y = dispatch_group_size_y;
+				w->astgen.compute_dispatch_group_size_z = dispatch_group_size_z;
+				break;
 			case HCC_ATA_TOKEN_KEYWORD_AUTO: break;
 			case HCC_ATA_TOKEN_KEYWORD_VOLATILE:
 			default: return token;
@@ -4190,6 +4248,8 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			shader_stage = HCC_SHADER_STAGE_VERTEX;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT) {
 			shader_stage = HCC_SHADER_STAGE_FRAGMENT;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE) {
+			shader_stage = HCC_SHADER_STAGE_COMPUTE;
 		}
 
 		found_static |= w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC;
@@ -4391,6 +4451,40 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
 			}
 
+			break;
+		};
+		case HCC_SHADER_STAGE_COMPUTE: {
+			if (function.params_count != 2) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_COMPUTE, params_location);
+			}
+			HccASTVariable* param;
+			HccDataType param_data_type;
+
+			//
+			// return data type
+			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, return_data_type) != HCC_DATA_TYPE_AST_BASIC_VOID) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_COMPUTE, return_data_type_location);
+			}
+
+			//
+			// param[HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV]: HccFragmentSV const* const
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_COMPUTE_SV))) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_COMPUTE, param->identifier_location);
+			}
+
+			//
+			// param[HCC_COMPUTE_SHADER_PARAM_BC]: Bundled Constants
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_COMPUTE_SHADER_PARAM_BC);
+			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_STRUCT(hcc_decl_resolve_and_keep_qualifiers(w->cu, hcc_data_type_strip_pointer(w->cu, param_data_type)))) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_COMPUTE, param->identifier_location);
+			}
+
+			function.compute_dispatch_group_size_x = w->astgen.compute_dispatch_group_size_x;
+			function.compute_dispatch_group_size_y = w->astgen.compute_dispatch_group_size_y;
+			function.compute_dispatch_group_size_z = w->astgen.compute_dispatch_group_size_z;
 			break;
 		};
 	}

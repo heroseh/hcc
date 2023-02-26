@@ -12,6 +12,7 @@
 //
 // include the samples here so we have access to their structures
 #include "../triangle.c"
+#include "../compute-square.c"
 #include "../texture.c"
 #include "../alt-2.5d-rgb-color-picker.c"
 #include "../blob-vacation.c"
@@ -42,6 +43,7 @@
 typedef int AppSampleEnum;
 enum AppSampleEnum {
 	APP_SAMPLE_TRIANGLE,
+	APP_SAMPLE_COMPUTE_SQUARE,
 	APP_SAMPLE_TEXTURE,
 	APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER,
 	APP_SAMPLE_BLOB_VACATION,
@@ -73,22 +75,33 @@ struct AppSample {
 		uint32_t vertices_count;
 	} graphics;
 	struct {
-		uint32_t dispatch_size_x;
-		uint32_t dispatch_size_y;
-		uint32_t dispatch_size_z;
+		uint32_t dispatch_group_size_x;
+		uint32_t dispatch_group_size_y;
+		uint32_t dispatch_group_size_z;
 	} compute;
 };
 
 static AppSample app_samples[APP_SAMPLE_COUNT] = {
 	[APP_SAMPLE_TRIANGLE] = {
 		.shader_name = "triangle",
+		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.topology = APP_TOPOLOGY_TRIANGLE_LIST,
 			.vertices_count = 3,
 		},
 	},
+	[APP_SAMPLE_COMPUTE_SQUARE] = {
+		.shader_name = "compute-square",
+		.shader_type = APP_SHADER_TYPE_COMPUTE,
+		.compute = {
+			.dispatch_group_size_x = 64,
+			.dispatch_group_size_y = 64,
+			.dispatch_group_size_z = 1,
+		},
+	},
 	[APP_SAMPLE_TEXTURE] = {
 		.shader_name = "texture",
+		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
@@ -96,6 +109,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 	},
 	[APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER] = {
 		.shader_name = "alt-2.5d-rgb-color-picker",
+		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
@@ -103,6 +117,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 	},
 	[APP_SAMPLE_BLOB_VACATION] = {
 		.shader_name = "blob-vacation",
+		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,

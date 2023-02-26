@@ -202,8 +202,16 @@ void hcc_spirvlink_link(HccWorker* w) {
 				operands[0] = entry_point->spirv_id;
 				operands[1] = HCC_SPIRV_EXECUTION_MODE_ORIGIN_UPPER_LEFT;
 				break;
-			case HCC_SHADER_STAGE_COMPUTE:
+			case HCC_SHADER_STAGE_COMPUTE: {
+				const HccAMLFunction* aml_function = hcc_aml_function_get(cu, entry_point->function_decl);
+				operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_EXECUTION_MODE, 5);
+				operands[0] = entry_point->spirv_id;
+				operands[1] = HCC_SPIRV_EXECUTION_MODE_LOCAL_SIZE;
+				operands[2] = aml_function->compute_dispatch_group_size_x;
+				operands[3] = aml_function->compute_dispatch_group_size_y;
+				operands[4] = aml_function->compute_dispatch_group_size_z;
 				break;
+			};
 			case HCC_SHADER_STAGE_MESHTASK:
 				break;
 			case HCC_SHADER_STAGE_MESH:
@@ -216,11 +224,13 @@ void hcc_spirvlink_link(HccWorker* w) {
 	HccSPIRVId vertex_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_VERTEX_SV_OUT);
 	HccSPIRVId fragment_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_FRAGMENT_SV);
 	HccSPIRVId fragment_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_FRAGMENT_SV_OUT);
+	HccSPIRVId compute_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_COMPUTE_SV);
 
 	HccSPIRVId variable_input_vertex_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_VERTEX_SV));
 	HccSPIRVId variable_output_vertex_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_VERTEX_SV_OUT));
 	HccSPIRVId variable_input_fragment_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_FRAGMENT_SV));
 	HccSPIRVId variable_output_fragment_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_FRAGMENT_SV_OUT));
+	HccSPIRVId variable_input_compute_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_COMPUTE_SV));
 
 	{ // HccVertexSV
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
@@ -260,6 +270,32 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[3] = HCC_SPIRV_BUILTIN_FRAG_DEPTH;
 	}
 
+	{ // HccComputeSV
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
+		operands[0] = compute_sv_type_id;
+		operands[1] = HCC_COMPUTE_SV_DISPATCH_IDX;
+		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[3] = HCC_SPIRV_BUILTIN_GLOBAL_INVOCATION_ID;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
+		operands[0] = compute_sv_type_id;
+		operands[1] = HCC_COMPUTE_SV_DISPATCH_GROUP_IDX;
+		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[3] = HCC_SPIRV_BUILTIN_WORK_GROUP_ID;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
+		operands[0] = compute_sv_type_id;
+		operands[1] = HCC_COMPUTE_SV_DISPATCH_LOCAL_IDX;
+		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[3] = HCC_SPIRV_BUILTIN_LOCAL_INVOCATION_ID;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
+		operands[0] = compute_sv_type_id;
+		operands[1] = HCC_COMPUTE_SV_DISPATCH_LOCAL_FLAT_IDX;
+		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[3] = HCC_SPIRV_BUILTIN_LOCAL_INVOCATION_INDEX;
+	}
+
 	HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.decorate_words));
 	HCC_COPY_ELMT_MANY(words, cu->spirv.decorate_words, hcc_stack_count(cu->spirv.decorate_words));
 
@@ -291,6 +327,11 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[0] = variable_output_fragment_sv_out_type_id;
 		operands[1] = HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAGMENT_SV_OUT;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
+		operands[0] = variable_input_compute_sv_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV;
+		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
 
 		HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.global_variable_words));
 		HCC_COPY_ELMT_MANY(words, cu->spirv.global_variable_words, hcc_stack_count(cu->spirv.global_variable_words));

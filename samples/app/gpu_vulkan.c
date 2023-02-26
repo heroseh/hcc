@@ -213,6 +213,7 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
 			.pNext = &features_1_1,
 			.vulkanMemoryModel = VK_TRUE,
+			.vulkanMemoryModelDeviceScope = VK_TRUE,
 			.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
 			.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE,
 			.shaderStorageImageArrayNonUniformIndexing = VK_TRUE,
@@ -222,12 +223,15 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE,
 			.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_TRUE,
 			.descriptorBindingPartiallyBound = VK_TRUE,
+			.scalarBlockLayout = VK_TRUE,
 		};
 		VkPhysicalDeviceVulkan13Features features_1_3 = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 			.pNext = &features_1_2,
 			.dynamicRendering = VK_TRUE,
 			.synchronization2 = VK_TRUE,
+			.shaderDemoteToHelperInvocation = VK_TRUE,
+			.maintenance4 = VK_TRUE,
 		};
 		VkPhysicalDeviceFeatures2 features = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
@@ -814,10 +818,28 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 
 	uint32_t active_frame_idx = gpu.frame_idx % APP_FRAMES_IN_FLIGHT;
 
+	//
+	// wait for two frames ago to be finished on the GPU so we can start using it's stuff!
+	APP_VK_ASSERT(vkWaitForFences(gpu.device, 1, &gpu.fences[active_frame_idx], true, UINT64_MAX));
+	APP_VK_ASSERT(vkResetFences(gpu.device, 1, &gpu.fences[active_frame_idx]));
+
+	APP_VK_ASSERT(vkResetCommandPool(gpu.device, gpu.command_pools[active_frame_idx], 0));
+
+	uint32_t swapchain_image_idx;
+	APP_VK_ASSERT(vkAcquireNextImageKHR(gpu.device, gpu.swapchain, UINT64_MAX, gpu.swapchain_image_ready_semaphore, VK_NULL_HANDLE, &swapchain_image_idx));
+	VkImage swapchain_image = gpu.swapchain_images[swapchain_image_idx];
+	VkImageView swapchain_image_view = gpu.swapchain_image_views[swapchain_image_idx];
+
+	{
+		GpuVkResource* res = &gpu.resources[0];
+		res->image = swapchain_image;
+		res->image_view = swapchain_image_view;
+	}
+
 	for (uint32_t res_idx = 0; res_idx < gpu.next_resource_id; res_idx += 1) {
 		GpuVkResource* res = &gpu.resources[res_idx];
 
-		if (!res->sampler) {
+		if (!res->sampler && res->device_memory) {
 			VkMappedMemoryRange range = {
 				.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
 				.pNext = NULL,
@@ -850,7 +872,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 			};
 			vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL);
 		} else if (res->image) {
-			{
+			if (res->image != swapchain_image) {
 				VkDescriptorImageInfo image_info = {
 					.sampler = VK_NULL_HANDLE,
 					.imageView = res->image_view,
@@ -916,18 +938,6 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 		}
 
 	}
-
-	//
-	// wait for two frames ago to be finished on the GPU so we can start using it's stuff!
-	APP_VK_ASSERT(vkWaitForFences(gpu.device, 1, &gpu.fences[active_frame_idx], true, UINT64_MAX));
-	APP_VK_ASSERT(vkResetFences(gpu.device, 1, &gpu.fences[active_frame_idx]));
-
-	APP_VK_ASSERT(vkResetCommandPool(gpu.device, gpu.command_pools[active_frame_idx], 0));
-
-	uint32_t swapchain_image_idx;
-	APP_VK_ASSERT(vkAcquireNextImageKHR(gpu.device, gpu.swapchain, UINT64_MAX, gpu.swapchain_image_ready_semaphore, VK_NULL_HANDLE, &swapchain_image_idx));
-	VkImage swapchain_image = gpu.swapchain_images[swapchain_image_idx];
-	VkImageView swapchain_image_view = gpu.swapchain_image_views[swapchain_image_idx];
 
 	VkCommandBuffer vk_command_buffer;
 	{
@@ -1117,6 +1127,55 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 						.pNext = NULL,
 						.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
 						.srcAccessMask = VK_ACCESS_2_NONE,
+						.dstStageMask = VK_PIPELINE_STAGE_2_CLEAR_BIT,
+						.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+						.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+						.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+						.srcQueueFamilyIndex = gpu.queue_family_idx,
+						.dstQueueFamilyIndex = gpu.queue_family_idx,
+						.image = swapchain_image,
+						.subresourceRange = {
+							.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+							.baseMipLevel = 0,
+							.levelCount = 1,
+							.baseArrayLayer = 0,
+							.layerCount = 1
+						},
+					}
+				};
+
+				VkDependencyInfo dependency_info = {
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.pNext = NULL,
+					.dependencyFlags = 0,
+					.memoryBarrierCount = 0,
+					.pMemoryBarriers = NULL,
+					.bufferMemoryBarrierCount = 0,
+					.pBufferMemoryBarriers = NULL,
+					.imageMemoryBarrierCount = APP_ARRAY_COUNT(image_barriers),
+					.pImageMemoryBarriers = image_barriers,
+				};
+
+				vkCmdPipelineBarrier2(vk_command_buffer, &dependency_info);
+			}
+
+			VkImageSubresourceRange subresource_range = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1
+			};
+			VkClearColorValue clear_color = {0};
+			vkCmdClearColorImage(vk_command_buffer, swapchain_image, VK_IMAGE_LAYOUT_GENERAL, &clear_color, 1, &subresource_range);
+
+			{
+				VkImageMemoryBarrier2 image_barriers[] = {
+					{
+						.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+						.pNext = NULL,
+						.srcStageMask = VK_PIPELINE_STAGE_2_CLEAR_BIT,
+						.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
 						.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 						.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
 						.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1149,9 +1208,10 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 				vkCmdPipelineBarrier2(vk_command_buffer, &dependency_info);
 			}
 
+
 			vkCmdBindPipeline(vk_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, gpu_sample->pipeline);
 			vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, gpu_sample->pipeline_layout, 0, 1, &gpu_sample->descriptor_set, 0, NULL);
-			vkCmdDispatch(vk_command_buffer, sample->compute.dispatch_size_x, sample->compute.dispatch_size_y, sample->compute.dispatch_size_z);
+			vkCmdDispatch(vk_command_buffer, sample->compute.dispatch_group_size_x, sample->compute.dispatch_group_size_y, sample->compute.dispatch_group_size_z);
 
 			{
 				VkImageMemoryBarrier2 image_barriers[] = {
@@ -1253,6 +1313,15 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 		APP_VK_ASSERT(vkQueuePresentKHR(gpu.queue, &present_info));
 	}
 	gpu.frame_idx += 1;
+}
+
+GpuResourceId gpu_create_backbuffer(void) {
+	GpuResourceId res_id = gpu.next_resource_id;
+	APP_ASSERT(res_id < APP_ARRAY_COUNT(gpu.resources), "resources full");
+	gpu.next_resource_id += 1;
+	GpuVkResource* res = &gpu.resources[res_id];
+	memset(res, 0x00, sizeof(*res));
+	return res_id;
 }
 
 GpuResourceId gpu_create_buffer(uint32_t size) {

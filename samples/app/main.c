@@ -27,10 +27,13 @@ int main(int argc, char** argv) {
 
 	gpu_init(window, window_width, window_height);
 
+	GpuResourceId backbuffer_texture_id = gpu_create_backbuffer();
 	GpuResourceId triangle_vertex_buffer_id = gpu_create_buffer(3 * sizeof(TriangleVertex));
 	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
 	GpuResourceId clamp_linear_sampler_id = gpu_create_sampler();
 
+	//
+	// put logo and all of it's mip levels into the logo texture
 	{
 		stbi_set_flip_vertically_on_load(true);
 		uint32_t logo_width = APP_LOGO_WIDTH;
@@ -59,7 +62,7 @@ int main(int argc, char** argv) {
 	}
 
 	uint8_t bc_data[64];
-	memset(bc_data, 0x00, sizeof(bc_data));
+	memset(bc_data, 0x00, sizeof(bc_data)); // we zero the memory here to a avoid a driver crash if we forget to set a bindless index at all!
 	void* bundled_constants_ptr = bc_data;
 
 	AppSampleEnum next_sample_enum_to_init = 0;
@@ -128,6 +131,13 @@ int main(int argc, char** argv) {
 				vertices[0].pos = f32x2(-0.5f, -0.5f);
 				vertices[1].pos = f32x2(0.f, 0.5f);
 				vertices[2].pos = f32x2(0.5f, -0.5f);
+				break;
+			};
+			case APP_SAMPLE_COMPUTE_SQUARE: {
+				ComputeSquareBC* bc = bundled_constants_ptr;
+				if (init_sample) {
+					bc->output = backbuffer_texture_id;
+				}
 				break;
 			};
 			case APP_SAMPLE_TEXTURE: {

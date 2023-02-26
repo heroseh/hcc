@@ -55,6 +55,13 @@ HccSPIRVId hcc_spirvgen_convert_operand(HccWorker* w, HccAMLOperand aml_operand)
 							default: HCC_ABORT("unhandled fragment shader parameter: %u", value_idx);
 						}
 						break;
+					case HCC_SHADER_STAGE_COMPUTE:
+						switch (value_idx) {
+							case HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV: spirv_id = HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV; break;
+							case HCC_COMPUTE_SHADER_PARAM_BC: spirv_id = w->spirvgen.bc_spirv_id; break;
+							default: HCC_ABORT("unhandled compute shader parameter: %u", value_idx);
+						}
+						break;
 					default: HCC_ABORT("unhandled shader stage: %u", aml_function->shader_stage);
 				}
 			}
@@ -131,6 +138,9 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				break;
 			case HCC_SHADER_STAGE_FRAGMENT:
 				param_idx = HCC_FRAGMENT_SHADER_PARAM_BC;
+				break;
+			case HCC_SHADER_STAGE_COMPUTE:
+				param_idx = HCC_COMPUTE_SHADER_PARAM_BC;
 				break;
 			HCC_ABORT("unhandled shader type %u", aml_function->shader_stage);
 		}
@@ -269,6 +279,8 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			break;
 		};
 		case HCC_SHADER_STAGE_COMPUTE:
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV);
+			break;
 		case HCC_SHADER_STAGE_MESHTASK:
 		case HCC_SHADER_STAGE_MESH:
 			HCC_ABORT("TODO");
@@ -1113,7 +1125,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			};
 
 			case HCC_AML_OP_MEMORY_BARRIER_RESOURCE:
-			case HCC_AML_OP_MEMORY_BARRIER_INVOCATION:
+			case HCC_AML_OP_MEMORY_BARRIER_DISPATCH:
 			case HCC_AML_OP_MEMORY_BARRIER_ALL: {
 				HccSPIRVId memory_scope;
 				HccSPIRVId memory_semantics;
@@ -1122,9 +1134,9 @@ void hcc_spirvgen_generate(HccWorker* w) {
 						memory_scope = cu->spirv.scope_device_spirv_id;
 						memory_semantics = cu->spirv.memory_semantics_resource_spirv_id;
 						break;
-					case HCC_AML_OP_MEMORY_BARRIER_INVOCATION:
+					case HCC_AML_OP_MEMORY_BARRIER_DISPATCH:
 						memory_scope = cu->spirv.scope_workgroup_spirv_id;
-						memory_semantics = cu->spirv.memory_semantics_invocation_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_dispatch_spirv_id;
 						break;
 					case HCC_AML_OP_MEMORY_BARRIER_ALL:
 						memory_scope = cu->spirv.scope_device_spirv_id;
@@ -1139,7 +1151,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			};
 
 			case HCC_AML_OP_CONTROL_BARRIER_RESOURCE:
-			case HCC_AML_OP_CONTROL_BARRIER_INVOCATION:
+			case HCC_AML_OP_CONTROL_BARRIER_DISPATCH:
 			case HCC_AML_OP_CONTROL_BARRIER_ALL: {
 				HccSPIRVId execution_scope = cu->spirv.scope_workgroup_spirv_id;
 				HccSPIRVId memory_scope;
@@ -1149,9 +1161,9 @@ void hcc_spirvgen_generate(HccWorker* w) {
 						memory_scope = cu->spirv.scope_device_spirv_id;
 						memory_semantics = cu->spirv.memory_semantics_resource_spirv_id;
 						break;
-					case HCC_AML_OP_CONTROL_BARRIER_INVOCATION:
+					case HCC_AML_OP_CONTROL_BARRIER_DISPATCH:
 						memory_scope = cu->spirv.scope_workgroup_spirv_id;
-						memory_semantics = cu->spirv.memory_semantics_invocation_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_dispatch_spirv_id;
 						break;
 					case HCC_AML_OP_CONTROL_BARRIER_ALL:
 						memory_scope = cu->spirv.scope_device_spirv_id;
@@ -1255,12 +1267,12 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				HccSPIRVId ms_sample_spirv_id;
 				if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) { // extract the u32x2 if Texture2D and u32x3 if Texture2DArray
 					HccSPIRVId new_index_spirv_id = hcc_spirv_next_id(cu);
-					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_VECTOR_SHUFFLE, 4 + num_components - 1);
-					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_VECTOR_SHUFFLE, 6);
+					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32X2);
 					operands[1] = new_index_spirv_id;
 					operands[2] = index_spirv_id;
 					operands[3] = index_spirv_id;
-					for (uint32_t idx = 0; idx < num_components - 1; idx += 1) {
+					for (uint32_t idx = 0; idx < 2; idx += 1) {
 						operands[4 + idx] = idx;
 					}
 
@@ -1270,7 +1282,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32);
 					operands[1] = ms_sample_spirv_id;
 					operands[2] = index_spirv_id;
-					operands[3] = num_components - 1;
+					operands[3] = 2;
 				}
 
 				bool needs_intermediate_value = intermediate_return_data_type != return_data_type;
@@ -1409,6 +1421,46 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[2] = sampled_image_spirv_id;
 				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[3]); // coordinate
 				operands[4] = component_spirv_id;
+
+				break;
+			};
+			case HCC_AML_OP_STORE_TEXTURE:
+			{
+				HccDataType texture_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(texture_data_type), "expected resource descriptor type");
+				HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(texture_data_type);
+
+				HccSPIRVId index_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+				HccSPIRVId ms_sample_spirv_id;
+				if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) { // extract the u32x2 if Texture2D and u32x3 if Texture2DArray
+					HccSPIRVId new_index_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_VECTOR_SHUFFLE, 6);
+					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32X2);
+					operands[1] = new_index_spirv_id;
+					operands[2] = index_spirv_id;
+					operands[3] = index_spirv_id;
+					for (uint32_t idx = 0; idx < 2; idx += 1) {
+						operands[4 + idx] = idx;
+					}
+
+					// extract the multi-sample sample index
+					ms_sample_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_COMPOSITE_EXTRACT, 4);
+					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32);
+					operands[1] = ms_sample_spirv_id;
+					operands[2] = index_spirv_id;
+					operands[3] = 2;
+				}
+
+				HccSPIRVOp op = aml_op == HCC_AML_OP_FETCH_TEXTURE ? HCC_SPIRV_OP_IMAGE_FETCH : HCC_SPIRV_OP_IMAGE_READ;
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IMAGE_WRITE, 3 + HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type) * 2);
+				operands[0] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+				if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) {
+					operands[3] = HCC_SPIRV_IMAGE_OPERAND_SAMPLE;
+					operands[4] = ms_sample_spirv_id;
+				}
 
 				break;
 			};

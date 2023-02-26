@@ -25,7 +25,7 @@
 #ifdef __HCC_GPU__
 #define HCC_VERTEX __hcc_vertex
 #define HCC_FRAGMENT __hcc_fragment
-#define HCC_COMPUTE __hcc_compute
+#define HCC_COMPUTE(x, y, z) __hcc_compute(x, y, z)
 #define HCC_MESHTASK __hcc_meshtask
 #define HCC_MESH __hcc_mesh
 #define HCC_RASTERIZER_STATE __hcc_rasterizer_state
@@ -35,7 +35,7 @@
 #else // !__HCC_GPU__
 #define HCC_VERTEX
 #define HCC_FRAGMENT
-#define HCC_COMPUTE
+#define HCC_COMPUTE(x, y, z)
 #define HCC_MESHTASK
 #define HCC_MESH
 #define HCC_RASTERIZER_STATE
@@ -114,6 +114,14 @@ struct HccFragmentSV {
 typedef struct HccFragmentSVOut HccFragmentSVOut;
 struct HccFragmentSVOut {
 	float depth;
+};
+
+typedef struct HccComputeSV HccComputeSV;
+struct HccComputeSV {
+	u32x3    dispatch_idx;            // the overall dispatch index for this invocation, will be dispatch_group_idx * HCC_COMPUTE(x, y, z) + dispatch_local_idx
+	u32x3    dispatch_group_idx;      // the current dispatch group this invocation is from, will be 0..Dispatch(x, y, z)
+	u32x3    dispatch_local_idx;      // the local idx within the dispatch group for invocation, will be 0..HCC_COMPUTE(x, y, z)
+	uint32_t dispatch_local_flat_idx; // the local idx within the dispatch group for invocation as a flat index
 };
 
 #include "hcc_texture_intrinsics.h"

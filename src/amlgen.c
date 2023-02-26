@@ -539,10 +539,10 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 								case HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4: op = HCC_AML_OP_UNPACK_S8X4_F32X4; break;
 								case HCC_FUNCTION_IDX_DISCARD_FRAGMENT: op = HCC_AML_OP_DISCARD_FRAGMENT; break;
 								case HCC_FUNCTION_IDX_MEMORY_BARRIER_RESOURCE: op = HCC_AML_OP_MEMORY_BARRIER_RESOURCE; break;
-								case HCC_FUNCTION_IDX_MEMORY_BARRIER_INVOCATION: op = HCC_AML_OP_MEMORY_BARRIER_INVOCATION; break;
+								case HCC_FUNCTION_IDX_MEMORY_BARRIER_DISPATCH: op = HCC_AML_OP_MEMORY_BARRIER_DISPATCH; break;
 								case HCC_FUNCTION_IDX_MEMORY_BARRIER_ALL: op = HCC_AML_OP_MEMORY_BARRIER_ALL; break;
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE: op = HCC_AML_OP_CONTROL_BARRIER_RESOURCE; break;
-								case HCC_FUNCTION_IDX_CONTROL_BARRIER_INVOCATION: op = HCC_AML_OP_CONTROL_BARRIER_INVOCATION; break;
+								case HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH: op = HCC_AML_OP_CONTROL_BARRIER_DISPATCH; break;
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL: op = HCC_AML_OP_CONTROL_BARRIER_ALL; break;
 								default: {
 									HCC_DEBUG_ASSERT(HCC_FUNCTION_IDX_MANY_START <= function_idx && function_idx < HCC_FUNCTION_IDX_MANY_END, "unhandled intrinsic function");
@@ -1217,6 +1217,9 @@ void hcc_amlgen_generate(HccWorker* w) {
 	function->return_data_type = hcc_data_type_lower_ast_to_aml(w->cu, ast_function->return_data_type);
 	function->shader_stage = ast_function->shader_stage;
 	function->params_count = ast_function->params_count;
+	function->compute_dispatch_group_size_x = ast_function->compute_dispatch_group_size_x;
+	function->compute_dispatch_group_size_y = ast_function->compute_dispatch_group_size_y;
+	function->compute_dispatch_group_size_z = ast_function->compute_dispatch_group_size_z;
 	function->opt_level = ast_function->opt_level;
 	*hcc_stack_get(w->cu->aml.functions, HCC_DECL_AUX(function_decl)) = function;
 	w->amlgen.function_decl = function_decl;

@@ -1171,6 +1171,9 @@ struct HccASTFunction {
 	HccOptLevel         opt_level;
 	HccASTExpr*         block_expr;
 	uint32_t            max_instrs_count;
+	uint64_t            compute_dispatch_group_size_x;
+	uint64_t            compute_dispatch_group_size_y;
+	uint64_t            compute_dispatch_group_size_z;
 };
 
 enum {
@@ -1189,6 +1192,11 @@ enum {
 };
 
 enum {
+	HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV,
+	HCC_COMPUTE_SHADER_PARAM_BC,
+};
+
+enum {
 	HCC_VERTEX_SV_VERTEX_IDX,
 	HCC_VERTEX_SV_INSTANCE_IDX,
 };
@@ -1203,6 +1211,13 @@ enum {
 
 enum {
 	HCC_FRAGMENT_SV_OUT_DEPTH,
+};
+
+enum {
+	HCC_COMPUTE_SV_DISPATCH_IDX,
+	HCC_COMPUTE_SV_DISPATCH_GROUP_IDX,
+	HCC_COMPUTE_SV_DISPATCH_LOCAL_IDX,
+	HCC_COMPUTE_SV_DISPATCH_LOCAL_FLAT_IDX,
 };
 
 // ===========================================
@@ -1752,6 +1767,7 @@ enum {
 
 	HCC_ASTGEN_SPECIFIER_VERTEX,
 	HCC_ASTGEN_SPECIFIER_FRAGMENT,
+	HCC_ASTGEN_SPECIFIER_COMPUTE,
 
 	HCC_ASTGEN_SPECIFIER_COUNT,
 };
@@ -1770,8 +1786,9 @@ enum {
 
 	HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX =              1 << HCC_ASTGEN_SPECIFIER_VERTEX,
 	HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT =            1 << HCC_ASTGEN_SPECIFIER_FRAGMENT,
+	HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE =             1 << HCC_ASTGEN_SPECIFIER_COMPUTE,
 
-	HCC_ASTGEN_SPECIFIER_FLAGS_ALL_SHADER_STAGES = HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX | HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT,
+	HCC_ASTGEN_SPECIFIER_FLAGS_ALL_SHADER_STAGES = HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX | HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT | HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE,
 
 	HCC_ASTGEN_SPECIFIER_FLAGS_ALL_VARIABLE_SPECIFIERS =
 		HCC_ASTGEN_SPECIFIER_FLAGS_STATIC      |
@@ -1857,6 +1874,9 @@ struct HccASTGen {
 
 	HccASTGenSwitchState switch_state;
 	bool is_in_loop;
+	uint32_t compute_dispatch_group_size_x;
+	uint32_t compute_dispatch_group_size_y;
+	uint32_t compute_dispatch_group_size_z;
 
 	HccStack(HccCompoundField) compound_fields;
 	HccStack(HccEnumValue)     enum_values;
@@ -2006,6 +2026,9 @@ struct HccAMLFunction {
 	HccShaderStage            shader_stage;
 	HccOptLevel               opt_level;
 	uint8_t                   params_count;
+	uint64_t                  compute_dispatch_group_size_x;
+	uint64_t                  compute_dispatch_group_size_y;
+	uint64_t                  compute_dispatch_group_size_z;
 
 	HccAMLWord*               words;
 	HccAMLValue*              values;
@@ -2503,8 +2526,9 @@ enum {
 };
 
 enum {
-	HCC_SPIRV_EXECUTION_MODE_ORIGIN_UPPER_LEFT = 7,
-	HCC_SPIRV_EXECUTION_MODE_ORIGIN_LOWER_LEFT = 8,
+	HCC_SPIRV_EXECUTION_MODE_ORIGIN_UPPER_LEFT =  7,
+	HCC_SPIRV_EXECUTION_MODE_ORIGIN_LOWER_LEFT =  8,
+	HCC_SPIRV_EXECUTION_MODE_LOCAL_SIZE =        17,
 };
 
 enum {
@@ -2588,6 +2612,9 @@ enum {
 	HCC_SPIRV_BUILTIN_FRAG_COORD =             15,
 	HCC_SPIRV_BUILTIN_POINT_COORD =            16,
 	HCC_SPIRV_BUILTIN_FRAG_DEPTH =             22,
+	HCC_SPIRV_BUILTIN_WORK_GROUP_ID =          26,
+	HCC_SPIRV_BUILTIN_LOCAL_INVOCATION_ID =    27,
+	HCC_SPIRV_BUILTIN_GLOBAL_INVOCATION_ID =   28,
 	HCC_SPIRV_BUILTIN_LOCAL_INVOCATION_INDEX = 29,
 	HCC_SPIRV_BUILTIN_VERTEX_INDEX =           42,
 	HCC_SPIRV_BUILTIN_INSTANCE_INDEX =         43,
@@ -2638,6 +2665,7 @@ enum { // some hardcoded SPIR-V ids
 	HCC_SPIRV_ID_VARIABLE_OUTPUT_VERTEX_SV_OUT,
 	HCC_SPIRV_ID_VARIABLE_INPUT_FRAGMENT_SV,
 	HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAGMENT_SV_OUT,
+	HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV,
 	HCC_SPIRV_ID_USER_START,
 };
 
@@ -2728,7 +2756,7 @@ struct HccSPIRV {
 	HccSPIRVId                                   scope_device_spirv_id;
 	HccSPIRVId                                   scope_workgroup_spirv_id;
 	HccSPIRVId                                   scope_subgroup_spirv_id;
-	HccSPIRVId                                   memory_semantics_invocation_spirv_id;
+	HccSPIRVId                                   memory_semantics_dispatch_spirv_id;
 	HccSPIRVId                                   memory_semantics_resource_spirv_id;
 	HccSPIRVId                                   memory_semantics_all_spirv_id;
 	HccSPIRVId                                   quad_swap_x_spirv_id;

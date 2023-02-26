@@ -47,7 +47,7 @@ void hcc_spirv_init(HccCU* cu, HccCUSetup* setup) {
 	basic.u32 = HCC_SPIRV_SCOPE_SUB_GROUP;
 	cu->spirv.scope_subgroup_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
 	basic.u32 = HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE_RELEASE | HCC_SPIRV_MEMORY_SEMANTICS_WORK_GROUP_MEMORY;
-	cu->spirv.memory_semantics_invocation_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	cu->spirv.memory_semantics_dispatch_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
 	basic.u32 = HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE_RELEASE | HCC_SPIRV_MEMORY_SEMANTICS_UNIFORM_MEMORY | HCC_SPIRV_MEMORY_SEMANTICS_IMAGE_MEMORY;
 	cu->spirv.memory_semantics_resource_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
 	basic.u32 = HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE_RELEASE | HCC_SPIRV_MEMORY_SEMANTICS_WORK_GROUP_MEMORY | HCC_SPIRV_MEMORY_SEMANTICS_UNIFORM_MEMORY | HCC_SPIRV_MEMORY_SEMANTICS_IMAGE_MEMORY;
@@ -280,6 +280,7 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 				case HCC_DATA_TYPE_HCC_VERTEX_SV_OUT:
 				case HCC_DATA_TYPE_HCC_FRAGMENT_SV:
 				case HCC_DATA_TYPE_HCC_FRAGMENT_SV_OUT:
+				case HCC_DATA_TYPE_HCC_COMPUTE_SV:
 					operands = hcc_spirv_add_decorate(cu, 2);
 					operands[0] = spirv_id;
 					operands[1] = HCC_SPIRV_DECORATION_BLOCK;
@@ -573,6 +574,16 @@ HccSPIRVStorageClass hcc_spirv_storage_class_from_aml_operand(HccCU* cu, const H
 								return HCC_SPIRV_STORAGE_CLASS_INPUT;
 							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE:
 								return HCC_SPIRV_STORAGE_CLASS_OUTPUT;
+							default:
+								HCC_ABORT("unhandled parameter %u", param_idx);
+						}
+						break;
+					case HCC_SHADER_STAGE_COMPUTE:
+						switch (param_idx) {
+							case HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV:
+								return HCC_SPIRV_STORAGE_CLASS_INPUT;
+							case HCC_COMPUTE_SHADER_PARAM_BC:
+								return HCC_SPIRV_STORAGE_CLASS_PUSH_CONSTANT;
 							default:
 								HCC_ABORT("unhandled parameter %u", param_idx);
 						}

@@ -4481,6 +4481,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM] = "redefinition of '%.*s' function parameter identifier",
 		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BC const *const bc, S *const state_out); where BC is your structure of bundled constants and S defined with HCC_DEFINE_RASTERIZER_STATE or void'",
 		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT] = "invalid function prototype for fragment shader, expected to be 'void fragment(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BC const* const bc, S const* const state, F* const frag_out); where BC is your structure of bundled constants, S defined with HCC_DEFINE_RASTERIZER_STATE or void' and F defined with HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_COMPUTE] = "invalid function prototype for compute shader, expected to be 'void compute(HccComputeSV const* const sv, BC const* const bc); where BC is your structure of bundled constants",
 		[HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR] = "expected a ',' to declaring more function parameters or a ')' to finish declaring function parameters",
 		[HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION] = "cannot call shaders like regular functions. they can only be used as entry points",
 		[HCC_ERROR_CODE_CANNOT_CALL_UNIMPLEMENTED_FUNCTION] = "cannot call a function with no implemention",
@@ -4501,6 +4502,10 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL] = "'_Thread_local' can only be on global variables",
 		[HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE] = "not all control flow paths return a value, please place a return statement here",
 		[HCC_ERROR_CODE_BUNDLED_CONSTANTS_MAX_SIZE_EXCEEDED] = "the maximum bundled constants size of '%u' has been exceed with '%s' with a size of '%u'",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_COMPUTE] = "expected '(' to begin specifing the dispatch group size eg. HCC_COMPUTE(8, 8, 1)",
+		[HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE] = "expected an non-zero positive integer for the dispatch group size",
+		[HCC_ERROR_CODE_EXPECTED_COMMA_COMPUTE] = "expected ',' to define the next dimension of the dispatch group size",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_COMPUTE] = "expected ')' to finish the HCC_COMPUTE specifier",
 
 		//
 		// ASTLINK
@@ -4810,6 +4815,7 @@ const char* hcc_intrinisic_compound_data_type_strings[HCC_COMPOUND_DATA_TYPE_IDX
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV_OUT] = "HccVertexSVOut",
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV] = "HccFragmentSV",
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV_OUT] = "HccFragmentSVOut",
+	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_COMPUTE_SV] = "HccComputeSV",
 };
 
 const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
@@ -4829,10 +4835,10 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 	[HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4] = "unpack_s8x4_f32x4",
 	[HCC_FUNCTION_IDX_DISCARD_FRAGMENT] = "discard_fragment",
 	[HCC_FUNCTION_IDX_MEMORY_BARRIER_RESOURCE] = "memory_barrier_resource",
-	[HCC_FUNCTION_IDX_MEMORY_BARRIER_INVOCATION] = "memory_barrier_invocation",
+	[HCC_FUNCTION_IDX_MEMORY_BARRIER_DISPATCH] = "memory_barrier_dispatch",
 	[HCC_FUNCTION_IDX_MEMORY_BARRIER_ALL] = "memory_barrier_all",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE] = "control_barrier_resource",
-	[HCC_FUNCTION_IDX_CONTROL_BARRIER_INVOCATION] = "control_barrier_invocation",
+	[HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH] = "control_barrier_dispatch",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL] = "control_barrier_all",
 };
 

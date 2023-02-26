@@ -1,29 +1,29 @@
 
 //
-// waits for the atomic mutations operations in resource memory for all threads across all waves for this invocation to be visible
+// waits for the atomic mutations operations in resource memory for all threads across all waves for this shared work to be visible
 void memory_barrier_resource(void);
 
 //
-// waits for the atomic mutations operations in invocation memory for all threads across all waves for this invocation to be visible
-void memory_barrier_invocation(void);
+// waits for the atomic mutations operations in shared work memory for all threads across all waves for this shared work to be visible
+void memory_barrier_shared_work(void);
 
 //
-// waits for the atomic mutations operations in resource & invocation memory for all threads across all waves for this invocation to be visible
+// waits for the atomic mutations operations in resource & shared work memory for all threads across all waves for this shared work to be visible
 void memory_barrier_all(void);
 
 //
-// waits for the atomic mutations operations in resource memory for all threads across all waves for this invocation to be visible
-// and also waits for all threads across all waves in the invocation before continuing
+// waits for the atomic mutations operations in resource memory for all threads across all waves for this shared work to be visible
+// and also waits for all threads across all waves in the shared work before continuing
 void control_barrier_resource(void);
 
 //
-// waits for the atomic mutations operations in invocation memory all threads across all waves for this invocation to be visible.
-// and also waits for all threads across all waves in the invocation before continuing
-void control_barrier_invocation(void);
+// waits for the atomic mutations operations in shared work memory all threads across all waves for this shared work to be visible.
+// and also waits for all threads across all waves in the shared work before continuing
+void control_barrier_shared_work(void);
 
 //
-// waits for the atomic mutations operations in resource & invocation memory all threads across all waves for this invocation to be visible.
-// and also waits for all threads across all waves in the invocation before continuing
+// waits for the atomic mutations operations in resource & shared work memory all threads across all waves for this shared work to be visible.
+// and also waits for all threads across all waves in the shared work before continuing
 void control_barrier_all(void);
 
 //

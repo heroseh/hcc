@@ -542,7 +542,7 @@ void generate_texture_intrinsics_file(void) {
 
 	print_texture_functions(
 		"store a 'value' in 'texture' at 'idx'",
-		"void store_$tw_$vx($tW texture, $ti idx, $di value)",
+		"void store_$tw_$vx($tW texture, $ti idx, $vi value)",
 		"store_textureG",
 		"texture, idx, value",
 		"$tW: store_$tw_$vx",
