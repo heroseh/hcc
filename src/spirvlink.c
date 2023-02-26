@@ -135,10 +135,16 @@ void hcc_spirvlink_link(HccWorker* w) {
 	operands[0] = HCC_SPIRV_CAPABILITY_VULKAN_MEMORY_MODEL;
 
 	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+	operands[0] = HCC_SPIRV_CAPABILITY_VULKAN_MEMORY_MODEL_DEVICE_SCOPE;
+
+	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 	operands[0] = HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_READ_WITHOUT_FORMAT;
 
 	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 	operands[0] = HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT;
+
+	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+	operands[0] = HCC_SPIRV_CAPABILITY_DEMOTE_HELPER_INVOCATION;
 
 	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED)) {
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);

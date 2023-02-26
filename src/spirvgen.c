@@ -543,7 +543,17 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			case HCC_AML_OP_ISINF:
 			case HCC_AML_OP_ISNAN:
 			case HCC_AML_OP_DOT:
-			case HCC_AML_OP_BITCAST: {
+			case HCC_AML_OP_BITCAST:
+			case HCC_AML_OP_DDX:
+			case HCC_AML_OP_DDY:
+			case HCC_AML_OP_FWIDTH:
+			case HCC_AML_OP_DDX_FINE:
+			case HCC_AML_OP_DDY_FINE:
+			case HCC_AML_OP_FWIDTH_FINE:
+			case HCC_AML_OP_DDX_COARSE:
+			case HCC_AML_OP_DDY_COARSE:
+			case HCC_AML_OP_FWIDTH_COARSE:
+			{
 				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
 				switch (aml_op) {
 					case HCC_AML_OP_BIT_AND: op = HCC_SPIRV_OP_BITWISE_AND; break;
@@ -557,6 +567,15 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					case HCC_AML_OP_ISNAN: op = HCC_SPIRV_OP_ISNAN; break;
 					case HCC_AML_OP_DOT: op = HCC_SPIRV_OP_DOT; break;
 					case HCC_AML_OP_BITCAST: op = HCC_SPIRV_OP_BITCAST; break;
+					case HCC_AML_OP_DDX: op = HCC_SPIRV_OP_DPDX; break;
+					case HCC_AML_OP_DDY: op = HCC_SPIRV_OP_DPDY; break;
+					case HCC_AML_OP_FWIDTH: op = HCC_SPIRV_OP_FWIDTH; break;
+					case HCC_AML_OP_DDX_FINE: op = HCC_SPIRV_OP_DPDX_FINE; break;
+					case HCC_AML_OP_DDY_FINE: op = HCC_SPIRV_OP_DPDY_FINE; break;
+					case HCC_AML_OP_FWIDTH_FINE: op = HCC_SPIRV_OP_FWIDTH_FINE; break;
+					case HCC_AML_OP_DDX_COARSE: op = HCC_SPIRV_OP_DPDX_COARSE; break;
+					case HCC_AML_OP_DDY_COARSE: op = HCC_SPIRV_OP_DPDY_COARSE; break;
+					case HCC_AML_OP_FWIDTH_COARSE: op = HCC_SPIRV_OP_FWIDTH_COARSE; break;
 				}
 				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
 
@@ -909,6 +928,311 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[2] = HCC_SPIRV_ID_GLSL_STD_450;
 				operands[3] = op;
 				for (uint32_t operand_idx = 1; operand_idx < aml_operands_count; operand_idx += 1) {
+					operands[3 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+				}
+				break;
+			};
+
+			case HCC_AML_OP_DISCARD_FRAGMENT:
+				hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_DEMOTE_TO_HELPER_INVOCATION, 0);
+				break;
+
+			case HCC_AML_OP_QUAD_SWAP_X:
+			case HCC_AML_OP_QUAD_SWAP_Y:
+			case HCC_AML_OP_QUAD_SWAP_DIAGONAL:
+			{
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_QUAD_SWAP, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				switch (aml_op) {
+					case HCC_AML_OP_QUAD_SWAP_X: operands[4] = cu->spirv.quad_swap_x_spirv_id; break;
+					case HCC_AML_OP_QUAD_SWAP_Y: operands[4] = cu->spirv.quad_swap_y_spirv_id; break;
+					case HCC_AML_OP_QUAD_SWAP_DIAGONAL: operands[4] = cu->spirv.quad_swap_diagonal_spirv_id; break;
+				}
+				break;
+			};
+
+			case HCC_AML_OP_QUAD_ANY:
+			case HCC_AML_OP_QUAD_ALL:
+			{
+				HccSPIRVId bool_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
+				HccSPIRVId input_v_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				HccSPIRVOp combine_op = aml_op == HCC_AML_OP_QUAD_ANY ? HCC_SPIRV_OP_LOGICAL_OR : HCC_SPIRV_OP_LOGICAL_AND;
+
+				// swap x
+				HccSPIRVId result_id0 = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_QUAD_SWAP, 5);
+				operands[0] = bool_spirv_id;
+				operands[1] = result_id0;
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				operands[3] = input_v_spirv_id;
+				operands[4] = cu->spirv.quad_swap_x_spirv_id;
+
+				// bit and/or swap x result
+				HccSPIRVId result_id1 = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, combine_op, 4);
+				operands[0] = bool_spirv_id;
+				operands[1] = result_id1;
+				operands[2] = input_v_spirv_id;
+				operands[3] = result_id0;
+
+				// swap y
+				HccSPIRVId result_id2 = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_QUAD_SWAP, 5);
+				operands[0] = bool_spirv_id;
+				operands[1] = result_id2;
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				operands[3] = result_id1;
+				operands[4] = cu->spirv.quad_swap_y_spirv_id;
+
+				// bit and/or swap x result
+				operands = hcc_spirv_function_add_instr(function, combine_op, 4);
+				operands[0] = bool_spirv_id;
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = result_id1;
+				operands[3] = result_id2;
+				break;
+			};
+
+			case HCC_AML_OP_QUAD_READ_THREAD:
+			case HCC_AML_OP_WAVE_ACTIVE_ANY:
+			case HCC_AML_OP_WAVE_ACTIVE_ALL:
+			case HCC_AML_OP_WAVE_READ_THREAD:
+			case HCC_AML_OP_WAVE_ACTIVE_ALL_EQUAL: {
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				switch (aml_op) {
+					case HCC_AML_OP_QUAD_READ_THREAD: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_QUAD_BROADCAST; break;
+					case HCC_AML_OP_WAVE_ACTIVE_ANY: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ANY; break;
+					case HCC_AML_OP_WAVE_ACTIVE_ALL: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ALL; break;
+					case HCC_AML_OP_WAVE_READ_THREAD: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_SHUFFLE; break;
+					case HCC_AML_OP_WAVE_ACTIVE_ALL_EQUAL: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ALL_EQUAL; break;
+				}
+				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 2);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				for (uint32_t operand_idx = 1; operand_idx < aml_operands_count; operand_idx += 1) {
+					operands[2 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+				}
+				break;
+			};
+
+			case HCC_AML_OP_WAVE_ACTIVE_MIN:
+			case HCC_AML_OP_WAVE_ACTIVE_MAX:
+			case HCC_AML_OP_WAVE_ACTIVE_SUM:
+			case HCC_AML_OP_WAVE_ACTIVE_PREFIX_SUM:
+			case HCC_AML_OP_WAVE_ACTIVE_PRODUCT:
+			case HCC_AML_OP_WAVE_ACTIVE_PREFIX_PRODUCT:
+			case HCC_AML_OP_WAVE_ACTIVE_BIT_AND:
+			case HCC_AML_OP_WAVE_ACTIVE_BIT_OR:
+			case HCC_AML_OP_WAVE_ACTIVE_BIT_XOR: {
+				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+				HccBasicTypeClass type_class = hcc_basic_type_class(cu, data_type);
+
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				uint32_t group_op = HCC_SPIRV_GROUP_OPERATION_REDUCE;
+				switch (aml_op) {
+					case HCC_AML_OP_WAVE_ACTIVE_MIN:
+						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_U_MIN; break;
+							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_S_MIN; break;
+							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_F_MIN; break;
+						}
+						break;
+					case HCC_AML_OP_WAVE_ACTIVE_MAX:
+						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_U_MAX; break;
+							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_S_MAX; break;
+							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_F_MAX; break;
+						}
+						break;
+					case HCC_AML_OP_WAVE_ACTIVE_SUM:
+					case HCC_AML_OP_WAVE_ACTIVE_PREFIX_SUM:
+						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_ADD; break;
+							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_ADD; break;
+							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_F_ADD; break;
+						}
+						break;
+					case HCC_AML_OP_WAVE_ACTIVE_PRODUCT:
+					case HCC_AML_OP_WAVE_ACTIVE_PREFIX_PRODUCT:
+						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_MUL; break;
+							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_MUL; break;
+							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_F_MUL; break;
+						}
+						break;
+					case HCC_AML_OP_WAVE_ACTIVE_BIT_AND: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_BITWISE_AND; break;
+					case HCC_AML_OP_WAVE_ACTIVE_BIT_OR: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_BITWISE_OR; break;
+					case HCC_AML_OP_WAVE_ACTIVE_BIT_XOR: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_BITWISE_XOR; break;
+				}
+				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 3);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				operands[3] = group_op;
+				for (uint32_t operand_idx = 1; operand_idx < aml_operands_count; operand_idx += 1) {
+					operands[3 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+				}
+				break;
+			};
+
+			case HCC_AML_OP_WAVE_ACTIVE_COUNT_BITS:
+			case HCC_AML_OP_WAVE_ACTIVE_PREFIX_COUNT_BITS: {
+				HccDataType ballot_return_data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32X4;
+				HccSPIRVId ballot_result_id = hcc_spirv_next_id(cu);
+
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_BALLOT, 4);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, ballot_return_data_type);
+				operands[1] = ballot_result_id;
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+
+				uint32_t group_op = HCC_SPIRV_GROUP_OPERATION_REDUCE;
+				switch (aml_op) {
+					case HCC_AML_OP_WAVE_ACTIVE_PREFIX_COUNT_BITS: group_op = HCC_SPIRV_GROUP_OPERATION_EXCLUSIVE_SCAN; break;
+				}
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_BALLOT_BIT_COUNT, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				operands[3] = group_op;
+				operands[4] = ballot_result_id;
+				break;
+			};
+
+			case HCC_AML_OP_MEMORY_BARRIER_RESOURCE:
+			case HCC_AML_OP_MEMORY_BARRIER_INVOCATION:
+			case HCC_AML_OP_MEMORY_BARRIER_ALL: {
+				HccSPIRVId memory_scope;
+				HccSPIRVId memory_semantics;
+				switch (aml_op) {
+					case HCC_AML_OP_MEMORY_BARRIER_RESOURCE:
+						memory_scope = cu->spirv.scope_device_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_resource_spirv_id;
+						break;
+					case HCC_AML_OP_MEMORY_BARRIER_INVOCATION:
+						memory_scope = cu->spirv.scope_workgroup_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_invocation_spirv_id;
+						break;
+					case HCC_AML_OP_MEMORY_BARRIER_ALL:
+						memory_scope = cu->spirv.scope_device_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_all_spirv_id;
+						break;
+				}
+
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_MEMORY_BARRIER, 2);
+				operands[0] = memory_scope;
+				operands[1] = memory_semantics;
+				break;
+			};
+
+			case HCC_AML_OP_CONTROL_BARRIER_RESOURCE:
+			case HCC_AML_OP_CONTROL_BARRIER_INVOCATION:
+			case HCC_AML_OP_CONTROL_BARRIER_ALL: {
+				HccSPIRVId execution_scope = cu->spirv.scope_workgroup_spirv_id;
+				HccSPIRVId memory_scope;
+				HccSPIRVId memory_semantics;
+				switch (aml_op) {
+					case HCC_AML_OP_CONTROL_BARRIER_RESOURCE:
+						memory_scope = cu->spirv.scope_device_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_resource_spirv_id;
+						break;
+					case HCC_AML_OP_CONTROL_BARRIER_INVOCATION:
+						memory_scope = cu->spirv.scope_workgroup_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_invocation_spirv_id;
+						break;
+					case HCC_AML_OP_CONTROL_BARRIER_ALL:
+						memory_scope = cu->spirv.scope_device_spirv_id;
+						memory_semantics = cu->spirv.memory_semantics_all_spirv_id;
+						break;
+				}
+
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_CONTROL_BARRIER, 3);
+				operands[0] = execution_scope;
+				operands[1] = memory_scope;
+				operands[2] = memory_semantics;
+				break;
+			};
+
+			case HCC_AML_OP_ATOMIC_STORE: {
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_ATOMIC_STORE, 4);
+				operands[0] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[1] = cu->spirv.scope_device_spirv_id;
+				operands[2] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				break;
+			};
+
+			case HCC_AML_OP_ATOMIC_COMPARE_EXCHANGE: {
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_ATOMIC_COMPARE_EXCHANGE, 8);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[3] = cu->spirv.scope_device_spirv_id;
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				operands[5] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				operands[6] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+				operands[7] = hcc_spirvgen_convert_operand(w, aml_operands[3]);
+				break;
+			};
+
+			case HCC_AML_OP_ATOMIC_LOAD:
+			case HCC_AML_OP_ATOMIC_EXCHANGE:
+			case HCC_AML_OP_ATOMIC_ADD:
+			case HCC_AML_OP_ATOMIC_SUB:
+			case HCC_AML_OP_ATOMIC_MIN:
+			case HCC_AML_OP_ATOMIC_MAX:
+			case HCC_AML_OP_ATOMIC_BIT_AND:
+			case HCC_AML_OP_ATOMIC_BIT_OR:
+			case HCC_AML_OP_ATOMIC_BIT_XOR: {
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				HccDataType data_type = hcc_data_type_strip_pointer(cu, hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]));
+				HccBasicTypeClass type_class = hcc_basic_type_class(cu, data_type);
+
+				switch (aml_op) {
+					case HCC_AML_OP_ATOMIC_LOAD: op = HCC_SPIRV_OP_ATOMIC_LOAD; break;
+					case HCC_AML_OP_ATOMIC_EXCHANGE: op = HCC_SPIRV_OP_ATOMIC_EXCHANGE; break;
+					case HCC_AML_OP_ATOMIC_ADD: op = HCC_SPIRV_OP_ATOMIC_I_ADD; break;
+					case HCC_AML_OP_ATOMIC_SUB: op = HCC_SPIRV_OP_ATOMIC_I_SUB; break;
+					case HCC_AML_OP_ATOMIC_MIN:
+						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_ATOMIC_U_MIN; break;
+							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_ATOMIC_S_MIN; break;
+						}
+						break;
+					case HCC_AML_OP_ATOMIC_MAX:
+						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_ATOMIC_U_MAX; break;
+							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_ATOMIC_S_MAX; break;
+						}
+						break;
+					case HCC_AML_OP_ATOMIC_BIT_AND: op = HCC_SPIRV_OP_ATOMIC_AND; break;
+					case HCC_AML_OP_ATOMIC_BIT_OR: op = HCC_SPIRV_OP_ATOMIC_OR; break;
+					case HCC_AML_OP_ATOMIC_BIT_XOR: op = HCC_SPIRV_OP_ATOMIC_XOR; break;
+				}
+				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 3);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[3] = cu->spirv.scope_device_spirv_id;
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				for (uint32_t operand_idx = 2; operand_idx < aml_operands_count; operand_idx += 1) {
 					operands[3 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
 				}
 				break;

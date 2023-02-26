@@ -487,12 +487,12 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						// generate the arguments left-right as this is super crazy undefined.
 						// clang does left-right, gcc does right-left ON THE SAME ARCHITECTURE WTF!?!?
 						uint32_t args_count = 0;
-						do {
+						while (arg_expr) {
 							HccAMLOperand arg_operand = hcc_amlgen_generate_instrs(w, arg_expr, false);
 							*hcc_stack_push(w->amlgen.temp_operands) = arg_operand;
 							arg_expr = arg_expr->next_stmt;
 							args_count += 1;
-						} while (arg_expr);
+						};
 
 						//
 						// generate the callee
@@ -504,6 +504,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						HccAMLOperand callee_operand = hcc_amlgen_generate_instrs(w, callee_expr, false);
 						HccDataType return_data_type = hcc_decl_return_data_type(w->cu, callee_expr->data_type);
 						return_data_type = hcc_data_type_lower_ast_to_aml(w->cu, return_data_type);
+						bool has_return_value = return_data_type != HCC_DATA_TYPE_AML_INTRINSIC_VOID;
 
 						HccAMLOperand return_operand;
 						if (callee_expr->type != HCC_AST_EXPR_TYPE_FUNCTION || HCC_AML_OPERAND_AUX(function_decl) >= HCC_FUNCTION_IDX_USER_START) {
@@ -536,6 +537,13 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 								case HCC_FUNCTION_IDX_UNPACK_U8X4_F32X4: op = HCC_AML_OP_UNPACK_U8X4_F32X4; break;
 								case HCC_FUNCTION_IDX_PACK_S8X4_F32X4: op = HCC_AML_OP_PACK_S8X4_F32X4; break;
 								case HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4: op = HCC_AML_OP_UNPACK_S8X4_F32X4; break;
+								case HCC_FUNCTION_IDX_DISCARD_FRAGMENT: op = HCC_AML_OP_DISCARD_FRAGMENT; break;
+								case HCC_FUNCTION_IDX_MEMORY_BARRIER_RESOURCE: op = HCC_AML_OP_MEMORY_BARRIER_RESOURCE; break;
+								case HCC_FUNCTION_IDX_MEMORY_BARRIER_INVOCATION: op = HCC_AML_OP_MEMORY_BARRIER_INVOCATION; break;
+								case HCC_FUNCTION_IDX_MEMORY_BARRIER_ALL: op = HCC_AML_OP_MEMORY_BARRIER_ALL; break;
+								case HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE: op = HCC_AML_OP_CONTROL_BARRIER_RESOURCE; break;
+								case HCC_FUNCTION_IDX_CONTROL_BARRIER_INVOCATION: op = HCC_AML_OP_CONTROL_BARRIER_INVOCATION; break;
+								case HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL: op = HCC_AML_OP_CONTROL_BARRIER_ALL; break;
 								default: {
 									HCC_DEBUG_ASSERT(HCC_FUNCTION_IDX_MANY_START <= function_idx && function_idx < HCC_FUNCTION_IDX_MANY_END, "unhandled intrinsic function");
 									uint32_t many = (function_idx - HCC_FUNCTION_IDX_MANY_START) / HCC_AML_INTRINSIC_DATA_TYPE_COUNT;
@@ -577,7 +585,12 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 										};
 
 										case HCC_FUNCTION_MANY_ANY:
-										case HCC_FUNCTION_MANY_ALL: {
+										case HCC_FUNCTION_MANY_ALL:
+										case HCC_FUNCTION_MANY_QUAD_ANY:
+										case HCC_FUNCTION_MANY_QUAD_ALL:
+										case HCC_FUNCTION_MANY_WAVE_ACTIVE_ANY:
+										case HCC_FUNCTION_MANY_WAVE_ACTIVE_ALL:
+										{
 											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);
 											HccDataType src_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand);
 
@@ -585,7 +598,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 												return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, false);
 											}
 
-											return_operand = hcc_amlgen_instr_add_2(w, expr->location, many == HCC_FUNCTION_MANY_ANY ? HCC_AML_OP_ANY : HCC_AML_OP_ALL,
+											return_operand = hcc_amlgen_instr_add_2(w, expr->location, hcc_intrinisic_function_many_aml_ops[many],
 												hcc_amlgen_value_add(w, return_data_type),
 												src_operand);
 											goto CALL_END;
@@ -622,10 +635,13 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 							}
 							HCC_DEBUG_ASSERT(op != HCC_AML_OP_NO_OP, "unhandled intrinsic function_idx '%u' when converting from AST -> AML", function_idx);
 
-							HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, op, args_count + 1);
-							operands[0] = hcc_amlgen_value_add(w, return_data_type);
+							uint32_t params_offset = has_return_value ? 1 : 0;
+							HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, op, args_count + params_offset);
+							if (has_return_value) {
+								operands[0] = hcc_amlgen_value_add(w, return_data_type);
+							}
 							for (uint32_t arg_idx = 0; arg_idx < args_count; arg_idx += 1) {
-								operands[1 + arg_idx] = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + arg_idx);
+								operands[params_offset + arg_idx] = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + arg_idx);
 							}
 							return_operand = operands[0];
 						}

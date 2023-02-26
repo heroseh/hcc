@@ -192,10 +192,27 @@ bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 		if (used_in_shader_stage != HCC_SHADER_STAGE_FRAGMENT) {
 			switch (aml_op) {
 				case HCC_AML_OP_SAMPLE_TEXTURE:
-				case HCC_AML_OP_SAMPLE_MIP_BIAS_TEXTURE: {
+				case HCC_AML_OP_SAMPLE_MIP_BIAS_TEXTURE:
+				{
 					const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
 					HccString identifier_string = hcc_string_table_get(aml_function->identifier_string_id);
 					hcc_amlopt_error_1(w, HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_FRAGMENT_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
+					break;
+				};
+				case HCC_AML_OP_DISCARD_FRAGMENT:
+				case HCC_AML_OP_DDX:
+				case HCC_AML_OP_DDY:
+				case HCC_AML_OP_FWIDTH:
+				case HCC_AML_OP_DDX_FINE:
+				case HCC_AML_OP_DDY_FINE:
+				case HCC_AML_OP_FWIDTH_FINE:
+				case HCC_AML_OP_DDX_COARSE:
+				case HCC_AML_OP_DDY_COARSE:
+				case HCC_AML_OP_FWIDTH_COARSE:
+				{
+					const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
+					HccString identifier_string = hcc_string_table_get(aml_function->identifier_string_id);
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_FRAGMENT_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
 					break;
 				};
 			}

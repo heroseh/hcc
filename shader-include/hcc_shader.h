@@ -116,5 +116,10 @@ struct HccFragmentSVOut {
 	float depth;
 };
 
+#include "hcc_texture_intrinsics.h"
+#include "hcc_fragment_intrinsics.h"
+#include "hcc_wave_intrinsics.h"
+#include "hcc_atomic_intrinsics.h"
+
 #endif // _HCC_SHADER_H_
 

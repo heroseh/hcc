@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <hmaths/types.h>
 #include <hcc_shader.h>
-#include <hcc_texture_intrinsics.h>
 
 typedef struct TextureVertex TextureVertex;
 struct TextureVertex {

@@ -2443,12 +2443,14 @@ HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, H
 	HccDataType resolved_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, inner_expr->data_type);
 
 	HccDataType unary_expr_data_type;
-	if (unary_op == HCC_AST_UNARY_OP_DEREF || unary_op == HCC_AST_UNARY_OP_ADDRESS_OF) {
+	if (unary_op == HCC_AST_UNARY_OP_DEREF) {
 		if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
 			goto ERROR;
 		}
 
 		unary_expr_data_type = hcc_data_type_strip_pointer(w->cu, inner_expr->data_type);
+	} else if (unary_op == HCC_AST_UNARY_OP_ADDRESS_OF) {
+		unary_expr_data_type = hcc_pointer_data_type_deduplicate(w->cu, inner_expr->data_type);
 	} else if (HCC_DATA_TYPE_IS_AST_BASIC(resolved_data_type)) {
 		if (unary_op == HCC_AST_UNARY_OP_LOGICAL_NOT) {
 			unary_expr_data_type = HCC_DATA_TYPE_AST_BASIC_BOOL;
@@ -4231,6 +4233,18 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			function.params_count += 1;
 
 			HccDataType param_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, true);
+			token = hcc_ata_iter_peek(w->astgen.token_iter);
+
+			if (param_data_type == 0) {
+				if (function.params_count == 1 && token == HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
+					function.params_count -= 1;
+					hcc_stack_pop(w->astgen.function_params_and_variables);
+					break;
+				}
+
+				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_VOID_DATA_TYPE);
+			}
+
 			if (shader_stage == HCC_SHADER_STAGE_NONE) {
 				hcc_astgen_data_type_ensure_valid_variable(w, param_data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM);
 			}
@@ -4241,7 +4255,6 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 				}
 			}
 
-			token = hcc_ata_iter_peek(w->astgen.token_iter);
 			if (token != HCC_ATA_TOKEN_IDENT) {
 				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM);
 			}

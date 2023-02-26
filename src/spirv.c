@@ -40,6 +40,24 @@ void hcc_spirv_init(HccCU* cu, HccCUSetup* setup) {
 
 	HccBasic basic = { .u32 = hcc_options_get_u32(cu->options, HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX) };
 	cu->spirv.resource_descriptors_max_constant_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = HCC_SPIRV_SCOPE_DEVICE;
+	cu->spirv.scope_device_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = HCC_SPIRV_SCOPE_WORK_GROUP;
+	cu->spirv.scope_workgroup_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = HCC_SPIRV_SCOPE_SUB_GROUP;
+	cu->spirv.scope_subgroup_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE_RELEASE | HCC_SPIRV_MEMORY_SEMANTICS_WORK_GROUP_MEMORY;
+	cu->spirv.memory_semantics_invocation_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE_RELEASE | HCC_SPIRV_MEMORY_SEMANTICS_UNIFORM_MEMORY | HCC_SPIRV_MEMORY_SEMANTICS_IMAGE_MEMORY;
+	cu->spirv.memory_semantics_resource_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE_RELEASE | HCC_SPIRV_MEMORY_SEMANTICS_WORK_GROUP_MEMORY | HCC_SPIRV_MEMORY_SEMANTICS_UNIFORM_MEMORY | HCC_SPIRV_MEMORY_SEMANTICS_IMAGE_MEMORY;
+	cu->spirv.memory_semantics_all_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = 0;
+	cu->spirv.quad_swap_x_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = 1;
+	cu->spirv.quad_swap_y_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
+	basic.u32 = 2;
+	cu->spirv.quad_swap_diagonal_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
 }
 
 HccSPIRVId hcc_spirv_next_id(HccCU* cu) {
@@ -325,7 +343,7 @@ HccSPIRVId hcc_spirv_decl_deduplicate(HccCU* cu, HccDecl decl) {
 			case HCC_DECL_GLOBAL_VARIABLE: {
 				HccASTVariable* ast_global_variable = hcc_ast_global_variable_get(cu, decl);
 				HccSPIRVOperand* operands = hcc_spirv_add_global_variable(cu, 4);
-				HccSPIRVStorageClass storage_class = HCC_SPIRV_STORAGE_CLASS_PRIVATE; // TODO add HCC_SPIRV_STORAGE_CLASS_WORKGROUP support
+				HccSPIRVStorageClass storage_class = HCC_SPIRV_STORAGE_CLASS_PRIVATE; // TODO add HCC_SPIRV_STORAGE_CLASS_WORK_GROUP support
 				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, hcc_pointer_data_type_deduplicate(cu, ast_global_variable->data_type));
 				operands[1] = spirv_id;
 				operands[2] = storage_class;
@@ -571,7 +589,7 @@ HccSPIRVStorageClass hcc_spirv_storage_class_from_aml_operand(HccCU* cu, const H
 
 		case HCC_DECL_GLOBAL_VARIABLE: {
 			HccASTVariable* variable = hcc_ast_global_variable_get(cu, (HccDecl)aml_operand);
-			return variable->storage_duration == HCC_AST_STORAGE_DURATION_THREAD ? HCC_SPIRV_STORAGE_CLASS_PRIVATE : HCC_SPIRV_STORAGE_CLASS_WORKGROUP;
+			return variable->storage_duration == HCC_AST_STORAGE_DURATION_THREAD ? HCC_SPIRV_STORAGE_CLASS_PRIVATE : HCC_SPIRV_STORAGE_CLASS_WORK_GROUP;
 		};
 		case HCC_DECL_LOCAL_VARIABLE: {
 			HCC_ABORT("we shouldn't have access to local variables from the AST in the AML");

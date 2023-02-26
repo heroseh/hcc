@@ -644,7 +644,9 @@ void hcc_worker_start_job(HccWorker* w) {
 void hcc_worker_end_job(HccWorker* w) {
 	HccTask* t = w->job.task;
 	HccCompiler* c = t->c;
+#if HCC_ENABLE_WORKER_LOGGING
 	printf("[WORKER %2u] ending job %s\n", (int)(w - w->c->workers), hcc_worker_job_type_strings[w->job.type]);
+#endif
 	if (c == NULL) {
 		//
 		// task has failed and is already classed as finished
