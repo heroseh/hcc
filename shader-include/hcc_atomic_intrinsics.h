@@ -1,29 +1,29 @@
 
 //
-// waits for the atomic mutations operations in resource memory for all threads across all waves for this shared work to be visible
+// waits for the atomic mutations operations in resource memory for all threads across all waves for this dispatch group to be visible
 void memory_barrier_resource(void);
 
 //
-// waits for the atomic mutations operations in shared work memory for all threads across all waves for this shared work to be visible
-void memory_barrier_shared_work(void);
+// waits for the atomic mutations operations in dispatch group memory for all threads across all waves for this dispatch group to be visible
+void memory_barrier_dispatch_group(void);
 
 //
-// waits for the atomic mutations operations in resource & shared work memory for all threads across all waves for this shared work to be visible
+// waits for the atomic mutations operations in resource & dispatch group memory for all threads across all waves for this dispatch group to be visible
 void memory_barrier_all(void);
 
 //
-// waits for the atomic mutations operations in resource memory for all threads across all waves for this shared work to be visible
-// and also waits for all threads across all waves in the shared work before continuing
+// waits for the atomic mutations operations in resource memory for all threads across all waves for this dispatch group to be visible
+// and also waits for all threads across all waves in the dispatch group before continuing
 void control_barrier_resource(void);
 
 //
-// waits for the atomic mutations operations in shared work memory all threads across all waves for this shared work to be visible.
-// and also waits for all threads across all waves in the shared work before continuing
-void control_barrier_shared_work(void);
+// waits for the atomic mutations operations in dispatch group memory all threads across all waves for this dispatch group to be visible.
+// and also waits for all threads across all waves in the dispatch group before continuing
+void control_barrier_dispatch_group(void);
 
 //
-// waits for the atomic mutations operations in resource & shared work memory all threads across all waves for this shared work to be visible.
-// and also waits for all threads across all waves in the shared work before continuing
+// waits for the atomic mutations operations in resource & dispatch group memory all threads across all waves for this dispatch group to be visible.
+// and also waits for all threads across all waves in the dispatch group before continuing
 void control_barrier_all(void);
 
 //

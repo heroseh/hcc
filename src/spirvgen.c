@@ -1125,7 +1125,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			};
 
 			case HCC_AML_OP_MEMORY_BARRIER_RESOURCE:
-			case HCC_AML_OP_MEMORY_BARRIER_DISPATCH:
+			case HCC_AML_OP_MEMORY_BARRIER_DISPATCH_GROUP:
 			case HCC_AML_OP_MEMORY_BARRIER_ALL: {
 				HccSPIRVId memory_scope;
 				HccSPIRVId memory_semantics;
@@ -1134,7 +1134,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 						memory_scope = cu->spirv.scope_device_spirv_id;
 						memory_semantics = cu->spirv.memory_semantics_resource_spirv_id;
 						break;
-					case HCC_AML_OP_MEMORY_BARRIER_DISPATCH:
+					case HCC_AML_OP_MEMORY_BARRIER_DISPATCH_GROUP:
 						memory_scope = cu->spirv.scope_workgroup_spirv_id;
 						memory_semantics = cu->spirv.memory_semantics_dispatch_spirv_id;
 						break;
@@ -1151,7 +1151,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			};
 
 			case HCC_AML_OP_CONTROL_BARRIER_RESOURCE:
-			case HCC_AML_OP_CONTROL_BARRIER_DISPATCH:
+			case HCC_AML_OP_CONTROL_BARRIER_DISPATCH_GROUP:
 			case HCC_AML_OP_CONTROL_BARRIER_ALL: {
 				HccSPIRVId execution_scope = cu->spirv.scope_workgroup_spirv_id;
 				HccSPIRVId memory_scope;
@@ -1161,7 +1161,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 						memory_scope = cu->spirv.scope_device_spirv_id;
 						memory_semantics = cu->spirv.memory_semantics_resource_spirv_id;
 						break;
-					case HCC_AML_OP_CONTROL_BARRIER_DISPATCH:
+					case HCC_AML_OP_CONTROL_BARRIER_DISPATCH_GROUP:
 						memory_scope = cu->spirv.scope_workgroup_spirv_id;
 						memory_semantics = cu->spirv.memory_semantics_dispatch_spirv_id;
 						break;

@@ -4835,10 +4835,10 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 	[HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4] = "unpack_s8x4_f32x4",
 	[HCC_FUNCTION_IDX_DISCARD_FRAGMENT] = "discard_fragment",
 	[HCC_FUNCTION_IDX_MEMORY_BARRIER_RESOURCE] = "memory_barrier_resource",
-	[HCC_FUNCTION_IDX_MEMORY_BARRIER_DISPATCH] = "memory_barrier_dispatch",
+	[HCC_FUNCTION_IDX_MEMORY_BARRIER_DISPATCH_GROUP] = "memory_barrier_dispatch_group",
 	[HCC_FUNCTION_IDX_MEMORY_BARRIER_ALL] = "memory_barrier_all",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE] = "control_barrier_resource",
-	[HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH] = "control_barrier_dispatch",
+	[HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH_GROUP] = "control_barrier_dispatch_group",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL] = "control_barrier_all",
 };
 
