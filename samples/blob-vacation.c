@@ -12,10 +12,10 @@ struct BlobBC {
 #ifdef __HCC__
 #include <hmaths/maths.h>
 
-const float MIN_DIST = 0.f;
-const float MAX_DIST = 100.f;
-const float EPSILON = 0.0001f;
-const int MAX_MARCHING_STEPS = 1024;
+HCC_INVOCATION const float MIN_DIST = 0.f;
+HCC_INVOCATION const float MAX_DIST = 100.f;
+HCC_INVOCATION const float EPSILON = 0.0001f;
+HCC_INVOCATION const int MAX_MARCHING_STEPS = 1024;
 
 typedef struct Fragment Fragment;
 HCC_FRAGMENT_STATE struct Fragment {

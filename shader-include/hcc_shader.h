@@ -32,6 +32,8 @@
 #define HCC_NOINTERP __hcc_nointerp
 #define HCC_FRAGMENT_STATE __hcc_fragment_state
 #define HCC_INTERP
+#define HCC_DISPATCH_GROUP __hcc_dispatch_group
+#define HCC_INVOCATION __hcc_invocation
 #else // !__HCC_GPU__
 #define HCC_VERTEX
 #define HCC_FRAGMENT
@@ -42,6 +44,7 @@
 #define HCC_NOINTERP
 #define HCC_FRAGMENT_STATE
 #define HCC_INTERP
+#define HCC_DISPATCH_GROUP static
 #endif // !__HCC_GPU__
 
 // ===========================================

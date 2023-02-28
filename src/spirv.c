@@ -343,12 +343,30 @@ HccSPIRVId hcc_spirv_decl_deduplicate(HccCU* cu, HccDecl decl) {
 		switch (HCC_DECL_TYPE(decl)) {
 			case HCC_DECL_GLOBAL_VARIABLE: {
 				HccASTVariable* ast_global_variable = hcc_ast_global_variable_get(cu, decl);
-				HccSPIRVOperand* operands = hcc_spirv_add_global_variable(cu, 4);
-				HccSPIRVStorageClass storage_class = HCC_SPIRV_STORAGE_CLASS_PRIVATE; // TODO add HCC_SPIRV_STORAGE_CLASS_WORK_GROUP support
+				HccSPIRVStorageClass storage_class;
+				bool has_initializer;
+				switch (ast_global_variable->storage_duration) {
+					case HCC_AST_STORAGE_DURATION_DISPATCH_GROUP:
+						storage_class =  HCC_SPIRV_STORAGE_CLASS_WORK_GROUP;
+						has_initializer = false;
+						break;
+					case HCC_AST_STORAGE_DURATION_INVOCATION:
+						storage_class =  HCC_SPIRV_STORAGE_CLASS_PRIVATE;
+						has_initializer = ast_global_variable->initializer_constant_id.idx_plus_one != 0;
+						break;
+					case HCC_AST_STORAGE_DURATION_STATIC:
+					case HCC_AST_STORAGE_DURATION_THREAD:
+					case HCC_AST_STORAGE_DURATION_AUTOMATIC:
+						HCC_ABORT("unsupported storage duration for SPIR-V backend: %u", ast_global_variable->storage_duration);
+						break;
+				}
+				HccSPIRVOperand* operands = hcc_spirv_add_global_variable(cu, 3 + has_initializer);
 				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, hcc_pointer_data_type_deduplicate(cu, ast_global_variable->data_type));
 				operands[1] = spirv_id;
 				operands[2] = storage_class;
-				operands[3] = hcc_spirv_constant_deduplicate(cu, ast_global_variable->initializer_constant_id);
+				if (has_initializer) {
+					operands[3] = hcc_spirv_constant_deduplicate(cu, ast_global_variable->initializer_constant_id);
+				}
 				break;
 			};
 		}

@@ -3,6 +3,8 @@ HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 	[HCC_ASTGEN_SPECIFIER_STATIC] =           HCC_ATA_TOKEN_KEYWORD_STATIC,
 	[HCC_ASTGEN_SPECIFIER_EXTERN] =           HCC_ATA_TOKEN_KEYWORD_EXTERN,
 	[HCC_ASTGEN_SPECIFIER_THREAD_LOCAL] =     HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL,
+	[HCC_ASTGEN_SPECIFIER_DISPATCH_GROUP] =   HCC_ATA_TOKEN_KEYWORD_DISPATCH_GROUP,
+	[HCC_ASTGEN_SPECIFIER_INVOCATION] =       HCC_ATA_TOKEN_KEYWORD_INVOCATION,
 	[HCC_ASTGEN_SPECIFIER_INLINE] =           HCC_ATA_TOKEN_KEYWORD_INLINE,
 	[HCC_ASTGEN_SPECIFIER_NO_RETURN] =        HCC_ATA_TOKEN_KEYWORD_NO_RETURN,
 	[HCC_ASTGEN_SPECIFIER_RASTERIZER_STATE] = HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE,
@@ -623,6 +625,10 @@ void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_EXTERN;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_DISPATCH_GROUP) {
+			keyword_token = HCC_ATA_TOKEN_KEYWORD_DISPATCH_GROUP;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INVOCATION) {
+			keyword_token = HCC_ATA_TOKEN_KEYWORD_INVOCATION;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INLINE) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_INLINE;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN) {
@@ -710,6 +716,10 @@ bool hcc_astgen_check_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr*
 }
 
 void hcc_astgen_ensure_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr) {
+	if (expr == NULL) {
+		return;
+	}
+
 	switch (expr->type) {
 		case HCC_AST_EXPR_TYPE_STMT_RETURN:
 			return;
@@ -1208,6 +1218,8 @@ HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 			case HCC_ATA_TOKEN_KEYWORD_STATIC:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_STATIC;           break;
 			case HCC_ATA_TOKEN_KEYWORD_EXTERN:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN;           break;
 			case HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL:     flag = HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL;     break;
+			case HCC_ATA_TOKEN_KEYWORD_DISPATCH_GROUP:   flag = HCC_ASTGEN_SPECIFIER_FLAGS_DISPATCH_GROUP;   break;
+			case HCC_ATA_TOKEN_KEYWORD_INVOCATION:       flag = HCC_ASTGEN_SPECIFIER_FLAGS_INVOCATION;       break;
 			case HCC_ATA_TOKEN_KEYWORD_INLINE:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_INLINE;           break;
 			case HCC_ATA_TOKEN_KEYWORD_NO_RETURN:        flag = HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN;        break;
 			case HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE: flag = HCC_ASTGEN_SPECIFIER_FLAGS_RASTERIZER_STATE; break;
@@ -3579,6 +3591,8 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 	bool found_static = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_STATIC;
 	bool found_extern = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN;
 	bool found_thread_local = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL;
+	bool found_dispatch_group = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_DISPATCH_GROUP;
+	bool found_invocation = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INVOCATION;
 
 	if (found_static && found_extern) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_AND_EXTERN);
@@ -3588,6 +3602,14 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_THREAD_LOCAL_MUST_BE_GLOBAL);
 	}
 
+	if (!is_global && found_dispatch_group) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_DISPATCH_GROUP_MUST_BE_GLOBAL);
+	}
+
+	if (!is_global && found_invocation) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVOCATION_MUST_BE_GLOBAL);
+	}
+
 	HccASTVariable variable;
 	variable.ast_file = w->astgen.ast_file;
 	variable.identifier_string_id = identifier_string_id;
@@ -3595,9 +3617,25 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 	variable.data_type = hcc_astgen_generate_array_data_type_if_exists(w, *data_type_mut);
 	variable.initializer_constant_id.idx_plus_one = 0;
 	if (is_global) {
-		variable.storage_duration = found_thread_local ? HCC_AST_STORAGE_DURATION_THREAD : HCC_AST_STORAGE_DURATION_STATIC;
+		if (found_invocation) {
+			variable.storage_duration = HCC_AST_STORAGE_DURATION_INVOCATION;
+		} else if (found_dispatch_group) {
+			variable.storage_duration = HCC_AST_STORAGE_DURATION_DISPATCH_GROUP;
+		} else if (found_thread_local) {
+			variable.storage_duration = HCC_AST_STORAGE_DURATION_THREAD;
+		} else {
+			variable.storage_duration = HCC_AST_STORAGE_DURATION_STATIC;
+		}
 	} else {
 		variable.storage_duration = found_static ? HCC_AST_STORAGE_DURATION_STATIC : HCC_AST_STORAGE_DURATION_AUTOMATIC;
+	}
+
+	if (variable.storage_duration == HCC_AST_STORAGE_DURATION_STATIC) {
+		hcc_astgen_error_1(w, HCC_ERROR_CODE_STATIC_UNSUPPORTED_ON_SPIRV);
+	}
+
+	if (variable.storage_duration == HCC_AST_STORAGE_DURATION_THREAD) {
+		hcc_astgen_error_1(w, HCC_ERROR_CODE_THREAD_LOCAL_UNSUPPORTED_ON_SPIRV);
 	}
 
 	*data_type_mut = variable.data_type;
@@ -3610,6 +3648,10 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 			break;
 		case HCC_ATA_TOKEN_EQUAL: {
 			hcc_ata_iter_next(w->astgen.token_iter);
+
+			if (found_dispatch_group) {
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_DISPATCH_GROUP_CANNOT_HAVE_INITIALIZER);
+			}
 
 			w->astgen.assign_data_type = variable.data_type;
 			HccASTExpr* init_expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
@@ -3684,7 +3726,7 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 
 				if (HCC_DECL_IS_GLOBAL_VARIABLE(link->decl)) {
 					HccASTVariable* other_variable = hcc_ast_global_variable_get(cu, link->decl);
-					if (variable.ast_file == other_variable->ast_file && !found_extern && !variable.initializer_constant_id.idx_plus_one) {
+					if (variable.ast_file == other_variable->ast_file && !found_extern && !variable.initializer_constant_id.idx_plus_one && variable.storage_duration == other_variable->storage_duration) {
 						//
 						// tentative definition
 						HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(cu, variable.data_type);
