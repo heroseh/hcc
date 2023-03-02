@@ -6,7 +6,9 @@
 
 typedef struct ColorPickerBC ColorPickerBC;
 struct ColorPickerBC {
-	float time_;
+	float    time_;
+	uint32_t screen_width;
+	uint32_t screen_height;
 };
 
 #ifdef __HCC__
@@ -182,12 +184,12 @@ f32x4 distance_cubes(
 }
 
 HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, ColorPickerBC const* const bc, void const* const state, Fragment* const frag_out) {
-	f32x2 TODO_screen_size = f32x2(640, 480);
+	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 
 	// a value from -1.f to 1.f
 	f32x2 screen_pos = f32x2(
-		(sv->frag_coord.x * 2.f - TODO_screen_size.x) / TODO_screen_size.y,
-		(sv->frag_coord.y * 2.f - TODO_screen_size.y) / -TODO_screen_size.y
+		(sv->frag_coord.x * 2.f - screen_size.x) / screen_size.y,
+		(sv->frag_coord.y * 2.f - screen_size.y) / -screen_size.y
 	);
 
 	f32x3 world_up = f32x3(0.f, -1.f, 0.f);

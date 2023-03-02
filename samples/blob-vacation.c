@@ -7,6 +7,8 @@
 typedef struct BlobBC BlobBC;
 struct BlobBC {
 	float time_;
+	uint32_t screen_width;
+	uint32_t screen_height;
 };
 
 #ifdef __HCC__
@@ -207,9 +209,9 @@ f32x4x4 gen_mat_view(f32x3 camera_pos, f32x3 center, f32x3 up) {
 }
 
 HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BlobBC const* const bc, void const* const state, Fragment* const frag_out) {
-	f32x2 TODO_screen_size = f32x2(640, 480);
+	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 
-	f32x3 view_dir = ray_direction_for_uv(45.f, TODO_screen_size, f32x2(sv->frag_coord.x, sv->frag_coord.y));
+	f32x3 view_dir = ray_direction_for_uv(45.f, screen_size, f32x2(sv->frag_coord.x, sv->frag_coord.y));
 	f32x3 camera_pos = f32x3(4.f, 6.f, 42.f);
 
 	// animate camera

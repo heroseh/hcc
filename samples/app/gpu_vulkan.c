@@ -330,7 +330,7 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			.imageFormat = GPU_VK_SURFACE_FORMAT,
 			.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
 			.imageExtent = swapchain_extent,
-			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
 			.preTransform = surface_capabilities.currentTransform,
 			.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 			.imageArrayLayers = 1,
@@ -1549,5 +1549,20 @@ uint32_t gpu_row_pitch(GpuResourceId res_id, uint32_t mip) {
 	VkSubresourceLayout layout;
 	vkGetImageSubresourceLayout(gpu.device, res->image, &sub_resource, &layout);
 	return layout.rowPitch;
+}
+
+uint32_t gpu_depth_pitch(GpuResourceId res_id, uint32_t mip) {
+	APP_ASSERT(res_id < APP_ARRAY_COUNT(gpu.resources), "resource id out of bounds");
+	GpuVkResource* res = &gpu.resources[res_id];
+
+	VkImageSubresource sub_resource = {
+		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+		.mipLevel = mip,
+		.arrayLayer = 0,
+	};
+
+	VkSubresourceLayout layout;
+	vkGetImageSubresourceLayout(gpu.device, res->image, &sub_resource, &layout);
+	return layout.depthPitch;
 }
 

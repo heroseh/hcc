@@ -23,3 +23,4 @@ GpuResourceId gpu_create_sampler(void);
 void* gpu_map_resource(GpuResourceId res_id);
 uint32_t gpu_mip_offset(GpuResourceId res_id, uint32_t mip);
 uint32_t gpu_row_pitch(GpuResourceId res_id, uint32_t mip);
+uint32_t gpu_depth_pitch(GpuResourceId res_id, uint32_t mip);

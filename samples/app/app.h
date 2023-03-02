@@ -16,6 +16,7 @@
 #include "../texture.c"
 #include "../alt-2.5d-rgb-color-picker.c"
 #include "../blob-vacation.c"
+#include "../voxel-raytracer.c"
 
 #define APP_NAME "Hcc Samples"
 
@@ -37,6 +38,11 @@
 #define APP_LOGO_PATH_FMT "logo/logo-%u.png"
 #define APP_INT_ROUND_UP_ALIGN(i, align) (((i) + ((align) - 1)) & ~((align) - 1))
 
+#define APP_LOGO_VOXEL_PATH "samples/voxel-raytracer-assets/logo-256.png"
+#define APP_LOGO_VOXEL_WIDTH  256
+#define APP_LOGO_VOXEL_HEIGHT 256
+#define APP_LOGO_VOXEL_DEPTH  32
+
 #define APP_CLAMP(v, min, max) (((v) > (max)) ? (max) : ((v) < (min)) ? (min) : (v))
 #define for_range(idx, start, end) for (unsigned int idx = start; idx < end; idx += 1)
 
@@ -47,6 +53,7 @@ enum AppSampleEnum {
 	APP_SAMPLE_TEXTURE,
 	APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER,
 	APP_SAMPLE_BLOB_VACATION,
+	APP_SAMPLE_VOXEL_RAYTRACER,
 
 	APP_SAMPLE_COUNT,
 };
@@ -121,6 +128,15 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.graphics = {
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
+		},
+	},
+	[APP_SAMPLE_VOXEL_RAYTRACER] = {
+		.shader_name = "voxel-raytracer",
+		.shader_type = APP_SHADER_TYPE_COMPUTE,
+		.compute = {
+			.dispatch_group_size_x = 1,
+			.dispatch_group_size_y = 1,
+			.dispatch_group_size_z = 1,
 		},
 	},
 };

@@ -30,6 +30,8 @@ int main(int argc, char** argv) {
 	GpuResourceId backbuffer_texture_id = gpu_create_backbuffer();
 	GpuResourceId triangle_vertex_buffer_id = gpu_create_buffer(3 * sizeof(TriangleVertex));
 	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
+	GpuResourceId logo_voxel_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_3D, APP_LOGO_VOXEL_WIDTH, APP_LOGO_VOXEL_HEIGHT, APP_LOGO_VOXEL_DEPTH, 1, 1);
+	GpuResourceId voxel_model_buffer_id = gpu_create_buffer(1 * sizeof(VoxelModel));
 	GpuResourceId clamp_linear_sampler_id = gpu_create_sampler();
 
 	//
@@ -59,6 +61,37 @@ int main(int argc, char** argv) {
 			logo_width /= 2;
 			logo_height /= 2;
 		}
+	}
+
+	//
+	// load the 256 logo as a 3d voxel texture
+	{
+		int x, y, comp;
+		uint8_t* dst_pixels = gpu_map_resource(logo_voxel_texture_id);
+		uint8_t* src_pixels = stbi_load(APP_LOGO_VOXEL_PATH, &x, &y, &comp, 4);
+		APP_ASSERT(src_pixels, "failed to load logo voxel data at %s", APP_LOGO_VOXEL_PATH);
+		uint32_t row_size = APP_LOGO_VOXEL_WIDTH * 4;
+		uint32_t row_pitch = gpu_row_pitch(logo_voxel_texture_id, 0);
+		uint32_t depth_pitch = gpu_depth_pitch(logo_voxel_texture_id, 0);
+		uint32_t dst_offset = 0;
+		uint32_t src_offset = 0;
+		for (uint32_t z = 0; z < APP_LOGO_VOXEL_DEPTH; z += 1) {
+			dst_offset = z * depth_pitch;
+			src_offset = 0;
+			for (uint32_t y = 0; y < APP_LOGO_VOXEL_HEIGHT; y += 1) {
+				memcpy(&dst_pixels[dst_offset], &src_pixels[src_offset], row_size);
+				dst_offset += row_pitch;
+				src_offset += row_size;
+			}
+		}
+	}
+
+	{
+		VoxelModel* models = gpu_map_resource(voxel_model_buffer_id);
+		models[0].position = f32x3(0.f, 0.f, 1024.f);
+		models[0].half_size = f32x3(APP_LOGO_VOXEL_WIDTH / 2, APP_LOGO_VOXEL_HEIGHT / 2, APP_LOGO_VOXEL_DEPTH / 2);
+		models[0].color = logo_voxel_texture_id;
+		//APP_ABORT("offsetof(VoxelModel, color) = %zu\n", offsetof(VoxelModel, color));
 	}
 
 	uint8_t bc_data[64];
@@ -161,6 +194,8 @@ int main(int argc, char** argv) {
 				if (init_sample) {
 				}
 				bc->time_ = time_;
+				bc->screen_width = window_width;
+				bc->screen_height = window_height;
 				break;
 			};
 			case APP_SAMPLE_BLOB_VACATION: {
@@ -168,6 +203,21 @@ int main(int argc, char** argv) {
 				if (init_sample) {
 				}
 				bc->time_ = time_;
+				bc->screen_width = window_width;
+				bc->screen_height = window_height;
+				break;
+			};
+			case APP_SAMPLE_VOXEL_RAYTRACER: {
+				VoxelRaytracerBC* bc = bundled_constants_ptr;
+				if (init_sample) {
+					bc->models = voxel_model_buffer_id;
+					bc->output = backbuffer_texture_id;
+				}
+				app_samples[sample_enum].compute.dispatch_group_size_x = window_width / 8;
+				app_samples[sample_enum].compute.dispatch_group_size_y = window_height / 8;
+				bc->time_ = time_;
+				bc->screen_width = window_width;
+				bc->screen_height = window_height;
 				break;
 			};
 		}
