@@ -2183,21 +2183,21 @@ const char* hcc_texture_dim_strings_upper[HCC_TEXTURE_DIM_COUNT] = {
 	[HCC_TEXTURE_DIM_CUBE] = "CUBE",
 };
 
-const char* hcc_resource_access_mode_strings_lower[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
+const char* hcc_resource_access_mode_short_strings_lower[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
 	[HCC_RESOURCE_ACCESS_MODE_READ_ONLY] = "ro",
 	[HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY] = "wo",
 	[HCC_RESOURCE_ACCESS_MODE_READ_WRITE] = "rw",
 	[HCC_RESOURCE_ACCESS_MODE_SAMPLE] = "sample",
 };
 
-const char* hcc_resource_access_mode_strings_upper[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
+const char* hcc_resource_access_mode_short_strings_upper[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
 	[HCC_RESOURCE_ACCESS_MODE_READ_ONLY] = "RO",
 	[HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY] = "WO",
 	[HCC_RESOURCE_ACCESS_MODE_READ_WRITE] = "RW",
 	[HCC_RESOURCE_ACCESS_MODE_SAMPLE] = "SAMPLE",
 };
 
-const char* hcc_resource_access_mode_strings_title[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
+const char* hcc_resource_access_mode_short_strings_title[HCC_RESOURCE_ACCESS_MODE_COUNT] = {
 	[HCC_RESOURCE_ACCESS_MODE_READ_ONLY] = "Ro",
 	[HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY] = "Wo",
 	[HCC_RESOURCE_ACCESS_MODE_READ_WRITE] = "Rw",
@@ -2496,7 +2496,7 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 				is_descriptor = true;
 RESOURCE:   {
 				HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(data_type);
-				const char* access_mode_string = hcc_resource_access_mode_strings_title[HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type)];
+				const char* access_mode_string = hcc_resource_access_mode_short_strings_title[HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type)];
 				switch (HCC_RESOURCE_DATA_TYPE_TYPE(resource_data_type)) {
 					case HCC_RESOURCE_DATA_TYPE_BUFFER: {
 						HccBufferDataType* d = hcc_buffer_data_type_get(cu, data_type);
@@ -3524,15 +3524,6 @@ HccDataType hcc_array_data_type_deduplicate(HccCU* cu, HccDataType element_data_
 	d->element_data_type = element_data_type;
 	d->element_count_constant_id = element_count_constant_id;
 
-	if (HCC_DATA_TYPE_IS_COMPOUND(element_data_type)) {
-		HccCompoundDataType* field_compound_data_type = hcc_compound_data_type_get(cu, element_data_type);
-	} else if (HCC_DATA_TYPE_IS_POINTER(element_data_type)) {
-		d->has_pointer = true;
-	} else if (HCC_DATA_TYPE_IS_ARRAY(element_data_type)) {
-		HccArrayDataType* other_d = hcc_array_data_type_get(cu, element_data_type);
-		d->has_pointer |= other_d->has_pointer;
-	}
-
 	uint32_t array_data_types_idx = d - cu->dtt.arrays;
 	atomic_store(&entry->id, array_data_types_idx + 1);
 	HccDataType data_type = HCC_DATA_TYPE(ARRAY, array_data_types_idx);
@@ -3542,7 +3533,7 @@ HccDataType hcc_array_data_type_deduplicate(HccCU* cu, HccDataType element_data_
 HccBufferDataType* hcc_buffer_data_type_get(HccCU* cu, HccDataType data_type) {
 	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_BUFFER(data_type), "internal error: expected buffer data type");
-	return hcc_stack_get(cu->dtt.buffers, HCC_DATA_TYPE_AUX(data_type));
+	return hcc_stack_get(cu->dtt.buffers, HCC_RESOURCE_DATA_TYPE_AUX(HCC_DATA_TYPE_AUX(data_type)));
 }
 
 HccDataType hcc_buffer_data_type_element_data_type(HccBufferDataType* dt) {
@@ -4239,6 +4230,9 @@ uintptr_t hcc_iio_write(HccIIO* iio, const void* data, uintptr_t size) {
 }
 
 uintptr_t hcc_iio_write_fmt(HccIIO* iio, const char* fmt, ...) {
+	if (!iio) {
+		return 0;
+	}
 	va_list va_args;
 	va_start(va_args, fmt);
 	uintptr_t write_size = iio->write_fmt_fn(iio, fmt, va_args);

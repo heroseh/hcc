@@ -23,22 +23,22 @@ struct TextureBC {
 #ifdef __HCC__
 #include <hmaths/maths.h>
 
-typedef struct RasterizerState RasterizerState;
-HCC_RASTERIZER_STATE struct RasterizerState {
+typedef struct TextureRasterizerState TextureRasterizerState;
+HCC_RASTERIZER_STATE struct TextureRasterizerState {
 	HCC_INTERP f32x2 uv;
 };
 
-HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, TextureBC const* const bc, RasterizerState* const state_out) {
+HCC_VERTEX void texture_vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, TextureBC const* const bc, TextureRasterizerState* const state_out) {
 	sv_out->position = f32x4((sv->vertex_idx & 1) * 2.f - 1.f, (sv->vertex_idx / 2) * 2.f - 1.f, 0.f, 1.f);
 	state_out->uv = f32x2((sv->vertex_idx & 1) * 2.f - 1.f, (sv->vertex_idx / 2) * 2.f - 1.f);
 }
 
-typedef struct Fragment Fragment;
-HCC_FRAGMENT_STATE struct Fragment {
+typedef struct TextureFragment TextureFragment;
+HCC_FRAGMENT_STATE struct TextureFragment {
 	f32x4 color;
 };
 
-HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, TextureBC const* const bc, RasterizerState const* const state, Fragment* const frag_out) {
+HCC_FRAGMENT void texture_fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, TextureBC const* const bc, TextureRasterizerState const* const state, TextureFragment* const frag_out) {
 	f32x2 uv_unorm = adds_f32x2(muls_f32x2(state->uv, 0.5f), 0.5f);
 	f32x2 uv = adds_f32x2(muls_f32x2(add_f32x2(mul_f32x2(state->uv, bc->scale), bc->offset), 0.5f), 0.5f);
 	uv = clamps_f32x2(uv, 0.f, 1.f);

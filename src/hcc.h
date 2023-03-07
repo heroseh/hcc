@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "../interop/hcc_interop.h"
+
 // ===========================================
 //
 //
@@ -64,7 +66,6 @@ typedef struct HccTarget HccTarget;
 typedef struct HccCU HccCU;
 typedef struct HccASTFile HccASTFile;
 typedef struct HccASTVariable HccASTVariable;
-typedef uint8_t HccShaderStage;
 
 // ===========================================
 //
@@ -193,6 +194,8 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_WORKER_STRING_BUFFER,
 	HCC_ALLOC_TAG_WORKER_ARENA,
 
+	HCC_ALLOC_TAG_CU_SHADER_FUNCTION_DECLS,
+	HCC_ALLOC_TAG_CU_RESOURCE_STRUCTS,
 	HCC_ALLOC_TAG_CU_GLOBAL_DECLARATIONS,
 	HCC_ALLOC_TAG_CU_STRUCT_DECLARATIONS,
 	HCC_ALLOC_TAG_CU_UNION_DECLARATIONS,
@@ -1142,16 +1145,6 @@ enum HccResourceDataType {
 	HCC_RESOURCE_DATA_TYPE_COUNT =     3,
 };
 
-typedef uint8_t HccResourceAccessMode;
-enum {
-	HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
-	HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY,
-	HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
-	HCC_RESOURCE_ACCESS_MODE_SAMPLE,
-
-	HCC_RESOURCE_ACCESS_MODE_COUNT,
-};
-
 //
 // format constants
 #define HCC_RESOURCE_DATA_TYPE_TYPE_MASK         0x0003
@@ -1208,9 +1201,9 @@ enum {
 
 extern const char* hcc_texture_dim_strings_lower[HCC_TEXTURE_DIM_COUNT];
 extern const char* hcc_texture_dim_strings_upper[HCC_TEXTURE_DIM_COUNT];
-extern const char* hcc_resource_access_mode_strings_lower[HCC_RESOURCE_ACCESS_MODE_COUNT];
-extern const char* hcc_resource_access_mode_strings_upper[HCC_RESOURCE_ACCESS_MODE_COUNT];
-extern const char* hcc_resource_access_mode_strings_title[HCC_RESOURCE_ACCESS_MODE_COUNT];
+extern const char* hcc_resource_access_mode_short_strings_lower[HCC_RESOURCE_ACCESS_MODE_COUNT];
+extern const char* hcc_resource_access_mode_short_strings_upper[HCC_RESOURCE_ACCESS_MODE_COUNT];
+extern const char* hcc_resource_access_mode_short_strings_title[HCC_RESOURCE_ACCESS_MODE_COUNT];
 
 // ===========================================
 //
@@ -1850,17 +1843,6 @@ struct HccASTExpr {
 	HccLocation* location;
 	HccASTExpr* next_stmt;
 	HccDataType data_type;
-};
-
-enum HccShaderStage {
-	HCC_SHADER_STAGE_NONE,
-	HCC_SHADER_STAGE_VERTEX,
-	HCC_SHADER_STAGE_FRAGMENT,
-	HCC_SHADER_STAGE_COMPUTE,
-	HCC_SHADER_STAGE_MESHTASK,
-	HCC_SHADER_STAGE_MESH,
-
-	HCC_SHADER_STAGE_COUNT,
 };
 
 //
@@ -2725,7 +2707,12 @@ enum HccOptionKey {
 	HCC_OPTION_KEY_FLOAT64_ENABLED,             // bool
 	HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED,    // bool
 	HCC_OPTION_KEY_BUNDLED_CONSTANTS_MAX_SIZE,  // uint
-	HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX,  // uint
+	HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX,    // uint
+	HCC_OPTION_KEY_SHADER_ENUM_NAME,            // string
+	HCC_OPTION_KEY_SHADER_ENUM_PREFIX,          // string
+	HCC_OPTION_KEY_SHADER_INFOS_NAME,           // string
+	HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME,  // string
+	HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX,// string
 
 	HCC_OPTION_KEY_COUNT,
 };
@@ -2825,6 +2812,8 @@ HccResult hcc_task_add_output_aml_binary(HccTask* t, HccIIO* iio);
 HccResult hcc_task_add_output_aml(HccTask* t, HccAML** aml_out);
 
 HccResult hcc_task_add_output_binary(HccTask* t, HccIIO* iio);
+HccResult hcc_task_add_output_metadata_c(HccTask* t, HccIIO* iio);
+HccResult hcc_task_add_output_metadata_json(HccTask* t, HccIIO* iio);
 
 bool hcc_task_has_started(HccTask* t);
 bool hcc_task_is_complete(HccTask* t);

@@ -4,8 +4,8 @@
 #include <hmaths/types.h>
 #include <hcc_shader.h>
 
-typedef struct BlobBC BlobBC;
-struct BlobBC {
+typedef struct BlobVacationBC BlobVacationBC;
+struct BlobVacationBC {
 	float time_;
 	uint32_t screen_width;
 	uint32_t screen_height;
@@ -14,17 +14,17 @@ struct BlobBC {
 #ifdef __HCC__
 #include <hmaths/maths.h>
 
-HCC_INVOCATION const float MIN_DIST = 0.f;
-HCC_INVOCATION const float MAX_DIST = 100.f;
-HCC_INVOCATION const float EPSILON = 0.0001f;
-HCC_INVOCATION const int MAX_MARCHING_STEPS = 1024;
+HCC_INVOCATION const float BLOB_MIN_DIST = 0.f;
+HCC_INVOCATION const float BLOB_MAX_DIST = 100.f;
+HCC_INVOCATION const float BLOB_EPSILON = 0.0001f;
+HCC_INVOCATION const int BLOB_MAX_MARCHING_STEPS = 1024;
 
-typedef struct Fragment Fragment;
-HCC_FRAGMENT_STATE struct Fragment {
+typedef struct BlobVacationFragment BlobVacationFragment;
+HCC_FRAGMENT_STATE struct BlobVacationFragment {
 	f32x4 color;
 };
 
-HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BlobBC const* const bc, void* const state_out) {
+HCC_VERTEX void blob_vacation_vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BlobVacationBC const* const bc, void* const state_out) {
 	sv_out->position = f32x4((sv->vertex_idx & 1) * 2.f - 1.f, (sv->vertex_idx / 2) * 2.f - 1.f, 0.f, 1.f);
 }
 
@@ -129,10 +129,10 @@ f32x4 map_world(f32x3 sample_pt, float time_) {
 // or we have gone past the 'end'
 f32x4 ray_march_get_closest_shape(f32x3 ray_orgin, f32x3 march_dir, float start, float end, float time_) {
 	float depth = start;
-	for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
+	for (int i = 0; i < BLOB_MAX_MARCHING_STEPS; i++) {
 		f32x4 shape = map_world(add_f32x3(ray_orgin, muls_f32x3(march_dir, depth)), time_);
 		float dist = shape.x;
-		if (dist < EPSILON) {
+		if (dist < BLOB_EPSILON) {
 			shape.x = depth;
 			return shape;
 		}
@@ -156,9 +156,9 @@ f32x3 ray_direction_for_uv(float fov, f32x2 size, f32x2 uv) {
 // that component contributes to the surface normal.
 f32x3 estimate_normal(f32x3 p, float time_) {
 	return norm_f32x3(f32x3(
-		map_world(f32x3(p.x + EPSILON, p.y, p.z), time_).x - map_world(f32x3(p.x - EPSILON, p.y, p.z), time_).x,
-		map_world(f32x3(p.x, p.y + EPSILON, p.z), time_).x - map_world(f32x3(p.x, p.y - EPSILON, p.z), time_).x,
-		map_world(f32x3(p.x, p.y, p.z  + EPSILON), time_).x - map_world(f32x3(p.x, p.y, p.z - EPSILON), time_).x
+		map_world(f32x3(p.x + BLOB_EPSILON, p.y, p.z), time_).x - map_world(f32x3(p.x - BLOB_EPSILON, p.y, p.z), time_).x,
+		map_world(f32x3(p.x, p.y + BLOB_EPSILON, p.z), time_).x - map_world(f32x3(p.x, p.y - BLOB_EPSILON, p.z), time_).x,
+		map_world(f32x3(p.x, p.y, p.z  + BLOB_EPSILON), time_).x - map_world(f32x3(p.x, p.y, p.z - BLOB_EPSILON), time_).x
 	));
 }
 
@@ -208,7 +208,7 @@ f32x4x4 gen_mat_view(f32x3 camera_pos, f32x3 center, f32x3 up) {
 	return m;
 }
 
-HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BlobBC const* const bc, void const* const state, Fragment* const frag_out) {
+HCC_FRAGMENT void blob_vacation_fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BlobVacationBC const* const bc, void const* const state, BlobVacationFragment* const frag_out) {
 	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 
 	f32x3 view_dir = ray_direction_for_uv(45.f, screen_size, f32x2(sv->frag_coord.x, sv->frag_coord.y));
@@ -224,11 +224,11 @@ HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_o
 	f32x3 world_dir = f32x3(temp_world_dir.x, temp_world_dir.y, temp_world_dir.z);
 
 	// ray march to get the closest distance and color for the shape we hit
-	f32x4 shape = ray_march_get_closest_shape(camera_pos, world_dir, MIN_DIST, MAX_DIST, bc->time_);
+	f32x4 shape = ray_march_get_closest_shape(camera_pos, world_dir, BLOB_MIN_DIST, BLOB_MAX_DIST, bc->time_);
 	float dist = shape.x;
 	f32x3 color = f32x3(shape.y, shape.z, shape.w);
 
-	if (dist > MAX_DIST - EPSILON) {
+	if (dist > BLOB_MAX_DIST - BLOB_EPSILON) {
 		// did not hit anything so render the sky
 
 		f32x3 sun_dir = norm_f32x3(f32x3(0.f, 0.09f, -1.f));

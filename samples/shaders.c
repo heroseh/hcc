@@ -1,0 +1,6 @@
+#include "triangle.c"
+#include "compute-square.c"
+#include "texture.c"
+#include "alt-2.5d-rgb-color-picker.c"
+#include "blob-vacation.c"
+#include "voxel-raytracer.c"

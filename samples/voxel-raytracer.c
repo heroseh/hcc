@@ -4,7 +4,7 @@
 #include <hmaths/types.h>
 #include <hcc_shader.h>
 
-#define EPSILON 0.0001f
+#define VOXEL_EPSILON 0.0001f
 
 typedef struct VoxelModel VoxelModel;
 struct VoxelModel {
@@ -34,13 +34,13 @@ struct AabbVsRayHit {
 
 AabbVsRayHit aabb_vs_ray3d(f32x3 aabb_min, f32x3 aabb_max, f32x3 ray_origin, f32x3 ray_dir) {
 	if (ray_dir.x == 0.f) {
-		ray_dir.x = EPSILON;
+		ray_dir.x = VOXEL_EPSILON;
 	}
 	if (ray_dir.y == 0.f) {
-		ray_dir.y = EPSILON;
+		ray_dir.y = VOXEL_EPSILON;
 	}
 	if (ray_dir.z == 0.f) {
-		ray_dir.z = EPSILON;
+		ray_dir.z = VOXEL_EPSILON;
 	}
 	f32x3 inv_ray_dir = sdiv_f32x3(1.f, ray_dir);
 
@@ -62,13 +62,13 @@ AabbVsRayHit aabb_vs_ray3d(f32x3 aabb_min, f32x3 aabb_max, f32x3 ray_origin, f32
 	return hit;
 }
 
-f32x3 ray_direction_for_uv(float fov, f32x2 size, f32x2 uv) {
+f32x3 voxel_ray_direction_for_uv(float fov, f32x2 size, f32x2 uv) {
 	f32x2 xy = sub_f32x2(uv, divs_f32x2(size, 2.f));
 	float z = size.y / tan_f32(radians_f32(fov) / 2.f);
 	return norm_f32x3(f32x3(xy.x, -xy.y, z));
 }
 
-f32x2x2 mat2_identity_rotation(float angle) {
+f32x2x2 voxel_mat2_identity_rotation(float angle) {
 	float ca = cos_f32(angle);
 	float sa = sin_f32(angle);
 	f32x2x2 m;
@@ -80,10 +80,10 @@ f32x2x2 mat2_identity_rotation(float angle) {
 }
 
 HCC_COMPUTE(8, 8, 1)
-void cs(HccComputeSV const* const sv, VoxelRaytracerBC const* const bc) {
+void voxel_raytracer_cs(HccComputeSV const* const sv, VoxelRaytracerBC const* const bc) {
 	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 	f32x2 coord = f32x2(sv->dispatch_idx.x, sv->dispatch_idx.y);
-	f32x3 ray_dir = ray_direction_for_uv(45.f, screen_size, coord);
+	f32x3 ray_dir = voxel_ray_direction_for_uv(45.f, screen_size, coord);
 	f32x3 ray_origin = f32x3(0.f, 10.f, 0.f);
 	ray_origin.x += cos_f32(bc->time_) * 100.f;
 	ray_origin.y += sin_f32(bc->time_) * 50.f;
@@ -96,14 +96,14 @@ void cs(HccComputeSV const* const sv, VoxelRaytracerBC const* const bc) {
 
 	f32x3 ray_origin_local_space = sub_f32x3(ray_origin, model.position);
 	f32x2 xz = f32x2(ray_origin_local_space.x, ray_origin_local_space.z);
-	xz = mul_f32x2_f32x2x2(xz, mat2_identity_rotation(bc->time_));
+	xz = mul_f32x2_f32x2x2(xz, voxel_mat2_identity_rotation(bc->time_));
 	ray_origin_local_space.x = xz.x;
 	ray_origin_local_space.z = xz.y;
 	ray_origin_local_space = add_f32x3(ray_origin_local_space, model.position);
 
 	f32x3 ray_dir_local_space = ray_dir;
 	xz = f32x2(ray_dir_local_space.x, ray_dir_local_space.z);
-	xz = mul_f32x2_f32x2x2(xz, mat2_identity_rotation(bc->time_));
+	xz = mul_f32x2_f32x2x2(xz, voxel_mat2_identity_rotation(bc->time_));
 	ray_dir_local_space.x = xz.x;
 	ray_dir_local_space.z = xz.y;
 
@@ -115,7 +115,7 @@ void cs(HccComputeSV const* const sv, VoxelRaytracerBC const* const bc) {
 			f32x3 pt_local_space = sub_f32x3(pt_world_space, aabb_min);
 			pt_local_space = floor_f32x3(pt_local_space);
 			f32x4 texel = load_textureG(model.color, u32x3(pt_local_space.x, pt_local_space.y, pt_local_space.z));
-			if (texel.a >= EPSILON) {
+			if (texel.a >= VOXEL_EPSILON) {
 				color = texel;
 				break;
 			}

@@ -60,6 +60,8 @@ void hcc_cu_init(HccCU* cu, HccCUSetup* setup, HccOptions* options) {
 	hcc_ast_init(cu, setup);
 	hcc_aml_init(cu, setup);
 	hcc_spirv_init(cu, setup);
+	cu->shader_function_decls = hcc_stack_init(HccDecl, HCC_ALLOC_TAG_CU_SHADER_FUNCTION_DECLS, setup->functions_grow_count, setup->functions_reserve_cap);
+	cu->resource_structs = hcc_stack_init(HccDataType, HCC_ALLOC_TAG_CU_RESOURCE_STRUCTS, setup->dtt.compounds_grow_count, setup->dtt.compounds_reserve_cap);
 	cu->global_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_GLOBAL_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, global_declarations_cap);
 	cu->struct_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_STRUCT_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
 	cu->union_declarations = hcc_hash_table_init(HccDeclEntryAtomic, HCC_ALLOC_TAG_CU_UNION_DECLARATIONS, hcc_u32_key_cmp, hcc_u32_key_hash, setup->dtt.compounds_reserve_cap);
@@ -90,18 +92,23 @@ HccOptionsSetup hcc_options_setup_default = {
 };
 
 HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
-	[HCC_OPTION_KEY_TARGET_ARCH] =              HCC_TARGET_ARCH_X86_64,
-	[HCC_OPTION_KEY_TARGET_OS] =                HCC_TARGET_OS_LINUX,
-	[HCC_OPTION_KEY_TARGET_GFX_API] =           HCC_TARGET_GFX_API_VULKAN,
-	[HCC_OPTION_KEY_TARGET_FORMAT] =            HCC_TARGET_FORMAT_SPIRV,
-	[HCC_OPTION_KEY_INT8_ENABLED] =             false,
-	[HCC_OPTION_KEY_INT16_ENABLED] =            false,
-	[HCC_OPTION_KEY_INT64_ENABLED] =            false,
-	[HCC_OPTION_KEY_FLOAT16_ENABLED] =          false,
-	[HCC_OPTION_KEY_FLOAT64_ENABLED] =          false,
-	[HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED] = false,
-	[HCC_OPTION_KEY_BUNDLED_CONSTANTS_MAX_SIZE] = { .uint = 32 },
-	[HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX] = { .uint = 1024 },
+	[HCC_OPTION_KEY_TARGET_ARCH] =                  { .uint = HCC_TARGET_ARCH_X86_64 },
+	[HCC_OPTION_KEY_TARGET_OS] =                    { .uint = HCC_TARGET_OS_LINUX },
+	[HCC_OPTION_KEY_TARGET_GFX_API] =               { .uint = HCC_TARGET_GFX_API_VULKAN },
+	[HCC_OPTION_KEY_TARGET_FORMAT] =                { .uint = HCC_TARGET_FORMAT_SPIRV },
+	[HCC_OPTION_KEY_INT8_ENABLED] =                 { .bool_ = false },
+	[HCC_OPTION_KEY_INT16_ENABLED] =                { .bool_ = false },
+	[HCC_OPTION_KEY_INT64_ENABLED] =                { .bool_ = false },
+	[HCC_OPTION_KEY_FLOAT16_ENABLED] =              { .bool_ = false },
+	[HCC_OPTION_KEY_FLOAT64_ENABLED] =              { .bool_ = false },
+	[HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED] =     { .bool_ = false },
+	[HCC_OPTION_KEY_BUNDLED_CONSTANTS_MAX_SIZE] =   { .uint = 32 },
+	[HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX] =     { .uint = 1024 },
+	[HCC_OPTION_KEY_SHADER_ENUM_NAME] =             { .string = hcc_string_lit("HccShader") },
+	[HCC_OPTION_KEY_SHADER_ENUM_PREFIX] =           { .string = hcc_string_lit("HCC_SHADER_") },
+	[HCC_OPTION_KEY_SHADER_INFOS_NAME] =            { .string = hcc_string_lit("hcc_shader_infos") },
+	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME] =   { .string = hcc_string_lit("HccResourceStruct") },
+	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX] = { .string = hcc_string_lit("HCC_RESOURCE_STRUCT_") },
 };
 
 HccResult hcc_options_init(HccOptionsSetup* setup, HccOptions** o_out) {
@@ -423,6 +430,13 @@ void hcc_task_output_job(HccTask* t, HccWorkerJobType job_type) {
 					if (written_size != write_size) {
 						HCC_ABORT("TODO report this error properly: error writing out final file to disk. written %u, expected: %u", written_size, write_size);
 					}
+
+					if (t->output_iio_metadata_c) {
+						hcc_metadatagen_generate_c(t->cu, t->output_iio_metadata_c);
+					}
+					if (t->output_iio_metadata_json) {
+						hcc_metadatagen_generate_json(t->cu, t->output_iio_metadata_json);
+					}
 					break;
 				};
 			}
@@ -552,6 +566,16 @@ HccResult hcc_task_add_output_aml(HccTask* t, HccAML** aml_out) {
 
 HccResult hcc_task_add_output_binary(HccTask* t, HccIIO* iio) {
 	return hcc_task_add_output(t, HCC_WORKER_JOB_TYPE_BACKENDLINK, HCC_ENCODING_BINARY, iio);
+}
+
+HccResult hcc_task_add_output_metadata_c(HccTask* t, HccIIO* iio) {
+	t->output_iio_metadata_c = iio;
+	return HCC_RESULT_SUCCESS;
+}
+
+HccResult hcc_task_add_output_metadata_json(HccTask* t, HccIIO* iio) {
+	t->output_iio_metadata_json = iio;
+	return HCC_RESULT_SUCCESS;
 }
 
 bool hcc_task_has_started(HccTask* t) {

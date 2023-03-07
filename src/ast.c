@@ -125,7 +125,8 @@ const char* hcc_ast_function_shader_stage_strings[HCC_SHADER_STAGE_COUNT] = {
 	[HCC_SHADER_STAGE_VERTEX] = "vertex",
 	[HCC_SHADER_STAGE_FRAGMENT] = "fragment",
 	[HCC_SHADER_STAGE_COMPUTE] = "compute",
-	[HCC_SHADER_STAGE_MESHTASK] = "meshtask",
+	[HCC_SHADER_STAGE_MESH_TASK] = "mesh_task",
+	[HCC_SHADER_STAGE_MESH] = "mesh",
 };
 
 HccASTForwardDecl* hcc_ast_forward_decl_get(HccCU* cu, HccDecl decl) {

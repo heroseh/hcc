@@ -957,7 +957,6 @@ typedef struct HccArrayDataType HccArrayDataType;
 struct HccArrayDataType {
 	HccDataType element_data_type;
 	HccConstantId element_count_constant_id;
-	uint32_t has_pointer: 1;
 };
 
 typedef struct HccBufferDataType HccBufferDataType;
@@ -982,6 +981,7 @@ enum HccCompoundDataTypeFlags {
 	HCC_COMPOUND_DATA_TYPE_FLAGS_IS_UNION =     0x1,
 	HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER =  0x2,
 	HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_UNION =    0x4,
+	HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE = 0x8,
 };
 
 typedef uint8_t HccCompoundDataTypeKind;
@@ -1171,9 +1171,9 @@ struct HccASTFunction {
 	HccOptLevel         opt_level;
 	HccASTExpr*         block_expr;
 	uint32_t            max_instrs_count;
-	uint64_t            compute_dispatch_group_size_x;
-	uint64_t            compute_dispatch_group_size_y;
-	uint64_t            compute_dispatch_group_size_z;
+	uint32_t            compute_dispatch_group_size_x;
+	uint32_t            compute_dispatch_group_size_y;
+	uint32_t            compute_dispatch_group_size_z;
 };
 
 enum {
@@ -2032,9 +2032,9 @@ struct HccAMLFunction {
 	HccShaderStage            shader_stage;
 	HccOptLevel               opt_level;
 	uint8_t                   params_count;
-	uint64_t                  compute_dispatch_group_size_x;
-	uint64_t                  compute_dispatch_group_size_y;
-	uint64_t                  compute_dispatch_group_size_z;
+	uint32_t                  compute_dispatch_group_size_x;
+	uint32_t                  compute_dispatch_group_size_y;
+	uint32_t                  compute_dispatch_group_size_z;
 
 	HccAMLWord*               words;
 	HccAMLValue*              values;
@@ -2871,6 +2871,18 @@ void hcc_spirvlink_link(HccWorker* w);
 // ===========================================
 //
 //
+// Metadata Generator
+//
+//
+// ===========================================
+
+void hcc_metadatagen_generate_c_resources(HccCU* cu, HccIIO* iio, HccCompoundDataType* dt, const char* base_name, uint32_t base_offset, uint32_t* resources_count_mut);
+void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio);
+void hcc_metadatagen_generate_json(HccCU* cu, HccIIO* iio);
+
+// ===========================================
+//
+//
 // Compilation Unit
 //
 //
@@ -2911,6 +2923,8 @@ struct HccCU {
 
 	//
 	// these hash tables are all of the declarations from all of the files.
+	HccStack(HccDecl)                shader_function_decls;
+	HccStack(HccDataType)            resource_structs;
 	HccHashTable(HccDeclEntryAtomic) global_declarations;
 	HccHashTable(HccDeclEntryAtomic) struct_declarations; // struct T
 	HccHashTable(HccDeclEntryAtomic) union_declarations;  // union T
@@ -3020,6 +3034,8 @@ struct HccTask {
 	HccWorkerJobType        final_worker_job_type;
 	HccTaskInputLocation*   input_locations;
 	HccTaskOutputLocation   output_job_locations[HCC_WORKER_JOB_TYPE_COUNT];
+	HccIIO*                 output_iio_metadata_c;
+	HccIIO*                 output_iio_metadata_json;
 	HccMessageSys           message_sys;
 	HccStack(HccString)     include_path_strings;
 	HccMutex                is_running_mutex;

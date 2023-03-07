@@ -15,7 +15,7 @@ enum GpuTextureType {
 
 void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height);
 void gpu_init_sample(AppSampleEnum sample_enum);
-void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size);
+void gpu_render_frame(AppSampleEnum sample_enum, void* bc);
 GpuResourceId gpu_create_backbuffer(void);
 GpuResourceId gpu_create_buffer(uint32_t size);
 GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t array_layers, uint32_t mip_levels);

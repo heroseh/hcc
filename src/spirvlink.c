@@ -175,7 +175,7 @@ void hcc_spirvlink_link(HccWorker* w) {
 			case HCC_SHADER_STAGE_VERTEX: execution_model = HCC_SPIRV_EXECUTION_MODEL_VERTEX; break;
 			case HCC_SHADER_STAGE_FRAGMENT: execution_model = HCC_SPIRV_EXECUTION_MODEL_FRAGMENT; break;
 			case HCC_SHADER_STAGE_COMPUTE: execution_model = HCC_SPIRV_EXECUTION_MODEL_GL_COMPUTE; break;
-			case HCC_SHADER_STAGE_MESHTASK:
+			case HCC_SHADER_STAGE_MESH_TASK:
 			case HCC_SHADER_STAGE_MESH:
 			default: HCC_ABORT("unhandled shader stage: %u", entry_point->shader_stage);
 		}
@@ -212,7 +212,7 @@ void hcc_spirvlink_link(HccWorker* w) {
 				operands[4] = aml_function->compute_dispatch_group_size_z;
 				break;
 			};
-			case HCC_SHADER_STAGE_MESHTASK:
+			case HCC_SHADER_STAGE_MESH_TASK:
 				break;
 			case HCC_SHADER_STAGE_MESH:
 				break;

@@ -12,6 +12,8 @@
 #include "spirv.c"
 #include "spirvgen.c"
 #include "spirvlink.c"
+#include "metadatagen.c"
+#include "../interop/hcc_interop.c"
 #include "hcc.c"
 
 void print_duration(const char* what, HccDuration d) {
@@ -83,6 +85,26 @@ int main(int argc, char** argv) {
 			const char* output_file_path = argv[arg_idx];
 			HccIIO binary_iio = hcc_iio_file(fopen(output_file_path, "wb"));
 			HCC_ENSURE(hcc_task_add_output_binary(task, &binary_iio));
+		} else if (strcmp(argv[arg_idx], "--output-metadata-c") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "command argument stream ended in a '--output-metadata-c', we expect an output file path to follow '--output-metadata-c'");
+				exit(1);
+			}
+
+			const char* output_file_path = argv[arg_idx];
+			HccIIO iio = hcc_iio_file(fopen(output_file_path, "wb"));
+			HCC_ENSURE(hcc_task_add_output_metadata_c(task, &iio));
+		} else if (strcmp(argv[arg_idx], "--output-metadata-json") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "command argument stream ended in a '--output-metadata-c', we expect an output file path to follow '--output-metadata-c'");
+				exit(1);
+			}
+
+			const char* output_file_path = argv[arg_idx];
+			HccIIO iio = hcc_iio_file(fopen(output_file_path, "wb"));
+			HCC_ENSURE(hcc_task_add_output_metadata_json(task, &iio));
 		} else if (strcmp(argv[arg_idx], "--enable-physical-pointer") == 0) {
 			hcc_options_set_bool(options, HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED, true);
 		} else if (strcmp(argv[arg_idx], "--output-ast") == 0) {

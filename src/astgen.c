@@ -1697,14 +1697,18 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		} else if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
 			HccCompoundDataType* field_compound_data_type = hcc_compound_data_type_get(w->cu, data_type);
 			compound_data_type.scalar_data_types_mask |= field_compound_data_type->scalar_data_types_mask;
-			compound_data_type.flags |= (field_compound_data_type->flags & (HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER));
+			compound_data_type.flags |= (field_compound_data_type->flags & (HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER | HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE));
 		} else if (HCC_DATA_TYPE_IS_TYPEDEF(data_type)) {
 			compound_data_type.scalar_data_types_mask |= hcc_data_type_scalar_data_types_mask(w->cu, data_type);
 		} else if (HCC_DATA_TYPE_IS_POINTER(data_type)) {
 			compound_data_type.flags |= HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER;
 		} else if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
 			HccArrayDataType* d = hcc_array_data_type_get(w->cu, data_type);
-			compound_data_type.flags |= d->has_pointer ? HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER : 0;
+			HccDataType elmt_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, d->element_data_type);
+			compound_data_type.flags |= HCC_DATA_TYPE_IS_POINTER(elmt_data_type) ? HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER : 0;
+			compound_data_type.flags |= HCC_DATA_TYPE_IS_RESOURCE(elmt_data_type) ? HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE : 0;
+		} else if (HCC_DATA_TYPE_IS_RESOURCE(data_type)) {
+			compound_data_type.flags |= HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE;
 		} else if (data_type == HCC_DATA_TYPE_AST_BASIC_HALF) {
 			HCC_AML_SCALAR_DATA_TYPE_MASK_SET(&compound_data_type.scalar_data_types_mask, HCC_AML_INTRINSIC_DATA_TYPE_F16);
 		}
@@ -1875,6 +1879,10 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 
 	if (table_entry) {
 		table_entry->decl = data_type;
+	}
+
+	if (compound_data_type.flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_RESOURCE) {
+		*hcc_stack_push_thread_safe(cu->resource_structs) = data_type;
 	}
 
 	hcc_stack_pop_many(w->astgen.compound_fields, compound_data_type.fields_count);
@@ -4732,6 +4740,10 @@ END: {}
 			// we found another 'T function();' so just reference the same decl as before.
 			decl = found_decl;
 		}
+	}
+
+	if (function.shader_stage != HCC_SHADER_STAGE_NONE) {
+		*hcc_stack_push_thread_safe(cu->shader_function_decls) = decl;
 	}
 
 	hcc_stack_pop_many(w->astgen.function_params_and_variables, function.variables_count);

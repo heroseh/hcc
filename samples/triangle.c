@@ -18,12 +18,12 @@ struct TriangleBC {
 #ifdef __HCC__
 #include <hmaths/maths.h>
 
-typedef struct RasterizerState RasterizerState;
-HCC_RASTERIZER_STATE struct RasterizerState {
+typedef struct TriangleRasterizerState TriangleRasterizerState;
+HCC_RASTERIZER_STATE struct TriangleRasterizerState {
 	HCC_INTERP f32x4 color;
 };
 
-HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, TriangleBC const* const bc, RasterizerState* const state_out) {
+HCC_VERTEX void triangle_vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, TriangleBC const* const bc, TriangleRasterizerState* const state_out) {
 	HccRoBuffer(TriangleVertex) vertices = bc->vertices;
 
 	TriangleVertex vertex = bc->vertices[sv->vertex_idx];
@@ -38,12 +38,12 @@ HCC_VERTEX void vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, Tr
 	state_out->color = mul_f32x4(colors[sv->vertex_idx], bc->tint);
 }
 
-typedef struct Fragment Fragment;
-HCC_FRAGMENT_STATE struct Fragment {
+typedef struct TriangleFragment TriangleFragment;
+HCC_FRAGMENT_STATE struct TriangleFragment {
 	f32x4 color;
 };
 
-HCC_FRAGMENT void fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, TriangleBC const* const bc, RasterizerState const* const state, Fragment* const frag_out) {
+HCC_FRAGMENT void triangle_fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, TriangleBC const* const bc, TriangleRasterizerState const* const state, TriangleFragment* const frag_out) {
 	frag_out->color = state->color;
 }
 

@@ -281,7 +281,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 		case HCC_SHADER_STAGE_COMPUTE:
 			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV);
 			break;
-		case HCC_SHADER_STAGE_MESHTASK:
+		case HCC_SHADER_STAGE_MESH_TASK:
 		case HCC_SHADER_STAGE_MESH:
 			HCC_ABORT("TODO");
 	}

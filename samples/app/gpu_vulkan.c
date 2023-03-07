@@ -8,6 +8,9 @@
 #error "unsupported platform"
 #endif
 
+#include <hcc_interop_vulkan.h>
+#include <hcc_interop_vulkan.c>
+
 // each platform should have format that it wants the swapchain image to be
 #ifdef __linux__
 #define GPU_VK_SURFACE_FORMAT VK_FORMAT_B8G8R8A8_UNORM
@@ -47,6 +50,7 @@ struct GpuVk {
 	VkImage               depth_image;
 	VkImageView           depth_image_view;
 	VkShaderStageFlags    push_constants_stage_flags;
+	VkShaderModule        shader_module;
 
 	uint32_t              next_resource_id;
 	GpuVkResource         resources[128];
@@ -56,16 +60,14 @@ struct GpuVk {
 	VkSemaphore           swapchain_image_ready_semaphore;
 	VkSemaphore           swapchain_present_ready_semaphore;
 	uint32_t              frame_idx;
+
+	VkDescriptorSet       descriptor_sets[APP_FRAMES_IN_FLIGHT];
+	HccInteropVulkan      interop;
 };
 
 typedef struct GpuVkSample GpuVkSample;
 struct GpuVkSample {
-	VkDescriptorPool      descriptor_pool;
-	VkDescriptorSetLayout descriptor_set_layout;
-	VkDescriptorSet       descriptor_set;
-	VkPipelineLayout      pipeline_layout;
 	VkPipeline            pipeline;
-	VkShaderModule        shader_module;
 };
 
 static GpuVkSample gpu_samples[APP_SAMPLE_COUNT];
@@ -454,141 +456,11 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 	}
 
 	gpu.push_constants_stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-}
-
-void gpu_init_sample(AppSampleEnum sample_enum) {
-	VkResult vk_result;
-
-	AppSample* sample = &app_samples[sample_enum];
-	GpuVkSample* gpu_sample = &gpu_samples[sample_enum];
 
 	{
-		VkDescriptorBindingFlags bindless_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
-		VkDescriptorBindingFlags bindless_flags_array[] = {
-			bindless_flags,
-			bindless_flags,
-			bindless_flags,
-			bindless_flags
-		};
-
-		VkDescriptorSetLayoutBinding bindings[] = {
-			[0] = {
-				.binding = 0,
-				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-				.descriptorCount = 1024,
-				.stageFlags = gpu.push_constants_stage_flags,
-				.pImmutableSamplers = 0,
-			},
-			[1] = {
-				.binding = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-				.descriptorCount = 1024,
-				.stageFlags = gpu.push_constants_stage_flags,
-				.pImmutableSamplers = 0,
-			},
-			[2] = {
-				.binding = 2,
-				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-				.descriptorCount = 1024,
-				.stageFlags = gpu.push_constants_stage_flags,
-				.pImmutableSamplers = 0,
-			},
-			[3] = {
-				.binding = 3,
-				.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-				.descriptorCount = 1024,
-				.stageFlags = gpu.push_constants_stage_flags,
-				.pImmutableSamplers = 0,
-			},
-		};
-
-		VkDescriptorSetLayoutBindingFlagsCreateInfoEXT bindless_create_info;
-		bindless_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
-		bindless_create_info.pNext = NULL;
-		bindless_create_info.bindingCount = APP_ARRAY_COUNT(bindings);
-		bindless_create_info.pBindingFlags = bindless_flags_array;
-
-		VkDescriptorSetLayoutCreateInfo create_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			.pNext = &bindless_create_info,
-			.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
-			.bindingCount = APP_ARRAY_COUNT(bindings),
-			.pBindings = bindings,
-		};
-
-		APP_VK_ASSERT(vkCreateDescriptorSetLayout(gpu.device, &create_info, NULL, &gpu_sample->descriptor_set_layout));
-	}
-
-	{
-		VkDescriptorPoolSize pool_sizes[] = {
-			[0] = {
-				.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-				.descriptorCount = 1024,
-			},
-			[1] = {
-				.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-				.descriptorCount = 1024,
-			},
-			[2] = {
-				.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-				.descriptorCount = 1024,
-			},
-			[3] = {
-				.type = VK_DESCRIPTOR_TYPE_SAMPLER,
-				.descriptorCount = 1024,
-			},
-		};
-
-		VkDescriptorPoolCreateInfo create_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.pNext = NULL,
-			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
-			.maxSets = 1,
-			.poolSizeCount = APP_ARRAY_COUNT(pool_sizes),
-			.pPoolSizes = pool_sizes,
-		};
-
-		APP_VK_ASSERT(vkCreateDescriptorPool(gpu.device, &create_info, NULL, &gpu_sample->descriptor_pool));
-	}
-
-	{
-		VkDescriptorSetAllocateInfo alloc_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			.pNext = NULL,
-			.descriptorPool = gpu_sample->descriptor_pool,
-			.descriptorSetCount = 1,
-			.pSetLayouts = &gpu_sample->descriptor_set_layout
-		};
-
-		APP_VK_ASSERT(vkAllocateDescriptorSets(gpu.device, &alloc_info, &gpu_sample->descriptor_set));
-	}
-
-	{
-		VkPushConstantRange push_constant_range = {
-			.stageFlags = gpu.push_constants_stage_flags,
-			.offset = 0,
-			.size = 128,
-		};
-
-		VkPipelineLayoutCreateInfo create_info = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.pNext = NULL,
-			.setLayoutCount = 1,
-			.pSetLayouts = &gpu_sample->descriptor_set_layout,
-			.pushConstantRangeCount = 1,
-			.pPushConstantRanges = &push_constant_range,
-		};
-
-		APP_VK_ASSERT(vkCreatePipelineLayout(gpu.device, &create_info, NULL, &gpu_sample->pipeline_layout));
-	}
-
-	{
-		char shader_path[1024];
-		snprintf(shader_path, sizeof(shader_path), "samples/%s.spirv", sample->shader_name);
-
 		void* code;
 		uintptr_t code_size;
-		APP_ASSERT(platform_file_read_all(shader_path, &code, &code_size), "failed to read shader file from disk: %s", shader_path);
+		APP_ASSERT(platform_file_read_all(APP_SHADERS_PATH, &code, &code_size), "failed to read shader file from disk: %s", APP_SHADERS_PATH);
 
 		VkShaderModuleCreateInfo create_info = {
 			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -597,8 +469,24 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 			.pCode = code,
 			.flags = 0,
 		};
-		APP_VK_ASSERT(vkCreateShaderModule(gpu.device, &create_info, NULL, &gpu_sample->shader_module));
+		APP_VK_ASSERT(vkCreateShaderModule(gpu.device, &create_info, NULL, &gpu.shader_module));
 	}
+
+	HccInteropVulkanSetup interop_setup = {
+		.device = gpu.device,
+		.descriptor_sets = gpu.descriptor_sets,
+		.descriptor_sets_count = APP_ARRAY_COUNT(gpu.descriptor_sets),
+		.shader_stages = gpu.push_constants_stage_flags,
+		.metadata = &hcc_metadata,
+	};
+	hcc_interop_vulkan_init(&gpu.interop, &interop_setup);
+}
+
+void gpu_init_sample(AppSampleEnum sample_enum) {
+	VkResult vk_result;
+
+	AppSample* sample = &app_samples[sample_enum];
+	GpuVkSample* gpu_sample = &gpu_samples[sample_enum];
 
 	switch (sample->shader_type) {
 		case APP_SHADER_TYPE_GRAPHICS: {
@@ -608,8 +496,8 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 					.pNext = NULL,
 					.flags = 0,
 					.stage = VK_SHADER_STAGE_VERTEX_BIT,
-					.module = gpu_sample->shader_module,
-					.pName = APP_SHADER_ENTRY_POINT_VERTEX,
+					.module = gpu.shader_module,
+					.pName = hcc_shader_infos[sample->graphics.shader_vs].name,
 					.pSpecializationInfo = NULL,
 				},
 				{
@@ -617,8 +505,8 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 					.pNext = NULL,
 					.flags = 0,
 					.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-					.module = gpu_sample->shader_module,
-					.pName = APP_SHADER_ENTRY_POINT_FRAGMENT,
+					.module = gpu.shader_module,
+					.pName = hcc_shader_infos[sample->graphics.shader_fs].name,
 					.pSpecializationInfo = NULL,
 				},
 			};
@@ -775,7 +663,7 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 				.pDepthStencilState = &depth_stencil_state,
 				.pColorBlendState = &color_blend_state,
 				.pDynamicState = &dynamic_state,
-				.layout = gpu_sample->pipeline_layout,
+				.layout = gpu.interop.pipeline_layout,
 				.renderPass = VK_NULL_HANDLE,
 				.subpass = 0,
 				.basePipelineHandle = NULL,
@@ -795,11 +683,11 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 					.pNext = NULL,
 					.flags = 0,
 					.stage = VK_SHADER_STAGE_COMPUTE_BIT,
-					.module = gpu_sample->shader_module,
-					.pName = APP_SHADER_ENTRY_POINT_COMPUTE,
+					.module = gpu.shader_module,
+					.pName = hcc_shader_infos[sample->compute.shader_cs].name,
 					.pSpecializationInfo = NULL,
 				},
-				.layout = gpu_sample->pipeline_layout,
+				.layout = gpu.interop.pipeline_layout,
 				.basePipelineHandle = NULL,
 				.basePipelineIndex = 0,
 			};
@@ -810,7 +698,7 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 	}
 }
 
-void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
+void gpu_render_frame(AppSampleEnum sample_enum, void* bc) {
 	VkResult vk_result;
 
 	AppSample* sample = &app_samples[sample_enum];
@@ -858,19 +746,10 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 				.range = VK_WHOLE_SIZE,
 			};
 
-			VkWriteDescriptorSet vk_descriptor_write = {
-				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.pNext = NULL,
-				.dstSet = gpu_sample->descriptor_set,
-				.dstBinding = 0,
-				.dstArrayElement = res_idx,
-				.descriptorCount = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-				.pImageInfo = NULL,
-				.pBufferInfo = &buffer_info,
-				.pTexelBufferView = NULL,
-			};
-			vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL);
+			VkWriteDescriptorSet vk_descriptor_write;
+			hcc_interop_vulkan_descriptor_write_make(&gpu.interop, &vk_descriptor_write, active_frame_idx, HCC_INTEROP_VULKAN_DESCRIPTOR_BINDING_STORAGE_BUFFER, res_idx);
+			vk_descriptor_write.pBufferInfo = &buffer_info;
+			vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL); // this is super lazy! you should batch you descriptor write into a single call!
 		} else if (res->image) {
 			if (res->image != swapchain_image) {
 				VkDescriptorImageInfo image_info = {
@@ -879,19 +758,10 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 					.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
 				};
 
-				VkWriteDescriptorSet vk_descriptor_write = {
-					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-					.pNext = NULL,
-					.dstSet = gpu_sample->descriptor_set,
-					.dstBinding = 1,
-					.dstArrayElement = res_idx,
-					.descriptorCount = 1,
-					.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-					.pImageInfo = &image_info,
-					.pBufferInfo = NULL,
-					.pTexelBufferView = NULL,
-				};
-				vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL);
+				VkWriteDescriptorSet vk_descriptor_write;
+				hcc_interop_vulkan_descriptor_write_make(&gpu.interop, &vk_descriptor_write, active_frame_idx, HCC_INTEROP_VULKAN_DESCRIPTOR_BINDING_SAMPLED_IMAGE, res_idx);
+				vk_descriptor_write.pImageInfo = &image_info;
+				vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL); // this is super lazy! you should batch you descriptor write into a single call!
 			}
 
 			{
@@ -901,19 +771,10 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 					.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
 				};
 
-				VkWriteDescriptorSet vk_descriptor_write = {
-					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-					.pNext = NULL,
-					.dstSet = gpu_sample->descriptor_set,
-					.dstBinding = 2,
-					.dstArrayElement = res_idx,
-					.descriptorCount = 1,
-					.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-					.pImageInfo = &image_info,
-					.pBufferInfo = NULL,
-					.pTexelBufferView = NULL,
-				};
-				vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL);
+				VkWriteDescriptorSet vk_descriptor_write;
+				hcc_interop_vulkan_descriptor_write_make(&gpu.interop, &vk_descriptor_write, active_frame_idx, HCC_INTEROP_VULKAN_DESCRIPTOR_BINDING_STORAGE_IMAGE, res_idx);
+				vk_descriptor_write.pImageInfo = &image_info;
+				vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL); // this is super lazy! you should batch you descriptor write into a single call!
 			}
 		} else if (res->sampler) {
 			VkDescriptorImageInfo image_info = {
@@ -922,19 +783,10 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 				.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 			};
 
-			VkWriteDescriptorSet vk_descriptor_write = {
-				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.pNext = NULL,
-				.dstSet = gpu_sample->descriptor_set,
-				.dstBinding = 3,
-				.dstArrayElement = res_idx,
-				.descriptorCount = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-				.pImageInfo = &image_info,
-				.pBufferInfo = NULL,
-				.pTexelBufferView = NULL,
-			};
-			vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL);
+			VkWriteDescriptorSet vk_descriptor_write;
+			hcc_interop_vulkan_descriptor_write_make(&gpu.interop, &vk_descriptor_write, active_frame_idx, HCC_INTEROP_VULKAN_DESCRIPTOR_BINDING_SAMPLER, res_idx);
+			vk_descriptor_write.pImageInfo = &image_info;
+			vkUpdateDescriptorSets(gpu.device, 1, &vk_descriptor_write, 0, NULL); // this is super lazy! you should batch you descriptor write into a single call!
 		}
 
 	}
@@ -963,7 +815,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 		APP_VK_ASSERT(vkBeginCommandBuffer(vk_command_buffer, &begin_info));
 	}
 
-	vkCmdPushConstants(vk_command_buffer, gpu_sample->pipeline_layout, gpu.push_constants_stage_flags, 0, bc_size, bc);
+	vkCmdPushConstants(vk_command_buffer, gpu.interop.pipeline_layout, gpu.push_constants_stage_flags, 0, hcc_metadata.bundled_constants_size_max, bc);
 
 	switch (sample->shader_type) {
 		case APP_SHADER_TYPE_GRAPHICS: {
@@ -1075,7 +927,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 			}
 
 			vkCmdBindPipeline(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu_sample->pipeline);
-			vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu_sample->pipeline_layout, 0, 1, &gpu_sample->descriptor_set, 0, NULL);
+			vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu.interop.pipeline_layout, 0, 1, &gpu.interop.descriptor_sets[active_frame_idx], 0, NULL);
 			vkCmdDraw(vk_command_buffer, sample->graphics.vertices_count, 1, 0, 0);
 			vkCmdEndRendering(vk_command_buffer);
 
@@ -1210,7 +1062,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t bc_size) {
 
 
 			vkCmdBindPipeline(vk_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, gpu_sample->pipeline);
-			vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, gpu_sample->pipeline_layout, 0, 1, &gpu_sample->descriptor_set, 0, NULL);
+			vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, gpu.interop.pipeline_layout, 0, 1, &gpu.interop.descriptor_sets[active_frame_idx], 0, NULL);
 			vkCmdDispatch(vk_command_buffer, sample->compute.dispatch_group_size_x, sample->compute.dispatch_group_size_y, sample->compute.dispatch_group_size_z);
 
 			{

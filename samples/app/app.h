@@ -10,20 +10,14 @@
 #include "stb_image.h"
 
 //
+// include the metadata produced by HCC about the shaders
+#include "../shaders-metadata.h"
+
+//
 // include the samples here so we have access to their structures
-#include "../triangle.c"
-#include "../compute-square.c"
-#include "../texture.c"
-#include "../alt-2.5d-rgb-color-picker.c"
-#include "../blob-vacation.c"
-#include "../voxel-raytracer.c"
+#include "../shaders.c"
 
 #define APP_NAME "Hcc Samples"
-
-// these name can be what ever you want, we just want to make it consistant and easy for this sample codebase
-#define APP_SHADER_ENTRY_POINT_VERTEX "vs"
-#define APP_SHADER_ENTRY_POINT_FRAGMENT "fs"
-#define APP_SHADER_ENTRY_POINT_COMPUTE "cs"
 
 #define APP_ABORT(...) APP_ASSERT(false, __VA_ARGS__)
 #define APP_ASSERT(cond, ...) if (!(cond)) { fprintf(stderr, __VA_ARGS__); exit(1); }
@@ -31,6 +25,8 @@
 #define APP_UNUSED(expr) (void)(expr)
 
 #define APP_FRAMES_IN_FLIGHT 2
+
+#define APP_SHADERS_PATH "samples/shaders.spirv"
 
 #define APP_LOGO_MIP_LEVELS 6
 #define APP_LOGO_WIDTH 1024
@@ -78,13 +74,16 @@ struct AppSample {
 	AppShaderType shader_type;
 
 	struct {
-		AppTopology  topology;
-		uint32_t vertices_count;
+		HccShader   shader_vs;
+		HccShader   shader_fs;
+		AppTopology topology;
+		uint32_t    vertices_count;
 	} graphics;
 	struct {
-		uint32_t dispatch_group_size_x;
-		uint32_t dispatch_group_size_y;
-		uint32_t dispatch_group_size_z;
+		HccShader shader_cs;
+		uint32_t  dispatch_group_size_x;
+		uint32_t  dispatch_group_size_y;
+		uint32_t  dispatch_group_size_z;
 	} compute;
 };
 
@@ -93,6 +92,8 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_name = "triangle",
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
+			.shader_vs = HCC_SHADER_triangle_vs,
+			.shader_fs = HCC_SHADER_triangle_fs,
 			.topology = APP_TOPOLOGY_TRIANGLE_LIST,
 			.vertices_count = 3,
 		},
@@ -101,6 +102,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_name = "compute-square",
 		.shader_type = APP_SHADER_TYPE_COMPUTE,
 		.compute = {
+			.shader_cs = HCC_SHADER_compute_square_cs,
 			.dispatch_group_size_x = 64,
 			.dispatch_group_size_y = 64,
 			.dispatch_group_size_z = 1,
@@ -110,6 +112,8 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_name = "texture",
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
+			.shader_vs = HCC_SHADER_texture_vs,
+			.shader_fs = HCC_SHADER_texture_fs,
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
 		},
@@ -118,6 +122,8 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_name = "alt-2.5d-rgb-color-picker",
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
+			.shader_vs = HCC_SHADER_color_picker_vs,
+			.shader_fs = HCC_SHADER_color_picker_fs,
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
 		},
@@ -126,6 +132,8 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_name = "blob-vacation",
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
+			.shader_vs = HCC_SHADER_blob_vacation_vs,
+			.shader_fs = HCC_SHADER_blob_vacation_fs,
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
 		},
@@ -134,6 +142,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_name = "voxel-raytracer",
 		.shader_type = APP_SHADER_TYPE_COMPUTE,
 		.compute = {
+			.shader_cs = HCC_SHADER_voxel_raytracer_cs,
 			.dispatch_group_size_x = 1,
 			.dispatch_group_size_y = 1,
 			.dispatch_group_size_z = 1,

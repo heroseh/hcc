@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
 				break;
 			};
 			case APP_SAMPLE_BLOB_VACATION: {
-				BlobBC* bc = bundled_constants_ptr;
+				BlobVacationBC* bc = bundled_constants_ptr;
 				if (init_sample) {
 				}
 				bc->time_ = time_;
@@ -222,7 +222,7 @@ int main(int argc, char** argv) {
 			};
 		}
 
-		gpu_render_frame(sample_enum, bc_data, sizeof(bc_data));
+		gpu_render_frame(sample_enum, bc_data);
 		init_sample = false;
 		time_ += 0.01f;
 	}
