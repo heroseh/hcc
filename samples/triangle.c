@@ -35,7 +35,7 @@ HCC_VERTEX void triangle_vs(HccVertexSV const* const sv, HccVertexSVOut* const s
 	};
 
 	sv_out->position = f32x4(vertex.pos.x, vertices[sv->vertex_idx].pos.y, 0.f, 1.f);
-	state_out->color = mul_f32x4(colors[sv->vertex_idx], bc->tint);
+	state_out->color = mulG(colors[sv->vertex_idx], bc->tint);
 }
 
 typedef struct TriangleFragment TriangleFragment;

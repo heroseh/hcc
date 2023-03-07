@@ -39,11 +39,11 @@ HCC_FRAGMENT_STATE struct TextureFragment {
 };
 
 HCC_FRAGMENT void texture_fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, TextureBC const* const bc, TextureRasterizerState const* const state, TextureFragment* const frag_out) {
-	f32x2 uv_unorm = adds_f32x2(muls_f32x2(state->uv, 0.5f), 0.5f);
-	f32x2 uv = adds_f32x2(muls_f32x2(add_f32x2(mul_f32x2(state->uv, bc->scale), bc->offset), 0.5f), 0.5f);
-	uv = clamps_f32x2(uv, 0.f, 1.f);
+	f32x2 uv_unorm = addsG(mulsG(state->uv, 0.5f), 0.5f);
+	f32x2 uv = addsG(mulsG(addG(mulG(state->uv, bc->scale), bc->offset), 0.5f), 0.5f);
+	uv = clampsG(uv, 0.f, 1.f);
 
-	uint32_t mode = floor_f32(bc->time_) % 10;
+	uint32_t mode = floorG(bc->time_) % 10;
 	switch (mode) {
 		case 0:
 			frag_out->color = load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023));
@@ -99,7 +99,7 @@ HCC_FRAGMENT void texture_fs(HccFragmentSV const* const sv, HccFragmentSVOut* co
 		num_pos.x < uv_unorm.x && uv_unorm.x < num_pos.x + num_size.x &&
 		num_pos.y < uv_unorm.y && uv_unorm.y < num_pos.y + num_size.y
 	) {
-		uv = remap_f32x2(uv_unorm, num_pos, add_f32x2(num_pos, num_size), f32x2s(0.f), f32x2s(1.f));
+		uv = remapG(uv_unorm, num_pos, addG(num_pos, num_size), f32x2s(0.f), f32x2s(1.f));
 		uv.x *= 8;
 		uv.y *= 8;
 		uint32_t x = (uint32_t)uv.x;

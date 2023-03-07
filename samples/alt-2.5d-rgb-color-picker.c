@@ -27,11 +27,11 @@ struct ColorPickerBC {
 #define SELECTED_MAX_OFFSET   (CUBE_HALF_SIZE * 2.f)
 
 //
-// these sin_f32 functions (mostly ANIM_WAVE) is slowing down the shader.
+// these sinG functions (mostly ANIM_WAVE) is slowing down the shader.
 // in a real application these will be passed in to the shader.
-#define ANIM_ROTATION_Y	   (is_at_timeline_range(TIMELINE_SPIN_START, TIMELINE_SPIN_END, time_) ? sin_f32(time_ * 1.5f) * PI_F32 * 2.f : 0.f)
-#define ANIM_AXIS			 (is_at_timeline_range(TIMELINE_OPEN_START, TIMELINE_OPEN_END, bc->time_) ? (sin_f32(bc->time_ * 2.f - PI_F32 / 2.f) * 0.5f + 0.5f) : 1.f)
-#define ANIM_WAVE			 (is_at_timeline_range(TIMELINE_WAVE_START, TIMELINE_WAVE_END, time_) ? sin_f32(time_ * 8.f + (float)(color_idx.x + color_idx.z)) * (sin_f32(smoothstep_f32(TIMELINE_WAVE_START, TIMELINE_WAVE_END, time_) * (PI_F32 * 1.5f)) * 0.5f + 0.5f) * 0.045f : 0.f)
+#define ANIM_ROTATION_Y	   (is_at_timeline_range(TIMELINE_SPIN_START, TIMELINE_SPIN_END, time_) ? sinG(time_ * 1.5f) * PI_F32 * 2.f : 0.f)
+#define ANIM_AXIS			 (is_at_timeline_range(TIMELINE_OPEN_START, TIMELINE_OPEN_END, bc->time_) ? (sinG(bc->time_ * 2.f - PI_F32 / 2.f) * 0.5f + 0.5f) : 1.f)
+#define ANIM_WAVE			 (is_at_timeline_range(TIMELINE_WAVE_START, TIMELINE_WAVE_END, time_) ? sinG(time_ * 8.f + (float)(color_idx.x + color_idx.z)) * (sinG(smoothstepG(TIMELINE_WAVE_START, TIMELINE_WAVE_END, time_) * (PI_F32 * 1.5f)) * 0.5f + 0.5f) * 0.045f : 0.f)
 #define ANIM_SELECTED		 (is_at_timeline_range(TIMELINE_SELECT_START, TIMELINE_SELECT_END, time_) ? 1.f : 0.f)
 
 #define TIMELINE_SPIN_START   0.f
@@ -59,25 +59,25 @@ HCC_VERTEX void color_picker_vs(HccVertexSV const* const sv, HccVertexSVOut* con
 }
 
 float distance_sq_cube(f32x3 pos, float size) {
-	return lensq_f32x3(maxs_f32x3(subs_f32x3(abs_f32x3(pos), size), 0.f));
+	return lensqG(maxsG(subsG(absG(pos), size), 0.f));
 }
 float distance_sq_cube_frame(f32x3 pos, float size, float width) {
-	pos = subs_f32x3(abs_f32x3(pos), size);
-	f32x3 q = subs_f32x3(abs_f32x3(adds_f32x3(pos, width)), width);
+	pos = subsG(absG(pos), size);
+	f32x3 q = subsG(absG(addsG(pos, width)), width);
 
-	return min_f32(
-		min_f32(
-			lensq_f32x3(maxs_f32x3(f32x3(q.x, q.y, pos.z), 0.f)),
-			lensq_f32x3(maxs_f32x3(f32x3(q.x, pos.y, q.z), 0.f))
+	return minG(
+		minG(
+			lensqG(maxsG(f32x3(q.x, q.y, pos.z), 0.f)),
+			lensqG(maxsG(f32x3(q.x, pos.y, q.z), 0.f))
 		),
-		lensq_f32x3(maxs_f32x3(f32x3(pos.x, q.y, q.z), 0.f))
+		lensqG(maxsG(f32x3(pos.x, q.y, q.z), 0.f))
 	);
 }
 
 f32x2x2 mat2_identity_rotation(float angle)
 {
-	float ca = cos_f32(angle);
-	float sa = sin_f32(angle);
+	float ca = cosG(angle);
+	float sa = sinG(angle);
 	f32x2x2 m;
 	m.cols[0].x = ca;
 	m.cols[0].y = -sa;
@@ -103,12 +103,12 @@ f32x4 distance_cubes(
 	// rotate the sample position towards local space of the cube
 #if 1
 	f32x2 yz = f32x2(ray_sample_pos.y, ray_sample_pos.z);
-	yz = mul_f32x2_f32x2x2(yz, mat2_identity_rotation(PI_F32 / 5.f));
+	yz = vmulG(yz, mat2_identity_rotation(PI_F32 / 5.f));
 	ray_sample_pos.y = yz.x;
 	ray_sample_pos.z = yz.y;
 
 	f32x2 xz = f32x2(ray_sample_pos.x, ray_sample_pos.z);
-	xz = mul_f32x2_f32x2x2(xz, mat2_identity_rotation(PI_F32 / 4.f + ANIM_ROTATION_Y));
+	xz = vmulG(xz, mat2_identity_rotation(PI_F32 / 4.f + ANIM_ROTATION_Y));
 	ray_sample_pos.x = xz.x;
 	ray_sample_pos.z = xz.y;
 #else
@@ -121,7 +121,7 @@ f32x4 distance_cubes(
 	// if CUBE_AXIS_COUNT == 3 then start_pos = -1.f, end_pos = 2.f
 	// if CUBE_AXIS_COUNT == 4 then start_pos = -1.5f, end_pos = 2.5f
 	f32x3 start_pos = f32x3s(-((float)(CUBE_AXIS_COUNT) - 1.f) / 2.f);
-	f32x3 end_pos = adds_f32x3(start_pos, (float)(CUBE_AXIS_COUNT));
+	f32x3 end_pos = addsG(start_pos, (float)(CUBE_AXIS_COUNT));
 
 	f32x3 pos;
 	f32x4 last_dist_sq = f32x4(0.f, 0.f, 0.f, 99999.f);
@@ -141,15 +141,15 @@ f32x4 distance_cubes(
 
 				//
 				// 0.f or 1.f if this cube is selected
-				float is_selected_f = (float)(all_boolx3(eq_u32x3(selected_color_idx, color_idx)));
+				float is_selected_f = (float)(allG(eqG(selected_color_idx, color_idx)));
 
 				//
 				// calculate the selected offset if the cube is selected
-				f32x3 selected_offset = muls_f32x3(is_split_axis_v3, is_selected_f * selected_max_offset * offset_ratio * ANIM_SELECTED);
+				f32x3 selected_offset = mulsG(is_split_axis_v3, is_selected_f * selected_max_offset * offset_ratio * ANIM_SELECTED);
 
 				//
 				// the offset of the cube on the split axis
-				f32x3 cube_split_axis_offset = mul_f32x3(pos, split_axis_offset);
+				f32x3 cube_split_axis_offset = mulG(pos, split_axis_offset);
 
 				//
 				// apply the wave and slow the demo down :/
@@ -157,17 +157,17 @@ f32x4 distance_cubes(
 
 				//
 				// bring the sample position in to local space of this cube
-				f32x3 local_sample_pos = add_f32x3(ray_sample_pos, add_f32x3(cube_split_axis_offset, selected_offset));
+				f32x3 local_sample_pos = addG(ray_sample_pos, addG(cube_split_axis_offset, selected_offset));
 
 				float next_dist_sq = distance_sq_cube(local_sample_pos, cube_half_size) * scale;
 				if (next_dist_sq < last_dist_sq.w) {
-					f32x3 color = divs_f32x3(f32x3(color_idx.x, color_idx.y, color_idx.z), (float)(CUBE_AXIS_COUNT - 1));
+					f32x3 color = divsG(f32x3(color_idx.x, color_idx.y, color_idx.z), (float)(CUBE_AXIS_COUNT - 1));
 					float frame_dist_sq = distance_sq_cube_frame(local_sample_pos, cube_half_size, cube_border_half_size) * scale;
 					if (frame_dist_sq < next_dist_sq) {
 						//
 						// we hit the frame of the cube
-						float grey = sumelmts_f32x3(divs_f32x3(ssub_f32x3(1.f, color), 3.f));
-						grey += is_selected_f * sin_f32(time_ * SELECTED_SPEED) * ANIM_SELECTED;
+						float grey = sumelmtsG(divsG(ssubG(1.f, color), 3.f));
+						grey += is_selected_f * sinG(time_ * SELECTED_SPEED) * ANIM_SELECTED;
 						last_dist_sq = f32x4(grey, grey, grey, next_dist_sq);
 					 } else {
 						//
@@ -179,7 +179,7 @@ f32x4 distance_cubes(
 		}
 	}
 
-	last_dist_sq.w = sqrt_f32(last_dist_sq.w);
+	last_dist_sq.w = sqrtG(last_dist_sq.w);
 	return last_dist_sq;
 }
 
@@ -196,24 +196,24 @@ HCC_FRAGMENT void color_picker_fs(HccFragmentSV const* const sv, HccFragmentSVOu
 
 	f32x3 camera_pos = f32x3(0.f, 0.f, 1.f);
 	f32x3 camera_target = f32x3(0.f, 0.f, 0.f);
-	f32x3 camera_dir = norm_f32x3(sub_f32x3(camera_target, camera_pos));
-	f32x3 camera_right = cross_f32x3(camera_dir, world_up);
-	f32x3 camera_up = cross_f32x3(camera_right, camera_dir);
+	f32x3 camera_dir = normG(subG(camera_target, camera_pos));
+	f32x3 camera_right = crossG(camera_dir, world_up);
+	f32x3 camera_up = crossG(camera_right, camera_dir);
 
 	f32x3 ray_sample_pos = camera_pos;
-	ray_sample_pos = add_f32x3(ray_sample_pos, muls_f32x3(camera_right, screen_pos.x));
-	ray_sample_pos = add_f32x3(ray_sample_pos, muls_f32x3(camera_up, screen_pos.y));
-	f32x3 ray_dir = norm_f32x3(camera_dir);
+	ray_sample_pos = addG(ray_sample_pos, mulsG(camera_right, screen_pos.x));
+	ray_sample_pos = addG(ray_sample_pos, mulsG(camera_up, screen_pos.y));
+	f32x3 ray_dir = normG(camera_dir);
 
 	float total_dist = 0.f;
 	f32x4 dist = f32x4(0.f, 0.f, 0.f, EPSILON);
 
 	u32x3 selected_color_idx = u32x3(2, 2, 1);
 
-	f32x3 axis = muls_f32x3(f32x3(0.f, 1.f, 0.f), ANIM_AXIS);
-	f32x3 axis_offset = adds_f32x3(muls_f32x3(axis, cube_axis_offset), cube_size);
+	f32x3 axis = mulsG(f32x3(0.f, 1.f, 0.f), ANIM_AXIS);
+	f32x3 axis_offset = addsG(mulsG(axis, cube_axis_offset), cube_size);
 
-	float offset_ratio = sin_f32(bc->time_ * SELECTED_SPEED) * 0.5f + 0.5f;
+	float offset_ratio = sinG(bc->time_ * SELECTED_SPEED) * 0.5f + 0.5f;
 
 	for (int i = 0; i < MAX_ITER; i += 1) {
 		if (dist.w < EPSILON || total_dist > MAX_DIST) {
@@ -229,7 +229,7 @@ HCC_FRAGMENT void color_picker_fs(HccFragmentSV const* const sv, HccFragmentSVOu
 			bc->time_
 		);
 		total_dist += dist.w;
-		ray_sample_pos = add_f32x3(ray_sample_pos, muls_f32x3(ray_dir, dist.w));
+		ray_sample_pos = addG(ray_sample_pos, mulsG(ray_dir, dist.w));
 	}
 
 	f32x3 color = f32x3s(0.f);
