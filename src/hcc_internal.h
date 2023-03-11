@@ -5,6 +5,11 @@
 #include <immintrin.h>
 #include <signal.h>
 
+#if defined(HCC_OS_WINDOWS)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "hcc.h"
 
 typedef struct HccWorker HccWorker;
@@ -33,18 +38,6 @@ typedef struct HccWorker HccWorker;
 //
 // ===========================================
 
-#ifdef __linux__
-#define HCC_OS_LINUX
-#endif
-
-#ifdef _WIN32
-#define HCC_OS_WINDOWS
-#endif
-
-#ifdef __x86_64__
-#define HCC_ARCH_X86_64
-#endif
-
 #define HCC_LITTLE_ENDIAN 0
 #define HCC_BIG_ENDIAN    1
 #ifdef HCC_OS_LINUX
@@ -55,6 +48,14 @@ typedef struct HccWorker HccWorker;
 #error "unsupported platform"
 #endif
 
+#elif defined(HCC_OS_WINDOWS)
+
+#ifdef HCC_ARCH_X86_64
+#define HCC_BYTE_ORDER HCC_LITTLE_ENDIAN
+#else
+#error "unsupported platform"
+
+#endif
 #else
 #error "unsupported platform"
 #endif
@@ -87,6 +88,15 @@ typedef struct HccWorker HccWorker;
 #define HCC_CPU_RELAX() _mm_pause()
 
 #define HCC_LEAST_SET_BIT_REMOVE(bitset) ((bitset) & ((bitset) - 1))
+
+#ifdef HCC_OS_WINDOWS
+#define PATH_MAX MAX_PATH
+#define HCC_STDCALL __stdcall
+#define HCC_EXE_EXTENSION ".exe"
+#else
+#define HCC_STDCALL
+#define HCC_EXE_EXTENSION ""
+#endif
 
 // ===========================================
 //
@@ -149,7 +159,6 @@ typedef struct HccWorker HccWorker;
 	_hcc_tls.jmp_loc_recursive_set_count += 1; \
 	if (_hcc_tls.jmp_result_data == NULL) { \
 		if (setjmp(_hcc_tls.jmp_loc)) { \
-			hcc_clear_bail_jmp_loc(); \
 		} else { \
 			_hcc_tls.w = w; \
 			_hcc_tls.c = w->c; \
@@ -158,12 +167,12 @@ typedef struct HccWorker HccWorker;
 	} \
 
 void _hcc_assert_failed(const char* cond, const char* file, int line, const char* message, ...);
-noreturn uintptr_t _hcc_abort(const char* file, int line, const char* message, ...);
+_Noreturn uintptr_t _hcc_abort(const char* file, int line, const char* message, ...);
 
 HccResult hcc_get_last_global_result(void);
 
 void hcc_clear_bail_jmp_loc(void);
-noreturn void hcc_bail(HccResultCode code, int32_t value);
+_Noreturn void hcc_bail(HccResultCode code, int32_t value);
 
 // ===========================================
 //
@@ -177,7 +186,6 @@ uint32_t hcc_onebitscount32(uint32_t bits);
 uint32_t hcc_leastsetbitidx32(uint32_t bits);
 uint32_t hcc_mostsetbitidx32(uint32_t bits);
 void hcc_get_last_system_error_string(char* buf_out, uint32_t buf_out_size);
-bool hcc_change_working_directory(const char* path);
 uint32_t hcc_path_canonicalize_internal(const char* path, char* out_buf);
 HccString hcc_path_canonicalize(const char* path);
 bool hcc_path_is_absolute(const char* path);
@@ -191,6 +199,7 @@ bool hcc_path_is_file(const char* path);
 bool hcc_path_is_directory(const char* path);
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name);
 uint32_t hcc_logical_cores_count(void);
+int hcc_execute_shell_command(const char* shell_command);
 
 // ===========================================
 //
@@ -317,8 +326,10 @@ struct HccResultData {
 
 typedef struct HccThread HccThread;
 struct HccThread {
-#ifdef __linux__
+#ifdef HCC_OS_LINUX
 	pthread_t handle;
+#elif defined(HCC_OS_WINDOWS)
+	HANDLE handle;
 #endif
 };
 
@@ -1569,8 +1580,8 @@ uint32_t hcc_atagen_display_line(HccWorker* w);
 void hcc_atagen_token_add(HccWorker* w, HccATAToken token);
 void hcc_atagen_token_value_add(HccWorker* w, HccATAValue value);
 void hcc_atagen_count_extra_newlines(HccWorker* w);
-noreturn void hcc_atagen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...);
-noreturn void hcc_atagen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* token_location, HccLocation* other_token_location, ...);
+_Noreturn void hcc_atagen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...);
+_Noreturn void hcc_atagen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* token_location, HccLocation* other_token_location, ...);
 void hcc_atagen_paused_file_push(HccWorker* w);
 void hcc_atagen_paused_file_pop(HccWorker* w);
 void hcc_atagen_location_setup_new_file(HccWorker* w, HccCodeFile* code_file);
@@ -1913,11 +1924,11 @@ void hcc_astgen_warn_1(HccWorker* w, HccWarnCode warn_code, ...);
 void hcc_astgen_warn_1_manual(HccWorker* w, HccWarnCode warn_code, HccLocation* location, ...);
 void hcc_astgen_warn_2(HccWorker* w, HccWarnCode warn_code, HccLocation* other_location, ...);
 void hcc_astgen_warn_2_manual(HccWorker* w, HccWarnCode warn_code, HccLocation* location, HccLocation* other_location, ...);
-noreturn void hcc_astgen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...);
-noreturn void hcc_astgen_bail_error_1_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...);
-noreturn void hcc_astgen_bail_error_1_merge_apply(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...);
-noreturn void hcc_astgen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* other_location, ...);
-noreturn void hcc_astgen_bail_error_2_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, HccLocation* other_location, ...);
+_Noreturn void hcc_astgen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...);
+_Noreturn void hcc_astgen_bail_error_1_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...);
+_Noreturn void hcc_astgen_bail_error_1_merge_apply(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...);
+_Noreturn void hcc_astgen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* other_location, ...);
+_Noreturn void hcc_astgen_bail_error_2_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, HccLocation* other_location, ...);
 
 void hcc_astgen_data_type_found(HccWorker* w, HccDataType data_type);
 void hcc_astgen_data_type_ensure_compound_type_default_kind(HccWorker* w, HccDataType data_type, HccErrorCode error_code);
@@ -3051,7 +3062,7 @@ struct HccTask {
 HccTaskInputLocation* hcc_task_input_location_init(HccTask* t, HccOptions* options);
 HccResult hcc_task_add_output(HccTask* t, HccWorkerJobType job_type, HccEncoding encoding, void* arg);
 void hcc_task_output_job(HccTask* t, HccWorkerJobType job_type);
-void hcc_task_finish(HccTask* t, bool was_successful);
+void hcc_task_finish(HccTask* t, bool thread_that_set_error);
 
 // ===========================================
 //

@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "../interop/hcc_interop.h"
 
@@ -13,12 +14,24 @@
 //
 // ===========================================
 
-#ifndef static_assert
-#define static_assert _Static_assert
+#ifdef __linux__
+#define HCC_OS_LINUX
 #endif
 
-#ifndef noreturn
-#define noreturn _Noreturn
+#ifdef _WIN32
+#define HCC_OS_WINDOWS
+#endif
+
+#if _WIN32 || _WIN64
+#if _WIN64
+#define HCC_ARCH_X86_64
+#else
+#error "32-bit windows is not support"
+#endif
+#endif
+
+#if defined(__x86_64__)
+#define HCC_ARCH_X86_64
 #endif
 
 #ifndef alignof
@@ -137,6 +150,7 @@ typedef struct HccIIO HccIIO;
 typedef uintptr_t (*HccIIOReadFn)(HccIIO* iio, void* data_out, uintptr_t size);
 typedef uintptr_t (*HccIIOWriteFn)(HccIIO* iio, const void* data, uintptr_t size);
 typedef uintptr_t (*HccIIOWriteFmtFn)(HccIIO* iio, const char* fmt, va_list va_args);
+typedef void (*HccIIOFlushFn)(HccIIO* iio);
 typedef void (*HccIIOCloseFn)(HccIIO* iio);
 
 struct HccIIO {
@@ -146,6 +160,7 @@ struct HccIIO {
 	HccIIOReadFn     read_fn;
 	HccIIOWriteFn    write_fn;
 	HccIIOWriteFmtFn write_fmt_fn;
+	HccIIOFlushFn    flush_fn;
 	HccIIOCloseFn    close_fn;
 	bool             ascii_colors_enabled;
 };
@@ -162,6 +177,7 @@ uintptr_t hcc_iio_write_fmt(HccIIO* iio, const char* fmt, ...) __attribute__ ((f
 #else
 uintptr_t hcc_iio_write_fmt(HccIIO* iio, const char* fmt, ...);
 #endif
+void hcc_iio_flush(HccIIO* iio);
 void hcc_iio_close(HccIIO* iio);
 
 // ===========================================
@@ -2713,6 +2729,7 @@ enum HccOptionKey {
 	HCC_OPTION_KEY_SHADER_INFOS_NAME,           // string
 	HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME,  // string
 	HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX,// string
+	HCC_OPTION_KEY_SPIRV_OPT,                   // bool
 
 	HCC_OPTION_KEY_COUNT,
 };

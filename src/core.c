@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <dirent.h>
-#include <unistd.h>
 #include <math.h>
 
 #ifdef HCC_OS_LINUX
@@ -18,12 +16,19 @@
 #include <sys/syscall.h>
 #include <sys/sysinfo.h>
 #include <linux/futex.h>
+#include <linux/limits.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <unistd.h>
 #endif
 
 #ifdef __GNUC__
 #include <execinfo.h>
+#endif
+
+#ifdef HCC_OS_WINDOWS
+#include <DbgHelp.h>
+#include <Shlwapi.h>
 #endif
 
 // ===========================================
@@ -46,7 +51,7 @@ void _hcc_assert_failed(const char* cond, const char* file, int line, const char
 	abort();
 }
 
-noreturn uintptr_t _hcc_abort(const char* file, int line, const char* message, ...) {
+_Noreturn uintptr_t _hcc_abort(const char* file, int line, const char* message, ...) {
 	fprintf(stderr, "abort: ");
 
 	va_list va_args;
@@ -69,7 +74,7 @@ void hcc_clear_bail_jmp_loc(void) {
 	}
 }
 
-noreturn void hcc_bail(HccResultCode code, int32_t value) {
+_Noreturn void hcc_bail(HccResultCode code, int32_t value) {
 	HccResult result = { code, value, NULL };
 	HccCompiler* c = _hcc_tls.c;
 	if (c) {
@@ -89,6 +94,8 @@ noreturn void hcc_bail(HccResultCode code, int32_t value) {
 				break;
 			}
 		}
+	} else {
+		_hcc_tls.jmp_result_data->result = result;
 	}
 
 	if (_hcc_tls.w) {
@@ -101,7 +108,7 @@ noreturn void hcc_bail(HccResultCode code, int32_t value) {
 					t->result = result;
 				}
 			}
-			hcc_task_finish(t, false);
+			hcc_task_finish(t, true);
 		}
 	}
 
@@ -119,29 +126,41 @@ noreturn void hcc_bail(HccResultCode code, int32_t value) {
 uint32_t hcc_onebitscount32(uint32_t bits) {
 #ifdef __GNUC__
 	return __builtin_popcount(bits);
+#elif defined(HCC_OS_WINDOWS)
+	return __popcnt(bits);
 #else
 #error "unsupported fartcount"
 #endif
 }
 
 uint32_t hcc_leastsetbitidx32(uint32_t bits) {
+	HCC_ASSERT(bits, "bits cannot be 0");
 #ifdef __GNUC__
 	return __builtin_ctz(bits);
+#elif defined(HCC_OS_WINDOWS)
+	unsigned long idx;
+	_BitScanForward(&idx, bits);
+	return idx;
 #else
 #error "unsupported fartcount"
 #endif
 }
 
 uint32_t hcc_mostsetbitidx32(uint32_t bits) {
+	HCC_ASSERT(bits, "bits cannot be 0");
 #ifdef __GNUC__
-	return bits ? (sizeof(uint32_t) * 8) - __builtin_clz(bits) : 0;
+	return (sizeof(uint32_t) * 8) - __builtin_clz(bits);
+#elif defined(HCC_OS_WINDOWS)
+	unsigned long idx;
+	_BitScanReverse(&idx, bits);
+	return idx;
 #else
 #error "unsupported fartcount"
 #endif
 }
 
 void hcc_get_last_system_error_string(char* buf_out, uint32_t buf_out_size) {
-#if HCC_OS_WINDOWS
+#ifdef HCC_OS_WINDOWS
 	DWORD error = GetLastError();
 	DWORD res = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error, 0, (LPTSTR)buf_out, buf_out_size, NULL);
 	if (res == 0) {
@@ -192,42 +211,18 @@ ERROR_2:
 	HCC_ABORT("invalid error %u", error);
 }
 
-bool hcc_change_working_directory(const char* path) {
-#ifdef HCC_OS_LINUX
-	return chdir(path) == 0;
-#else
-#error "unimplemented for this platform"
-#endif
-}
-
-bool hcc_change_working_directory_to_same_as_this_file(const char* path) {
-	char* end = strrchr(path, '/');
-	char path_buf[1024];
-	if (end == NULL) {
-		path_buf[0] = '/';
-		path_buf[1] = '\0';
-	} else {
-		uint32_t size = end - path + 1;
-		HCC_DEBUG_ASSERT_ARRAY_BOUNDS(size, sizeof(path_buf));
-		memcpy(path_buf, path, size);
-		path_buf[size] = '\0';
-	}
-
-	if (!hcc_change_working_directory(path_buf)) {
-		char error_buf[512];
-		hcc_get_last_system_error_string(error_buf, sizeof(error_buf));
-		HCC_ABORT("internal error: failed to change the working directory to '%s': %s", path_buf, error_buf);
-	}
-
-	return true;
-}
-
 uint32_t hcc_path_canonicalize_internal(const char* path, char* out_buf) {
 #ifdef HCC_OS_LINUX
 	if (realpath(path, out_buf) == NULL) {
 		return UINT32_MAX;
 	}
 	return strlen(out_buf);
+#elif defined(HCC_OS_WINDOWS)
+	DWORD size = GetFullPathNameA(path, MAX_PATH, out_buf, NULL);
+	if (size == 0) {
+		return UINT32_MAX;
+	}
+	return size;
 #else
 #error "unimplemented for this platform"
 #endif
@@ -245,12 +240,15 @@ HccString hcc_path_canonicalize(const char* path) {
 bool hcc_path_is_absolute(const char* path) {
 #ifdef __unix__
 	return path[0] == '/';
+#elif defined(HCC_OS_WINDOWS)
+	return path[1] == '\\' && path[2] == ':';
 #else
 #error "unimplemented for this platform"
 #endif
 }
 
 char* hcc_file_read_all_the_codes(const char* path, uint64_t* size_out) {
+#define _HCC_TOKENIZER_LOOK_HEAD_SIZE 4
 #ifdef HCC_OS_LINUX
 	int fd_flags = O_CLOEXEC | O_RDONLY;
 	int mode = 0666;
@@ -263,7 +261,6 @@ char* hcc_file_read_all_the_codes(const char* path, uint64_t* size_out) {
 	if (fstat(fd, &s) != 0) return NULL;
 	*size_out = s.st_size;
 
-#define _HCC_TOKENIZER_LOOK_HEAD_SIZE 4
 	uintptr_t size = HCC_INT_ROUND_UP_ALIGN(s.st_size + _HCC_TOKENIZER_LOOK_HEAD_SIZE, _hcc_gs.virt_mem_reserve_align);
 	char* bytes;
 	hcc_virt_mem_reserve_commit(HCC_ALLOC_TAG_CODE, NULL, size, HCC_VIRT_MEM_PROTECTION_READ_WRITE, (void**)&bytes);
@@ -282,6 +279,35 @@ char* hcc_file_read_all_the_codes(const char* path, uint64_t* size_out) {
 	close(fd);
 
 	return bytes;
+#elif defined(HCC_OS_WINDOWS)
+	HANDLE handle = CreateFileA(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (handle == INVALID_HANDLE_VALUE) {
+		hcc_bail(HCC_ERROR_FILE_READ, GetLastError());
+	}
+
+	DWORD file_size = GetFileSize(handle, &file_size);
+	if (file_size == INVALID_FILE_SIZE) {
+		hcc_bail(HCC_ERROR_FILE_READ, GetLastError());
+	}
+	*size_out = file_size;
+
+	uintptr_t size = HCC_INT_ROUND_UP_ALIGN(file_size + _HCC_TOKENIZER_LOOK_HEAD_SIZE, _hcc_gs.virt_mem_reserve_align);
+	char* bytes;
+	hcc_virt_mem_reserve_commit(HCC_ALLOC_TAG_CODE, NULL, size, HCC_VIRT_MEM_PROTECTION_READ_WRITE, (void**)&bytes);
+
+	uint64_t remaining_read_size = file_size;
+	uint64_t offset = 0;
+	while (remaining_read_size) {
+		DWORD bytes_read;
+		if (!ReadFile(handle, bytes + offset, remaining_read_size, &bytes_read, NULL)) {
+			hcc_bail(HCC_ERROR_FILE_READ, GetLastError());
+		}
+		offset += bytes_read;
+		remaining_read_size -= bytes_read;
+	}
+
+	CloseHandle(handle);
+	return bytes;
 #else
 #error "unimplemented for this platform"
 #endif
@@ -297,7 +323,7 @@ void hcc_stacktrace(uint32_t ignore_levels_count, char* buf, uint32_t buf_size) 
 
 	char** strings = backtrace_symbols(stacktrace_levels, stacktrace_levels_count);
 	if (strings == NULL) {
-		goto ERROR;
+		goto ERR;
 	}
 
 	for (int i = ignore_levels_count; i < stacktrace_levels_count; i += 1) {
@@ -319,32 +345,48 @@ void hcc_stacktrace(uint32_t ignore_levels_count, char* buf, uint32_t buf_size) 
 
 	for (uint32_t i = ignore_levels_count; i < stacktrace_levels_count; i += 1) {
 		SymFromAddr(process, (DWORD64)stacktrace_levels[i], 0, symbol);
-		buf_idx += snprintf(buf + buf_idx, buf_size - buf_idx, "%u: %s - [0x%0X]\n", stacktrace_levels_count - i - 1, symbol->Name, symbol->Address);
+		buf_idx += snprintf(buf + buf_idx, buf_size - buf_idx, "%u: %s - [0x%0llX]\n", stacktrace_levels_count - i - 1, symbol->Name, symbol->Address);
 	}
 #else
 #error "hcc_stacktrace has been unimplemented for this platform"
 #endif
 
 	return;
-ERROR:
+ERR:
 	buf[0] = '\0';
 }
 
 bool hcc_file_open_read(const char* path, HccIIO* out) {
+#ifdef HCC_OS_WINDOWS
+	FILE* f;
+	errno_t error = fopen_s(&f, path, "rb");
+	if (error) {
+		return false;
+	}
+#else
 	FILE* f = fopen(path, "rb");
 	if (!f) {
 		return false;
 	}
+#endif
 
 	*out = hcc_iio_file(f);
 	return true;
 }
 
 bool hcc_file_open_write(const char* path, HccIIO* out) {
+#ifdef HCC_OS_WINDOWS
+	FILE* f;
+	errno_t error = fopen_s(&f, path, "wb");
+	if (error) {
+		return false;
+	}
+#else
 	FILE* f = fopen(path, "wb");
 	if (!f) {
 		return false;
 	}
+#endif
 
 	*out = hcc_iio_file(f);
 	return true;
@@ -357,6 +399,8 @@ bool hcc_path_is_relative(const char* path) {
 bool hcc_path_exists(const char* path) {
 #ifdef HCC_OS_LINUX
 	return access(path, F_OK) == 0;
+#elif defined(HCC_OS_WINDOWS)
+	return PathFileExistsA(path);
 #else
 #error "unimplemented for this platform"
 #endif
@@ -369,6 +413,9 @@ bool hcc_path_is_file(const char* path) {
 		return false;
 	}
 	return S_ISREG(s.st_mode);
+#elif defined(HCC_OS_WINDOWS)
+	DWORD attr = GetFileAttributesA(path);
+	return !(attr & FILE_ATTRIBUTE_DIRECTORY);
 #else
 #error "unimplemented for this platform"
 #endif
@@ -381,6 +428,9 @@ bool hcc_path_is_directory(const char* path) {
 		return false;
 	}
 	return S_ISDIR(s.st_mode);
+#elif defined(HCC_OS_WINDOWS)
+	DWORD attr = GetFileAttributesA(path);
+	return (attr & FILE_ATTRIBUTE_DIRECTORY);
 #else
 #error "unimplemented for this platform"
 #endif
@@ -390,7 +440,7 @@ HccString hcc_path_replace_file_name(HccString parent, HccString file_name) {
 	uint32_t parent_copy_size = parent.size;
 	while (parent_copy_size) {
 		parent_copy_size -= 1;
-		if (parent.data[parent_copy_size] == '/') {
+		if (parent.data[parent_copy_size] == '/' || parent.data[parent_copy_size] == '\\') {
 			break;
 		}
 	}
@@ -408,9 +458,17 @@ HccString hcc_path_replace_file_name(HccString parent, HccString file_name) {
 uint32_t hcc_logical_cores_count(void) {
 #ifdef HCC_OS_LINUX
 	return get_nprocs();
+#elif defined(HCC_OS_WINDOWS)
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	return info.dwNumberOfProcessors;
 #else
 #error "unimplemented on platform
 #endif
+}
+
+int hcc_execute_shell_command(const char* shell_command) {
+	return system(shell_command);
 }
 
 // ===========================================
@@ -595,10 +653,6 @@ void hcc_result_print(char* what, HccResult result) {
 		case HCC_SUCCESS:
 			printf("%s", hcc_success_strings[result.code]);
 			break;
-		case HCC_ERROR_ALLOCATION_FAILURE:
-		case HCC_ERROR_COLLECTION_FULL:
-			printf("%s %s", hcc_error_strings[HCC_ERROR_END - result.code - 1], hcc_alloc_tag_strings[result.value]);
-			break;
 		default:
 			printf("%s 0x%x", hcc_error_strings[HCC_ERROR_END - result.code - 1], result.value);
 			break;
@@ -636,6 +690,21 @@ void hcc_thread_start(HccThread* thread, HccThreadSetup* setup) {
 	if ((res = pthread_attr_destroy(&attr))) {
 		hcc_bail(HCC_ERROR_THREAD_INIT, res);
 	}
+#elif defined(HCC_OS_WINDOWS)
+	DWORD thread_id;
+	thread->handle = CreateThread(
+		NULL,                                   // default security attributes
+		0,                                      // use default stack size
+		(DWORD(HCC_STDCALL *)(void*))setup->thread_main_fn, // thread function name
+		setup->arg,                             // argument to thread function
+		0,                                      // use default creation flags
+		&thread_id);                            // returns the thread identifier
+
+	if (thread->handle == NULL) {
+		hcc_bail(HCC_ERROR_THREAD_INIT, GetLastError());
+	}
+#else
+#error "unimplemented API for this platform"
 #endif // HCC_OS_LINUX
 }
 
@@ -645,6 +714,10 @@ void hcc_thread_wait_for_termination(HccThread* thread) {
 	if ((res = pthread_join(thread->handle, NULL))) {
 		hcc_bail(HCC_ERROR_THREAD_WAIT_FOR_TERMINATION, res);
 	}
+#elif defined(HCC_OS_WINDOWS)
+	WaitForSingleObject(thread->handle, INFINITE);
+#else
+#error "unimplemented API for this platform"
 #endif // HCC_OS_LINUX
 }
 
@@ -669,6 +742,10 @@ void hcc_semaphore_set(HccSemaphore* semaphore, uint32_t value) {
 		if (res == -1) {
 			hcc_bail(HCC_ERROR_SEMAPHORE_GIVE, errno);
 		}
+#elif defined(HCC_OS_WINDOWS)
+		WakeByAddressSingle(&semaphore->value);
+#else
+#error "unimplemented API for this platform"
 #endif // HCC_OS_LINUX
 	}
 }
@@ -685,6 +762,14 @@ void hcc_semaphore_give(HccSemaphore* semaphore, uint32_t count) {
 	if (res == -1) {
 		hcc_bail(HCC_ERROR_SEMAPHORE_GIVE, errno);
 	}
+#elif defined(HCC_OS_WINDOWS)
+	if (count > 1) {
+		WakeByAddressAll(&semaphore->value);
+	} else {
+		WakeByAddressSingle(&semaphore->value);
+	}
+#else
+#error "unimplemented API for this platform"
 #endif // HCC_OS_LINUX
 }
 
@@ -706,6 +791,23 @@ void hcc_semaphore_take_or_wait_then_take(HccSemaphore* semaphore) {
 			hcc_bail(HCC_ERROR_SEMAPHORE_TAKE, errno);
 		}
 	}
+#elif defined(HCC_OS_WINDOWS)
+	while (1) {
+		uint32_t counter = atomic_load(&semaphore->value);
+		while (counter) {
+			uint32_t next_counter = counter - 1;
+			if (atomic_compare_exchange_weak(&semaphore->value, &counter, next_counter)) {
+				goto RETURN;
+			}
+		}
+
+		uint32_t expected_value = 0;
+		if (!WaitOnAddress(&semaphore->value, &expected_value, sizeof(expected_value), INFINITE)) {
+			hcc_bail(HCC_ERROR_SEMAPHORE_TAKE, GetLastError());
+		}
+	}
+#else
+#error "unimplemented API for this platform"
 #endif // HCC_OS_LINUX
 RETURN:
 	atomic_fetch_sub(&semaphore->waiters_count, 1);
@@ -777,6 +879,22 @@ void hcc_mutex_lock(HccMutex* mutex) {
 			hcc_bail(HCC_ERROR_MUTEX_LOCK, errno);
 		}
 	}
+#elif defined(HCC_OS_WINDOWS)
+	while (1) {
+		uint32_t is_locked = atomic_load(&mutex->is_locked);
+		while (!is_locked) {
+			if (atomic_compare_exchange_weak(&mutex->is_locked, &is_locked, true)) {
+				return;
+			}
+		}
+
+		uint32_t expected_value = true;
+		if (!WaitOnAddress(&mutex->is_locked, &expected_value, sizeof(expected_value), INFINITE)) {
+			hcc_bail(HCC_ERROR_MUTEX_LOCK, GetLastError());
+		}
+	}
+#else
+#error "unimplemented API for this platform"
 #endif // HCC_OS_LINUX
 }
 
@@ -788,6 +906,10 @@ void hcc_mutex_unlock(HccMutex* mutex) {
 	if (res == -1) {
 		hcc_bail(HCC_ERROR_MUTEX_UNLOCK, errno);
 	}
+#elif defined(HCC_OS_WINDOWS)
+	WakeByAddressSingle(&mutex->is_locked);
+#else
+#error "unimplemented API for this platform"
 #endif // HCC_OS_LINUX
 }
 
@@ -975,7 +1097,7 @@ static int _hcc_virt_mem_prot_unix(HccVirtMemProtection prot) {
 	}
 	return 0;
 }
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 static DWORD _hcc_virt_mem_prot_windows(HccVirtMemProtection prot) {
 	switch (prot) {
 		case HCC_VIRT_MEM_PROTECTION_NO_ACCESS: return PAGE_NOACCESS;
@@ -1001,7 +1123,7 @@ void hcc_virt_mem_update_page_size_reserve_align(void) {
 
 	_hcc_gs.virt_mem_page_size = page_size;
 	_hcc_gs.virt_mem_reserve_align = page_size;
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	SYSTEM_INFO si;
 	GetNativeSystemInfo(&si);
 	_hcc_gs.virt_mem_page_size = si.dwPageSize;
@@ -1028,7 +1150,7 @@ void hcc_virt_mem_reserve_commit(HccAllocTag tag, void* requested_addr, uintptr_
 	if (addr == MAP_FAILED) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	DWORD prot = _hcc_virt_mem_prot_windows(protection);
 	void* addr = VirtualAlloc(requested_addr, size, MEM_RESERVE | MEM_COMMIT, prot);
 	if (addr == NULL) {
@@ -1058,7 +1180,7 @@ void hcc_virt_mem_reserve(HccAllocTag tag, void* requested_addr, uintptr_t size,
 	if (addr == MAP_FAILED) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	void* addr = VirtualAlloc(requested_addr, size, MEM_RESERVE, PAGE_NOACCESS);
 	if (addr == NULL) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
@@ -1085,7 +1207,7 @@ void hcc_virt_mem_commit(HccAllocTag tag, void* addr, uintptr_t size, HccVirtMem
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
 	madvise(addr, size, MADV_WILLNEED);
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	DWORD prot = _hcc_virt_mem_prot_windows(protection);
 	if (VirtualAlloc(addr, size, MEM_COMMIT, prot) == NULL) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
@@ -1104,7 +1226,7 @@ void hcc_virt_mem_protection_set(HccAllocTag tag, void* addr, uintptr_t size, Hc
 	if (mprotect(addr, size, prot) != 0) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	DWORD prot = _hcc_virt_mem_prot_windows(protection);
 	DWORD old_prot; // unused
 	if (!VirtualProtect(addr, size, prot, &old_prot)) {
@@ -1134,7 +1256,7 @@ void hcc_virt_mem_decommit(HccAllocTag tag, void* addr, uintptr_t size) {
 	if (mprotect(addr, size, prot) != 0) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	if (VirtualFree(addr, size, MEM_DECOMMIT) == 0) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
@@ -1157,7 +1279,7 @@ void hcc_virt_mem_release(HccAllocTag tag, void* addr, uintptr_t size) {
 	if (munmap(addr, size) != 0) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	//
 	// unfortunately on Windows all memory must be release at once
 	// that was reserved with VirtualAlloc.
@@ -1177,9 +1299,9 @@ void hcc_virt_mem_reset(HccAllocTag tag, void* addr, uintptr_t size) {
 	if (madvise(addr, size, MADV_DONTNEED) != 0) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
-#elif HCC_OS_WINDOWS
+#elif defined(HCC_OS_WINDOWS)
 	MEMORY_BASIC_INFORMATION mem_info;
-	if (VirtualQuery(addr, size, &mem_info) == 0) {
+	if (VirtualQuery(addr, &mem_info, sizeof(mem_info)) == 0) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
 
@@ -1187,7 +1309,7 @@ void hcc_virt_mem_reset(HccAllocTag tag, void* addr, uintptr_t size) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
 
-	if (VirtualAlloc(addr, size, MEM_COMMIT, mem_info.prot) == NULL) {
+	if (VirtualAlloc(addr, size, MEM_COMMIT, mem_info.Protect) == NULL) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 	}
 #else
@@ -1205,10 +1327,145 @@ void hcc_virt_mem_force_physical_page_allocation(void* addr, uintptr_t size) {
 }
 
 void hcc_virt_mem_magic_ring_buffer_alloc(HccAllocTag tag, void* requested_addr, uintptr_t size, void** addr_out) {
-	void* addr;
 #ifdef HCC_OS_WINDOWS
-	hcc_abort("TODO: ring buffer for windows using VirtualAlloc2 visit for example: https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc2");
+	BOOL result;
+	HANDLE section = NULL;
+	SYSTEM_INFO sysInfo;
+	void* ringBuffer = NULL;
+	void* placeholder1 = NULL;
+	void* placeholder2 = NULL;
+	void* view1 = NULL;
+	void* view2 = NULL;
+
+	//
+	// Reserve a placeholder region where the buffer will be mapped.
+	//
+
+	placeholder1 = (PCHAR)VirtualAlloc2(
+		NULL,
+		requested_addr,
+		2 * size,
+		MEM_RESERVE | MEM_RESERVE_PLACEHOLDER,
+		PAGE_NOACCESS,
+		NULL, 0
+	);
+
+	if (placeholder1 == NULL) {
+		goto ERR;
+	}
+
+	//
+	// Split the placeholder region into two regions of equal size.
+	//
+
+	result = VirtualFree(
+		placeholder1,
+		size,
+		MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER
+	);
+
+	if (result == FALSE) {
+		goto ERR;
+	}
+
+	placeholder2 = (void*)((ULONG_PTR)placeholder1 + size);
+
+	//
+	// Create a pagefile-backed section for the buffer.
+	//
+
+	section = CreateFileMapping(
+		INVALID_HANDLE_VALUE,
+		NULL,
+		PAGE_READWRITE,
+		0,
+		size, NULL
+	);
+
+	if (section == NULL) {
+		goto ERR;
+	}
+
+	//
+	// Map the section into the first placeholder region.
+	//
+
+	view1 = MapViewOfFile3(
+		section,
+		NULL,
+		placeholder1,
+		0,
+		size,
+		MEM_REPLACE_PLACEHOLDER,
+		PAGE_READWRITE,
+		NULL, 0
+	);
+
+	if (view1 == NULL) {
+		goto ERR;
+	}
+
+	//
+	// Ownership transferred, don't free this now.
+	//
+
+	placeholder1 = NULL;
+
+	//
+	// Map the section into the second placeholder region.
+	//
+
+	view2 = MapViewOfFile3(
+		section,
+		NULL,
+		placeholder2,
+		0,
+		size,
+		MEM_REPLACE_PLACEHOLDER,
+		PAGE_READWRITE,
+		NULL, 0
+	);
+
+	if (view2 == NULL) {
+		goto ERR;
+	}
+
+	//
+	// Success, return both mapped views to the caller.
+	//
+
+	ringBuffer = view1;
+
+	if (section != NULL) {
+		CloseHandle(section);
+	}
+
+	*addr_out = ringBuffer;
+	return;
+ERR:
+	if (section != NULL) {
+		CloseHandle(section);
+	}
+
+	if (placeholder1 != NULL) {
+		VirtualFree(placeholder1, 0, MEM_RELEASE);
+	}
+
+	if (placeholder2 != NULL) {
+		VirtualFree(placeholder2, 0, MEM_RELEASE);
+	}
+
+	if (view1 != NULL) {
+		UnmapViewOfFileEx(view1, 0);
+	}
+
+	if (view2 != NULL) {
+		UnmapViewOfFileEx(view2, 0);
+	}
+
+	hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
 #else
+	void* addr;
 	int shm_id;
 #ifdef HCC_OS_LINUX
 	addr = mmap(requested_addr, size * 2, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -1260,7 +1517,11 @@ REMAP_ERROR:
 
 void hcc_virt_mem_magic_ring_buffer_dealloc(HccAllocTag tag, void* addr, uintptr_t size) {
 #ifdef HCC_OS_WINDOWS
-	hcc_abort("TODO: ring buffer for windows using VirtualAlloc2 visit for example: https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc2");
+	VirtualFree(addr, 0, MEM_RELEASE);
+	VirtualFree(HCC_PTR_ADD(addr, size), 0, MEM_RELEASE);
+	UnmapViewOfFile(addr);
+	UnmapViewOfFile(HCC_PTR_ADD(addr, size));
+	HCC_UNUSED(tag);
 #elif defined(HCC_OS_LINUX)
 	if (munmap(addr, size * 2) != 0) {
 		hcc_bail(HCC_ERROR_ALLOCATION_FAILURE, tag);
@@ -1297,6 +1558,7 @@ bool hcc_string_key_cmp(void* a, void* b, uintptr_t size) {
 // ===========================================
 
 HccTime hcc_time_now(HccTimeMode mode) {
+#if defined(HCC_OS_LINUX)
 	int m;
 	switch (mode) {
 		case HCC_TIME_MODE_REALTIME: m = CLOCK_REALTIME; break;
@@ -1306,31 +1568,33 @@ HccTime hcc_time_now(HccTimeMode mode) {
 	struct timespec start;
 	clock_gettime(m, &start);
 	return (HccTime) { .secs = start.tv_sec, .nanosecs = start.tv_nsec };
+#elif defined(HCC_OS_WINDOWS)
+	HCC_UNUSED(mode); //TODO
+	uint64_t wintime;
+	GetSystemTimeAsFileTime((FILETIME*)&wintime);
+	wintime -= 116444736000000000ll;  //1jan1601 to 1jan1970
+	return (HccTime) { .secs = wintime / 10000000ll, .nanosecs = wintime % 10000000ll * 100 };
+#else
+#error "TODO implement virtual memory for this platform"
+#endif
 }
 
 HccDuration hcc_time_elapsed(HccTime time, HccTimeMode mode) {
-	int m;
-	switch (mode) {
-		case HCC_TIME_MODE_REALTIME: m = CLOCK_REALTIME; break;
-		case HCC_TIME_MODE_MONOTONIC: m = CLOCK_MONOTONIC; break;
-	}
+	HccTime now = hcc_time_now(mode);
 
-	struct timespec elapsed, now;
-	clock_gettime(m, &now);
-
-	if (now.tv_nsec < time.nanosecs) {
-		elapsed.tv_sec = now.tv_sec - time.secs - 1;
-		elapsed.tv_nsec = 1000000000 + now.tv_nsec - time.nanosecs;
+	HccDuration elapsed;
+	if (now.secs < time.nanosecs) {
+		elapsed.secs = now.secs - time.secs - 1;
+		elapsed.nanosecs = 1000000000 + now.nanosecs - time.nanosecs;
 	} else {
-		elapsed.tv_sec = now.tv_sec - time.secs;
-		elapsed.tv_nsec = now.tv_nsec - time.nanosecs;
+		elapsed.secs = now.secs - time.secs;
+		elapsed.nanosecs = now.nanosecs - time.nanosecs;
 	}
-
-	return (HccDuration) { .secs = elapsed.tv_sec, .nanosecs = elapsed.tv_nsec };
+	return elapsed;
 }
 
 HccDuration hcc_time_diff(HccTime to, HccTime from) {
-	HCC_ASSERT(to.secs > from.secs || (to.secs == from.secs && to.nanosecs > from.nanosecs), "'to' time must come after 'from' time");
+	HCC_ASSERT(to.secs > from.secs || (to.secs == from.secs && to.nanosecs >= from.nanosecs), "'to' time must come after 'from' time");
 	HccDuration d = {0};
 	if (to.nanosecs < from.nanosecs) {
 		d.secs = to.secs - from.secs - 1;
@@ -1578,9 +1842,10 @@ uintptr_t _hcc_stack_resize(HccStack(void) stack, uintptr_t new_count, uintptr_t
 		new_cap = HCC_MIN(new_cap, header->reserve_cap);
 		uintptr_t commit_size = HCC_INT_ROUND_UP_ALIGN(sizeof(HccStackHeader) + header->cap * elmt_size, _hcc_gs.virt_mem_page_size);
 		uintptr_t new_commit_size = HCC_INT_ROUND_UP_ALIGN(sizeof(HccStackHeader) + new_cap * elmt_size, _hcc_gs.virt_mem_page_size);
-
-		void* old_end_ptr = HCC_PTR_ADD(header, commit_size);
-		hcc_virt_mem_commit(header->tag, old_end_ptr, new_commit_size - commit_size, HCC_VIRT_MEM_PROTECTION_READ_WRITE);
+		if (commit_size < new_commit_size) {
+			void* old_end_ptr = HCC_PTR_ADD(header, commit_size);
+			hcc_virt_mem_commit(header->tag, old_end_ptr, new_commit_size - commit_size, HCC_VIRT_MEM_PROTECTION_READ_WRITE);
+		}
 		atomic_store(&header->cap, new_cap);
 	}
 	atomic_store(&header->count, new_count);
@@ -2624,7 +2889,7 @@ void hcc_data_type_print_basic(HccCU* cu, HccDataType data_type, void* data, Hcc
 FLOAT:
 				hcc_iio_write_fmt(iio, "%f", float_);
 				break;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 		switch (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
@@ -2661,10 +2926,10 @@ FLOAT:
 			case HCC_AML_INTRINSIC_DATA_TYPE_F16: float_ = f16tof32(*(half*)data); goto FLOAT;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F32: float_ = *(float*)data; goto FLOAT;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F64: float_ = *(double*)data; goto FLOAT;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else {
-ERROR: {}
+ERR: {}
 		HccString string = hcc_data_type_string(cu, data_type);
 		HCC_ABORT("internal error: expected a basic data type but got '%.*s'", (int)string.size, string.data);
 	}
@@ -2857,7 +3122,7 @@ HccDataType hcc_data_type_signed_to_unsigned(HccCU* cu, HccDataType data_type) {
 		switch (basic_data_type) {
 			case HCC_AST_BASIC_DATA_TYPE_CHAR:
 				if (hcc_options_is_char_unsigned((cu)->options)) {
-					goto ERROR;
+					goto ERR;
 				}
 				hcc_fallthrough;
 			case HCC_AST_BASIC_DATA_TYPE_SCHAR:
@@ -2871,7 +3136,7 @@ HccDataType hcc_data_type_signed_to_unsigned(HccCU* cu, HccDataType data_type) {
 			case HCC_AST_BASIC_DATA_TYPE_SLONGLONG:
 				return HCC_DATA_TYPE_AST_BASIC_ULONGLONG;
 
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
@@ -2882,7 +3147,7 @@ HccDataType hcc_data_type_signed_to_unsigned(HccCU* cu, HccDataType data_type) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_S16: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_U16; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S32: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_U32; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S64: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_U64; break;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 
 		intrinsic_data_type &= ~HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK;
@@ -2890,7 +3155,7 @@ HccDataType hcc_data_type_signed_to_unsigned(HccCU* cu, HccDataType data_type) {
 		return HCC_DATA_TYPE(AML_INTRINSIC, intrinsic_data_type);
 	}
 
-ERROR:{}
+ERR:{}
 	HccString data_type_name = hcc_data_type_string(cu, data_type);
 	HCC_UNREACHABLE("internal error: expected a basic/intrinsic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
 }
@@ -2901,7 +3166,7 @@ HccDataType hcc_data_type_unsigned_to_signed(HccCU* cu, HccDataType data_type) {
 		switch (basic_data_type) {
 			case HCC_AST_BASIC_DATA_TYPE_CHAR:
 				if (!hcc_options_is_char_unsigned((cu)->options)) {
-					goto ERROR;
+					goto ERR;
 				}
 				hcc_fallthrough;
 			case HCC_AST_BASIC_DATA_TYPE_UCHAR:
@@ -2915,7 +3180,7 @@ HccDataType hcc_data_type_unsigned_to_signed(HccCU* cu, HccDataType data_type) {
 			case HCC_AST_BASIC_DATA_TYPE_ULONGLONG:
 				return HCC_DATA_TYPE_AST_BASIC_SLONGLONG;
 
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
@@ -2926,7 +3191,7 @@ HccDataType hcc_data_type_unsigned_to_signed(HccCU* cu, HccDataType data_type) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_U16: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_S16; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_U32: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_S32; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_U64: scalar_data_type = HCC_AML_INTRINSIC_DATA_TYPE_S64; break;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 
 		intrinsic_data_type &= ~HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK;
@@ -2934,7 +3199,7 @@ HccDataType hcc_data_type_unsigned_to_signed(HccCU* cu, HccDataType data_type) {
 		return HCC_DATA_TYPE(AML_INTRINSIC, intrinsic_data_type);
 	}
 
-ERROR:{}
+ERR:{}
 	HccString data_type_name = hcc_data_type_string(cu, data_type);
 	HCC_UNREACHABLE("internal error: expected a basic/intrinsic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
 }
@@ -3019,7 +3284,7 @@ HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type) {
 			case HCC_AST_BASIC_DATA_TYPE_ULONGLONG: return HCC_BASIC_TYPE_CLASS_UINT;
 			case HCC_AST_BASIC_DATA_TYPE_FLOAT:
 			case HCC_AST_BASIC_DATA_TYPE_DOUBLE: return HCC_BASIC_TYPE_CLASS_FLOAT;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 		switch (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
@@ -3035,10 +3300,10 @@ HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_F16:
 			case HCC_AML_INTRINSIC_DATA_TYPE_F32:
 			case HCC_AML_INTRINSIC_DATA_TYPE_F64: return HCC_BASIC_TYPE_CLASS_FLOAT;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else {
-ERROR:{}
+ERR:{}
 		HccString data_type_name = hcc_data_type_string(cu, data_type);
 		HCC_UNREACHABLE("internal error: expected a basic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
 	}
@@ -3367,10 +3632,10 @@ HccBasic hcc_basic_from_sint(HccCU* cu, HccDataType data_type, int64_t value) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_U64: basic.u64 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F32: basic.f32 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F64: basic.f64 = value; break;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else {
-ERROR: {}
+ERR: {}
 		HccString data_type_name = hcc_data_type_string(cu, data_type);
 		HCC_UNREACHABLE("internal error: expected a basic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
 	}
@@ -3417,10 +3682,10 @@ HccBasic hcc_basic_from_uint(HccCU* cu, HccDataType data_type, uint64_t value) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_U64: basic.u64 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F32: basic.f32 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F64: basic.f64 = value; break;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else {
-ERROR: {}
+ERR: {}
 		HccString data_type_name = hcc_data_type_string(cu, data_type);
 		HCC_UNREACHABLE("internal error: expected a basic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
 	}
@@ -3474,10 +3739,10 @@ HccBasic hcc_basic_from_float(HccCU* cu, HccDataType data_type, double value) {
 			case HCC_AML_INTRINSIC_DATA_TYPE_U64: basic.u64 = (uint64_t)value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F32: basic.f32 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_F64: basic.f64 = value; break;
-			default: goto ERROR;
+			default: goto ERR;
 		}
 	} else {
-ERROR: {}
+ERR: {}
 		HccString data_type_name = hcc_data_type_string(cu, data_type);
 		HCC_UNREACHABLE("internal error: expected a basic type but got '%.*s'", (int)data_type_name.size, data_type_name.data);
 	}
@@ -4144,6 +4409,10 @@ uintptr_t _hcc_iio_file_write_fmt(HccIIO* iio, const char* fmt, va_list va_args)
 	return write_size;
 }
 
+void _hcc_iio_file_flush(HccIIO* iio) {
+	fflush(iio->handle);
+}
+
 void _hcc_iio_file_close(HccIIO* iio) {
 	fclose(iio->handle);
 }
@@ -4195,6 +4464,7 @@ HccIIO hcc_iio_file(FILE* f) {
 		.read_fn = _hcc_iio_file_read,
 		.write_fn = _hcc_iio_file_write,
 		.write_fmt_fn = _hcc_iio_file_write_fmt,
+		.flush_fn = _hcc_iio_file_flush,
 		.close_fn = _hcc_iio_file_close,
 	};
 	return iio;
@@ -4208,6 +4478,7 @@ HccIIO hcc_iio_memory(void* data, uintptr_t size) {
 		.read_fn = _hcc_iio_mem_read,
 		.write_fn = _hcc_iio_mem_write,
 		.write_fmt_fn = _hcc_iio_mem_write_fmt,
+		.flush_fn = NULL,
 		.close_fn = NULL,
 	};
 	return iio;
@@ -4238,6 +4509,12 @@ uintptr_t hcc_iio_write_fmt(HccIIO* iio, const char* fmt, ...) {
 	uintptr_t write_size = iio->write_fmt_fn(iio, fmt, va_args);
 	va_end(va_args);
 	return write_size;
+}
+
+void hcc_iio_flush(HccIIO* iio) {
+	if (iio->flush_fn) {
+		iio->flush_fn(iio);
+	}
 }
 
 void hcc_iio_close(HccIIO* iio) {

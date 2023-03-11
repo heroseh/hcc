@@ -7,8 +7,13 @@
 #include "platform_linux.c"
 #include "dm_x11.c"
 #include "gpu_vulkan.c"
+#elif defined(_WIN32)
+#include <windows.h>
+#include "platform_win32.c"
+#include "dm_win32.c"
+#include "gpu_vulkan.c"
 #else
-#error "unsupported platform"
+#error "unsupported platform
 #endif
 
 int main(int argc, char** argv) {

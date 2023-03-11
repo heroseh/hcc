@@ -112,7 +112,7 @@ void hcc_astgen_warn_2_manual(HccWorker* w, HccWarnCode warn_code, HccLocation* 
 	va_end(va_args);
 }
 
-noreturn void hcc_astgen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...) {
+_Noreturn void hcc_astgen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...) {
 	va_list va_args;
 	va_start(va_args, error_code);
 	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
@@ -122,7 +122,7 @@ noreturn void hcc_astgen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...
 	hcc_bail(HCC_ERROR_MESSAGES, 0);
 }
 
-noreturn void hcc_astgen_bail_error_1_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...) {
+_Noreturn void hcc_astgen_bail_error_1_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...) {
 	va_list va_args;
 	va_start(va_args, location);
 	hcc_error_pushv(hcc_worker_task(w), error_code, location, NULL, va_args);
@@ -131,7 +131,7 @@ noreturn void hcc_astgen_bail_error_1_manual(HccWorker* w, HccErrorCode error_co
 	hcc_bail(HCC_ERROR_MESSAGES, 0);
 }
 
-noreturn void hcc_astgen_bail_error_1_merge_apply(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...) {
+_Noreturn void hcc_astgen_bail_error_1_merge_apply(HccWorker* w, HccErrorCode error_code, HccLocation* location, ...) {
 	va_list va_args;
 	va_start(va_args, location);
 	HccLocation* other_location = hcc_ata_iter_location(w->astgen.token_iter);
@@ -142,7 +142,7 @@ noreturn void hcc_astgen_bail_error_1_merge_apply(HccWorker* w, HccErrorCode err
 	hcc_bail(HCC_ERROR_MESSAGES, 0);
 }
 
-noreturn void hcc_astgen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* other_location, ...) {
+_Noreturn void hcc_astgen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* other_location, ...) {
 	va_list va_args;
 	va_start(va_args, other_location);
 	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
@@ -152,7 +152,7 @@ noreturn void hcc_astgen_bail_error_2(HccWorker* w, HccErrorCode error_code, Hcc
 	hcc_bail(HCC_ERROR_MESSAGES, 0);
 }
 
-noreturn void hcc_astgen_bail_error_2_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, HccLocation* other_location, ...) {
+_Noreturn void hcc_astgen_bail_error_2_manual(HccWorker* w, HccErrorCode error_code, HccLocation* location, HccLocation* other_location, ...) {
 	va_list va_args;
 	va_start(va_args, other_location);
 	hcc_error_pushv(hcc_worker_task(w), error_code, location, other_location, va_args);
@@ -187,13 +187,13 @@ void hcc_astgen_data_type_ensure_valid_variable(HccWorker* w, HccDataType data_t
 			switch (d->kind) {
 				case HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE:
 				case HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE:
-					goto ERROR;
+					goto ERR;
 			}
 		}
 	}
 
 	return;
-ERROR: {}
+ERR: {}
 	HccString data_type_name = hcc_data_type_string(w->cu, data_type);
 	hcc_astgen_bail_error_1(w, error_code, (int)data_type_name.size, data_type_name.data);
 }
@@ -203,16 +203,16 @@ void hcc_astgen_data_type_ensure_has_no_pointers(HccWorker* w, HccDataType data_
 	if (HCC_DATA_TYPE_IS_COMPOUND(resolved_data_type)) {
 		HccCompoundDataType* d = hcc_compound_data_type_get(w->cu, resolved_data_type);
 		if (d->flags & HCC_COMPOUND_DATA_TYPE_FLAGS_HAS_POINTER) {
-			goto ERROR;
+			goto ERR;
 		}
 	}
 
 	if (HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
-		goto ERROR;
+		goto ERR;
 	}
 
 	return;
-ERROR: {}
+ERR: {}
 	HccString data_type_name = hcc_data_type_string(w->cu, data_type);
 	hcc_astgen_bail_error_1(w, error_code, (int)data_type_name.size, data_type_name.data);
 }
@@ -2346,7 +2346,7 @@ HccDataType hcc_astgen_generate_pointer_data_type_if_exists(HccWorker* w, HccDat
 	HccDataType resolved_element_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, element_data_type);
 	HccDataType data_type = hcc_pointer_data_type_deduplicate(w->cu, element_data_type);
 	HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
-	HccASTGenTypeSpecifier type_specifiers;
+	HccASTGenTypeSpecifier type_specifiers = 0;
 	token = hcc_astgen_generate_type_specifiers(w, location, &type_specifiers);
 	if (type_specifiers & HCC_ASTGEN_TYPE_SPECIFIER_CONST) {
 		data_type = HCC_DATA_TYPE_CONST(data_type);
@@ -2523,7 +2523,7 @@ HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, H
 	HccDataType unary_expr_data_type;
 	if (unary_op == HCC_AST_UNARY_OP_DEREF) {
 		if (!HCC_DATA_TYPE_IS_POINTER(resolved_data_type)) {
-			goto ERROR;
+			goto ERR;
 		}
 
 		unary_expr_data_type = hcc_data_type_strip_pointer(w->cu, inner_expr->data_type);
@@ -2545,7 +2545,7 @@ HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, H
 			unary_expr_data_type = inner_expr->data_type;
 		}
 	} else {
-		goto ERROR;
+		goto ERR;
 	}
 
 	if (w->astgen.function) {
@@ -2559,7 +2559,7 @@ HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, H
 
 	return expr;
 
-ERROR: {}
+ERR: {}
 	HccString data_type_name = hcc_data_type_string(w->cu, inner_expr->data_type);
 	hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNARY_OPERATOR_NOT_SUPPORTED, hcc_ata_token_strings[operator_token], (int)data_type_name.size, data_type_name.data);
 }

@@ -109,6 +109,7 @@ HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
 	[HCC_OPTION_KEY_SHADER_INFOS_NAME] =            { .string = hcc_string_lit("hcc_shader_infos") },
 	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME] =   { .string = hcc_string_lit("HccResourceStruct") },
 	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX] = { .string = hcc_string_lit("HCC_RESOURCE_STRUCT_") },
+	[HCC_OPTION_KEY_SPIRV_OPT] =                    { .bool_ = false },
 };
 
 HccResult hcc_options_init(HccOptionsSetup* setup, HccOptions** o_out) {
@@ -464,13 +465,19 @@ void hcc_task_output_job(HccTask* t, HccWorkerJobType job_type) {
 	}
 }
 
-void hcc_task_finish(HccTask* t, bool was_successful) {
+void hcc_task_finish(HccTask* t, bool thread_that_set_error) {
+	bool was_successful = !(t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR);
+	if (!was_successful && !thread_that_set_error) {
+		return;
+	}
+
 	HccCompiler* c = t->c;
 	HccTime end_time = hcc_time_now(HCC_TIME_MODE_MONOTONIC);
 	t->duration = hcc_time_diff(end_time, t->start_time);
 	bool is_compiler_finished = atomic_fetch_sub(&c->tasks_running_count, 1) == 1;
 	if (is_compiler_finished) {
 		c->duration = hcc_time_diff(end_time, c->start_time);
+		atomic_fetch_or(&c->flags, HCC_COMPILER_FLAGS_IS_STOPPING);
 	}
 
 	if (was_successful) {
@@ -685,18 +692,11 @@ void hcc_worker_end_job(HccWorker* w) {
 		c->worker_job_type_durations[t->worker_job_type] = hcc_duration_add(c->worker_job_type_durations[t->worker_job_type], t->worker_job_type_durations[t->worker_job_type]);
 
 		if (t->worker_job_type == t->final_worker_job_type || (t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR)) {
-			bool was_successful = true;
-			if (t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
-				t->result.code = HCC_ERROR_MESSAGES;
-				c->result_data.result.code = HCC_ERROR_MESSAGES;
-				was_successful = false;
-			}
-
 			//
 			// we have finished all jobs and have reached the worker job type where we end.
 			// t->final_worker_job_type also stops any jobs being added that
 			// are later than it at the start of the hcc_compiler_give_worker_job function.
-			hcc_task_finish(w->job.task, was_successful);
+			hcc_task_finish(w->job.task, false);
 			return;
 		}
 
@@ -781,7 +781,7 @@ void hcc_worker_end_job(HccWorker* w) {
 	}
 }
 
-void hcc_worker_main(void* arg) {
+HCC_STDCALL void hcc_worker_main(void* arg) {
 	HccWorker* w = arg;
 	HccCompiler* c = w->c;
 	HCC_SET_BAIL_JMP_LOC_WORKER();
@@ -791,6 +791,10 @@ void hcc_worker_main(void* arg) {
 			//
 			// kill the thread when the compiler is stopping
 			return;
+		}
+
+		if (w->job.task->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
+			continue;
 		}
 
 		hcc_worker_start_job(w);
@@ -947,10 +951,11 @@ void hcc_compiler_give_worker_job(HccCompiler* c, HccTask* t, HccWorkerJobType j
 }
 
 bool hcc_compiler_take_or_wait_then_take_worker_job(HccCompiler* c, HccWorkerJob* job_out) {
-	hcc_semaphore_take_or_wait_then_take(&c->worker_job_queue.semaphore);
 	if (atomic_load(&c->flags) & HCC_COMPILER_FLAGS_IS_STOPPING) {
 		return false;
 	}
+
+	hcc_semaphore_take_or_wait_then_take(&c->worker_job_queue.semaphore);
 
 	//
 	// spin until we are the thread to claim this worker job

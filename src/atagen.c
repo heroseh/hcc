@@ -1902,7 +1902,7 @@ void hcc_atagen_count_extra_newlines(HccWorker* w) {
 	}
 }
 
-noreturn void hcc_atagen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...) {
+_Noreturn void hcc_atagen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...) {
 	hcc_atagen_count_extra_newlines(w);
 
 	va_list va_args;
@@ -1917,7 +1917,7 @@ noreturn void hcc_atagen_bail_error_1(HccWorker* w, HccErrorCode error_code, ...
 	hcc_bail(HCC_ERROR_MESSAGES, 0);
 }
 
-noreturn void hcc_atagen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* token_location, HccLocation* other_token_location, ...) {
+_Noreturn void hcc_atagen_bail_error_2(HccWorker* w, HccErrorCode error_code, HccLocation* token_location, HccLocation* other_token_location, ...) {
 	hcc_atagen_count_extra_newlines(w);
 
 	va_list va_args;

@@ -4,6 +4,8 @@
 
 #ifdef __linux__
 #include <vulkan/vulkan_xlib.h>
+#elif defined(_WIN32)
+#include <vulkan/vulkan_win32.h>
 #else
 #error "unsupported platform"
 #endif
@@ -13,6 +15,8 @@
 
 // each platform should have format that it wants the swapchain image to be
 #ifdef __linux__
+#define GPU_VK_SURFACE_FORMAT VK_FORMAT_B8G8R8A8_UNORM
+#elif defined(_WIN32)
 #define GPU_VK_SURFACE_FORMAT VK_FORMAT_B8G8R8A8_UNORM
 #else
 #error "unsupported platform"
@@ -144,6 +148,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			"VK_KHR_surface",
 #ifdef __linux__
 			"VK_KHR_xlib_surface",
+#elif defined(_WIN32)
+			"VK_KHR_win32_surface",
 #else
 #error "unsupported platform"
 #endif
@@ -305,6 +311,18 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		VisualID visual_id = XVisualIDFromVisual(DefaultVisual(window.instance, DefaultScreen(window.instance)));
 
 		APP_ASSERT(vkGetPhysicalDeviceXlibPresentationSupportKHR(gpu.physical_device, gpu.queue_family_idx, window.instance, visual_id), "hmm the main queue should have presentation support, haven't seen a device that doesn't!");
+#elif defined(_WIN32)
+		VkWin32SurfaceCreateInfoKHR create_info = {
+			.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+			.pNext = NULL,
+			.flags = 0,
+			.hinstance = window.instance,
+			.hwnd = (HWND)(uintptr_t)window.handle,
+		};
+
+		APP_VK_ASSERT(vkCreateWin32SurfaceKHR(gpu.instance, &create_info, NULL, &gpu.surface));
+
+		APP_ASSERT(vkGetPhysicalDeviceWin32PresentationSupportKHR(gpu.physical_device, gpu.queue_family_idx), "hmm the main queue should have presentation support, haven't seen a device that doesn't!");
 #else
 #error "unsupported platform"
 #endif
