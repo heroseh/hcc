@@ -226,12 +226,17 @@ int main(int argc, char** argv) {
 			} else {
 				snprintf(shell_command, sizeof(shell_command), "spirv-val%s --scalar-block-layout %s", HCC_EXE_EXTENSION, output_file_path);
 			}
-			if (hcc_execute_shell_command(shell_command) != 0) {
-				printf(
-					"WARNING: successfully wrote output file '%s' but failed to execute '%s'.\n"
-					"make sure you have the SPIR-V tools installed if you want SPIR-V validation and optimization done in this compiler",
-					output_file_path, shell_command
-				);
+			int res = hcc_execute_shell_command(shell_command);
+			if (res != 0) {
+				if (res == 256 /* 256 is return by the SPIR-V tools for a general error */) {
+					exit(1);
+				} else {
+					printf(
+						"WARNING: successfully wrote output file '%s' but failed to execute '%s'.\n"
+						"make sure you have the SPIR-V tools installed if you want SPIR-V validation and optimization done in this compiler",
+						output_file_path, shell_command
+					);
+				}
 			}
 		}
 	}
