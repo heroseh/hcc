@@ -1,7 +1,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <hmaths/types.h>
+#include <hmaths_types.h>
 #include <hcc_shader.h>
 
 typedef struct TextureVertex TextureVertex;
@@ -21,7 +21,7 @@ struct TextureBC {
 };
 
 #ifdef __HCC__
-#include <hmaths/maths.h>
+#include <hmaths.h>
 
 typedef struct TextureRasterizerState TextureRasterizerState;
 HCC_RASTERIZER_STATE struct TextureRasterizerState {

@@ -26,15 +26,15 @@
 
 #define APP_FRAMES_IN_FLIGHT 2
 
-#define APP_SHADERS_PATH "samples/shaders.spirv"
+#define APP_SHADERS_PATH "shaders.spirv"
 
 #define APP_LOGO_MIP_LEVELS 6
 #define APP_LOGO_WIDTH 1024
 #define APP_LOGO_HEIGHT 1024
-#define APP_LOGO_PATH_FMT "logo/logo-%u.png"
+#define APP_LOGO_PATH_FMT "texture-assets/logo-%u.png"
 #define APP_INT_ROUND_UP_ALIGN(i, align) (((i) + ((align) - 1)) & ~((align) - 1))
 
-#define APP_LOGO_VOXEL_PATH "samples/voxel-raytracer-assets/logo-256.png"
+#define APP_LOGO_VOXEL_PATH "voxel-raytracer-assets/logo-256.png"
 #define APP_LOGO_VOXEL_WIDTH  256
 #define APP_LOGO_VOXEL_HEIGHT 256
 #define APP_LOGO_VOXEL_DEPTH  32

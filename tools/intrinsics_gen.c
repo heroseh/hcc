@@ -407,7 +407,7 @@ void print_header_file_footer(const char* guard) {
 }
 
 void generate_texture_intrinsics_file(void) {
-	ctx.f = open_file_write("shader-include/hcc_texture_intrinsics.h");
+	ctx.f = open_file_write("libhccintrinsics/hcc_texture_intrinsics.h");
 	print_header_file_header("_HCC_TEXTURE_INTRINSICS_H_");
 
 	print_texture_functions(

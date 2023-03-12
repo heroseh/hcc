@@ -1,7 +1,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <hmaths/types.h>
+#include <hmaths_types.h>
 #include <hcc_shader.h>
 
 #define VOXEL_EPSILON 0.0001f
@@ -23,7 +23,7 @@ struct VoxelRaytracerBC {
 };
 
 #ifdef __HCC__
-#include <hmaths/maths.h>
+#include <hmaths.h>
 
 typedef struct AabbVsRayHit AabbVsRayHit;
 struct AabbVsRayHit {

@@ -37,6 +37,24 @@ int main(int argc, char** argv) {
 	task_setup.options = options;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
 
+	{
+		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libc"));
+		HCC_ENSURE(hcc_task_add_include_path(task, path));
+	}
+
+	{
+		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhccintrinsics"));
+		HCC_ENSURE(hcc_task_add_include_path(task, path));
+	}
+
+	{
+		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths"));
+		HCC_ENSURE(hcc_task_add_include_path(task, path));
+
+		path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths/hmaths.c"));
+		HCC_ENSURE(hcc_task_add_input_code_file(task, path.data, NULL));
+	}
+
 	int arg_idx = 1;
 	const char* output_file_path = NULL;
 	bool debug_time = false;
@@ -99,10 +117,9 @@ int main(int argc, char** argv) {
 			}
 
 			output_file_path = argv[arg_idx];
-			HccIIO binary_iio;
-			hcc_file_open_write(output_file_path, &binary_iio);
-			HCC_ENSURE(hcc_task_add_output_binary(task, &binary_iio));
-			hcc_iio_flush(&binary_iio);
+			HccIIO* binary_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
+			hcc_file_open_write(output_file_path, binary_iio);
+			HCC_ENSURE(hcc_task_add_output_binary(task, binary_iio));
 		} else if (strcmp(argv[arg_idx], "-fomc") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
@@ -117,9 +134,9 @@ int main(int argc, char** argv) {
 				exit(1);
 			}
 
-			HccIIO iio;
-			hcc_file_open_write(path, &iio);
-			HCC_ENSURE(hcc_task_add_output_metadata_c(task, &iio));
+			HccIIO* iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
+			hcc_file_open_write(path, iio);
+			HCC_ENSURE(hcc_task_add_output_metadata_c(task, iio));
 		} else if (strcmp(argv[arg_idx], "-fomjson") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
@@ -134,27 +151,30 @@ int main(int argc, char** argv) {
 				exit(1);
 			}
 
-			HccIIO iio;
-			hcc_file_open_write(path, &iio);
-			HCC_ENSURE(hcc_task_add_output_metadata_json(task, &iio));
+			HccIIO* iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
+			hcc_file_open_write(path, iio);
+			HCC_ENSURE(hcc_task_add_output_metadata_json(task, iio));
 		} else if (strcmp(argv[arg_idx], "-O") == 0) {
 			hcc_options_set_bool(options, HCC_OPTION_KEY_SPIRV_OPT, true);
 		} else if (strcmp(argv[arg_idx], "--debug-time") == 0) {
 			debug_time = true;
 		} else if (strcmp(argv[arg_idx], "--debug-ata") == 0) {
-			HccIIO stdout_iio = hcc_iio_file(stdout);
-			hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
-			HCC_ENSURE(hcc_task_add_output_ast_text(task, &stdout_iio));
+			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
+			*stdout_iio = hcc_iio_file(stdout);
+			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
+			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ATAGEN);
 		} else if (strcmp(argv[arg_idx], "--debug-ast") == 0) {
-			HccIIO stdout_iio = hcc_iio_file(stdout);
-			hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
-			HCC_ENSURE(hcc_task_add_output_ast_text(task, &stdout_iio));
+			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
+			*stdout_iio = hcc_iio_file(stdout);
+			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
+			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ASTLINK);
 		} else if (strcmp(argv[arg_idx], "--debug-aml") == 0) {
-			HccIIO stdout_iio = hcc_iio_file(stdout);
-			hcc_iio_set_ascii_colors_enabled(&stdout_iio, true);
-			HCC_ENSURE(hcc_task_add_output_aml_text(task, &stdout_iio));
+			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
+			*stdout_iio = hcc_iio_file(stdout);
+			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
+			HCC_ENSURE(hcc_task_add_output_aml_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_AMLOPT);
 		} else if (strcmp(argv[arg_idx], "--help") == 0) {
 			printf(
@@ -207,7 +227,11 @@ int main(int argc, char** argv) {
 				snprintf(shell_command, sizeof(shell_command), "spirv-val%s --scalar-block-layout %s", HCC_EXE_EXTENSION, output_file_path);
 			}
 			if (hcc_execute_shell_command(shell_command) != 0) {
-				exit(1);
+				printf(
+					"WARNING: successfully wrote output file '%s' but failed to execute '%s'.\n"
+					"make sure you have the SPIR-V tools installed if you want SPIR-V validation and optimization done in this compiler",
+					output_file_path, shell_command
+				);
 			}
 		}
 	}

@@ -452,7 +452,7 @@ HccString hcc_path_replace_file_name(HccString parent, HccString file_name) {
 	memcpy(new_buf + parent_copy_size + 1, file_name.data, file_name.size);
 	new_buf[new_buf_size - 1] = '\0';
 
-	return hcc_string(new_buf, new_buf_size);
+	return hcc_string(new_buf, new_buf_size - 1);
 }
 
 uint32_t hcc_logical_cores_count(void) {
@@ -648,7 +648,7 @@ const char* hcc_error_strings[HCC_ERROR_COUNT] = {
 };
 
 void hcc_result_print(char* what, HccResult result) {
- 	printf("%s returned: ", what);
+ 	printf("%s returned: 0x%x ", what, result.code);
 	switch (result.code) {
 		case HCC_SUCCESS:
 			printf("%s", hcc_success_strings[result.code]);

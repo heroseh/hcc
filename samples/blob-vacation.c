@@ -1,7 +1,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <hmaths/types.h>
+#include <hmaths_types.h>
 #include <hcc_shader.h>
 
 typedef struct BlobVacationBC BlobVacationBC;
@@ -12,7 +12,7 @@ struct BlobVacationBC {
 };
 
 #ifdef __HCC__
-#include <hmaths/maths.h>
+#include <hmaths.h>
 
 HCC_INVOCATION const float BLOB_MIN_DIST = 0.f;
 HCC_INVOCATION const float BLOB_MAX_DIST = 100.f;

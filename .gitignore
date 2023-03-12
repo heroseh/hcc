@@ -1,3 +1,4 @@
 build
 *.spirv
+samples/samples
 

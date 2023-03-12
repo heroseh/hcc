@@ -1,7 +1,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <hmaths/types.h>
+#include <hmaths_types.h>
 #include <hcc_shader.h>
 
 typedef struct TriangleVertex TriangleVertex;
@@ -16,7 +16,7 @@ struct TriangleBC {
 };
 
 #ifdef __HCC__
-#include <hmaths/maths.h>
+#include <hmaths.h>
 
 typedef struct TriangleRasterizerState TriangleRasterizerState;
 HCC_RASTERIZER_STATE struct TriangleRasterizerState {

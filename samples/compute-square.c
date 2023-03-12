@@ -1,7 +1,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <hmaths/types.h>
+#include <hmaths_types.h>
 #include <hcc_shader.h>
 
 typedef struct ComputeSquareBC ComputeSquareBC;
@@ -10,7 +10,7 @@ struct ComputeSquareBC {
 };
 
 #ifdef __HCC__
-#include <hmaths/maths.h>
+#include <hmaths.h>
 
 HCC_COMPUTE(8, 8, 1)
 void compute_square_cs(HccComputeSV const* const sv, ComputeSquareBC const* const bc) {

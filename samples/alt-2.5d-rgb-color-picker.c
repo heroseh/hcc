@@ -1,7 +1,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <hmaths/types.h>
+#include <hmaths_types.h>
 #include <hcc_shader.h>
 
 typedef struct ColorPickerBC ColorPickerBC;
@@ -12,7 +12,7 @@ struct ColorPickerBC {
 };
 
 #ifdef __HCC__
-#include <hmaths/maths.h>
+#include <hmaths.h>
 
 #define MAX_ITER 1000
 #define MAX_DIST 9.f
