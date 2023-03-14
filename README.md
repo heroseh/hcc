@@ -58,46 +58,46 @@ Here is a vertex & fragment shader triangle sample:
 ```c
 typedef struct Vertex Vertex;
 struct Vertex {
-	f32x2    pos;
-	uint32_t color;
+    f32x2    pos;
+    uint32_t color;
 };
 
 typedef struct TriangleBC TriangleBC;
 struct TriangleBC {
-	HccRoBuffer(Vertex) vertices;
-	f32x4               tint;
+    HccRoBuffer(Vertex) vertices;
+    f32x4               tint;
 };
 
 typedef struct RasterizerState RasterizerState;
 HCC_RASTERIZER_STATE struct RasterizerState {
-	HCC_INTERP f32x4 color;
+    HCC_INTERP f32x4 color;
 };
 
 HCC_VERTEX void triangle_vs(
-	HccVertexSV const* const sv,
-	HccVertexSVOut* const sv_out,
-	TriangleBC const* const bc,
-	RasterizerState* const state_out
+    HccVertexSV const* const sv,
+    HccVertexSVOut* const sv_out,
+    TriangleBC const* const bc,
+    RasterizerState* const state_out
 ) {
-	Vertex vertex = bc->vertices[sv->vertex_idx];
+    Vertex vertex = bc->vertices[sv->vertex_idx];
 
-	sv_out->position = f32x4(vertex.pos.x, vertex.pos.y, 0.f, 1.f);
-	state_out->color = mulG(unpack_u8x4_f32x4(vertex.color), bc->tint);
+    sv_out->position = f32x4(vertex.pos.x, vertex.pos.y, 0.f, 1.f);
+    state_out->color = mulG(unpack_u8x4_f32x4(vertex.color), bc->tint);
 }
 
 typedef struct Fragment Fragment;
 HCC_FRAGMENT_STATE struct Fragment {
-	f32x4 color;
+    f32x4 color;
 };
 
 HCC_FRAGMENT void triangle_fs(
-	HccFragmentSV const* const sv,
-	HccFragmentSVOut* const sv_out,
-	TriangleBC const* const bc,
-	RasterizerState const* const state,
-	Fragment* const frag_out
+    HccFragmentSV const* const sv,
+    HccFragmentSVOut* const sv_out,
+    TriangleBC const* const bc,
+    RasterizerState const* const state,
+    Fragment* const frag_out
 ) {
-	frag_out->color = state->color;
+    frag_out->color = state->color;
 }
 ```
 
