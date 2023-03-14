@@ -77,6 +77,7 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 
 	hcc_iio_write_fmt(iio, "typedef uint16_t %.*s;\n", (int)resource_structs_enum_name.size, resource_structs_enum_name.data);
 	hcc_iio_write_fmt(iio, "enum %.*s {\n", (int)resource_structs_enum_name.size, resource_structs_enum_name.data);
+	hcc_iio_write_fmt(iio, "\t%.*s_INVALID,\n", (int)resource_structs_enum_name.size, resource_structs_enum_name.data);
 	for (uint32_t struct_idx = 0; struct_idx < hcc_stack_count(cu->resource_structs); struct_idx += 1) {
 		HccDataType data_type = cu->resource_structs[struct_idx];
 		HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
@@ -139,6 +140,7 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 	}
 
 	hcc_iio_write_fmt(iio, "HccResourceStructInfo hcc_resource_structs[] = {\n");
+	hcc_iio_write_fmt(iio, "\t{0},\n");
 	for (uint32_t struct_idx = 0; struct_idx < hcc_stack_count(cu->resource_structs); struct_idx += 1) {
 		HccDataType data_type = cu->resource_structs[struct_idx];
 		HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);

@@ -101,7 +101,7 @@ HCC_FRAGMENT void triangle_fs(
 }
 ```
 
-## Great, how do i find out more?
+## Great, how do I find out more?
 
 You can download the latest release here:
 - [hcc-0.0.1-windows]()
@@ -111,12 +111,15 @@ We also have the documentation you can check out [here]()
 
 ## FAQ
 - Q: Do you plan on DX12 or Metal support?
-	- A: Yes, when i personally need to port a project of mine over.
+	- A: Yes, when I personally need to port a project of mine over.
 	If you would like to speed this up, I am open to work with a contributor who is willing to do the port.
 	The compiler is structured in such a way where you 'just' need to do a DXIL or MSL backend. Please use the Discord or file an Github issue if you wish to coordinate on one of these backends.
 
 - Q: Do you plan on supporting Mesh & Ray Tracing shaders?
-	- A: Yes in future when i need them personally, but i am open to coordinate with someone who is willing to implement them. Please use the Discord or file an Github issue if you wish to work on this.
+	- A: Yes in future when I need them personally, but I am open to coordinate with someone who is willing to implement them. Please use the Discord or file an Github issue if you wish to work on this.
+
+- Q: Do you plan on supporting OpenGL or DX11?
+	- A: No, unfortunately we are targeting the future of graphics programming and this is in compatible with older graphics APIs :(
 
 # Community
 
