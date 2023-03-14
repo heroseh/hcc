@@ -474,7 +474,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		.descriptor_sets = gpu.descriptor_sets,
 		.descriptor_sets_count = APP_ARRAY_COUNT(gpu.descriptor_sets),
 		.shader_stages = gpu.push_constants_stage_flags,
-		.metadata = &hcc_metadata,
+		.resource_descriptors_max = 1,
+		.bundled_constants_size_max = sizeof(ShaderBC),
 	};
 	hcc_interop_vulkan_init(&gpu.interop, &interop_setup);
 }
@@ -690,6 +691,9 @@ bool gpu_reload_shaders(void) {
 
 void gpu_render_frame(void* bc) {
 	VkResult vk_result;
+	if (gpu.pipeline == VK_NULL_HANDLE) {
+		return;
+	}
 
 	uint32_t active_frame_idx = gpu.frame_idx % APP_FRAMES_IN_FLIGHT;
 
@@ -802,7 +806,7 @@ void gpu_render_frame(void* bc) {
 		APP_VK_ASSERT(vkBeginCommandBuffer(vk_command_buffer, &begin_info));
 	}
 
-	vkCmdPushConstants(vk_command_buffer, gpu.interop.pipeline_layout, gpu.push_constants_stage_flags, 0, hcc_metadata.bundled_constants_size_max, bc);
+	vkCmdPushConstants(vk_command_buffer, gpu.interop.pipeline_layout, gpu.push_constants_stage_flags, 0, sizeof(ShaderBC), bc);
 
 	{
 		VkImageMemoryBarrier2 image_barriers[] = {

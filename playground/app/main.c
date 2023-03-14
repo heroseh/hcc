@@ -17,28 +17,41 @@
 #error "unsupported platform
 #endif
 
-void recompile_shader(void) {
-	system("clear");
+bool recompile_shader(void) {
+	printf("\033c"); // reset the terminal
+	fflush(stdout);
 
-	const char* var = getenv("HCC_EXE_DIR");
+	const char* hcc_path;
+	if (platform_file_exists("../hcc")) { // release package
+		hcc_path = "../hcc";
+	} else { // repo
+		hcc_path = "../build/hcc";
+	}
+
 	char buf[1024];
-	snprintf(buf, sizeof(buf), "%s/hcc -O -fi shader.c -fo shader.spirv -fomc shader-metadata.h", var);
+	snprintf(buf, sizeof(buf), "%s -O -fi shader.c -fo shader.spirv -fomc shader-metadata.h", hcc_path);
 	if (system(buf) == 0) {
 		time_t rawtime;
 		struct tm* timeinfo;
 		time(&rawtime);
 		timeinfo = localtime(&rawtime);
 		if (gpu_reload_shaders()) {
-			printf("SUCCESS: loaded shader.spirv at %s", asctime(timeinfo));
+			printf("SUCCESS: loaded shader.spirv at %s\n", asctime(timeinfo));
+			fflush(stdout);
+			return true;
 		} else {
-			printf("ERROR: loading shader.spirv at %s\nthis is due to a vulkan error, please send this in!", asctime(timeinfo));
+			printf("ERROR: loading shader.spirv at %s\nthis is due to a vulkan error, please send this in!\n", asctime(timeinfo));
+			fflush(stdout);
 		}
 	}
+	return false;
 }
 
 int main(int argc, char** argv) {
 	APP_UNUSED(argc);
 	APP_UNUSED(argv);
+
+	platform_open_console();
 
 	dm_init();
 

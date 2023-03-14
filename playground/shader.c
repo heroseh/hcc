@@ -29,6 +29,6 @@ HCC_FRAGMENT void fragment(
 	RasterizerState const* const state,
 	Fragment* const frag_out
 ) {
-	frag_out->color = f32x4(0.0f, 0.7f, 0.3f, 1.f);
+	frag_out->color = f32x4(0.98f, 0.7f, 0.3f, 1.f);
 }
 

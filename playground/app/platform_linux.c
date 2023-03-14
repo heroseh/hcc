@@ -37,6 +37,34 @@ bool platform_file_read_all(const char* path, void** data_out, uintptr_t* size_o
 	return true;
 }
 
+bool platform_file_exists(const char* path) {
+	return access(path, F_OK) == 0;
+}
+
+void platform_open_console(void) {
+	int fds[2];
+	if(pipe(fds) == -1) {
+		abort();
+	}
+
+	int child_pid = fork();
+	if(child_pid == -1) {
+		abort();
+	}
+
+	if(child_pid == 0) {
+		close(fds[1]);
+		char f[PATH_MAX + 1];
+		sprintf(f, "/dev/fd/%d", fds[0]);
+		execlp("xterm", "xterm", "-bg", "black", "-fg", "white", "-fa", "Monospace", "-fs", "12", "-e", "cat", f, NULL);
+		abort();
+	}
+
+	sleep(1);
+	close(fds[0]);
+	dup2(fds[1], fileno(stdout));
+}
+
 WatchedDirectory* platform_watch_directory(const char* path) {
 	WatchedDirectoryLinux* w = malloc(sizeof(WatchedDirectoryLinux));
 	w->fd = inotify_init();

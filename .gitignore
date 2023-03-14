@@ -1,4 +1,5 @@
 build
 *.spirv
 samples/samples
+playground/playground
 

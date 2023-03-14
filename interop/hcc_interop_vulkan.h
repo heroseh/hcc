@@ -23,8 +23,9 @@ struct HccInteropVulkanSetup {
 	VkDevice           device;
 	VkDescriptorSet*   descriptor_sets;
 	uint32_t           descriptor_sets_count;
+	uint32_t           resource_descriptors_max;
+	uint32_t           bundled_constants_size_max;
 	VkShaderStageFlags shader_stages;
-	HccMetadata*       metadata;
 };
 
 typedef struct HccInteropVulkan HccInteropVulkan;

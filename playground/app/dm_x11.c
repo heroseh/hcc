@@ -35,6 +35,9 @@ DmWindow dm_window_open(int width, int height) {
 	XMapWindow(d, w);
 	XSetWMProtocols(dm.display, w, &dm.delete_message_atom, 1);
 
+	XRaiseWindow(d, w);
+	XFlush(d);
+
 	return window;
 }
 

@@ -25,7 +25,7 @@ void hcc_interop_vulkan_init(HccInteropVulkan* interop, HccInteropVulkanSetup co
 			VkDescriptorSetLayoutBinding* b = &bindings[binding];
 			b->binding = binding;
 			b->descriptorType = hcc_interop_vulkan_descriptor_binding_descriptor_type[binding];
-			b->descriptorCount = setup->metadata->resource_descriptors_max;
+			b->descriptorCount = setup->resource_descriptors_max;
 			b->stageFlags = interop->shader_stages;
 			b->pImmutableSamplers = 0;
 		}
@@ -52,7 +52,7 @@ void hcc_interop_vulkan_init(HccInteropVulkan* interop, HccInteropVulkanSetup co
 		for (uint32_t binding = 0; binding < HCC_INTEROP_VULKAN_DESCRIPTOR_BINDING_COUNT; binding += 1) {
 			VkDescriptorPoolSize* p = &pool_sizes[binding];
 			p->type = hcc_interop_vulkan_descriptor_binding_descriptor_type[binding];
-			p->descriptorCount = setup->metadata->resource_descriptors_max * interop->descriptor_sets_count;
+			p->descriptorCount = setup->resource_descriptors_max * interop->descriptor_sets_count;
 		}
 
 		VkDescriptorPoolCreateInfo create_info = {
@@ -83,7 +83,7 @@ void hcc_interop_vulkan_init(HccInteropVulkan* interop, HccInteropVulkanSetup co
 		VkPushConstantRange push_constant_range = {
 			.stageFlags = interop->shader_stages,
 			.offset = 0,
-			.size = setup->metadata->bundled_constants_size_max,
+			.size = setup->bundled_constants_size_max,
 		};
 
 		VkPipelineLayoutCreateInfo create_info = {

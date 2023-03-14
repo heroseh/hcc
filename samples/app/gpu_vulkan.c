@@ -495,7 +495,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		.descriptor_sets = gpu.descriptor_sets,
 		.descriptor_sets_count = APP_ARRAY_COUNT(gpu.descriptor_sets),
 		.shader_stages = gpu.push_constants_stage_flags,
-		.metadata = &hcc_metadata,
+		.resource_descriptors_max = hcc_metadata.resource_descriptors_max,
+		.bundled_constants_size_max = hcc_metadata.bundled_constants_size_max,
 	};
 	hcc_interop_vulkan_init(&gpu.interop, &interop_setup);
 }

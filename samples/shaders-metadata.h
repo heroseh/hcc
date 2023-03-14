@@ -18,6 +18,7 @@ enum HccShader {
 
 typedef uint16_t HccResourceStruct;
 enum HccResourceStruct {
+	HccResourceStruct_INVALID,
 	HCC_RESOURCE_STRUCT_TriangleBC,
 	HCC_RESOURCE_STRUCT_ComputeSquareBC,
 	HCC_RESOURCE_STRUCT_TextureBC,
@@ -172,6 +173,7 @@ HccResourceInfo VoxelRaytracerBC_resources[] = {
 };
 
 HccResourceStructInfo hcc_resource_structs[] = {
+	{0},
 	{
 		/* .name = */            "TriangleBC",
 		/* .resources = */       TriangleBC_resources,
