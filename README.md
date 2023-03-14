@@ -1,15 +1,9 @@
 
-<style>
-img[src*='logo'] {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-}
-</style>
+<p align="center">
+	<img src="logo/logo-256.png">
+</p>
 
-![logo](logo/logo-256.png)
-
-<center><h1>Hero C Compiler</h1></center>
+<center><h1 align="center">Hero C Compiler</h1></center>
 
 HCC is a C compiler that allows you to compile your C codebase (with limitations) to SPIR-V for the Vulkan graphics API. This means you can share struct's, enum's and functions between your CPU & GPU code. HCC targets the future of GPU programming so is designed around features such as bindless resources and scalar alignment. This makes it easier to interop with the GPU and focus on writing shader code without writing your own shader build system.
 
