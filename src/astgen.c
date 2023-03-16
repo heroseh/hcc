@@ -881,6 +881,22 @@ HccATAToken hcc_astgen_curly_initializer_open(HccWorker* w) {
 
 HccATAToken hcc_astgen_curly_initializer_close(HccWorker* w, bool is_finished) {
 	HccASTGenCurlyInitializer* gen = &w->astgen.curly_initializer;
+	if (is_finished) {
+		HccASTGenCurlyInitializerElmt* nested_elmt = hcc_stack_get_last(gen->nested_elmts);
+		if (gen->elmts_end_idx == UINT64_MAX) {
+			//
+			// we have finished the curly initializer and the outer type is an unsized array.
+			// lets resolve that size here.
+			HCC_ASSERT(HCC_DATA_TYPE_IS_ARRAY(gen->composite_data_type), "expected an array type as we have a unsized array we are resolving a size for");
+			HCC_ASSERT(gen->array_data_type->element_count_constant_id.idx_plus_one == 0, "expected null constant id for unsized array element count");
+
+			uint64_t element_count = nested_elmt->elmt_idx + 1;
+			HccBasic basic = hcc_basic_from_uint(w->cu, HCC_DATA_TYPE_AST_BASIC_UINT, element_count);
+			HccConstantId element_count_constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AST_BASIC_UINT, &basic);
+
+			gen->composite_data_type = hcc_array_data_type_deduplicate(w->cu, gen->array_data_type->element_data_type, element_count_constant_id);
+		}
+	}
 
 	//
 	// restore the elements back to where the parent curly initializer was inserted.
@@ -1144,9 +1160,13 @@ void hcc_astgen_curly_initializer_set_composite(HccWorker* w, HccDataType data_t
 	if (HCC_DATA_TYPE_IS_ARRAY(gen->resolved_composite_data_type)) {
 		gen->array_data_type = hcc_array_data_type_get(w->cu, gen->resolved_composite_data_type);
 
-		HccConstant constant = hcc_constant_table_get(w->cu, gen->array_data_type->element_count_constant_id);
 		uint64_t cap;
-		hcc_constant_as_uint(w->cu, constant, &cap);
+		if (gen->array_data_type->element_count_constant_id.idx_plus_one == 0) {
+			cap = UINT64_MAX;
+		} else {
+			HccConstant constant = hcc_constant_table_get(w->cu, gen->array_data_type->element_count_constant_id);
+			hcc_constant_as_uint(w->cu, constant, &cap);
+		}
 
 		gen->elmt_data_type = gen->array_data_type->element_data_type;
 		gen->resolved_elmt_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, gen->elmt_data_type);
@@ -1654,7 +1674,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 				};
 				default: {
 					HccDataType alignas_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_INVALID_ALIGNAS_OPERAND, true);
-					alignas_data_type = hcc_astgen_generate_array_data_type_if_exists(w, alignas_data_type);
+					alignas_data_type = hcc_astgen_generate_array_data_type_if_exists(w, alignas_data_type, false);
 					uint64_t unused_size;
 					hcc_data_type_size_align(w->cu, alignas_data_type, &unused_size, &alignas_align);
 					token = hcc_ata_iter_peek(w->astgen.token_iter);
@@ -1761,7 +1781,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			compound_data_type.field_identifiers_hash = hcc_hash_fnv_64(&field_identifier_string_id, sizeof(field_identifier_string_id), compound_data_type.field_identifiers_hash);
 
 			token = hcc_ata_iter_next(w->astgen.token_iter);
-			compound_field->data_type = hcc_astgen_generate_array_data_type_if_exists(w, compound_field->data_type);
+			compound_field->data_type = hcc_astgen_generate_array_data_type_if_exists(w, compound_field->data_type, false);
 		}
 		hcc_astgen_ensure_semicolon(w);
 		token = hcc_ata_iter_peek(w->astgen.token_iter);
@@ -2337,11 +2357,13 @@ HccDataType hcc_astgen_generate_pointer_data_type_if_exists(HccWorker* w, HccDat
 	}
 	hcc_ata_iter_next(w->astgen.token_iter);
 
+	if (!w->astgen.allow_pointer) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_POINTERS_NOT_SUPPORTED);
+	}
+
 	if (HCC_DATA_TYPE_IS_POINTER(element_data_type)) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_ONLY_SINGLE_POINTERS_ARE_SUPPORTED);
 	}
-
-	bool TODO_POINTER_TYPE_FOR_ALL_THE_OTHER_THINGS = false;
 
 	HccDataType resolved_element_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, element_data_type);
 	HccDataType data_type = hcc_pointer_data_type_deduplicate(w->cu, element_data_type);
@@ -2373,39 +2395,43 @@ HccDataType hcc_astgen_generate_pointer_data_type_if_exists(HccWorker* w, HccDat
 	return hcc_astgen_generate_pointer_data_type_if_exists(w, data_type);
 }
 
-HccDataType hcc_astgen_generate_array_data_type_if_exists(HccWorker* w, HccDataType element_data_type) {
+HccDataType hcc_astgen_generate_array_data_type_if_exists(HccWorker* w, HccDataType element_data_type, bool allow_unsized) {
 	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
 	if (token != HCC_ATA_TOKEN_SQUARE_OPEN) {
 		return element_data_type;
 	}
 
+	HccConstantId size_constant_id = {0};
 	token = hcc_ata_iter_next(w->astgen.token_iter);
 	if (token == HCC_ATA_TOKEN_SQUARE_CLOSE) {
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_ARRAY_SIZE);
-	}
+		if (!allow_unsized) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_ARRAY_SIZE);
+		}
+	} else {
+		HccASTExpr* size_expr = hcc_astgen_generate_expr(w, 0);
+		if (size_expr->type != HCC_AST_EXPR_TYPE_CONSTANT || !HCC_DATA_TYPE_IS_AST_BASIC(size_expr->data_type) || !HCC_AST_BASIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(size_expr->data_type))) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_ARRAY_SIZE);
+		}
 
-	HccASTExpr* size_expr = hcc_astgen_generate_expr(w, 0);
-	if (size_expr->type != HCC_AST_EXPR_TYPE_CONSTANT || !HCC_DATA_TYPE_IS_AST_BASIC(size_expr->data_type) || !HCC_AST_BASIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(size_expr->data_type))) {
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_ARRAY_SIZE);
-	}
+		HccConstant constant = hcc_constant_table_get(w->cu, size_expr->constant.id);
+		uint64_t size;
+		if (!hcc_constant_as_uint(w->cu, constant, &size)) {
+			hcc_astgen_error_1(w, HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_NEGATIVE);
+		}
+		if (size == 0) {
+			hcc_astgen_error_1(w, HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_ZERO);
+		}
 
-	HccConstant constant = hcc_constant_table_get(w->cu, size_expr->constant.id);
-	uint64_t size;
-	if (!hcc_constant_as_uint(w->cu, constant, &size)) {
-		hcc_astgen_error_1(w, HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_NEGATIVE);
-	}
-	if (size == 0) {
-		hcc_astgen_error_1(w, HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_ZERO);
-	}
-
-	token = hcc_ata_iter_peek(w->astgen.token_iter);
-	if (token != HCC_ATA_TOKEN_SQUARE_CLOSE) {
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_ARRAY_DECL_EXPECTED_SQUARE_BRACE_CLOSE);
+		token = hcc_ata_iter_peek(w->astgen.token_iter);
+		if (token != HCC_ATA_TOKEN_SQUARE_CLOSE) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_ARRAY_DECL_EXPECTED_SQUARE_BRACE_CLOSE);
+		}
+		size_constant_id = size_expr->constant.id;
 	}
 	token = hcc_ata_iter_next(w->astgen.token_iter);
 
-	HccDataType data_type = hcc_array_data_type_deduplicate(w->cu, element_data_type, size_expr->constant.id);
-	data_type = hcc_astgen_generate_array_data_type_if_exists(w, data_type);
+	HccDataType data_type = hcc_astgen_generate_array_data_type_if_exists(w, element_data_type, false);
+	data_type = hcc_array_data_type_deduplicate(w->cu, data_type, size_constant_id);
 	return data_type;
 }
 
@@ -2426,7 +2452,7 @@ HccDataType hcc_astgen_generate_typedef_with_data_type(HccWorker* w, HccDataType
 	HccLocation* identifier_location = hcc_ata_iter_location(w->astgen.token_iter);
 	HccStringId identifier_string_id = hcc_ata_iter_next_value(w->astgen.token_iter).string_id;
 	hcc_ata_iter_next(w->astgen.token_iter);
-	aliased_data_type = hcc_astgen_generate_array_data_type_if_exists(w, aliased_data_type);
+	aliased_data_type = hcc_astgen_generate_array_data_type_if_exists(w, aliased_data_type, false);
 
 	hcc_astgen_validate_specifiers(w, HCC_ASTGEN_SPECIFIER_FLAGS_ALL_NON_TYPEDEF_SPECIFIERS, HCC_ERROR_CODE_INVALID_SPECIFIER_FOR_TYPEDEF);
 
@@ -2643,6 +2669,7 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 				HccDecl decl = entry->decl;
 				if (HCC_DECL_IS_DATA_TYPE(decl)) {
 					HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_DATA_TYPE);
+					decl = hcc_astgen_generate_pointer_data_type_if_exists(w, decl);
 					expr->data_type = decl;
 					expr->location = location;
 					return expr;
@@ -2828,6 +2855,9 @@ UNARY:
 CURLY_INITIALIZER_FINISH: {}
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 			curly_initializer_expr->curly_initializer.first_expr = gen->first_initializer_expr;
+			if (gen->elmts_end_idx == UINT64_MAX) { // if curly initializer was for an unsized array
+				curly_initializer_expr->data_type = gen->composite_data_type; // for unsized arrays this will set the resolved size array type
+			}
 
 			//
 			// if we have nested into another curly initializer expression
@@ -2924,7 +2954,7 @@ CURLY_INITIALIZER_FINISH: {}
 						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NON_VOID_DATA_TYPE);
 					}
 					data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, data_type);
-					case_stmt->generic_case.data_type = hcc_astgen_generate_array_data_type_if_exists(w, data_type);
+					case_stmt->generic_case.data_type = hcc_astgen_generate_array_data_type_if_exists(w, data_type, false);
 
 					HccASTExpr* case_stmt_iter = case_stmt_head;
 					while (case_stmt_iter) {
@@ -2993,7 +3023,7 @@ CURLY_INITIALIZER_FINISH: {}
 		default: {
 			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			HccDataType data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_EXPR, true);
-			data_type = hcc_astgen_generate_array_data_type_if_exists(w, data_type);
+			data_type = hcc_astgen_generate_array_data_type_if_exists(w, data_type, false);
 			HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_DATA_TYPE);
 			expr->data_type = data_type;
 			expr->location = location;
@@ -3485,7 +3515,7 @@ FIELD_ACCESS: {}
 			if (HCC_AST_BINARY_OP_EQUAL <= binary_op && binary_op <= HCC_AST_BINARY_OP_LOGICAL_OR) {
 				data_type = HCC_DATA_TYPE_AST_BASIC_BOOL;
 			} else {
-				data_type = left_expr->data_type; // TODO make implicit conversions explicit in the AST and make the error above work correctly
+				data_type = left_expr->data_type;
 			}
 			data_type = HCC_DATA_TYPE_STRIP_CONST(data_type);
 
@@ -3622,7 +3652,7 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 	variable.ast_file = w->astgen.ast_file;
 	variable.identifier_string_id = identifier_string_id;
 	variable.identifier_location = identifier_location;
-	variable.data_type = hcc_astgen_generate_array_data_type_if_exists(w, *data_type_mut);
+	variable.data_type = hcc_astgen_generate_array_data_type_if_exists(w, *data_type_mut, true);
 	variable.initializer_constant_id.idx_plus_one = 0;
 	if (is_global) {
 		if (found_invocation) {
@@ -3646,12 +3676,23 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		hcc_astgen_error_1(w, HCC_ERROR_CODE_THREAD_LOCAL_UNSUPPORTED_ON_SPIRV);
 	}
 
-	*data_type_mut = variable.data_type;
 	token = hcc_ata_iter_peek(w->astgen.token_iter);
 	hcc_astgen_data_type_ensure_valid_variable(w, variable.data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE);
 
+	HccArrayDataType* array_data_type;
+	bool is_unsized_array = false;
+	if (HCC_DATA_TYPE_IS_ARRAY(variable.data_type)) {
+		array_data_type = hcc_array_data_type_get(w->cu, variable.data_type);
+		is_unsized_array = array_data_type->element_count_constant_id.idx_plus_one == 0;
+	}
+
 	switch (token) {
 		case HCC_ATA_TOKEN_SEMICOLON:
+			if (is_unsized_array) {
+				HccString identifier_string = hcc_string_table_get(identifier_string_id);
+				HccString data_type_name = hcc_data_type_string(w->cu, array_data_type->element_data_type);
+				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNSIZED_ARRAY_REQUIRES_AN_INITIALIZATION, (int)data_type_name.size, data_type_name.data, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data, (int)identifier_string.size, identifier_string.data);
+			}
 			if (init_expr_out) *init_expr_out = NULL;
 			break;
 		case HCC_ATA_TOKEN_EQUAL: {
@@ -3665,7 +3706,28 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 			HccASTExpr* init_expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
 			HccLocation* other_location = NULL;
 			HccDataType variable_data_type = HCC_DATA_TYPE_STRIP_CONST(variable.data_type);
-			hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, variable_data_type, &init_expr);
+
+			//
+			// try to resolve the size for assignment to an unsized array
+			bool check = true;
+			if (is_unsized_array) {
+				HccDataType resolved_init_expr_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, init_expr->data_type);
+				if (HCC_DATA_TYPE_IS_ARRAY(resolved_init_expr_data_type)) {
+					HccArrayDataType* right_array_data_type = hcc_array_data_type_get(w->cu, resolved_init_expr_data_type);
+					HccDataType resolved_element_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, array_data_type->element_data_type);
+					HccDataType resolved_right_element_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, right_array_data_type->element_data_type);
+					if (resolved_element_data_type == resolved_right_element_data_type) {
+						//
+						// success, set the variable to be the sized array data type from the expression
+						check = false;
+						variable.data_type = init_expr->data_type;
+					}
+				}
+			}
+			if (check) {
+				hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, variable_data_type, &init_expr);
+			}
+
 			w->astgen.assign_data_type = HCC_DATA_TYPE_AST_BASIC_VOID;
 
 			if (variable.storage_duration != HCC_AST_STORAGE_DURATION_AUTOMATIC) {
@@ -3684,6 +3746,7 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		default:
 			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_VARIABLE_DECL_TERMINATOR);
 	}
+	*data_type_mut = variable.data_type;
 
 	HccCU* cu = w->cu;
 	HccDecl decl = 0;
@@ -4330,6 +4393,12 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 	function.return_data_type = return_data_type;
 	function.return_data_type_location = return_data_type_location;
 
+	bool is_intrinsic =
+		HCC_STRING_ID_INTRINSIC_FUNCTIONS_START <= identifier_string_id.idx_plus_one &&
+		identifier_string_id.idx_plus_one < HCC_STRING_ID_INTRINSIC_FUNCTIONS_END;
+
+	w->astgen.allow_pointer = is_intrinsic || shader_stage != HCC_SHADER_STAGE_NONE;
+
 	hcc_astgen_variable_stack_open(w);
 
 	token = hcc_ata_iter_next(w->astgen.token_iter);
@@ -4398,6 +4467,8 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 		}
 	}
 	token = hcc_ata_iter_next(w->astgen.token_iter);
+
+	w->astgen.allow_pointer = false;
 
 	//
 	// validate the function prototype for shader stage entry points if this function is one
@@ -4572,10 +4643,6 @@ END: {}
 	function.variables_count = w->astgen.next_var_idx;
 	function.function_data_type = hcc_function_data_type_deduplicate(w->cu, function.return_data_type, &function.params_and_variables->data_type, function.params_count, sizeof(HccASTVariable));
 	hcc_astgen_variable_stack_close(w);
-
-	bool is_intrinsic =
-		HCC_STRING_ID_INTRINSIC_FUNCTIONS_START <= identifier_string_id.idx_plus_one &&
-		identifier_string_id.idx_plus_one < HCC_STRING_ID_INTRINSIC_FUNCTIONS_END;
 
 	HccDecl decl = 0;
 	bool is_definition = w->astgen.function != NULL;

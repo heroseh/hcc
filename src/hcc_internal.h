@@ -1891,6 +1891,7 @@ struct HccASTGen {
 
 	HccASTGenSwitchState switch_state;
 	bool is_in_loop;
+	bool allow_pointer;
 	uint32_t compute_dispatch_group_size_x;
 	uint32_t compute_dispatch_group_size_y;
 	uint32_t compute_dispatch_group_size_z;
@@ -1982,7 +1983,7 @@ HccATAToken hcc_astgen_generate_type_specifiers(HccWorker* w, HccLocation* locat
 HccATAToken hcc_astgen_generate_type_specifiers_post_qualifiers(HccWorker* w, HccLocation* location, HccASTGenTypeSpecifier* type_specifiers_mut);
 HccDataType hcc_astgen_generate_data_type(HccWorker* w, HccErrorCode error_code, bool want_concrete_type);
 HccDataType hcc_astgen_generate_pointer_data_type_if_exists(HccWorker* w, HccDataType element_data_type);
-HccDataType hcc_astgen_generate_array_data_type_if_exists(HccWorker* w, HccDataType element_data_type);
+HccDataType hcc_astgen_generate_array_data_type_if_exists(HccWorker* w, HccDataType element_data_type, bool allow_unsized);
 HccDataType hcc_astgen_generate_typedef(HccWorker* w);
 HccDataType hcc_astgen_generate_typedef_with_data_type(HccWorker* w, HccDataType aliased_data_type);
 void hcc_astgen_generate_implicit_cast(HccWorker* w, HccDataType dst_data_type, HccASTExpr** expr_mut);

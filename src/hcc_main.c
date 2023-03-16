@@ -205,16 +205,17 @@ int main(int argc, char** argv) {
 	hcc_compiler_dispatch_task(compiler, task);
 	HccResult result = hcc_task_wait_for_complete(task);
 
-	if (result.code == HCC_ERROR_MESSAGES) {
-		HccIIO iio = hcc_iio_file(stdout);
-		hcc_iio_set_ascii_colors_enabled(&iio, true);
+	HccIIO iio = hcc_iio_file(stdout);
+	hcc_iio_set_ascii_colors_enabled(&iio, true);
 
-		uint32_t messages_count;
-		HccMessage* messages = hcc_task_messages(task, &messages_count);
-		for (uint32_t idx = 0; idx < messages_count; idx += 1) {
-			HccMessage* m = hcc_stack_get(messages, idx);
-			hcc_message_print(&iio, m);
-		}
+	uint32_t messages_count;
+	HccMessage* messages = hcc_task_messages(task, &messages_count);
+	for (uint32_t idx = 0; idx < messages_count; idx += 1) {
+		HccMessage* m = hcc_stack_get(messages, idx);
+		hcc_message_print(&iio, m);
+	}
+
+	if (result.code == HCC_ERROR_MESSAGES) {
 		return 1;
 	} else {
 		HCC_ENSURE(result);

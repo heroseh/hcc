@@ -19,7 +19,6 @@
 
 bool recompile_shader(void) {
 	printf("\033c"); // reset the terminal
-	fflush(stdout);
 
 	const char* hcc_path;
 	if (platform_file_exists("../hcc")) { // release package
@@ -36,12 +35,10 @@ bool recompile_shader(void) {
 		time(&rawtime);
 		timeinfo = localtime(&rawtime);
 		if (gpu_reload_shaders()) {
-			printf("SUCCESS: loaded shader.spirv at %s\n", asctime(timeinfo));
-			fflush(stdout);
+			printf("SUCCESS: loaded shader.spirv at %s\n1. open shader.c\n2. make edits\n3. save the file\n4. watch this window for success and errors messages\n5. read the docs and samples and enjoy :)\n", asctime(timeinfo));
 			return true;
 		} else {
 			printf("ERROR: loading shader.spirv at %s\nthis is due to a vulkan error, please send this in!\n", asctime(timeinfo));
-			fflush(stdout);
 		}
 	}
 	return false;

@@ -2711,11 +2711,26 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 				break;
 			};
 			case HCC_DATA_TYPE_ARRAY: {
-				HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
+				HccArrayDataType* d;
+				uint32_t string_size = 0;
+				do {
+					d = hcc_array_data_type_get(cu, data_type);
+
+					uint64_t element_count = hcc_array_data_type_element_count(cu, d);
+					if (element_count == UINT64_MAX) {
+						string_size += snprintf(buf + string_size, sizeof(buf) - string_size, "[]");
+					} else {
+						string_size += snprintf(buf + string_size, sizeof(buf) - string_size, "[%zu]", element_count);
+					}
+
+					data_type = hcc_decl_resolve_and_strip_qualifiers(cu, d->element_data_type);
+				} while (HCC_DATA_TYPE_IS_ARRAY(data_type));
+
 				HccString element_string = hcc_data_type_string(cu, d->element_data_type);
-				uint64_t element_count = hcc_array_data_type_element_count(cu, d);
-				uint32_t string_size = snprintf(buf, sizeof(buf), "%.*s[%zu]", (int)element_string.size, element_string.data, element_count);
-				string = hcc_string(buf, string_size);
+
+				char buf2[1024];
+				string_size = snprintf(buf2, sizeof(buf2), "%.*s%.*s", (int)element_string.size, element_string.data, string_size, buf);
+				string = hcc_string(buf2, string_size);
 				break;
 			};
 			case HCC_DATA_TYPE_STRUCT:
@@ -3765,6 +3780,9 @@ HccConstantId hcc_array_data_type_element_count_constant_id(HccArrayDataType* dt
 }
 
 uint64_t hcc_array_data_type_element_count(HccCU* cu, HccArrayDataType* dt) {
+	if (dt->element_count_constant_id.idx_plus_one == 0) {
+		return UINT64_MAX;
+	}
 	HccConstant constant = hcc_constant_table_get(cu, dt->element_count_constant_id);
 	uint64_t element_count;
 	HCC_DEBUG_ASSERT(hcc_constant_as_uint(cu, constant, &element_count), "internal error: array element count is not an unsigned integer");
@@ -4765,6 +4783,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE] = "'%.*s' data type is not supported as a variable. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE] = "'%.*s' data type is not supported as a pointer data type. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
 		[HCC_ERROR_CODE_ONLY_SINGLE_POINTERS_ARE_SUPPORTED] = "only a single pointer is supported",
+		[HCC_ERROR_CODE_POINTERS_NOT_SUPPORTED] = "pointers are not supported outside of entry point and intrinsics function prototypes",
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_VAR_USED_BEFORE_ASSIGNED] = "texture, buffer or pointer has been used before it has been assigned too",
 		[HCC_ERROR_CODE_LOGICAL_ADDRESSED_CONDITIONALLY_ASSIGNED_BEFORE_USE] = "texture, buffer or pointer has been conditionally assigned too before being used. we need to know these value of this variable at compile time.",
 		[HCC_ERROR_CODE_NON_CONST_STATIC_VARIABLE_CANNOT_BE_LOGICALLY_ADDRESSED] = "non-const static variable cannot be a texture, buffer or pointer",
@@ -4782,6 +4801,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE] = "expected an non-zero positive integer for the dispatch group size",
 		[HCC_ERROR_CODE_EXPECTED_COMMA_COMPUTE] = "expected ',' to define the next dimension of the dispatch group size",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_COMPUTE] = "expected ')' to finish the HCC_COMPUTE specifier",
+		[HCC_ERROR_CODE_UNSIZED_ARRAY_REQUIRES_AN_INITIALIZATION] = "a variable that is an unsized array requires initialization, '%.*s %.*s[] = { ... };' or an explicit size '%.*s %.*s[42];'",
 
 		//
 		// ASTLINK

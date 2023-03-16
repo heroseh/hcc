@@ -63,6 +63,7 @@ void platform_open_console(void) {
 	sleep(1);
 	close(fds[0]);
 	dup2(fds[1], fileno(stdout));
+	setbuf(stdout, NULL);
 }
 
 WatchedDirectory* platform_watch_directory(const char* path) {

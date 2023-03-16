@@ -971,12 +971,16 @@ CONSTANT: {}
 			HccArrayDataType* d = hcc_stack_get(cu->dtt.arrays, array_type_idx);
 			HccString data_type_name = hcc_data_type_string(cu, d->element_data_type);
 
-			HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
+			if (d->element_count_constant_id.idx_plus_one) {
+				HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
 
-			uint64_t count;
-			HCC_DEBUG_ASSERT(hcc_constant_as_uint(cu, constant, &count), "internal error: expected to be a unsigned int");
+				uint64_t count;
+				HCC_DEBUG_ASSERT(hcc_constant_as_uint(cu, constant, &count), "internal error: expected to be a unsigned int");
 
-			hcc_iio_write_fmt(iio, "ARRAY(#%u): %.*s[%zu]\n", array_type_idx, (int)data_type_name.size, data_type_name.data, count);
+				hcc_iio_write_fmt(iio, "ARRAY(#%u): %.*s[%zu]\n", array_type_idx, (int)data_type_name.size, data_type_name.data, count);
+			} else {
+				hcc_iio_write_fmt(iio, "ARRAY(#%u): %.*s[]\n", array_type_idx, (int)data_type_name.size, data_type_name.data);
+			}
 		}
 	}
 
