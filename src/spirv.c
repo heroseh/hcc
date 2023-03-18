@@ -296,6 +296,16 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 				operands[2] = HCC_SPIRV_DECORATION_OFFSET;
 				operands[3] = field->byte_offset;
 			}
+		} else if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
+			HccArrayDataType* dt = hcc_array_data_type_get(cu, data_type);
+			uint64_t element_size;
+			uint64_t element_align;
+			hcc_data_type_size_align(cu, dt->element_data_type, &element_size, &element_align);
+
+			operands = hcc_spirv_add_decorate(cu, 3);
+			operands[0] = spirv_id;
+			operands[1] = HCC_SPIRV_DECORATION_ARRAY_STRIDE;
+			operands[2] = element_size;
 		} else if (HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(data_type)) {
 			if (HCC_DATA_TYPE_IS_BUFFER(data_type)) {
 				operands = hcc_spirv_add_decorate(cu, 2);

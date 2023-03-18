@@ -359,6 +359,10 @@ const HccAMLFunction* hcc_amlopt_check_for_unsupported_features(HccWorker* w, Hc
 					hcc_amlopt_error_1(w, HCC_ERROR_CODE_HLSL_PACKING_NO_UNION, field->identifier_location);
 					break;
 				}
+				if (HCC_DATA_TYPE_IS_ARRAY(field_data_type)) {
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_HLSL_PACKING_NO_ARRAY, field->identifier_location);
+					break;
+				}
 
 				uint64_t size, align;
 				hcc_data_type_size_align(cu, field_data_type, &size, &align);

@@ -4842,6 +4842,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_FRAGMENT_SHADER] = "function '%.*s' cannot be used outside of a fragment shader! callstack:\n%s",
 		[HCC_ERROR_CODE_HLSL_PACKING_NO_STRUCT] = "HLSL packing rules do not allow structs. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_NO_UNION] = "HLSL packing rules do not allow unions. in future will a proper DXIL backend this error could be worked around",
+		[HCC_ERROR_CODE_HLSL_PACKING_NO_ARRAY] = "HLSL packing rules do not allow arrays. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_SIZE_UNDER_4_BYTE] = "HLSL packing rules do not data types under 4 bytes. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_IMPLICIT_PADDING] = "HLSL packing rules do not allow implicit padding before field. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_OVERFLOW_16_BYTE_BOUNDARY] = "HLSL packing rules do not allow overflowing a 16 byte boundary. in future will a proper DXIL backend this error could be worked around",
