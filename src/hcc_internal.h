@@ -197,6 +197,7 @@ bool hcc_path_is_relative(const char* path);
 bool hcc_path_exists(const char* path);
 bool hcc_path_is_file(const char* path);
 bool hcc_path_is_directory(const char* path);
+bool hcc_make_directory(const char* path);
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name);
 uint32_t hcc_logical_cores_count(void);
 int hcc_execute_shell_command(const char* shell_command);
@@ -2551,6 +2552,14 @@ enum {
 
 enum {
 	HCC_SPIRV_CAPABILITY_SHADER = 1,
+	HCC_SPIRV_CAPABILITY_VECTOR16 = 7,
+	HCC_SPIRV_CAPABILITY_FLOAT16_BUFFER = 8,
+	HCC_SPIRV_CAPABILITY_FLOAT16 = 9,
+	HCC_SPIRV_CAPABILITY_FLOAT64 = 10,
+	HCC_SPIRV_CAPABILITY_INT64 = 11,
+	HCC_SPIRV_CAPABILITY_INT64_ATOMICS = 12,
+	HCC_SPIRV_CAPABILITY_INT16 = 22,
+	HCC_SPIRV_CAPABILITY_INT8 = 39,
 	HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_READ_WITHOUT_FORMAT = 55,
 	HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT = 56,
 	HCC_SPIRV_CAPABILITY_VULKAN_MEMORY_MODEL = 5345,

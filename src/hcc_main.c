@@ -58,6 +58,8 @@ int main(int argc, char** argv) {
 	int arg_idx = 1;
 	const char* output_file_path = NULL;
 	bool debug_time = false;
+	const char* hlsl_dir = NULL;
+	const char* msl_dir = NULL;
 	while (arg_idx < argc) {
 		if (strcmp(argv[arg_idx], "-I") == 0) {
 			arg_idx += 1;
@@ -156,6 +158,35 @@ int main(int argc, char** argv) {
 			HCC_ENSURE(hcc_task_add_output_metadata_json(task, iio));
 		} else if (strcmp(argv[arg_idx], "-O") == 0) {
 			hcc_options_set_bool(options, HCC_OPTION_KEY_SPIRV_OPT, true);
+		} else if (strcmp(argv[arg_idx], "--hlsl-packing") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_HLSL_PACKING, true);
+		} else if (strcmp(argv[arg_idx], "--hlsl") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "'--hlsl' is missing a following input directory path to follow '--hlsl path/to/directory'");
+				exit(1);
+			}
+
+			hlsl_dir = argv[arg_idx];
+
+			if (hcc_path_exists(hlsl_dir) && hcc_path_is_file(hlsl_dir)) {
+				fprintf(stderr, "--hlsl '%s' path is a file and not a directory", hlsl_dir);
+				exit(1);
+			}
+			hcc_options_set_bool(options, HCC_OPTION_KEY_HLSL_PACKING, true);
+		} else if (strcmp(argv[arg_idx], "--msl") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "'--msl' is missing a following input directory path to follow '--msl path/to/directory'");
+				exit(1);
+			}
+
+			msl_dir = argv[arg_idx];
+
+			if (hcc_path_exists(msl_dir) && hcc_path_is_file(msl_dir)) {
+				fprintf(stderr, "--msl '%s' path is a file and not a directory", msl_dir);
+				exit(1);
+			}
 		} else if (strcmp(argv[arg_idx], "--debug-time") == 0) {
 			debug_time = true;
 		} else if (strcmp(argv[arg_idx], "--debug-ata") == 0) {
@@ -164,18 +195,21 @@ int main(int argc, char** argv) {
 			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
 			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ATAGEN);
+			output_file_path = NULL;
 		} else if (strcmp(argv[arg_idx], "--debug-ast") == 0) {
 			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
 			*stdout_iio = hcc_iio_file(stdout);
 			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
 			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ASTLINK);
+			output_file_path = NULL;
 		} else if (strcmp(argv[arg_idx], "--debug-aml") == 0) {
 			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
 			*stdout_iio = hcc_iio_file(stdout);
 			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
 			HCC_ENSURE(hcc_task_add_output_aml_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_AMLOPT);
+			output_file_path = NULL;
 		} else if (strcmp(argv[arg_idx], "--help") == 0) {
 			printf(
 				"hcc version 0.0.1 help:\n"
@@ -186,6 +220,9 @@ int main(int argc, char** argv) {
 				"\t-fomc <path>.h     | <path>.h to where you want the output metadata file to go\n"
 				"\t-I    <path>       | add an include search directory path for #include <...>\n"
 				"\t-O                 | turn on optimizations, currently using spirv-opt\n"
+				"\t--hlsl-packing     | errors on bundled constants if they do not follow the HLSL packing rules for cbuffers. --hlsl also enables this\n"
+				"\t--hlsl <path>      | path to a directory where the HLSL files will go. requires spirv-cross to be installed\n"
+				"\t--msl <path>        | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
 				"\t--help             | displays this prompt and then exits\n"
 				"\t--debug-time       | prints the duration of each compiliation stage of the compiler\n"
 				"\t--debug-ata        | prints the Abstract Token Array made by the compiler, it will stop after ATAGEN stage\n"
@@ -230,6 +267,7 @@ int main(int argc, char** argv) {
 			int res = hcc_execute_shell_command(shell_command);
 			if (res != 0) {
 				if (res == 256 /* 256 is return by the SPIR-V tools for a general error */) {
+					printf("Please report this error on the HCC github issue tracker\n");
 					exit(1);
 				} else {
 					printf(
@@ -237,6 +275,78 @@ int main(int argc, char** argv) {
 						"make sure you have the SPIR-V tools installed if you want SPIR-V validation and optimization done in this compiler",
 						output_file_path, shell_command
 					);
+				}
+			}
+
+			if (hlsl_dir) {
+				HccCU* cu = task->cu;
+				if (!hcc_make_directory(hlsl_dir) && !hcc_path_is_directory(hlsl_dir)) {
+					char buf[1024];
+					hcc_get_last_system_error_string(buf, sizeof(buf));
+					fprintf(stderr, "failed to make directory at '%s': %s\n", hlsl_dir, buf);
+					exit(1);
+				}
+
+				for (uint32_t shader_idx = 0; shader_idx < hcc_stack_count(cu->shader_function_decls); shader_idx += 1) {
+					HccDecl decl = cu->shader_function_decls[shader_idx];
+					HccASTFunction* function = hcc_ast_function_get(cu, decl);
+					HccString function_name = hcc_string_table_get(function->identifier_string_id);
+
+					snprintf(
+						shell_command, sizeof(shell_command),
+						"spirv-cross%s --hlsl --shader-model 67 --entry %.*s %s --output %s/%.*s.hlsl",
+						HCC_EXE_EXTENSION, (int)function_name.size, function_name.data, output_file_path, hlsl_dir, (int)function_name.size, function_name.data
+					);
+
+					int res = hcc_execute_shell_command(shell_command);
+					if (res != 0) {
+						if (res == 256 /* 256 is return by the SPIR-V tools for a general error */) {
+							printf("Please report this error on the HCC github issue tracker\n");
+							exit(1);
+						} else {
+							printf(
+								"WARNING: successfully wrote output file '%s' but failed to execute '%s'.\n"
+								"make sure you have the SPIR-V tools installed if you want SPIR-V validation and optimization done in this compiler",
+								output_file_path, shell_command
+							);
+						}
+					}
+				}
+			}
+
+			if (msl_dir) {
+				HccCU* cu = task->cu;
+				if (!hcc_make_directory(msl_dir) && !hcc_path_is_directory(msl_dir)) {
+					char buf[1024];
+					hcc_get_last_system_error_string(buf, sizeof(buf));
+					fprintf(stderr, "failed to make directory at '%s': %s\n", msl_dir, buf);
+					exit(1);
+				}
+
+				for (uint32_t shader_idx = 0; shader_idx < hcc_stack_count(cu->shader_function_decls); shader_idx += 1) {
+					HccDecl decl = cu->shader_function_decls[shader_idx];
+					HccASTFunction* function = hcc_ast_function_get(cu, decl);
+					HccString function_name = hcc_string_table_get(function->identifier_string_id);
+
+					snprintf(
+						shell_command, sizeof(shell_command),
+						"spirv-cross%s --msl --msl-version 20100 --msl-argument-buffers --entry %.*s %s --output %s/%.*s.msl",
+						HCC_EXE_EXTENSION, (int)function_name.size, function_name.data, output_file_path, msl_dir, (int)function_name.size, function_name.data
+					);
+
+					int res = hcc_execute_shell_command(shell_command);
+					if (res != 0) {
+						if (res == 256 /* 256 is return by the SPIR-V tools for a general error */) {
+							printf("Please report this error on the HCC github issue tracker\n");
+							exit(1);
+						} else {
+							printf(
+								"WARNING: successfully wrote output file '%s' but failed to execute '%s'.\n"
+								"make sure you have the SPIR-V tools installed if you want SPIR-V validation and optimization done in this compiler",
+								output_file_path, shell_command
+							);
+						}
+					}
 				}
 			}
 		}
@@ -251,5 +361,4 @@ int main(int argc, char** argv) {
 
 	return 0;
 }
-
 

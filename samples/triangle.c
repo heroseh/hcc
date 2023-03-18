@@ -11,8 +11,8 @@ struct TriangleVertex {
 
 typedef struct TriangleBC TriangleBC;
 struct TriangleBC {
-	HccRoBuffer(TriangleVertex) vertices;
 	f32x4 tint;
+	HccRoBuffer(TriangleVertex) vertices;
 };
 
 #ifdef __HCC__

@@ -146,6 +146,40 @@ void hcc_spirvlink_link(HccWorker* w) {
 	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 	operands[0] = HCC_SPIRV_CAPABILITY_DEMOTE_HELPER_INVOCATION;
 
+	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_INT8_ENABLED)) {
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_INT8;
+	}
+
+	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_INT16_ENABLED)) {
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_INT16;
+	}
+
+	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_INT64_ENABLED)) {
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_INT64;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_INT64_ATOMICS;
+	}
+
+	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_FLOAT16_ENABLED)) {
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_FLOAT16;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_FLOAT16_BUFFER;
+	}
+
+	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_FLOAT64_ENABLED)) {
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_FLOAT64;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+		operands[0] = HCC_SPIRV_CAPABILITY_FLOAT16_BUFFER;
+	}
+
 	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_PHYSICAL_POINTER_ENABLED)) {
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 		operands[0] = HCC_SPIRV_CAPABILITY_PHYSICAL_STORAGE_BUFFER;

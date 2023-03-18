@@ -112,7 +112,7 @@ HccShaderInfo hcc_shader_infos[] = {
 HccResourceInfo TriangleBC_resources[] = {
 	{
 		/* .name = */        "vertices",
-		/* .offset = */      0,
+		/* .offset = */      16,
 		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
 		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
 	},

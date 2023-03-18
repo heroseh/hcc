@@ -436,6 +436,21 @@ bool hcc_path_is_directory(const char* path) {
 #endif
 }
 
+bool hcc_make_directory(const char* path) {
+#ifdef HCC_OS_LINUX
+	if (mkdir(path, 0777) != 0) {
+		return false;
+	}
+#elif defined(HCC_OS_WINDOWS)
+	if (!CreateDirectoryA(path, NULL)) {
+		return false;
+	}
+#else
+#error "unimplemented for this platform"
+#endif
+	return true;
+}
+
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name) {
 	uint32_t parent_copy_size = parent.size;
 	while (parent_copy_size) {
@@ -3276,6 +3291,11 @@ HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccData
 			return hcc_data_type_scalar_data_types_mask(cu, typedef_->aliased_data_type);
 		};
 
+		case HCC_DATA_TYPE_POINTER: {
+			HccPointerDataType* d = hcc_pointer_data_type_get(cu, data_type);
+			return hcc_data_type_scalar_data_types_mask(cu, d->element_data_type);
+		};
+
 		default:
 			return 0;
 	}
@@ -4820,6 +4840,11 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_UNION_ONLY_ALLOW_WITH_PHYSICAL_POINTERS] = "the '%.*s' union data type cannot be used unless you enable 'physical pointer' compiler option",
 		[HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_FRAGMENT_SHADER] = "function '%.*s' has sample with implicit mip used outside of a fragment shader! callstack:\n%s",
 		[HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_FRAGMENT_SHADER] = "function '%.*s' cannot be used outside of a fragment shader! callstack:\n%s",
+		[HCC_ERROR_CODE_HLSL_PACKING_NO_STRUCT] = "HLSL packing rules do not allow structs. in future will a proper DXIL backend this error could be worked around",
+		[HCC_ERROR_CODE_HLSL_PACKING_NO_UNION] = "HLSL packing rules do not allow unions. in future will a proper DXIL backend this error could be worked around",
+		[HCC_ERROR_CODE_HLSL_PACKING_SIZE_UNDER_4_BYTE] = "HLSL packing rules do not data types under 4 bytes. in future will a proper DXIL backend this error could be worked around",
+		[HCC_ERROR_CODE_HLSL_PACKING_IMPLICIT_PADDING] = "HLSL packing rules do not allow implicit padding before field. in future will a proper DXIL backend this error could be worked around",
+		[HCC_ERROR_CODE_HLSL_PACKING_OVERFLOW_16_BYTE_BOUNDARY] = "HLSL packing rules do not allow overflowing a 16 byte boundary. in future will a proper DXIL backend this error could be worked around",
 	},
 };
 

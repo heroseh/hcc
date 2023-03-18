@@ -329,6 +329,59 @@ const HccAMLFunction* hcc_amlopt_check_for_unsupported_features(HccWorker* w, Hc
 		hcc_amlopt_ensure_supported_type(w, aml_function->values[param_idx].data_type, ast_function->params_and_variables[param_idx].identifier_location);
 	}
 
+	if (aml_function->shader_stage != HCC_SHADER_STAGE_NONE) {
+		if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_HLSL_PACKING)) {
+			uint32_t param_idx;
+			switch (aml_function->shader_stage) {
+				case HCC_SHADER_STAGE_VERTEX:
+					param_idx = HCC_VERTEX_SHADER_PARAM_BC;
+					break;
+				case HCC_SHADER_STAGE_FRAGMENT:
+					param_idx = HCC_FRAGMENT_SHADER_PARAM_BC;
+					break;
+				case HCC_SHADER_STAGE_COMPUTE:
+					param_idx = HCC_COMPUTE_SHADER_PARAM_BC;
+					break;
+				HCC_ABORT("unhandled shader type %u", aml_function->shader_stage);
+			}
+
+			HccDataType bc_data_type = hcc_data_type_strip_pointer(cu, hcc_decl_resolve_and_strip_qualifiers(cu, aml_function->values[param_idx].data_type));
+			HccCompoundDataType* bc_compound_data_type = hcc_compound_data_type_get(cu, bc_data_type);
+			uint64_t expected_offset = 0;
+			for (uint32_t field_idx = 0; field_idx < bc_compound_data_type->fields_count; field_idx += 1) {
+				HccCompoundField* field = &bc_compound_data_type->fields[field_idx];
+				HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
+				if (HCC_DATA_TYPE_IS_STRUCT(field_data_type)) {
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_HLSL_PACKING_NO_STRUCT, field->identifier_location);
+					break;
+				}
+				if (HCC_DATA_TYPE_IS_UNION(field_data_type)) {
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_HLSL_PACKING_NO_UNION, field->identifier_location);
+					break;
+				}
+
+				uint64_t size, align;
+				hcc_data_type_size_align(cu, field_data_type, &size, &align);
+				if (size < 4) {
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_HLSL_PACKING_SIZE_UNDER_4_BYTE, field->identifier_location);
+					break;
+				}
+
+				if (field->byte_offset != expected_offset) {
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_HLSL_PACKING_IMPLICIT_PADDING, field->identifier_location);
+					break;
+				}
+
+				if ((field->byte_offset % 16) + size > 16) {
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_HLSL_PACKING_OVERFLOW_16_BYTE_BOUNDARY, field->identifier_location);
+					break;
+				}
+
+				expected_offset += size;
+			}
+		}
+	}
+
 	uint32_t last_line = 0;
 	uint32_t last_column = 0;
 	for (uint32_t aml_word_idx = 0; aml_word_idx < aml_function->words_count; ) {

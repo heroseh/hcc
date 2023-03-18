@@ -14,9 +14,9 @@ struct TextureBC {
 	HccRwTexture2D(f32x4)     texture;
 	HccSampleTexture2D(f32x4) sample_texture;
 	HccRoSampler              sampler;
+	float                     time_;
 	f32x2                     offset;
 	f32x2                     scale;
-	float                     time_;
 	float                     ar;
 };
 

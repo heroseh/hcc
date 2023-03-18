@@ -3,11 +3,11 @@
 void hcc_metadatagen_generate_c_resources(HccCU* cu, HccIIO* iio, HccCompoundDataType* dt, const char* base_name, uint32_t base_offset, uint32_t* resources_count_mut) {
 	for (uint32_t field_idx = 0; field_idx < dt->fields_count; field_idx += 1) {
 		HccCompoundField* field = &dt->fields[field_idx];
-		HccString field_name = hcc_string_table_get(field->identifier_string_id);
+		HccString field_name = field->identifier_string_id.idx_plus_one ? hcc_string_table_get(field->identifier_string_id) : hcc_string_lit("");
 		HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
 		if (HCC_DATA_TYPE_IS_STRUCT(field_data_type)) {
 			char name[512];
-			snprintf(name, sizeof(name), "%s%.*s.", base_name, (int)field_name.size, field_name.data);
+			snprintf(name, sizeof(name), "%s%.*s%s", base_name, (int)field_name.size, field_name.data, field_name.size ? "." : "");
 			hcc_metadatagen_generate_c_resources(cu, iio, hcc_compound_data_type_get(cu, field_data_type), name, base_offset + field->byte_offset, resources_count_mut);
 		} else if (HCC_DATA_TYPE_IS_RESOURCE(field_data_type)) {
 			HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(field_data_type);
@@ -81,7 +81,15 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 	for (uint32_t struct_idx = 0; struct_idx < hcc_stack_count(cu->resource_structs); struct_idx += 1) {
 		HccDataType data_type = cu->resource_structs[struct_idx];
 		HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
-		HccString dt_name = hcc_string_table_get(dt->identifier_string_id);
+
+		char name_buf[1024];
+		HccString dt_name;
+		if (dt->identifier_string_id.idx_plus_one == 0) {
+			snprintf(name_buf, sizeof(name_buf), "__ANON_%u", HCC_DATA_TYPE_AUX(data_type));
+			dt_name = hcc_string_c(name_buf);
+		} else {
+			dt_name = hcc_string_table_get(dt->identifier_string_id);
+		}
 
 		hcc_iio_write_fmt(iio, "\t%.*s%.*s,\n", (int)resource_structs_enum_prefix.size, resource_structs_enum_prefix.data, (int)dt_name.size, dt_name.data);
 	}
@@ -131,7 +139,15 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 	for (uint32_t struct_idx = 0; struct_idx < hcc_stack_count(cu->resource_structs); struct_idx += 1) {
 		HccDataType data_type = cu->resource_structs[struct_idx];
 		HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
-		HccString dt_name = hcc_string_table_get(dt->identifier_string_id);
+
+		char name_buf[1024];
+		HccString dt_name;
+		if (dt->identifier_string_id.idx_plus_one == 0) {
+			snprintf(name_buf, sizeof(name_buf), "__ANON_%u", HCC_DATA_TYPE_AUX(data_type));
+			dt_name = hcc_string_c(name_buf);
+		} else {
+			dt_name = hcc_string_table_get(dt->identifier_string_id);
+		}
 
 		hcc_iio_write_fmt(iio, "HccResourceInfo %.*s_resources[] = {\n", (int)dt_name.size, dt_name.data);
 		uint32_t resources_count = 0;
@@ -144,7 +160,15 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 	for (uint32_t struct_idx = 0; struct_idx < hcc_stack_count(cu->resource_structs); struct_idx += 1) {
 		HccDataType data_type = cu->resource_structs[struct_idx];
 		HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
-		HccString dt_name = hcc_string_table_get(dt->identifier_string_id);
+
+		char name_buf[1024];
+		HccString dt_name;
+		if (dt->identifier_string_id.idx_plus_one == 0) {
+			snprintf(name_buf, sizeof(name_buf), "__ANON_%u", HCC_DATA_TYPE_AUX(data_type));
+			dt_name = hcc_string_c(name_buf);
+		} else {
+			dt_name = hcc_string_table_get(dt->identifier_string_id);
+		}
 
 		uint32_t resources_count = 0;
 		hcc_metadatagen_generate_c_resources(cu, NULL, dt, "", 0, &resources_count);

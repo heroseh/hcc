@@ -110,6 +110,7 @@ HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
 	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME] =   { .string = hcc_string_lit("HccResourceStruct") },
 	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX] = { .string = hcc_string_lit("HCC_RESOURCE_STRUCT_") },
 	[HCC_OPTION_KEY_SPIRV_OPT] =                    { .bool_ = false },
+	[HCC_OPTION_KEY_HLSL_PACKING] =                 { .bool_ = false },
 };
 
 HccResult hcc_options_init(HccOptionsSetup* setup, HccOptions** o_out) {
@@ -696,7 +697,11 @@ void hcc_worker_end_job(HccWorker* w) {
 			// we have finished all jobs and have reached the worker job type where we end.
 			// t->final_worker_job_type also stops any jobs being added that
 			// are later than it at the start of the hcc_compiler_give_worker_job function.
-			hcc_task_finish(w->job.task, false);
+			bool thread_that_set_error = t->result.code >= 0 && t->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR;
+			if (thread_that_set_error) {
+				t->result.code = HCC_ERROR_MESSAGES;
+			}
+			hcc_task_finish(w->job.task, thread_that_set_error);
 			return;
 		}
 
@@ -793,7 +798,7 @@ HCC_STDCALL void hcc_worker_main(void* arg) {
 			return;
 		}
 
-		if (w->job.task->message_sys.used_type_flags & HCC_MESSAGE_TYPE_ERROR) {
+		if (w->job.task->result.code < 0) {
 			continue;
 		}
 
