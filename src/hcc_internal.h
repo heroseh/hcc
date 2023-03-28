@@ -5,12 +5,12 @@
 #include <immintrin.h>
 #include <signal.h>
 
+#include "hcc.h"
+
 #if defined(HCC_OS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
-
-#include "hcc.h"
 
 typedef struct HccWorker HccWorker;
 

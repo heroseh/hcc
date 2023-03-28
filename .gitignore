@@ -1,5 +1,9 @@
 build
 *.spirv
+*.exe
+*.ilk
+*.pdb
+.vs
 samples/samples
 playground/playground
 

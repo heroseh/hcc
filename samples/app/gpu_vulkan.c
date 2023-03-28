@@ -22,7 +22,7 @@
 #error "unsupported platform"
 #endif
 
-#define GPU_VK_DEBUG 1
+#define GPU_VK_DEBUG 0
 
 typedef struct GpuVkResource GpuVkResource;
 struct GpuVkResource {
@@ -487,6 +487,7 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			.pCode = code,
 			.flags = 0,
 		};
+
 		APP_VK_ASSERT(vkCreateShaderModule(gpu.device, &create_info, NULL, &gpu.shader_module));
 	}
 

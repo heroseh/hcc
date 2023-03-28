@@ -14,6 +14,9 @@ void dm_screen_dims(int* width_out, int* height_out) {
 	*width_out = GetSystemMetrics(SM_CXSCREEN);
 	*height_out = GetSystemMetrics(SM_CYSCREEN);
 }
+LRESULT CALLBACK WndProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
+	return DefWindowProcA(hwnd, Msg, wParam, lParam);
+}
 
 DmWindow dm_window_open(int width, int height) {
 	HINSTANCE hinstance = GetModuleHandle(NULL);
@@ -21,26 +24,23 @@ DmWindow dm_window_open(int width, int height) {
 	// Register the window class.
 	const char CLASS_NAME[] = "Sample Window Class";
 
-	WNDCLASS wc = {0};
-	wc.style = CS_OWNDC;
-	wc.lpfnWndProc = NULL;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
+	WNDCLASSEXA wc = { 0 };
+	wc.cbSize = sizeof(wc);
+	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+	wc.lpfnWndProc = WndProc;
 	wc.hInstance = hinstance;
-	wc.hIcon = LoadIcon(NULL, IDI_WINLOGO);
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = NULL;
-	wc.lpszMenuName = NULL;
+	wc.hCursor = LoadCursorA(NULL, IDC_ARROW); // load cursor otherwise it defaults to busy cursor icon
 	wc.lpszClassName = CLASS_NAME;
 
-	RegisterClass(&wc);
+	ATOM class_atom = RegisterClassExA(&wc);
+	APP_ASSERT(class_atom != 0, "failed to register class: %lx", GetLastError());
 
 	// Create the window.
 
-	HWND hwnd = CreateWindowEx(
+	HWND hwnd = CreateWindowExA(
 		0,                              // Optional window styles.
 		CLASS_NAME,                     // Window class
-		"Learn to Program Windows",    // Window text
+		"Hcc Samples",    // Window text
 		WS_OVERLAPPEDWINDOW,            // Window style
 
 		// Size and position
@@ -52,7 +52,7 @@ DmWindow dm_window_open(int width, int height) {
 		NULL        // Additional application data
 	);
 
-	APP_ASSERT(hwnd, "failed to open windows");
+	APP_ASSERT(hwnd, "failed to open windows: %lx", GetLastError());
 
 
 	int screen_width = GetSystemMetrics(SM_CXSCREEN);
@@ -77,17 +77,22 @@ DmWindow dm_window_open(int width, int height) {
 
 bool dm_process_events(DmEvent* e) {
 	MSG msg;
-	if (!GetMessage(&msg, dm.hwnd, 0, 0)) {
+	if (!PeekMessage(&msg, dm.hwnd, 0, 0, PM_REMOVE)) {
 		return false;
 	}
 
 	TranslateMessage(&msg);
-	
+	DispatchMessage(&msg);
+
 	if (msg.message == WM_CHAR) {
 		e->type = DM_EVENT_TYPE_KEY_PRESSED;
 		e->key = msg.wParam;
-	} else if (msg.message == WM_CLOSE) {
+	}
+	else if (msg.message == WM_CLOSE) {
 		e->type = DM_EVENT_TYPE_WINDOW_CLOSED;
+	}
+	else {
+		e->type = DM_EVENT_TYPE_UNKNOWN;
 	}
 
 	return true;

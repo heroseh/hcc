@@ -400,7 +400,7 @@ void hcc_spirv_resource_descriptor_binding_deduplicate(HccCU* cu, HccDataType da
 	HccSPIRVStorageClass storage_class = HCC_RESOURCE_DATA_TYPE_TYPE(resource_data_type) == HCC_RESOURCE_DATA_TYPE_BUFFER ? HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER : HCC_SPIRV_STORAGE_CLASS_UNIFORM_CONSTANT;
 	HccSPIRVId data_type_ptr_spirv_id = hcc_spirv_type_deduplicate(cu, storage_class, hcc_pointer_data_type_deduplicate(cu, data_type));
 
-	HccSPIRVDescriptorBindingKey key;
+	HccSPIRVDescriptorBindingKey key = {0};
 	key.resource_data_type = resource_data_type;
 	key.element_data_type = 0;
 	if (HCC_RESOURCE_DATA_TYPE_IS_BUFFER(resource_data_type)) {
