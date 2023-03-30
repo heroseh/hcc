@@ -1,5 +1,4 @@
 
-#define WATCH_BUFFER_SIZE 8192
 typedef struct WatchedDirectoryWin32 WatchedDirectoryWin32;
 struct WatchedDirectoryWin32 {
 	HANDLE file_handle;

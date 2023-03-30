@@ -4,16 +4,12 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/fcntl.h>
-#include <sys/inotify.h>
+#include <sys/stat.h>
 
-#define WATCH_BUFFER_SIZE 8192
-typedef struct WatchedDirectoryLinux WatchedDirectoryLinux;
-struct WatchedDirectoryLinux {
+typedef struct WatchedFileLinux WatchedFileLinux;
+struct WatchedFileLinux {
 	int fd;
-	int wd;
-	int buffer_pos;
-	int buffer_size;
-	char buffer[WATCH_BUFFER_SIZE];
+	struct timespec time;
 };
 
 bool platform_file_read_all(const char* path, void** data_out, uintptr_t* size_out) {
@@ -68,48 +64,28 @@ void platform_open_console(void) {
 	setbuf(stdout, NULL);
 }
 
-WatchedDirectory* platform_watch_directory(const char* path) {
-	WatchedDirectoryLinux* w = malloc(sizeof(WatchedDirectoryLinux));
-	w->fd = inotify_init();
-	w->wd = inotify_add_watch(w->fd, path, IN_MODIFY);
-	w->buffer_pos = 0;
-	w->buffer_size = 0;
+WatchedFile* platform_watch_file(const char* path) {
+	WatchedFileLinux* w = malloc(sizeof(WatchedFileLinux));
+	w->fd = open(path, O_RDONLY);
+	APP_ASSERT(w->fd != -1, "failed to open file at '%s' : %u", path, errno);
 
-	fcntl(w->fd, F_SETFL, fcntl(w->fd, F_GETFL) | O_NONBLOCK);
+	struct stat s;
+	APP_ASSERT(fstat(w->fd, &s) != -1, "failed to open file at '%s' : %u", path, errno);
+	w->time = s.st_mtim;
 
-	return (WatchedDirectory*)w;
+	return (WatchedFile*)w;
 }
 
-bool platform_watch_directory_next_event(WatchedDirectory* handle, WatchedDirectoryEvent* e_out) {
-	WatchedDirectoryLinux* w = (WatchedDirectoryLinux*)handle;
+bool platform_watch_file_check_if_changed(WatchedFile* handle) {
+	WatchedFileLinux* w = (WatchedFileLinux*)handle;
 
-	if (w->buffer_pos >= w->buffer_size) {
-		w->buffer_pos = 0;
-		w->buffer_size = 0;
+	struct stat s;
+	APP_ASSERT(fstat(w->fd, &s) != -1, "failed to open file : %u", errno);
 
-		w->buffer_size = read(w->fd, w->buffer, WATCH_BUFFER_SIZE);
-		if (w->buffer_size == -1) {
-			w->buffer_size = 0;
-		}
-	}
+	bool has_changed = s.st_mtim.tv_sec != w->time.tv_sec || s.st_mtim.tv_nsec != w->time.tv_nsec;
 
-	if (w->buffer_pos >= w->buffer_size) {
-		return false;
-	}
+	w->time = s.st_mtim;
 
-	struct inotify_event* event = (struct inotify_event*)&w->buffer[w->buffer_pos];
-	w->buffer_pos += sizeof(struct inotify_event) + event->len;
-
-	if (event->mask & IN_MODIFY) {
-		e_out->type = WATCHED_DIRECTORY_EVENT_TYPE_CHANGED;
-		e_out->is_dir = event->mask & IN_ISDIR;
-		e_out->file_name = event->name;
-		return true;
-	}
-
-	e_out->type = WATCHED_DIRECTORY_EVENT_TYPE_UNKNOWN;
-	e_out->is_dir = event->mask & IN_ISDIR;
-	e_out->file_name = event->name;
-	return true;
+	return has_changed;
 }
 
