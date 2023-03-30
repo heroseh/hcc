@@ -1596,16 +1596,7 @@ HccTime hcc_time_now(HccTimeMode mode) {
 
 HccDuration hcc_time_elapsed(HccTime time, HccTimeMode mode) {
 	HccTime now = hcc_time_now(mode);
-
-	HccDuration elapsed;
-	if (now.secs < time.nanosecs) {
-		elapsed.secs = now.secs - time.secs - 1;
-		elapsed.nanosecs = 1000000000 + now.nanosecs - time.nanosecs;
-	} else {
-		elapsed.secs = now.secs - time.secs;
-		elapsed.nanosecs = now.nanosecs - time.nanosecs;
-	}
-	return elapsed;
+	return hcc_time_diff(now, time);
 }
 
 HccDuration hcc_time_diff(HccTime to, HccTime from) {

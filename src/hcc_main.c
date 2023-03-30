@@ -252,6 +252,8 @@ int main(int argc, char** argv) {
 		hcc_message_print(&iio, m);
 	}
 
+	HccDuration hlsl_duration = {0};
+	HccDuration msl_duration = {0};
 	if (result.code == HCC_ERROR_MESSAGES) {
 		return 1;
 	} else {
@@ -279,6 +281,7 @@ int main(int argc, char** argv) {
 			}
 
 			if (hlsl_dir) {
+				HccTime hlsl_start_time = hcc_time_now(HCC_TIME_MODE_MONOTONIC);
 				HccCU* cu = task->cu;
 				if (!hcc_make_directory(hlsl_dir) && !hcc_path_is_directory(hlsl_dir)) {
 					char buf[1024];
@@ -312,9 +315,11 @@ int main(int argc, char** argv) {
 						}
 					}
 				}
+				hlsl_duration = hcc_time_elapsed(hlsl_start_time, HCC_TIME_MODE_MONOTONIC);
 			}
 
 			if (msl_dir) {
+				HccTime msl_start_time = hcc_time_now(HCC_TIME_MODE_MONOTONIC);
 				HccCU* cu = task->cu;
 				if (!hcc_make_directory(msl_dir) && !hcc_path_is_directory(msl_dir)) {
 					char buf[1024];
@@ -348,6 +353,7 @@ int main(int argc, char** argv) {
 						}
 					}
 				}
+				msl_duration = hcc_time_elapsed(msl_start_time, HCC_TIME_MODE_MONOTONIC);
 			}
 		}
 	}
@@ -356,6 +362,12 @@ int main(int argc, char** argv) {
 		print_duration("compiler", hcc_compiler_duration(compiler));
 		for (HccWorkerJobType job_type = 0; job_type < HCC_WORKER_JOB_TYPE_COUNT; job_type += 1) {
 			print_duration(hcc_worker_job_type_strings[job_type], hcc_compiler_worker_job_type_duration(compiler, job_type));
+		}
+		if (hlsl_dir) {
+			print_duration("HLSL (spirv-cross)", hlsl_duration);
+		}
+		if (msl_dir) {
+			print_duration("MSL (spirv-cross)", msl_duration);
 		}
 	}
 
