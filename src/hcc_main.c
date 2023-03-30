@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
 	HccCompiler* compiler;
 	HccCompilerSetup compiler_setup = hcc_compiler_setup_default;
-	HCC_ENSURE(hcc_compiler_init(&compiler_setup, &compiler))
+	HCC_ENSURE(hcc_compiler_init(&compiler_setup, &compiler));
 
 	HccTask* task;
 	HccTaskSetup task_setup = hcc_task_setup_default;
@@ -268,7 +268,7 @@ int main(int argc, char** argv) {
 			}
 			int res = hcc_execute_shell_command(shell_command);
 			if (res != 0) {
-				if (res == 256 /* 256 is return by the SPIR-V tools for a general error */) {
+				if (res == 1 || res == 256 /* 1 || 256 is return by the SPIR-V tools for a general error */) {
 					printf("Please report this error on the HCC github issue tracker\n");
 					exit(1);
 				} else {

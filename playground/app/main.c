@@ -21,11 +21,19 @@ bool recompile_shader(void) {
 	printf("\033c"); // reset the terminal
 
 	const char* hcc_path;
+#ifdef _WIN32
+	if (platform_file_exists("..\\hcc.exe")) { // release package
+		hcc_path = "..\\hcc.exe";
+	} else { // repo
+		hcc_path = "..\\build\\hcc.exe";
+	}
+#else
 	if (platform_file_exists("../hcc")) { // release package
 		hcc_path = "../hcc";
 	} else { // repo
 		hcc_path = "../build/hcc";
 	}
+#endif
 
 	char buf[1024];
 	snprintf(buf, sizeof(buf), "%s -O -fi shader.c -fo shader.spirv -fomc shader-metadata.h", hcc_path);
@@ -33,12 +41,22 @@ bool recompile_shader(void) {
 		time_t rawtime;
 		struct tm* timeinfo;
 		time(&rawtime);
+
+#ifdef _WIN32
+		char timebuf[1024];
+		timeinfo = malloc(sizeof(struct tm));
+		localtime_s(timeinfo, &rawtime);
+		asctime_s(timebuf, sizeof(timebuf), timeinfo);
+#else
 		timeinfo = localtime(&rawtime);
+		char* timebuf = asctime(timeinfo);
+#endif
+
 		if (gpu_reload_shaders()) {
-			printf("SUCCESS: loaded shader.spirv at %s\n1. open shader.c\n2. make edits\n3. save the file\n4. watch this window for success and errors messages\n5. read the docs and samples and enjoy :)\n", asctime(timeinfo));
+			printf("SUCCESS: loaded shader.spirv at %s\n1. open shader.c\n2. make edits\n3. save the file\n4. watch this window for success and errors messages\n5. read the docs and samples and enjoy :)\n", timebuf);
 			return true;
 		} else {
-			printf("ERROR: loading shader.spirv at %s\nthis is due to a vulkan error, please send this in!\n", asctime(timeinfo));
+			printf("ERROR: loading shader.spirv at %s\nthis is due to a vulkan error, please send this in!\n", timebuf);
 		}
 	}
 	return false;
@@ -63,7 +81,7 @@ int main(int argc, char** argv) {
 	gpu_init(window, window_width, window_height);
 	recompile_shader();
 
-	WatchedDirectory* wd = platform_watch_directory("./");
+	WatchedFile* wf = platform_watch_file("./shader.c");
 
 	GpuResourceId backbuffer_texture_id = gpu_create_backbuffer();
 
@@ -89,17 +107,8 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		WatchedDirectoryEvent wevent;
-		while (platform_watch_directory_next_event(wd, &wevent)) {
-			switch (wevent.type) {
-				case WATCHED_DIRECTORY_EVENT_TYPE_UNKNOWN:
-					break;
-				case WATCHED_DIRECTORY_EVENT_TYPE_CHANGED:
-					if (strcmp(wevent.file_name, "shader.c") == 0) {
-						recompile_shader();
-					}
-					break;
-			}
+		if (platform_watch_file_check_if_changed(wf)) {
+			recompile_shader();
 		}
 
 		gpu_render_frame(&bc);
