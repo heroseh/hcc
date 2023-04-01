@@ -33,6 +33,7 @@ int main(int argc, char** argv) {
 	gpu_init(window, window_width, window_height);
 
 	GpuResourceId backbuffer_texture_id = gpu_create_backbuffer();
+	GpuResourceId staging_buffer = gpu_create_staging_buffer();
 	GpuResourceId triangle_vertex_buffer_id = gpu_create_buffer(3 * sizeof(TriangleVertex));
 	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
 	GpuResourceId logo_voxel_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_3D, APP_LOGO_VOXEL_WIDTH, APP_LOGO_VOXEL_HEIGHT, APP_LOGO_VOXEL_DEPTH, 1, 1);
@@ -45,7 +46,6 @@ int main(int argc, char** argv) {
 		stbi_set_flip_vertically_on_load(true);
 		uint32_t logo_width = APP_LOGO_WIDTH;
 		uint32_t logo_height = APP_LOGO_HEIGHT;
-		uint8_t* dst_mip_pixels = gpu_map_resource(logo_texture_id);
 		for (int mip = 0; mip < APP_LOGO_MIP_LEVELS; mip += 1) {
 			char path[512];
 			snprintf(path, sizeof(path), APP_LOGO_PATH_FMT, logo_width);
@@ -53,13 +53,15 @@ int main(int argc, char** argv) {
 			int x, y, comp;
 			uint8_t* src_mip_pixels = stbi_load(path, &x, &y, &comp, 4);
 			APP_ASSERT(src_mip_pixels, "failed to load logo at %s", path);
+
+			uint8_t* dst_mip_pixels = gpu_stage_upload(logo_texture_id, x, y, 1, 4, mip);
+
 			uint32_t row_size = logo_width * 4;
-			uint32_t dst_offset = gpu_mip_offset(logo_texture_id, mip);
+			uint32_t dst_offset = 0;
 			uint32_t src_offset = 0;
-			uint32_t row_pitch = gpu_row_pitch(logo_texture_id, mip);
 			for (uint32_t y = 0; y < logo_height; y += 1) {
 				memcpy(&dst_mip_pixels[dst_offset], &src_mip_pixels[src_offset], row_size);
-				dst_offset += row_pitch;
+				dst_offset += row_size;
 				src_offset += row_size;
 			}
 
@@ -72,20 +74,18 @@ int main(int argc, char** argv) {
 	// load the 256 logo as a 3d voxel texture
 	{
 		int x, y, comp;
-		uint8_t* dst_pixels = gpu_map_resource(logo_voxel_texture_id);
 		uint8_t* src_pixels = stbi_load(APP_LOGO_VOXEL_PATH, &x, &y, &comp, 4);
 		APP_ASSERT(src_pixels, "failed to load logo voxel data at %s", APP_LOGO_VOXEL_PATH);
+		uint8_t* dst_pixels = gpu_stage_upload(logo_voxel_texture_id, x, y, APP_LOGO_VOXEL_DEPTH, 4, 0);
 		uint32_t row_size = APP_LOGO_VOXEL_WIDTH * 4;
-		uint32_t row_pitch = gpu_row_pitch(logo_voxel_texture_id, 0);
-		uint32_t depth_pitch = gpu_depth_pitch(logo_voxel_texture_id, 0);
 		uint32_t dst_offset = 0;
 		uint32_t src_offset = 0;
 		for (uint32_t z = 0; z < APP_LOGO_VOXEL_DEPTH; z += 1) {
-			dst_offset = z * depth_pitch;
+			dst_offset = z * x*y;
 			src_offset = 0;
 			for (uint32_t y = 0; y < APP_LOGO_VOXEL_HEIGHT; y += 1) {
 				memcpy(&dst_pixels[dst_offset], &src_pixels[src_offset], row_size);
-				dst_offset += row_pitch;
+				dst_offset += row_size;
 				src_offset += row_size;
 			}
 		}
@@ -98,6 +98,8 @@ int main(int argc, char** argv) {
 		models[0].color = logo_voxel_texture_id;
 		//APP_ABORT("offsetof(VoxelModel, color) = %zu\n", offsetof(VoxelModel, color));
 	}
+
+	gpu_stage_uploads_flush();
 
 	uint8_t bc_data[64];
 	memset(bc_data, 0x00, sizeof(bc_data)); // we zero the memory here to a avoid a driver crash if we forget to set a bindless index at all!

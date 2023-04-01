@@ -36,7 +36,7 @@ bool recompile_shader(void) {
 #endif
 
 	char buf[1024];
-	snprintf(buf, sizeof(buf), "%s -O -fi shader.c -fo shader.spirv -fomc shader-metadata.h", hcc_path);
+	snprintf(buf, sizeof(buf), "%s -fi shader.c -fo shader.spirv -fomc shader-metadata.h", hcc_path);
 	if (system(buf) == 0) {
 		time_t rawtime;
 		struct tm* timeinfo;

@@ -1,6 +1,6 @@
 #include <vulkan/vulkan_core.h>
 
-#define APP_VK_ASSERT(expr) APP_ASSERT((vk_result = (expr)) >= VK_SUCCESS, "vulkan error '%s' returned from: %s", app_vk_result_string(vk_result), #expr)
+#define APP_VK_ASSERT(expr) APP_ASSERT((vk_result = (expr)) >= VK_SUCCESS, "vulkan error '%s' returned from: %s at %s:%u", app_vk_result_string(vk_result), #expr, __FILE__, __LINE__)
 
 #ifdef __linux__
 #include <vulkan/vulkan_xlib.h>

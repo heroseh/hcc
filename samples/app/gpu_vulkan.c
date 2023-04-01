@@ -1,6 +1,6 @@
 #include <vulkan/vulkan_core.h>
 
-#define APP_VK_ASSERT(expr) APP_ASSERT((vk_result = (expr)) >= VK_SUCCESS, "vulkan error '%s' returned from: %s", app_vk_result_string(vk_result), #expr)
+#define APP_VK_ASSERT(expr) APP_ASSERT((vk_result = (expr)) >= VK_SUCCESS, "vulkan error '%s' returned from: %s at %s:%u", app_vk_result_string(vk_result), #expr, __FILE__, __LINE__)
 
 #ifdef __linux__
 #include <vulkan/vulkan_xlib.h>
@@ -35,6 +35,18 @@ struct GpuVkResource {
 	void*          device_memory_mapped;
 };
 
+#define GPU_VK_STAGED_UPLOADS_CAP 16
+
+typedef struct GpuVkStagedUpload GpuVkStagedUpload;
+struct GpuVkStagedUpload {
+	VkImage  image;
+	uint32_t width;
+	uint32_t height;
+	uint32_t depth;
+	uint32_t mip_level;
+	uint32_t buffer_offset;
+};
+
 typedef struct GpuVk GpuVk;
 struct GpuVk {
 	AppSampleEnum         sample_enum;
@@ -55,6 +67,11 @@ struct GpuVk {
 	VkImageView           depth_image_view;
 	VkShaderStageFlags    push_constants_stage_flags;
 	VkShaderModule        shader_module;
+	GpuResourceId         staging_buffer;
+	uint32_t              staging_buffer_size;
+	uint32_t              staging_buffer_cap;
+	GpuVkStagedUpload     staged_uploads[GPU_VK_STAGED_UPLOADS_CAP];
+	uint32_t              staged_uploads_count;
 
 	uint32_t              next_resource_id;
 	GpuVkResource         resources[128];
@@ -753,7 +770,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc) {
 	for (uint32_t res_idx = 0; res_idx < gpu.next_resource_id; res_idx += 1) {
 		GpuVkResource* res = &gpu.resources[res_idx];
 
-		if (!res->sampler && res->device_memory) {
+		if (res->buffer && res->device_memory) {
 			VkMappedMemoryRange range = {
 				.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
 				.pNext = NULL,
@@ -1191,6 +1208,13 @@ GpuResourceId gpu_create_backbuffer(void) {
 	return res_id;
 }
 
+GpuResourceId gpu_create_staging_buffer(void) {
+	gpu.staging_buffer_cap = 32 * 1024 * 1024;
+	gpu.staging_buffer = gpu_create_buffer(gpu.staging_buffer_cap);
+	gpu.staging_buffer_size = 0;
+	return gpu.staging_buffer;
+}
+
 GpuResourceId gpu_create_buffer(uint32_t size) {
 	VkResult vk_result;
 	GpuResourceId res_id = gpu.next_resource_id;
@@ -1204,7 +1228,7 @@ GpuResourceId gpu_create_buffer(uint32_t size) {
 		.pNext = NULL,
 		.flags = 0,
 		.size = size,
-		.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.queueFamilyIndexCount = 0,
 		.pQueueFamilyIndices = NULL,
@@ -1219,7 +1243,7 @@ GpuResourceId gpu_create_buffer(uint32_t size) {
 	uint32_t memory_type_idx = 0;
 	while (1) {
 		if (mem_req.memoryTypeBits & (1 << memory_type_idx)) {
-			if (gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+			if (gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT && !(gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
 				break;
 			}
 		}
@@ -1293,12 +1317,12 @@ GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t h
 		.mipLevels = mip_levels,
 		.arrayLayers = array_layers,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
-		.tiling = VK_IMAGE_TILING_LINEAR,
-		.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+		.tiling = VK_IMAGE_TILING_OPTIMAL,
+		.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.queueFamilyIndexCount = 0,
 		.pQueueFamilyIndices = NULL,
-		.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 	};
 
 	APP_VK_ASSERT(vkCreateImage(gpu.device, &create_info, NULL, &res->image));
@@ -1310,7 +1334,7 @@ GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t h
 	uint32_t memory_type_idx = 0;
 	while (1) {
 		if (mem_req.memoryTypeBits & (1 << memory_type_idx)) {
-			if (gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+			if (gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
 				break;
 			}
 		}
@@ -1326,7 +1350,6 @@ GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t h
 	};
 	APP_VK_ASSERT(vkAllocateMemory(gpu.device, &alloc_info, NULL, &res->device_memory));
 	APP_VK_ASSERT(vkBindImageMemory(gpu.device, res->image, res->device_memory, 0));
-	APP_VK_ASSERT(vkMapMemory(gpu.device, res->device_memory, 0, mem_req.size, 0, &res->device_memory_mapped));
 
 	VkImageViewCreateInfo view_create_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1431,5 +1454,194 @@ uint32_t gpu_depth_pitch(GpuResourceId res_id, uint32_t mip) {
 	VkSubresourceLayout layout;
 	vkGetImageSubresourceLayout(gpu.device, res->image, &sub_resource, &layout);
 	return layout.depthPitch;
+}
+
+void* gpu_stage_upload(GpuResourceId res_id, uint32_t width, uint32_t height, uint32_t depth, uint32_t bpp, uint32_t mip) {
+	GpuVkResource* res = &gpu.resources[res_id];
+	APP_ASSERT(res->image, "only handled images for now");
+	APP_ASSERT(gpu.staged_uploads_count < GPU_VK_STAGED_UPLOADS_CAP, "staged uploads full");
+
+	uint32_t size = width * height * depth * bpp;
+	GpuVkResource* staging_buffer = &gpu.resources[gpu.staging_buffer];
+	GpuVkStagedUpload* upload = &gpu.staged_uploads[gpu.staged_uploads_count];
+	upload->image = res->image;
+	upload->width = width;
+	upload->height = height;
+	upload->depth = depth;
+	upload->mip_level = mip;
+	gpu.staged_uploads_count += 1;
+
+	uint32_t offset = gpu.staging_buffer_size;
+	upload->buffer_offset = offset;
+	gpu.staging_buffer_size += size;
+	return (uint8_t*)staging_buffer->device_memory_mapped + offset;
+}
+
+
+void gpu_stage_uploads_flush(void) {
+	VkResult vk_result;
+	VkCommandPool vk_command_pool;
+
+	VkCommandPoolCreateInfo create_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.pNext = NULL,
+		.queueFamilyIndex = gpu.queue_family_idx,
+		.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+	};
+	APP_VK_ASSERT(vkCreateCommandPool(gpu.device, &create_info, NULL, &vk_command_pool));
+
+	VkCommandBuffer vk_command_buffer;
+	VkCommandBufferAllocateInfo alloc_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.pNext = NULL,
+		.commandPool = vk_command_pool,
+		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		.commandBufferCount = APP_FRAMES_IN_FLIGHT,
+	};
+	APP_VK_ASSERT(vkAllocateCommandBuffers(gpu.device, &alloc_info, &vk_command_buffer));
+
+	{
+		VkCommandBufferBeginInfo begin_info = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = NULL,
+			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+			.pInheritanceInfo = NULL,
+		};
+
+		APP_VK_ASSERT(vkBeginCommandBuffer(vk_command_buffer, &begin_info));
+	}
+
+	GpuVkResource* staging_buffer = &gpu.resources[gpu.staging_buffer];
+	for (uint32_t idx = 0; idx < gpu.staged_uploads_count; idx += 1) {
+		GpuVkStagedUpload* upload = &gpu.staged_uploads[idx];
+
+		{
+			VkImageMemoryBarrier2 image_barriers[] = {
+				{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.pNext = NULL,
+					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.srcAccessMask = VK_ACCESS_2_NONE,
+					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.dstAccessMask = VK_ACCESS_2_NONE,
+					.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					.srcQueueFamilyIndex = gpu.queue_family_idx,
+					.dstQueueFamilyIndex = gpu.queue_family_idx,
+					.image = upload->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = upload->mip_level,
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					},
+				},
+			};
+
+			VkDependencyInfo dependency_info = {
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.pNext = NULL,
+				.dependencyFlags = 0,
+				.memoryBarrierCount = 0,
+				.pMemoryBarriers = NULL,
+				.bufferMemoryBarrierCount = 0,
+				.pBufferMemoryBarriers = NULL,
+				.imageMemoryBarrierCount = APP_ARRAY_COUNT(image_barriers),
+				.pImageMemoryBarriers = image_barriers,
+			};
+
+			vkCmdPipelineBarrier2(vk_command_buffer, &dependency_info);
+		}
+
+		VkBufferImageCopy copy_region = {
+			.bufferOffset = upload->buffer_offset,
+			.bufferRowLength = 0,
+			.bufferImageHeight = 0,
+			.imageSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = upload->mip_level,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.imageOffset = {0},
+			.imageExtent.width = upload->width,
+			.imageExtent.height = upload->height,
+			.imageExtent.depth = upload->depth,
+		};
+
+		vkCmdCopyBufferToImage(
+			vk_command_buffer,
+			staging_buffer->buffer,
+			upload->image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&copy_region);
+
+		{
+			VkImageMemoryBarrier2 image_barriers[] = {
+				{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.pNext = NULL,
+					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.srcAccessMask = VK_ACCESS_2_NONE,
+					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.dstAccessMask = VK_ACCESS_2_NONE,
+					.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.srcQueueFamilyIndex = gpu.queue_family_idx,
+					.dstQueueFamilyIndex = gpu.queue_family_idx,
+					.image = upload->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = upload->mip_level,
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					},
+				},
+			};
+
+			VkDependencyInfo dependency_info = {
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.pNext = NULL,
+				.dependencyFlags = 0,
+				.memoryBarrierCount = 0,
+				.pMemoryBarriers = NULL,
+				.bufferMemoryBarrierCount = 0,
+				.pBufferMemoryBarriers = NULL,
+				.imageMemoryBarrierCount = APP_ARRAY_COUNT(image_barriers),
+				.pImageMemoryBarriers = image_barriers,
+			};
+
+			vkCmdPipelineBarrier2(vk_command_buffer, &dependency_info);
+		}
+	}
+
+	APP_VK_ASSERT(vkEndCommandBuffer(vk_command_buffer));
+
+	VkCommandBufferSubmitInfo command_buffer_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+		.pNext = NULL,
+		.commandBuffer = vk_command_buffer,
+		.deviceMask = 0,
+	};
+
+	VkSubmitInfo2 vk_submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+		.pNext = 0,
+		.flags = 0,
+		.waitSemaphoreInfoCount = 0,
+		.pWaitSemaphoreInfos = NULL,
+		.commandBufferInfoCount = 1,
+		.pCommandBufferInfos = &command_buffer_info,
+		.signalSemaphoreInfoCount = 0,
+		.pSignalSemaphoreInfos = NULL,
+	};
+
+	APP_VK_ASSERT(vkQueueSubmit2(gpu.queue, 1, &vk_submit_info, NULL));
+
+	gpu.staged_uploads_count = 0;
+	gpu.staging_buffer_size = 0;
 }
 
