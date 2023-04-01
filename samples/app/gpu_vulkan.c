@@ -59,7 +59,8 @@ struct GpuVk {
 	uint32_t              next_resource_id;
 	GpuVkResource         resources[128];
 
-	VkCommandPool         command_pools[APP_FRAMES_IN_FLIGHT];
+	VkCommandPool         command_pool;
+	VkCommandBuffer       command_buffers[APP_FRAMES_IN_FLIGHT];
 	VkFence               fences[APP_FRAMES_IN_FLIGHT];
 	VkSemaphore           swapchain_image_ready_semaphore;
 	VkSemaphore           swapchain_present_ready_semaphore;
@@ -267,15 +268,22 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		vkGetDeviceQueue(gpu.device, gpu.queue_family_idx, 0, &gpu.queue);
 	}
 
-	for_range(idx, 0, APP_FRAMES_IN_FLIGHT) {
-		VkCommandPoolCreateInfo create_info = {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			.pNext = NULL,
-			.queueFamilyIndex = gpu.queue_family_idx,
-			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-		};
-		APP_VK_ASSERT(vkCreateCommandPool(gpu.device, &create_info, NULL, &gpu.command_pools[idx]));
-	}
+	VkCommandPoolCreateInfo create_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.pNext = NULL,
+		.queueFamilyIndex = gpu.queue_family_idx,
+		.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+	};
+	APP_VK_ASSERT(vkCreateCommandPool(gpu.device, &create_info, NULL, &gpu.command_pool));
+
+	VkCommandBufferAllocateInfo alloc_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.pNext = NULL,
+		.commandPool = gpu.command_pool,
+		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		.commandBufferCount = APP_FRAMES_IN_FLIGHT,
+	};
+	APP_VK_ASSERT(vkAllocateCommandBuffers(gpu.device, &alloc_info, gpu.command_buffers));
 
 	for_range(idx, 0, APP_FRAMES_IN_FLIGHT) {
 		VkFenceCreateInfo create_info = {
@@ -731,8 +739,6 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc) {
 	APP_VK_ASSERT(vkWaitForFences(gpu.device, 1, &gpu.fences[active_frame_idx], true, UINT64_MAX));
 	APP_VK_ASSERT(vkResetFences(gpu.device, 1, &gpu.fences[active_frame_idx]));
 
-	APP_VK_ASSERT(vkResetCommandPool(gpu.device, gpu.command_pools[active_frame_idx], 0));
-
 	uint32_t swapchain_image_idx;
 	APP_VK_ASSERT(vkAcquireNextImageKHR(gpu.device, gpu.swapchain, UINT64_MAX, gpu.swapchain_image_ready_semaphore, VK_NULL_HANDLE, &swapchain_image_idx));
 	VkImage swapchain_image = gpu.swapchain_images[swapchain_image_idx];
@@ -811,19 +817,8 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc) {
 
 	}
 
-	VkCommandBuffer vk_command_buffer;
-	{
-		VkCommandBufferAllocateInfo alloc_info = {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.pNext = NULL,
-			.commandPool = gpu.command_pools[active_frame_idx],
-			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = 1,
-		};
-
-		APP_VK_ASSERT(vkAllocateCommandBuffers(gpu.device, &alloc_info, &vk_command_buffer));
-	}
-
+	VkCommandBuffer vk_command_buffer = gpu.command_buffers[active_frame_idx];
+	APP_VK_ASSERT(vkResetCommandBuffer(vk_command_buffer, 0));
 	{
 		VkCommandBufferBeginInfo begin_info = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

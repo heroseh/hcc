@@ -2704,6 +2704,7 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 			}
 
 			HccString string = hcc_string_table_get(identifier_value.string_id);
+			w->astgen.token_iter->token_idx -= 1;
 			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNDECLARED_IDENTIFIER, (int)string.size, string.data);
 		};
 		case HCC_ATA_TOKEN_TILDE: unary_op = HCC_AST_UNARY_OP_BIT_NOT; goto UNARY;
@@ -4621,7 +4622,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 
 	function.block_expr = NULL;
 	if (token == HCC_ATA_TOKEN_CURLY_OPEN) {
-		function.max_instrs_count = 0;
+		function.max_instrs_count = 16;
 		function.block_expr = hcc_astgen_generate_stmt(w);
 		if (function.return_data_type != 0) {
 			hcc_astgen_ensure_returns_from_all_diverging_paths(w, function.block_expr->stmt_block.last_stmt);

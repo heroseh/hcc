@@ -37,6 +37,8 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - Vulkan 1.2+ with the following features:
 	- vulkanMemoryModel
 	- vulkanMemoryModelDeviceScope
+	- shaderStorageImageReadWithoutFormat (currently a problem on Intel cards when using HccRoTexture and loading)
+	- shaderStorageImageWriteWithoutFormat
 	- shaderSampledImageArrayNonUniformIndexing
 	- shaderStorageBufferArrayNonUniformIndexing
 	- shaderStorageImageArrayNonUniformIndexing
@@ -47,10 +49,7 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 	- descriptorBindingStorageTexelBufferUpdateAfterBind
 	- descriptorBindingPartiallyBound
 	- scalarBlockLayout
-	- dynamicRendering
-	- synchronization2
 	- shaderDemoteToHelperInvocation
-	- maintenance4
 
 ## What does it look like?
 

@@ -8,7 +8,7 @@
 
 typedef struct WatchedFileLinux WatchedFileLinux;
 struct WatchedFileLinux {
-	int fd;
+	const char* path;
 	struct timespec time;
 };
 
@@ -66,12 +66,14 @@ void platform_open_console(void) {
 
 WatchedFile* platform_watch_file(const char* path) {
 	WatchedFileLinux* w = malloc(sizeof(WatchedFileLinux));
-	w->fd = open(path, O_RDONLY);
-	APP_ASSERT(w->fd != -1, "failed to open file at '%s' : %u", path, errno);
+	w->path = path;
+	w->time.tv_sec = 0;
+	w->time.tv_nsec = 0;
 
 	struct stat s;
-	APP_ASSERT(fstat(w->fd, &s) != -1, "failed to open file at '%s' : %u", path, errno);
-	w->time = s.st_mtim;
+	if (stat(w->path, &s) != -1) {
+		w->time = s.st_mtim;
+	}
 
 	return (WatchedFile*)w;
 }
@@ -80,7 +82,9 @@ bool platform_watch_file_check_if_changed(WatchedFile* handle) {
 	WatchedFileLinux* w = (WatchedFileLinux*)handle;
 
 	struct stat s;
-	APP_ASSERT(fstat(w->fd, &s) != -1, "failed to open file : %u", errno);
+	if (stat(w->path, &s) == -1) {
+		return false;
+	}
 
 	bool has_changed = s.st_mtim.tv_sec != w->time.tv_sec || s.st_mtim.tv_nsec != w->time.tv_nsec;
 

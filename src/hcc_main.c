@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
 
 	int arg_idx = 1;
 	const char* output_file_path = NULL;
+	bool has_input = false;
 	bool debug_time = false;
 	const char* hlsl_dir = NULL;
 	const char* msl_dir = NULL;
@@ -64,17 +65,17 @@ int main(int argc, char** argv) {
 		if (strcmp(argv[arg_idx], "-I") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
-				fprintf(stderr, "'-I' is missing a following include path. eg. '-I path/to/directory'");
+				fprintf(stderr, "'-I' is missing a following include path. eg. '-I path/to/directory'\n");
 				exit(1);
 			}
 
 			const char* include_path = argv[arg_idx];
 			if (!hcc_path_exists(include_path)) {
-				fprintf(stderr, "-I '%s' path does not exist", include_path);
+				fprintf(stderr, "-I '%s' path does not exist\n", include_path);
 				exit(1);
 			}
 			if (!hcc_path_is_directory(include_path)) {
-				fprintf(stderr, "-I '%s' is not a directory", include_path);
+				fprintf(stderr, "-I '%s' is not a directory\n", include_path);
 				exit(1);
 			}
 
@@ -82,39 +83,45 @@ int main(int argc, char** argv) {
 		} else if (strcmp(argv[arg_idx], "-fi") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
-				fprintf(stderr, "'-fi' is missing a following input file path to follow '-fi path/to/file.c'");
+				fprintf(stderr, "'-fi' is missing a following input file path to follow '-fi path/to/file.c'\n");
 				exit(1);
 			}
 
 			const char* input_file_path = argv[arg_idx];
 			if (!hcc_path_exists(input_file_path)) {
-				fprintf(stderr, "-fi '%s' path does not exist", input_file_path);
+				fprintf(stderr, "-fi '%s' path does not exist\n", input_file_path);
 				exit(1);
 			}
 			if (!hcc_path_is_file(input_file_path)) {
-				fprintf(stderr, "-fi '%s' is not a directory", input_file_path);
+				fprintf(stderr, "-fi '%s' is not a directory\n", input_file_path);
 				exit(1);
 			}
 
 			const char* path = argv[arg_idx];
 			uint32_t path_size = strlen(path);
 			if (!(path_size > 2 && path[path_size - 2] == '.' && path[path_size - 1] == 'c')) {
-				fprintf(stderr, "'-fi %s' is supposed to have a .c file extension", path);
+				fprintf(stderr, "'-fi %s' is supposed to have a .c file extension\n", path);
 				exit(1);
 			}
 
 			HCC_ENSURE(hcc_task_add_input_code_file(task, input_file_path, NULL));
+			has_input = true;
 		} else if (strcmp(argv[arg_idx], "-fo") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
-				fprintf(stderr, "'-fo' is missing a following output file path to follow '-fo path/to/file.spirv'");
+				fprintf(stderr, "'-fo' is missing a following output file path to follow '-fo path/to/file.spirv'\n");
 				exit(1);
 			}
 
 			const char* path = argv[arg_idx];
 			uint32_t path_size = strlen(path);
 			if (!(path_size > 6 && path[path_size - 6] == '.' && path[path_size - 5] == 's' && path[path_size - 4] == 'p' && path[path_size - 3] == 'i' && path[path_size - 2] == 'r' && path[path_size - 1] == 'v')) {
-				fprintf(stderr, "'-fo %s' is supposed to have a .spirv file extension", path);
+				fprintf(stderr, "'-fo %s' is supposed to have a .spirv file extension\n", path);
+				exit(1);
+			}
+
+			if (output_file_path) {
+				fprintf(stderr, "there can only be a single '-fo' argument... '-fo %s' is the second '-fo' argument\n", path);
 				exit(1);
 			}
 
@@ -125,14 +132,14 @@ int main(int argc, char** argv) {
 		} else if (strcmp(argv[arg_idx], "-fomc") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
-				fprintf(stderr, "'-fomc' is missing a following output file path. eg. '-fomc path/to/file.h");
+				fprintf(stderr, "'-fomc' is missing a following output file path. eg. '-fomc path/to/file.h\n");
 				exit(1);
 			}
 
 			const char* path = argv[arg_idx];
 			uint32_t path_size = strlen(path);
 			if (!(path_size > 2 && path[path_size - 2] == '.' && path[path_size - 1] == 'h')) {
-				fprintf(stderr, "'-fomc %s' is supposed to have a .h file extension", path);
+				fprintf(stderr, "'-fomc %s' is supposed to have a .h file extension\n", path);
 				exit(1);
 			}
 
@@ -142,14 +149,14 @@ int main(int argc, char** argv) {
 		} else if (strcmp(argv[arg_idx], "-fomjson") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
-				fprintf(stderr, "'-fomjson' is missing a following output file path. eg. '-fomjson path/to/file.json");
+				fprintf(stderr, "'-fomjson' is missing a following output file path. eg. '-fomjson path/to/file.json\n");
 				exit(1);
 			}
 
 			const char* path = argv[arg_idx];
 			uint32_t path_size = strlen(path);
 			if (!(path_size > 5 && path[path_size - 5] == '.' && path[path_size - 4] == 'j' && path[path_size - 3] == 's' && path[path_size - 2] == 'o' && path[path_size - 1] == 'n')) {
-				fprintf(stderr, "'-fomjson %s' is supposed to have a .json file extension", path);
+				fprintf(stderr, "'-fomjson %s' is supposed to have a .json file extension\n", path);
 				exit(1);
 			}
 
@@ -163,28 +170,28 @@ int main(int argc, char** argv) {
 		} else if (strcmp(argv[arg_idx], "--hlsl") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
-				fprintf(stderr, "'--hlsl' is missing a following input directory path to follow '--hlsl path/to/directory'");
+				fprintf(stderr, "'--hlsl' is missing a following input directory path to follow '--hlsl path/to/directory'\n");
 				exit(1);
 			}
 
 			hlsl_dir = argv[arg_idx];
 
 			if (hcc_path_exists(hlsl_dir) && hcc_path_is_file(hlsl_dir)) {
-				fprintf(stderr, "--hlsl '%s' path is a file and not a directory", hlsl_dir);
+				fprintf(stderr, "--hlsl '%s' path is a file and not a directory\n", hlsl_dir);
 				exit(1);
 			}
 			hcc_options_set_bool(options, HCC_OPTION_KEY_HLSL_PACKING, true);
 		} else if (strcmp(argv[arg_idx], "--msl") == 0) {
 			arg_idx += 1;
 			if (arg_idx == argc) {
-				fprintf(stderr, "'--msl' is missing a following input directory path to follow '--msl path/to/directory'");
+				fprintf(stderr, "'--msl' is missing a following input directory path to follow '--msl path/to/directory'\n");
 				exit(1);
 			}
 
 			msl_dir = argv[arg_idx];
 
 			if (hcc_path_exists(msl_dir) && hcc_path_is_file(msl_dir)) {
-				fprintf(stderr, "--msl '%s' path is a file and not a directory", msl_dir);
+				fprintf(stderr, "--msl '%s' path is a file and not a directory\n", msl_dir);
 				exit(1);
 			}
 		} else if (strcmp(argv[arg_idx], "--debug-time") == 0) {
@@ -222,7 +229,7 @@ int main(int argc, char** argv) {
 				"\t-O                 | turn on optimizations, currently using spirv-opt\n"
 				"\t--hlsl-packing     | errors on bundled constants if they do not follow the HLSL packing rules for cbuffers. --hlsl also enables this\n"
 				"\t--hlsl <path>      | path to a directory where the HLSL files will go. requires spirv-cross to be installed\n"
-				"\t--msl <path>        | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
+				"\t--msl  <path>      | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
 				"\t--help             | displays this prompt and then exits\n"
 				"\t--debug-time       | prints the duration of each compiliation stage of the compiler\n"
 				"\t--debug-ata        | prints the Abstract Token Array made by the compiler, it will stop after ATAGEN stage\n"
@@ -232,11 +239,21 @@ int main(int argc, char** argv) {
 			);
 			exit(0);
 		} else {
-			fprintf(stderr, "invalid argument '%s'", argv[arg_idx]);
+			fprintf(stderr, "invalid argument '%s'\n", argv[arg_idx]);
 			exit(1);
 		}
 
 		arg_idx += 1;
+	}
+
+	if (!has_input) {
+		fprintf(stderr, "missing input file/s. please call hcc with one or more '-fi' flag/s followed by the .c file/s you wish to compile\n");
+		exit(1);
+	}
+
+	if (!output_file_path) {
+		fprintf(stderr, "missing the output file. please call hcc with a '-fo' flag followed by the .spirv file you wish to output\n");
+		exit(1);
 	}
 
 	hcc_compiler_dispatch_task(compiler, task);

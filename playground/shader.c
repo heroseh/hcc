@@ -18,8 +18,16 @@ HCC_VERTEX void vertex(
 	ShaderBC const* const bc,
 	RasterizerState* const state_out
 ) {
-	sv_out->position = f32x4((sv->vertex_idx & 1) * 2.f - 1.f, (sv->vertex_idx / 2) * 2.f - 1.f, 0.f, 1.f);
-	state_out->uv = f32x2((sv->vertex_idx & 1) * 2.f - 1.f, (sv->vertex_idx / 2) * 2.f - 1.f);
+	sv_out->position = f32x4(
+		(sv->vertex_idx & 1) * 2.f - 1.f,
+		(sv->vertex_idx / 2) * 2.f - 1.f,
+		0.f, 1.f
+	);
+
+	state_out->uv = f32x2(
+		(sv->vertex_idx & 1) * 2.f - 1.f,
+		(sv->vertex_idx / 2) * 2.f - 1.f
+	);
 }
 
 HCC_FRAGMENT void fragment(
@@ -31,4 +39,3 @@ HCC_FRAGMENT void fragment(
 ) {
 	frag_out->color = f32x4(0.98f, 0.7f, 0.3f, 1.f);
 }
-
