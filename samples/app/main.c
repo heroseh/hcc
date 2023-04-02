@@ -20,6 +20,7 @@ int main(int argc, char** argv) {
 	APP_UNUSED(argc);
 	APP_UNUSED(argv);
 
+	platform_register_segfault_handler();
 	dm_init();
 
 	int window_width, window_height;

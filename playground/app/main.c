@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 	APP_UNUSED(argv);
 
 	platform_open_console();
-
+	platform_register_segfault_handler();
 	dm_init();
 
 	int window_width, window_height;

@@ -11,7 +11,7 @@ struct TextureVertex {
 
 typedef struct TextureBC TextureBC;
 struct TextureBC {
-	HccRwTexture2D(f32x4)     texture;
+	HccRoTexture2D(f32x4)     texture;
 	HccSampleTexture2D(f32x4) sample_texture;
 	HccRoSampler              sampler;
 	float                     time_;

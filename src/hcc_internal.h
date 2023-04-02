@@ -2728,6 +2728,7 @@ struct HccSPIRVTypeEntry {
 typedef struct HccSPIRVDescriptorBindingKey HccSPIRVDescriptorBindingKey;
 struct HccSPIRVDescriptorBindingKey {
 	HccResourceDataType resource_data_type;
+	uint16_t            _padding;
 	HccDataType         element_data_type;
 };
 

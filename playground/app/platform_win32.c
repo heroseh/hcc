@@ -1,3 +1,4 @@
+#include <signal.h>
 
 typedef struct WatchedDirectoryWin32 WatchedDirectoryWin32;
 struct WatchedDirectoryWin32 {
@@ -54,4 +55,35 @@ bool platform_watch_file_check_if_changed(WatchedFile* handle) {
 	w->time = new_time;
 
 	return has_changed;
+}
+
+void platform_message_box(const char* fmt, ...) {
+	va_list va_args;
+	va_start(va_args, fmt);
+	char buf[1024];
+	vsnprintf(buf, sizeof(buf), fmt, va_args);
+	va_end(va_args);
+
+	MessageBoxA(NULL, buf, NULL, 0);
+}
+
+void segfault_handler(int signum, siginfo_t* info, void* data) {
+	APP_UNUSED(signum);
+	APP_UNUSED(info);
+	APP_UNUSED(data);
+
+	FILE* f = fopen("segfault_log.txt", "w");
+	char* stacktrace = b_stacktrace_get_string();
+	fprintf(f, "Stacktrace:\n%s\n\n", stacktrace);
+	fflush(f);
+	platform_message_box("Segfault Detected.\nThe error has been logged to the segfault_log.txt file.\nPlease report this error and the log file on the HCC github issue tracker");
+	abort();
+}
+
+void platform_register_segfault_handler(void) {
+	struct sigaction sa = {0};
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags     = SA_NODEFER;
+	sa.sa_sigaction = segfault_handler;
+	sigaction(SIGSEGV, &sa, NULL);
 }

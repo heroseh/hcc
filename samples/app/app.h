@@ -9,6 +9,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define B_STACKTRACE_IMPL
+#include "b_stacktrace.h"
+
 //
 // include the metadata produced by HCC about the shaders
 #include "../shaders-metadata.h"

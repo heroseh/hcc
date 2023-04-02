@@ -6,4 +6,6 @@ build
 .vs
 samples/samples
 playground/playground
+segfault_log.txt
+vk_validation_log.txt
 

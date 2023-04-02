@@ -83,6 +83,19 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		HCC_DEBUG_ASSERT(storage_class != HCC_SPIRV_STORAGE_CLASS_INVALID, "pointer type cannot have an invalid storage class");
 	}
 
+	if (HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(data_type)) {
+		HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(data_type);
+		if (HCC_RESOURCE_DATA_TYPE_IS_TEXTURE(resource_data_type) && HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) != HCC_RESOURCE_ACCESS_MODE_SAMPLE) {
+			//
+			// SUPER HACK: spir-v only allows unique type declaration for OpTypeImage.
+			// HCC_RESOURCE_ACCESS_MODE_READ_ONLY & HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY & HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
+			// all end up making an identical opTypeImage, so make all of those use the same key for the hash table when deduplicating the type.
+			resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_MASK;
+			resource_data_type |= HCC_RESOURCE_ACCESS_MODE_READ_ONLY << HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_SHIFT;
+			data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, resource_data_type);
+		}
+	}
+
 	HccSPIRVTypeKey key = { .storage_class = storage_class, .data_type = data_type };
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->spirv.type_table, &key);
 	HccSPIRVTypeEntry* entry = &cu->spirv.type_table[insert.idx];
@@ -400,8 +413,9 @@ void hcc_spirv_resource_descriptor_binding_deduplicate(HccCU* cu, HccDataType da
 	HccSPIRVStorageClass storage_class = HCC_RESOURCE_DATA_TYPE_TYPE(resource_data_type) == HCC_RESOURCE_DATA_TYPE_BUFFER ? HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER : HCC_SPIRV_STORAGE_CLASS_UNIFORM_CONSTANT;
 	HccSPIRVId data_type_ptr_spirv_id = hcc_spirv_type_deduplicate(cu, storage_class, hcc_pointer_data_type_deduplicate(cu, data_type));
 
-	HccSPIRVDescriptorBindingKey key = {0};
+	HccSPIRVDescriptorBindingKey key;
 	key.resource_data_type = resource_data_type;
+	key._padding = 0;
 	key.element_data_type = 0;
 	if (HCC_RESOURCE_DATA_TYPE_IS_BUFFER(resource_data_type)) {
 		key.element_data_type = hcc_buffer_data_type_get(cu, data_type)->element_data_type;

@@ -12,10 +12,19 @@ struct DmX11 {
 
 DmX11 dm;
 
+int x11_handler(Display * display, XErrorEvent *e) {
+	char buf[2048];
+	XGetErrorText(display, e->error_code, buf, sizeof(buf));
+	printf("%s\n", buf);
+	return 0;
+}
+
 void dm_init(void) {
 	dm.display = XOpenDisplay(NULL);
 	APP_ASSERT(dm.display, "could not open X11 display connection");
 	dm.delete_message_atom = XInternAtom(dm.display, "WM_DELETE_WINDOW", False);
+
+	XSetErrorHandler(x11_handler);
 }
 
 void dm_screen_dims(int* width_out, int* height_out) {

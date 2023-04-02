@@ -6,3 +6,5 @@ bool platform_file_exists(const char* path);
 void platform_open_console(void);
 WatchedFile* platform_watch_file(const char* path);
 bool platform_watch_file_check_if_changed(WatchedFile* handle);
+void platform_message_box(const char* fmt, ...);
+void platform_register_segfault_handler(void);

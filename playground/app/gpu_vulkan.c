@@ -207,6 +207,37 @@ void gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t windo
 	}
 }
 
+VkBool32 gpu_vk_handle_validation_error(
+	VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
+	VkDebugUtilsMessageTypeFlagsEXT                  messageTypes,
+	const VkDebugUtilsMessengerCallbackDataEXT*      pCallbackData,
+	void*                                            pUserData
+) {
+	APP_UNUSED(messageSeverity);
+	APP_UNUSED(messageTypes);
+	APP_UNUSED(pUserData);
+
+	char* stacktrace = b_stacktrace_get_string();
+	FILE* f;
+#if defined(_WIN32)
+	fopen_s(&f, "vk_validation_log.txt", "w");
+#else
+	f = fopen("vk_validation_log.txt", "w");
+#endif
+	fprintf(f, "Error Name: %s\n\n%s\n\nStacktrace:\n%s\n\n", pCallbackData->pMessageIdName, pCallbackData->pMessage, stacktrace);
+	fflush(f);
+
+	platform_message_box("Vulkan Validation Error Detected.\nThe error has been logged to the vk_validation_log.txt file.\nPlease report this error and the log file on the HCC github issue tracker");
+
+#if defined(_WIN32)
+	DebugBreak();
+#else
+	raise(SIGINT);
+#endif
+
+	return VK_FALSE;
+}
+
 void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 	VkResult vk_result;
 
@@ -214,18 +245,40 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 	// create instance
 	//
 	{
-		static const char* layers[] = {
-			"VK_LAYER_LUNARG_api_dump",
-			"VK_LAYER_KHRONOS_validation",
+		VkLayerProperties layer_props[512];
+		uint32_t layer_props_count = APP_ARRAY_COUNT(layer_props);
+		APP_VK_ASSERT(vkEnumerateInstanceLayerProperties(&layer_props_count, layer_props));
+		bool has_khronos_validation = false;
+		for (uint32_t idx = 0; idx < layer_props_count; idx += 1) {
+			if (strcmp(layer_props[idx].layerName, "VK_LAYER_KHRONOS_validation") == 0) {
+				has_khronos_validation = true;
+			}
+		}
+
+		VkExtensionProperties extension_props[512];
+		uint32_t extension_props_count = APP_ARRAY_COUNT(extension_props);
+		APP_VK_ASSERT(vkEnumerateInstanceExtensionProperties(NULL, &extension_props_count, extension_props));
+		bool has_debug_utils = false;
+		for (uint32_t idx = 0; idx < extension_props_count; idx += 1) {
+			if (strcmp(extension_props[idx].extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
+				has_debug_utils = true;
+			}
+		}
+
+		static const char* layers[2];
+		uint32_t layers_count = 0;
+		if (has_khronos_validation) {
+			layers[layers_count] = "VK_LAYER_KHRONOS_validation";
+			layers_count += 1;
 		};
 
 #if GPU_VK_DEBUG
-		uint32_t layers_count = APP_ARRAY_COUNT(layers);
-#else
-		uint32_t layers_count = 0;
+		layers[layers_count] = "VK_LAYER_LUNARG_api_dump";
+		layers_count += 1;
 #endif
 
-		static const char* extensions[] = {
+		uint32_t extensions_count = 2;
+		const char* extensions[3] = {
 			"VK_KHR_surface",
 #ifdef __linux__
 			"VK_KHR_xlib_surface",
@@ -235,6 +288,10 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 #error "unsupported platform"
 #endif
 		};
+		if (has_debug_utils) {
+			extensions[extensions_count] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+			extensions_count += 1;
+		}
 
 		VkApplicationInfo app = {
 			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -256,6 +313,21 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		};
 
 		APP_VK_ASSERT(vkCreateInstance(&create_info, NULL, &gpu.instance));
+	}
+
+	{
+		VkDebugUtilsMessengerCreateInfoEXT create_info = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+			.pNext = NULL,
+			.flags = 0,
+			.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+			.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
+			.pfnUserCallback = gpu_vk_handle_validation_error,
+			.pUserData = NULL,
+		};
+		VkDebugUtilsMessengerEXT messenger;
+		PFN_vkCreateDebugUtilsMessengerEXT fn = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(gpu.instance, "vkCreateDebugUtilsMessengerEXT");
+		APP_VK_ASSERT(fn(gpu.instance, &create_info, NULL, &messenger));
 	}
 
 	{

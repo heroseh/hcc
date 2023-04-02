@@ -131,7 +131,7 @@ HccResourceInfo TextureBC_resources[] = {
 	{
 		/* .name = */        "texture",
 		/* .offset = */      0,
-		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
 		/* .type = */        HCC_RESOURCE_TYPE_TEXTURE_2D,
 	},
 	{
