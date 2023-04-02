@@ -201,6 +201,7 @@ bool hcc_make_directory(const char* path);
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name);
 uint32_t hcc_logical_cores_count(void);
 int hcc_execute_shell_command(const char* shell_command);
+void hcc_register_segfault_handler(void);
 
 // ===========================================
 //

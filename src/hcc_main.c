@@ -21,6 +21,8 @@ void print_duration(const char* what, HccDuration d) {
 }
 
 int main(int argc, char** argv) {
+	hcc_register_segfault_handler();
+
 	HccSetup hcc_setup = hcc_setup_default;
 	HCC_ENSURE(hcc_init(&hcc_setup));
 

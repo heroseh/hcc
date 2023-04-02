@@ -1,6 +1,9 @@
 
 #include "hcc_internal.h"
 
+#define B_STACKTRACE_IMPL
+#include "b_stacktrace.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -484,6 +487,25 @@ uint32_t hcc_logical_cores_count(void) {
 
 int hcc_execute_shell_command(const char* shell_command) {
 	return system(shell_command);
+}
+
+void segfault_handler(int signum, siginfo_t* info, void* data) {
+	HCC_UNUSED(signum);
+	HCC_UNUSED(info);
+	HCC_UNUSED(data);
+
+	char* stacktrace = b_stacktrace_get_string();
+	printf("Segfault Detected! Please report this error on the HCC github issue tracker\nStacktrace:\n%s\n\n", stacktrace);
+	fflush(stdout);
+	abort();
+}
+
+void hcc_register_segfault_handler(void) {
+	struct sigaction sa = {0};
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags     = SA_NODEFER;
+	sa.sa_sigaction = segfault_handler;
+	sigaction(SIGSEGV, &sa, NULL);
 }
 
 // ===========================================
