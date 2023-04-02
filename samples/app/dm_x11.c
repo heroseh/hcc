@@ -1,10 +1,13 @@
 
 #include <X11/Xlib.h>
+#include <signal.h>
 
 typedef struct DmX11 DmX11;
 struct DmX11 {
 	Display* display;
 	Atom delete_message_atom;
+	int32_t window_width;
+	int32_t window_height;
 };
 
 DmX11 dm;
@@ -31,9 +34,10 @@ DmWindow dm_window_open(int width, int height) {
 
 	window.instance = d;
 	window.handle = (void*)(uintptr_t)w;
-	XSelectInput(d, w, ExposureMask | KeyPressMask);
+	XSelectInput(d, w, ExposureMask | KeyPressMask | StructureNotifyMask);
 	XMapWindow(d, w);
 	XSetWMProtocols(dm.display, w, &dm.delete_message_atom, 1);
+	XFlush(d);
 
 	return window;
 }
@@ -59,6 +63,18 @@ bool dm_process_events(DmEvent* e) {
 		} else if (xe.type == ClientMessage) {
 			if ((Atom)xe.xclient.data.l[0] == dm.delete_message_atom) {
 				e->type = DM_EVENT_TYPE_WINDOW_CLOSED;
+				return true;
+			}
+		} else if (xe.type == ConfigureNotify) {
+			XConfigureEvent xce = xe.xconfigure;
+
+			if (
+				xce.width != dm.window_width ||
+				xce.height != dm.window_height
+			) {
+				e->type = DM_EVENT_TYPE_WINDOW_RESIZED;
+				e->window_width = xce.width;
+				e->window_height = xce.height;
 				return true;
 			}
 		}

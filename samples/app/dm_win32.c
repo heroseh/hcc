@@ -46,7 +46,7 @@ DmWindow dm_window_open(int width, int height) {
 		// Size and position
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 
-		NULL,       // Parent window    
+		NULL,       // Parent window
 		NULL,       // Menu
 		hinstance,  // Instance handle
 		NULL        // Additional application data
@@ -87,11 +87,13 @@ bool dm_process_events(DmEvent* e) {
 	if (msg.message == WM_CHAR) {
 		e->type = DM_EVENT_TYPE_KEY_PRESSED;
 		e->key = msg.wParam;
-	}
-	else if (msg.message == WM_CLOSE) {
+	} else if (msg.message == WM_CLOSE) {
 		e->type = DM_EVENT_TYPE_WINDOW_CLOSED;
-	}
-	else {
+	} else if (msg.message == WM_SIZE) {
+		e->type = DM_EVENT_TYPE_WINDOW_RESIZE;
+		e->window_width = LOWORD(msg.lParam);
+		e->window_height = HIWORD(msg.lParam);
+	} else {
 		e->type = DM_EVENT_TYPE_UNKNOWN;
 	}
 

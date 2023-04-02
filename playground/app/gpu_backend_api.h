@@ -15,7 +15,7 @@ enum GpuTextureType {
 
 void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height);
 bool gpu_reload_shaders(void);
-void gpu_render_frame(void* bc);
+void gpu_render_frame(void* bc, uint32_t window_width, uint32_t window_height);
 GpuResourceId gpu_create_backbuffer(void);
 GpuResourceId gpu_create_buffer(uint32_t size);
 GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t array_layers, uint32_t mip_levels);

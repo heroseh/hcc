@@ -50,8 +50,7 @@ struct GpuVk {
 	VkSwapchainKHR        swapchain;
 	VkImage*              swapchain_images;
 	VkImageView*          swapchain_image_views;
-	VkImage               depth_image;
-	VkImageView           depth_image_view;
+	uint32_t              swapchain_images_count;
 	VkShaderStageFlags    push_constants_stage_flags;
 
 	uint32_t              next_resource_id;
@@ -119,10 +118,97 @@ const char* app_vk_result_string(VkResult result) {
 	}
 }
 
+void gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t window_height) {
+	VkResult vk_result;
+	{
+		// Check the surface capabilities and formats
+		VkSurfaceCapabilitiesKHR surface_capabilities;
+		APP_VK_ASSERT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu.physical_device, gpu.surface, &surface_capabilities));
+
+		VkExtent2D swapchain_extent = surface_capabilities.currentExtent;
+		if (swapchain_extent.width == 0xFFFFFFFF) {
+			swapchain_extent.width = APP_CLAMP(window_width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
+			swapchain_extent.height = APP_CLAMP(window_height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
+		}
+
+		gpu.swapchain_width = swapchain_extent.width;
+		gpu.swapchain_height = swapchain_extent.height;
+
+		if (gpu.swapchain_images) {
+			vkQueueWaitIdle(gpu.queue);
+			for (uint32_t image_idx = 0; image_idx < gpu.swapchain_images_count; image_idx += 1) {
+				vkDestroyImageView(gpu.device, gpu.swapchain_image_views[image_idx], NULL);
+			}
+
+			free(gpu.swapchain_images);
+			free(gpu.swapchain_image_views);
+			gpu.swapchain_images = NULL;
+			gpu.swapchain_image_views = NULL;
+		}
+
+		VkSwapchainCreateInfoKHR swapchain_create_info = {
+			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+			.pNext = NULL,
+			.surface = gpu.surface,
+			.minImageCount = surface_capabilities.minImageCount,
+			.imageFormat = GPU_VK_SURFACE_FORMAT,
+			.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+			.imageExtent = swapchain_extent,
+			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+			.preTransform = surface_capabilities.currentTransform,
+			.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+			.imageArrayLayers = 1,
+			.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.queueFamilyIndexCount = 0,
+			.pQueueFamilyIndices = NULL,
+			// don't use FIFO for a game, it's just the option that is always
+			// supported without checking for support for the other modes.
+			.presentMode = VK_PRESENT_MODE_FIFO_KHR,
+			.oldSwapchain = gpu.swapchain,
+			.clipped = true,
+		};
+		APP_VK_ASSERT(vkCreateSwapchainKHR(gpu.device, &swapchain_create_info, NULL, &gpu.swapchain));
+
+		APP_VK_ASSERT(vkGetSwapchainImagesKHR(gpu.device, gpu.swapchain, &gpu.swapchain_images_count, NULL));
+
+		gpu.swapchain_images = (VkImage*)malloc(gpu.swapchain_images_count * sizeof(VkImage));
+		APP_ASSERT(gpu.swapchain_images, "oom");
+
+		gpu.swapchain_image_views = (VkImageView*)malloc(gpu.swapchain_images_count * sizeof(VkImageView));
+		APP_ASSERT(gpu.swapchain_image_views, "oom");
+
+		APP_VK_ASSERT(vkGetSwapchainImagesKHR(gpu.device, gpu.swapchain, &gpu.swapchain_images_count, gpu.swapchain_images));
+
+		for (uint32_t image_idx = 0; image_idx < gpu.swapchain_images_count; image_idx += 1) {
+			VkImageViewCreateInfo image_view_create_info = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+				.pNext = NULL,
+				.format = GPU_VK_SURFACE_FORMAT,
+				.components = {
+					.r = VK_COMPONENT_SWIZZLE_R,
+					.g = VK_COMPONENT_SWIZZLE_G,
+					.b = VK_COMPONENT_SWIZZLE_B,
+					.a = VK_COMPONENT_SWIZZLE_A,
+				},
+				.subresourceRange = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.baseMipLevel = 0,
+					.levelCount = 1,
+					.baseArrayLayer = 0,
+					.layerCount = 1
+				},
+				.image = gpu.swapchain_images[image_idx],
+				.viewType = VK_IMAGE_VIEW_TYPE_2D,
+				.flags = 0,
+			};
+
+			APP_VK_ASSERT(vkCreateImageView(gpu.device, &image_view_create_info, NULL, &gpu.swapchain_image_views[image_idx]));
+		}
+	}
+}
+
 void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 	VkResult vk_result;
-	APP_UNUSED(window_width);
-	APP_UNUSED(window_height);
 
 	//
 	// create instance
@@ -330,151 +416,6 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 #endif
 	}
 
-	{
-		// Check the surface capabilities and formats
-		VkSurfaceCapabilitiesKHR surface_capabilities;
-		APP_VK_ASSERT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu.physical_device, gpu.surface, &surface_capabilities));
-
-		VkExtent2D swapchain_extent = surface_capabilities.currentExtent;
-		if (swapchain_extent.width == 0xFFFFFFFF) {
-			swapchain_extent.width = APP_CLAMP(window_width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
-			swapchain_extent.height = APP_CLAMP(window_height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
-		}
-
-		gpu.swapchain_width = swapchain_extent.width;
-		gpu.swapchain_height = swapchain_extent.height;
-
-		VkSwapchainCreateInfoKHR swapchain_create_info = {
-			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-			.pNext = NULL,
-			.surface = gpu.surface,
-			.minImageCount = surface_capabilities.minImageCount,
-			.imageFormat = GPU_VK_SURFACE_FORMAT,
-			.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-			.imageExtent = swapchain_extent,
-			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-			.preTransform = surface_capabilities.currentTransform,
-			.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-			.imageArrayLayers = 1,
-			.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			.queueFamilyIndexCount = 0,
-			.pQueueFamilyIndices = NULL,
-			// don't use FIFO for a game, it's just the option that is always
-			// supported without checking for support for the other modes.
-			.presentMode = VK_PRESENT_MODE_FIFO_KHR,
-			.oldSwapchain = NULL,
-			.clipped = true,
-		};
-		APP_VK_ASSERT(vkCreateSwapchainKHR(gpu.device, &swapchain_create_info, NULL, &gpu.swapchain));
-
-		uint32_t swapchain_images_count;
-		APP_VK_ASSERT(vkGetSwapchainImagesKHR(gpu.device, gpu.swapchain, &swapchain_images_count, NULL));
-
-		gpu.swapchain_images = (VkImage*)malloc(swapchain_images_count * sizeof(VkImage));
-		APP_ASSERT(gpu.swapchain_images, "oom");
-
-		gpu.swapchain_image_views = (VkImageView*)malloc(swapchain_images_count * sizeof(VkImageView));
-		APP_ASSERT(gpu.swapchain_image_views, "oom");
-
-		APP_VK_ASSERT(vkGetSwapchainImagesKHR(gpu.device, gpu.swapchain, &swapchain_images_count, gpu.swapchain_images));
-
-		for (uint32_t image_idx = 0; image_idx < swapchain_images_count; image_idx += 1) {
-			VkImageViewCreateInfo image_view_create_info = {
-				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-				.pNext = NULL,
-				.format = GPU_VK_SURFACE_FORMAT,
-				.components = {
-					.r = VK_COMPONENT_SWIZZLE_R,
-					.g = VK_COMPONENT_SWIZZLE_G,
-					.b = VK_COMPONENT_SWIZZLE_B,
-					.a = VK_COMPONENT_SWIZZLE_A,
-				},
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.baseMipLevel = 0,
-					.levelCount = 1,
-					.baseArrayLayer = 0,
-					.layerCount = 1
-				},
-				.image = gpu.swapchain_images[image_idx],
-				.viewType = VK_IMAGE_VIEW_TYPE_2D,
-				.flags = 0,
-			};
-
-			APP_VK_ASSERT(vkCreateImageView(gpu.device, &image_view_create_info, NULL, &gpu.swapchain_image_views[image_idx]));
-		}
-	}
-
-	{
-		VkImageCreateInfo image_create_info = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = 0,
-			.imageType = VK_IMAGE_TYPE_2D,
-			.format = VK_FORMAT_D32_SFLOAT,
-			.extent = {
-				.width = gpu.swapchain_width,
-				.height = gpu.swapchain_height,
-				.depth = 1,
-			},
-			.mipLevels = 1,
-			.arrayLayers = 1,
-			.samples = VK_SAMPLE_COUNT_1_BIT,
-			.tiling = VK_IMAGE_TILING_OPTIMAL,
-			.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			.queueFamilyIndexCount = 0,
-			.pQueueFamilyIndices = NULL,
-			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		};
-
-		APP_VK_ASSERT(vkCreateImage(gpu.device, &image_create_info, NULL, &gpu.depth_image));
-
-		VkMemoryRequirements memory_req;
-		vkGetImageMemoryRequirements(gpu.device, gpu.depth_image, &memory_req);
-
-		uint32_t memory_type_idx = 0;
-		while (!(memory_req.memoryTypeBits & (1 << memory_type_idx))) {
-			memory_type_idx += 1;
-		}
-
-		VkMemoryAllocateInfo alloc_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.pNext = NULL,
-			.allocationSize = memory_req.size,
-			.memoryTypeIndex = memory_type_idx,
-		};
-
-		VkDeviceMemory depth_device_memory;
-		APP_VK_ASSERT(vkAllocateMemory(gpu.device, &alloc_info, NULL, &depth_device_memory));
-
-		APP_VK_ASSERT(vkBindImageMemory(gpu.device, gpu.depth_image, depth_device_memory, 0));
-
-		VkImageViewCreateInfo image_view_create_info = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-			.pNext = NULL,
-			.format = VK_FORMAT_D32_SFLOAT,
-			.components = {
-				.r = VK_COMPONENT_SWIZZLE_R,
-				.g = VK_COMPONENT_SWIZZLE_G,
-				.b = VK_COMPONENT_SWIZZLE_B,
-				.a = VK_COMPONENT_SWIZZLE_A,
-			},
-			.subresourceRange = {
-				.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-				.baseMipLevel = 0,
-				.levelCount = 1,
-				.baseArrayLayer = 0,
-				.layerCount = 1
-			},
-			.image = gpu.depth_image,
-			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.flags = 0,
-		};
-
-		APP_VK_ASSERT(vkCreateImageView(gpu.device, &image_view_create_info, NULL, &gpu.depth_image_view));
-	}
-
 	gpu.push_constants_stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
 
 	HccInteropVulkanSetup interop_setup = {
@@ -486,6 +427,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		.bundled_constants_size_max = sizeof(ShaderBC),
 	};
 	hcc_interop_vulkan_init(&gpu.interop, &interop_setup);
+
+	gpu_vk_recreate_swapchain_and_friends(window_width, window_height);
 }
 
 bool gpu_reload_shaders(void) {
@@ -556,28 +499,14 @@ bool gpu_reload_shaders(void) {
 		.patchControlPoints = 0,
 	};
 
-	VkViewport viewport = {
-		.x = 0,
-		.y = gpu.swapchain_height,
-		.width = gpu.swapchain_width,
-		.height = -(float)gpu.swapchain_height,
-		.minDepth = 0.f,
-		.maxDepth = 1.f,
-	};
-
-	VkRect2D scissor = {
-		.offset = { .x = 0, .y = 0 },
-		.extent = { .width = gpu.swapchain_width, .height = gpu.swapchain_height },
-	};
-
 	VkPipelineViewportStateCreateInfo viewport_state = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
 		.viewportCount = 1,
-		.pViewports = &viewport,
+		.pViewports = NULL,
 		.scissorCount = 1,
-		.pScissors = &scissor,
+		.pScissors = NULL
 	};
 
 	VkPipelineRasterizationStateCreateInfo rasterization_state = {
@@ -645,12 +574,17 @@ bool gpu_reload_shaders(void) {
 		.blendConstants = {0},
 	};
 
+	VkDynamicState vk_dynamic_states[] = {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+	};
+
 	VkPipelineDynamicStateCreateInfo dynamic_state = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.dynamicStateCount = 0,
-		.pDynamicStates = NULL,
+		.dynamicStateCount = APP_ARRAY_COUNT(vk_dynamic_states),
+		.pDynamicStates = vk_dynamic_states,
 	};
 
 	VkFormat image_format = GPU_VK_SURFACE_FORMAT;
@@ -697,7 +631,7 @@ bool gpu_reload_shaders(void) {
 	return true;
 }
 
-void gpu_render_frame(void* bc) {
+void gpu_render_frame(void* bc, uint32_t window_width, uint32_t window_height) {
 	VkResult vk_result;
 	if (gpu.pipeline == VK_NULL_HANDLE) {
 		return;
@@ -711,7 +645,23 @@ void gpu_render_frame(void* bc) {
 	APP_VK_ASSERT(vkResetFences(gpu.device, 1, &gpu.fences[active_frame_idx]));
 
 	uint32_t swapchain_image_idx;
-	APP_VK_ASSERT(vkAcquireNextImageKHR(gpu.device, gpu.swapchain, UINT64_MAX, gpu.swapchain_image_ready_semaphore, VK_NULL_HANDLE, &swapchain_image_idx));
+	while (1) {
+		vk_result = vkAcquireNextImageKHR(gpu.device, gpu.swapchain, UINT64_MAX, gpu.swapchain_image_ready_semaphore, VK_NULL_HANDLE, &swapchain_image_idx);
+		bool yes = false;
+		switch (vk_result) {
+			case VK_ERROR_OUT_OF_DATE_KHR:
+			case VK_SUBOPTIMAL_KHR:
+				gpu_vk_recreate_swapchain_and_friends(window_width, window_height);
+				break;
+			default:
+				APP_VK_ASSERT(vk_result);
+				yes = true;
+				break;
+		}
+		if (yes) {
+			break;
+		}
+	}
 	VkImage swapchain_image = gpu.swapchain_images[swapchain_image_idx];
 	VkImageView swapchain_image_view = gpu.swapchain_image_views[swapchain_image_idx];
 
@@ -826,26 +776,6 @@ void gpu_render_frame(void* bc) {
 					.layerCount = 1
 				},
 			},
-			{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-				.pNext = NULL,
-				.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-				.srcAccessMask = VK_ACCESS_2_NONE,
-				.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-				.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-				.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-				.srcQueueFamilyIndex = gpu.queue_family_idx,
-				.dstQueueFamilyIndex = gpu.queue_family_idx,
-				.image = gpu.depth_image,
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-					.baseMipLevel = 0,
-					.levelCount = 1,
-					.baseArrayLayer = 0,
-					.layerCount = 1
-				},
-			}
 		};
 
 		VkDependencyInfo dependency_info = {
@@ -877,19 +807,6 @@ void gpu_render_frame(void* bc) {
 			.clearValue = {0},
 		};
 
-		VkRenderingAttachmentInfo depth_attachment_info = {
-			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-			.pNext = NULL,
-			.imageView = gpu.depth_image_view,
-			.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-			.resolveMode = VK_RESOLVE_MODE_NONE,
-			.resolveImageView = VK_NULL_HANDLE,
-			.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-			.clearValue = {0},
-		};
-
 		VkRenderingInfo rendering_info = {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
 			.pNext = NULL,
@@ -904,13 +821,29 @@ void gpu_render_frame(void* bc) {
 			.viewMask = 0,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &color_attachment_info,
-			.pDepthAttachment = &depth_attachment_info,
+			.pDepthAttachment = NULL,
 			.pStencilAttachment = NULL,
 		};
 
 		vkCmdBeginRendering(vk_command_buffer, &rendering_info);
 	}
 
+	VkViewport viewport = {
+		.x = 0,
+		.y = gpu.swapchain_height,
+		.width = gpu.swapchain_width,
+		.height = -(float)gpu.swapchain_height,
+		.minDepth = 0.f,
+		.maxDepth = 1.f,
+	};
+
+	VkRect2D scissor = {
+		.offset = { .x = 0, .y = 0 },
+		.extent = { .width = gpu.swapchain_width, .height = gpu.swapchain_height },
+	};
+
+	vkCmdSetViewport(vk_command_buffer, 0, 1, &viewport);
+	vkCmdSetScissor(vk_command_buffer, 0, 1, &scissor);
 	vkCmdBindPipeline(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu.pipeline);
 	vkCmdBindDescriptorSets(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu.interop.pipeline_layout, 0, 1, &gpu.interop.descriptor_sets[active_frame_idx], 0, NULL);
 	vkCmdDraw(vk_command_buffer, 4, 1, 0, 0);
@@ -1010,7 +943,15 @@ void gpu_render_frame(void* bc) {
 			.pResults = NULL,
 		};
 
-		APP_VK_ASSERT(vkQueuePresentKHR(gpu.queue, &present_info));
+		vk_result = vkQueuePresentKHR(gpu.queue, &present_info);
+		switch (vk_result) {
+			case VK_ERROR_OUT_OF_DATE_KHR:
+			case VK_SUBOPTIMAL_KHR:
+				break;
+			default:
+				APP_VK_ASSERT(vk_result);
+				break;
+		}
 	}
 	gpu.frame_idx += 1;
 }

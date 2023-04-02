@@ -5,6 +5,7 @@ enum DmEventType {
 	DM_EVENT_TYPE_UNKNOWN,
 	DM_EVENT_TYPE_KEY_PRESSED,
 	DM_EVENT_TYPE_KEY_RELEASED,
+	DM_EVENT_TYPE_WINDOW_RESIZED,
 	DM_EVENT_TYPE_WINDOW_CLOSED,
 };
 
@@ -13,6 +14,10 @@ struct DmEvent {
 	DmEventType type;
 	union {
 		char key;
+		struct {
+			uint32_t window_width;
+			uint32_t window_height;
+		};
 	};
 	void* handle;
 };

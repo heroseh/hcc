@@ -98,6 +98,10 @@ int main(int argc, char** argv) {
 			switch (event.type) {
 				case DM_EVENT_TYPE_WINDOW_CLOSED:
 					exit(0);
+				case DM_EVENT_TYPE_WINDOW_RESIZED:
+					window_width = event.window_width;
+					window_height = event.window_height;
+					break;
 				case DM_EVENT_TYPE_KEY_PRESSED:
 					printf("key pressed %c\n", event.key);
 					break;
@@ -111,7 +115,7 @@ int main(int argc, char** argv) {
 			recompile_shader();
 		}
 
-		gpu_render_frame(&bc);
+		gpu_render_frame(&bc, window_width, window_height);
 		bc.time_ += 0.01f;
 	}
 

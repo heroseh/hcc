@@ -119,6 +119,10 @@ int main(int argc, char** argv) {
 			switch (event.type) {
 				case DM_EVENT_TYPE_WINDOW_CLOSED:
 					exit(0);
+				case DM_EVENT_TYPE_WINDOW_RESIZED:
+					window_width = event.window_width;
+					window_height = event.window_height;
+					break;
 				case DM_EVENT_TYPE_KEY_PRESSED:
 					switch (event.key) {
 						case '[':
@@ -228,7 +232,7 @@ int main(int argc, char** argv) {
 			};
 		}
 
-		gpu_render_frame(sample_enum, bc_data);
+		gpu_render_frame(sample_enum, bc_data, window_width, window_height);
 		init_sample = false;
 		time_ += 0.01f;
 	}
