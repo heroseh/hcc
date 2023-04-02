@@ -81,7 +81,6 @@ int main(int argc, char** argv) {
 		uint32_t dst_offset = 0;
 		uint32_t src_offset = 0;
 		for (uint32_t z = 0; z < APP_LOGO_VOXEL_DEPTH; z += 1) {
-			dst_offset = z * x*y;
 			src_offset = 0;
 			for (uint32_t y = 0; y < APP_LOGO_VOXEL_HEIGHT; y += 1) {
 				memcpy(&dst_pixels[dst_offset], &src_pixels[src_offset], row_size);
