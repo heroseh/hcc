@@ -489,6 +489,7 @@ int hcc_execute_shell_command(const char* shell_command) {
 	return system(shell_command);
 }
 
+#if defined(__linux__)
 void segfault_handler(int signum, siginfo_t* info, void* data) {
 	HCC_UNUSED(signum);
 	HCC_UNUSED(info);
@@ -507,6 +508,20 @@ void hcc_register_segfault_handler(void) {
 	sa.sa_sigaction = segfault_handler;
 	sigaction(SIGSEGV, &sa, NULL);
 }
+#else
+void segfault_handler(int signum) {
+	HCC_UNUSED(signum);
+
+	char* stacktrace = b_stacktrace_get_string();
+	printf("Segfault Detected! Please report this error on the HCC github issue tracker\nStacktrace:\n%s\n\n", stacktrace);
+	fflush(stdout);
+	abort();
+}
+
+void hcc_register_segfault_handler(void) {
+	signal(SIGSEGV, &segfault_handler);
+}
+#endif
 
 // ===========================================
 //
