@@ -11,7 +11,7 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 
 ## Features
 - Windows & Linux support
-- Vulkan 1.2+
+- Vulkan 1.3+
 - Aims for C11 support
 - Vertex, Fragment & Compute shader support
 - Included Maths library for GPU programming (will be available to also be used CPU very soon!) [More Info]()
@@ -34,7 +34,7 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - No vector operator or swizzling (planned soon after release)
 - No function pointers
 - Minimal libc bundled with the compiler
-- Vulkan 1.2+ with the following features:
+- Vulkan 1.3+ with the following features:
 	- vulkanMemoryModel
 	- vulkanMemoryModelDeviceScope
 	- shaderStorageImageReadWithoutFormat (currently a problem on Intel cards when using HccRoTexture and loading)

@@ -514,6 +514,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		VkPhysicalDeviceFeatures2 features = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
 			.pNext = &features_1_3,
+			.features.shaderStorageImageReadWithoutFormat = VK_TRUE,
+			.features.shaderStorageImageWriteWithoutFormat = VK_TRUE,
 		};
 
 		static const char* extensions[] = {
@@ -1371,15 +1373,29 @@ GpuResourceId gpu_create_buffer(uint32_t size) {
 	res->device_memory_size = mem_req.size;
 
 	uint32_t memory_type_idx = 0;
-	while (1) {
+	while (memory_type_idx < gpu.memory_properties.memoryTypeCount) {
 		if (mem_req.memoryTypeBits & (1 << memory_type_idx)) {
-			if (gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT && !(gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+			if (
+				gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
+				!(gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+			) {
 				break;
 			}
 		}
 		memory_type_idx += 1;
 	}
-	APP_ASSERT(memory_type_idx < VK_MAX_MEMORY_TYPES, "failed to find memory type");
+	if (memory_type_idx == gpu.memory_properties.memoryTypeCount) {
+		memory_type_idx = 0;
+		while (memory_type_idx < gpu.memory_properties.memoryTypeCount) {
+			if (mem_req.memoryTypeBits & (1 << memory_type_idx)) {
+				if (gpu.memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+					break;
+				}
+			}
+			memory_type_idx += 1;
+		}
+	}
+	APP_ASSERT(memory_type_idx < gpu.memory_properties.memoryTypeCount, "failed to find memory type");
 
 	VkMemoryAllocateInfo alloc_info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,

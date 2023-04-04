@@ -102,7 +102,18 @@ void platform_message_box(const char* fmt, ...) {
 	va_end(va_args);
 
 	char command[1024];
-	snprintf(command, sizeof(command), "xmessage \"%s\"", buf);
+	if (system("command -v zenity") == 0) {
+		snprintf(command, sizeof(command), "zenity --error --text \"%s\"", buf);
+	} else if (system("command -v gxmessage") == 0) {
+		snprintf(command, sizeof(command), "gxmessage \"%s\"", buf);
+	} else if (system("command -v xmessage") == 0) {
+		snprintf(command, sizeof(command), "xmessage \"%s\"", buf);
+	} else if (system("command -v notify-send") == 0) {
+		snprintf(command, sizeof(command), "notify-send Error \"%s\"", buf);
+	} else {
+		printf("%s\n", buf);
+		return;
+	}
 	system(command);
 }
 

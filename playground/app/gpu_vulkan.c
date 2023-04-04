@@ -205,6 +205,21 @@ void gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t windo
 			APP_VK_ASSERT(vkCreateImageView(gpu.device, &image_view_create_info, NULL, &gpu.swapchain_image_views[image_idx]));
 		}
 	}
+
+	{
+		if (gpu.swapchain_image_ready_semaphore) {
+			vkDestroySemaphore(gpu.device, gpu.swapchain_image_ready_semaphore, NULL);
+			vkDestroySemaphore(gpu.device, gpu.swapchain_present_ready_semaphore, NULL);
+		}
+
+		VkSemaphoreCreateInfo create_info = {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = 0,
+		};
+		APP_VK_ASSERT(vkCreateSemaphore(gpu.device, &create_info, NULL, &gpu.swapchain_image_ready_semaphore));
+		APP_VK_ASSERT(vkCreateSemaphore(gpu.device, &create_info, NULL, &gpu.swapchain_present_ready_semaphore));
+	}
 }
 
 VkBool32 gpu_vk_handle_validation_error(
@@ -397,6 +412,8 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		VkPhysicalDeviceFeatures2 features = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
 			.pNext = &features_1_3,
+			.features.shaderStorageImageReadWithoutFormat = VK_TRUE,
+			.features.shaderStorageImageWriteWithoutFormat = VK_TRUE,
 		};
 
 		static const char* extensions[] = {
