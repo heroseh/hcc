@@ -90,7 +90,7 @@ bool dm_process_events(DmEvent* e) {
 	} else if (msg.message == WM_CLOSE) {
 		e->type = DM_EVENT_TYPE_WINDOW_CLOSED;
 	} else if (msg.message == WM_SIZE) {
-		e->type = DM_EVENT_TYPE_WINDOW_RESIZE;
+		e->type = DM_EVENT_TYPE_WINDOW_RESIZED;
 		e->window_width = LOWORD(msg.lParam);
 		e->window_height = HIWORD(msg.lParam);
 	} else {
