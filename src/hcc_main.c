@@ -63,6 +63,7 @@ int main(int argc, char** argv) {
 	bool debug_time = false;
 	const char* hlsl_dir = NULL;
 	const char* msl_dir = NULL;
+	bool enable_stdout_color = true;
 	while (arg_idx < argc) {
 		if (strcmp(argv[arg_idx], "-I") == 0) {
 			arg_idx += 1;
@@ -196,26 +197,56 @@ int main(int argc, char** argv) {
 				fprintf(stderr, "--msl '%s' path is a file and not a directory\n", msl_dir);
 				exit(1);
 			}
+		} else if (strcmp(argv[arg_idx], "--max-descriptors") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "'--max-descriptors' is missing a following integer for the maximum number of descriptors\n");
+				exit(1);
+			}
+
+			const char* a = argv[arg_idx];
+			uint32_t size = strlen(a);
+
+			char* end_ptr;
+			long num = strtoul(a, &end_ptr, 10);
+			if (a + size != end_ptr) {
+				fprintf(stderr, "'--max-descriptors %s' argument is not an unsigned integer\n", a);
+				exit(1);
+			}
+
+			hcc_options_set_u32(options, HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX, num);
+		} else if (strcmp(argv[arg_idx], "--disable-color") == 0) {
+			enable_stdout_color = false;
+		} else if (strcmp(argv[arg_idx], "--enable-int8") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_INT8_ENABLED, true);
+		} else if (strcmp(argv[arg_idx], "--enable-int16") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_INT16_ENABLED, true);
+		} else if (strcmp(argv[arg_idx], "--enable-int64") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_INT64_ENABLED, true);
+		} else if (strcmp(argv[arg_idx], "--enable-float16") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_FLOAT16_ENABLED, true);
+		} else if (strcmp(argv[arg_idx], "--enable-float64") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_FLOAT64_ENABLED, true);
 		} else if (strcmp(argv[arg_idx], "--debug-time") == 0) {
 			debug_time = true;
 		} else if (strcmp(argv[arg_idx], "--debug-ata") == 0) {
 			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
 			*stdout_iio = hcc_iio_file(stdout);
-			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
+			hcc_iio_set_ascii_colors_enabled(stdout_iio, enable_stdout_color);
 			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ATAGEN);
 			output_file_path = NULL;
 		} else if (strcmp(argv[arg_idx], "--debug-ast") == 0) {
 			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
 			*stdout_iio = hcc_iio_file(stdout);
-			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
+			hcc_iio_set_ascii_colors_enabled(stdout_iio, enable_stdout_color);
 			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ASTLINK);
 			output_file_path = NULL;
 		} else if (strcmp(argv[arg_idx], "--debug-aml") == 0) {
 			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
 			*stdout_iio = hcc_iio_file(stdout);
-			hcc_iio_set_ascii_colors_enabled(stdout_iio, true);
+			hcc_iio_set_ascii_colors_enabled(stdout_iio, enable_stdout_color);
 			HCC_ENSURE(hcc_task_add_output_aml_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_AMLOPT);
 			output_file_path = NULL;
@@ -224,19 +255,26 @@ int main(int argc, char** argv) {
 				"hcc version 0.0.1 help:\n"
 				"%s OPTIONS\n"
 				"OPTIONS:\n"
-				"\t-fi   <path>.c     | <path>.c to a C file to compile\n"
-				"\t-fo   <path>.spirv | <path>.spirv to where you want the output file to go\n"
-				"\t-fomc <path>.h     | <path>.h to where you want the output metadata file to go\n"
-				"\t-I    <path>       | add an include search directory path for #include <...>\n"
-				"\t-O                 | turn on optimizations, currently using spirv-opt\n"
-				"\t--hlsl-packing     | errors on bundled constants if they do not follow the HLSL packing rules for cbuffers. --hlsl also enables this\n"
-				"\t--hlsl <path>      | path to a directory where the HLSL files will go. requires spirv-cross to be installed\n"
-				"\t--msl  <path>      | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
-				"\t--help             | displays this prompt and then exits\n"
-				"\t--debug-time       | prints the duration of each compiliation stage of the compiler\n"
-				"\t--debug-ata        | prints the Abstract Token Array made by the compiler, it will stop after ATAGEN stage\n"
-				"\t--debug-ast        | prints the Abstract Syntax Tree made by the compiler, it will stop after ASTGEN stage\n"
-				"\t--debug-aml        | prints the Abstract Machine Language made by the compiler, it will stop after AMLGEN stage\n"
+				"\t-fi   <path>.c          | <path>.c to a C file to compile\n"
+				"\t-fo   <path>.spirv      | <path>.spirv to where you want the output file to go\n"
+				"\t-fomc <path>.h          | <path>.h to where you want the output metadata file to go\n"
+				"\t-I    <path>            | add an include search directory path for #include <...>\n"
+				"\t-O                      | turn on optimizations, currently using spirv-opt\n"
+				"\t--hlsl-packing          | errors on bundled constants if they do not follow the HLSL packing rules for cbuffers. --hlsl also enables this\n"
+				"\t--hlsl <path>           | path to a directory where the HLSL files will go. requires spirv-cross to be installed\n"
+				"\t--msl  <path>           | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
+				"\t--max-descriptors <int> | sets the size of the resource descriptors arrays\n"
+				"\t--disable-color         | disables color output when printing to stdout\n"
+				"\t--enable-int8           | enables 8bit integer support\n"
+				"\t--enable-int16          | enables 16bit integer support\n"
+				"\t--enable-int64          | enables 64bit integer support\n"
+				"\t--enable-float16        | enables 16bit float support\n"
+				"\t--enable-float64        | enables 64bit float support\n"
+				"\t--help                  | displays this prompt and then exits\n"
+				"\t--debug-time            | prints the duration of each compiliation stage of the compiler\n"
+				"\t--debug-ata             | prints the Abstract Token Array made by the compiler, it will stop after ATAGEN stage\n"
+				"\t--debug-ast             | prints the Abstract Syntax Tree made by the compiler, it will stop after ASTGEN stage\n"
+				"\t--debug-aml             | prints the Abstract Machine Language made by the compiler, it will stop after AMLGEN stage\n"
 				, argv[0]
 			);
 			exit(0);
@@ -262,7 +300,7 @@ int main(int argc, char** argv) {
 	HccResult result = hcc_task_wait_for_complete(task);
 
 	HccIIO iio = hcc_iio_file(stdout);
-	hcc_iio_set_ascii_colors_enabled(&iio, true);
+	hcc_iio_set_ascii_colors_enabled(&iio, enable_stdout_color);
 
 	uint32_t messages_count;
 	HccMessage* messages = hcc_task_messages(task, &messages_count);

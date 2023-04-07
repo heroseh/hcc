@@ -23,7 +23,12 @@ HCC_RASTERIZER_STATE struct TriangleRasterizerState {
 	HCC_INTERP f32x4 color;
 };
 
-HCC_VERTEX void triangle_vs(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, TriangleBC const* const bc, TriangleRasterizerState* const state_out) {
+HCC_VERTEX void triangle_vs(
+	HccVertexSV const* const sv,
+	HccVertexSVOut* const sv_out,
+	TriangleBC const* const bc,
+	TriangleRasterizerState* const state_out
+) {
 	HccRoBuffer(TriangleVertex) vertices = bc->vertices;
 
 	TriangleVertex vertex = bc->vertices[sv->vertex_idx];
@@ -43,7 +48,13 @@ HCC_FRAGMENT_STATE struct TriangleFragment {
 	f32x4 color;
 };
 
-HCC_FRAGMENT void triangle_fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, TriangleBC const* const bc, TriangleRasterizerState const* const state, TriangleFragment* const frag_out) {
+HCC_FRAGMENT void triangle_fs(
+	HccFragmentSV const* const sv,
+	HccFragmentSVOut* const sv_out,
+	TriangleBC const* const bc,
+	TriangleRasterizerState const* const state,
+	TriangleFragment* const frag_out
+) {
 	frag_out->color = state->color;
 }
 

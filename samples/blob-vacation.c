@@ -14,10 +14,10 @@ struct BlobVacationBC {
 #ifdef __HCC__
 #include <hmaths.h>
 
-HCC_INVOCATION const float BLOB_MIN_DIST = 0.f;
-HCC_INVOCATION const float BLOB_MAX_DIST = 100.f;
-HCC_INVOCATION const float BLOB_EPSILON = 0.0001f;
-HCC_INVOCATION const int BLOB_MAX_MARCHING_STEPS = 1024;
+_Thread_local const float BLOB_MIN_DIST = 0.f;
+_Thread_local const float BLOB_MAX_DIST = 100.f;
+_Thread_local const float BLOB_EPSILON = 0.0001f;
+_Thread_local const int BLOB_MAX_MARCHING_STEPS = 1024;
 
 typedef struct BlobVacationFragment BlobVacationFragment;
 HCC_FRAGMENT_STATE struct BlobVacationFragment {

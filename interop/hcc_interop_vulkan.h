@@ -5,7 +5,7 @@
 #include "hcc_interop.h"
 
 #ifndef HCC_INTEROP_VK_ASSERT
-#define HCC_INTEROP_VK_ASSERT(expr) HCC_INTEROP_ASSERT((vk_result = (expr)) >= 0, "vulkan result error '%u' for '%s'", vk_result, #expr)
+#define HCC_INTEROP_VK_ASSERT(expr) HCC_INTEROP_ASSERT((vk_result = (expr)) >= 0, "vulkan result error '%u' for '%s' at %s:%u", vk_result, #expr, __FILE__, __LINE__)
 #endif
 
 typedef uint8_t HccInteropVulkanDescriptorBinding;

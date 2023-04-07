@@ -4,12 +4,12 @@ HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 	[HCC_ASTGEN_SPECIFIER_EXTERN] =           HCC_ATA_TOKEN_KEYWORD_EXTERN,
 	[HCC_ASTGEN_SPECIFIER_THREAD_LOCAL] =     HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL,
 	[HCC_ASTGEN_SPECIFIER_DISPATCH_GROUP] =   HCC_ATA_TOKEN_KEYWORD_DISPATCH_GROUP,
-	[HCC_ASTGEN_SPECIFIER_INVOCATION] =       HCC_ATA_TOKEN_KEYWORD_INVOCATION,
 	[HCC_ASTGEN_SPECIFIER_INLINE] =           HCC_ATA_TOKEN_KEYWORD_INLINE,
 	[HCC_ASTGEN_SPECIFIER_NO_RETURN] =        HCC_ATA_TOKEN_KEYWORD_NO_RETURN,
 	[HCC_ASTGEN_SPECIFIER_RASTERIZER_STATE] = HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE,
 	[HCC_ASTGEN_SPECIFIER_FRAGMENT_STATE] =   HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE,
 	[HCC_ASTGEN_SPECIFIER_NOINTERP] =         HCC_ATA_TOKEN_KEYWORD_NOINTERP,
+	[HCC_ASTGEN_SPECIFIER_INTERP] =           HCC_ATA_TOKEN_KEYWORD_INTERP,
 	[HCC_ASTGEN_SPECIFIER_VERTEX] =           HCC_ATA_TOKEN_KEYWORD_VERTEX,
 	[HCC_ASTGEN_SPECIFIER_FRAGMENT] =         HCC_ATA_TOKEN_KEYWORD_FRAGMENT,
 	[HCC_ASTGEN_SPECIFIER_COMPUTE] =          HCC_ATA_TOKEN_KEYWORD_COMPUTE,
@@ -627,8 +627,6 @@ void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_DISPATCH_GROUP) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_DISPATCH_GROUP;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INVOCATION) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_INVOCATION;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INLINE) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_INLINE;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN) {
@@ -1239,11 +1237,11 @@ HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 			case HCC_ATA_TOKEN_KEYWORD_EXTERN:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN;           break;
 			case HCC_ATA_TOKEN_KEYWORD_THREAD_LOCAL:     flag = HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL;     break;
 			case HCC_ATA_TOKEN_KEYWORD_DISPATCH_GROUP:   flag = HCC_ASTGEN_SPECIFIER_FLAGS_DISPATCH_GROUP;   break;
-			case HCC_ATA_TOKEN_KEYWORD_INVOCATION:       flag = HCC_ASTGEN_SPECIFIER_FLAGS_INVOCATION;       break;
 			case HCC_ATA_TOKEN_KEYWORD_INLINE:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_INLINE;           break;
 			case HCC_ATA_TOKEN_KEYWORD_NO_RETURN:        flag = HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN;        break;
 			case HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE: flag = HCC_ASTGEN_SPECIFIER_FLAGS_RASTERIZER_STATE; break;
 			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE:   flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT_STATE;   break;
+			case HCC_ATA_TOKEN_KEYWORD_INTERP:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_INTERP;           break;
 			case HCC_ATA_TOKEN_KEYWORD_NOINTERP:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_NOINTERP;         break;
 			case HCC_ATA_TOKEN_KEYWORD_VERTEX:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX;           break;
 			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT;         break;
@@ -1625,20 +1623,23 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			if (w->astgen.specifier_flags) {
 				if (compound_data_type.kind != HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE) {
 					w->astgen.token_iter->token_idx -= 1;
-					hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER, compound_data_type_location, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
+					hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER, compound_data_type_location, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_INTERP], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
 				}
 
 				//
 				// ensure only one specifier is enabled
-				if (!HCC_IS_POWER_OF_TWO_OR_ZERO(w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_ALL_STRUCT_FIELD_SPECIFIERS)) {
-					hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
+				if (!HCC_IS_POWER_OF_TWO(w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_ALL_STRUCT_FIELD_SPECIFIERS)) {
+					hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_INTERP], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
 				}
 
 				switch (hcc_leastsetbitidx32(w->astgen.specifier_flags)) {
+					case HCC_ASTGEN_SPECIFIER_INTERP: compound_field->rasterizer_state_field_kind = HCC_RASTERIZER_STATE_FIELD_KIND_INTERP; break;
 					case HCC_ASTGEN_SPECIFIER_NOINTERP: compound_field->rasterizer_state_field_kind = HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP; break;
 				}
 
 				w->astgen.specifier_flags &= ~HCC_ASTGEN_SPECIFIER_FLAGS_ALL_STRUCT_FIELD_SPECIFIERS;
+			} else if (compound_data_type.kind == HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE) {
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT_FIELD, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_INTERP], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_NOINTERP]);
 			}
 		}
 
@@ -1742,12 +1743,17 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 				break;
 			case HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE: {
 				HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
-				if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type)) {
+				if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type) && !HCC_DATA_TYPE_IS_RESOURCE(lowered_data_type)) {
 					HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE, (int)data_type_name.size, data_type_name.data);
 				}
 
-				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
+				if (HCC_DATA_TYPE_IS_RESOURCE(lowered_data_type) && compound_field->rasterizer_state_field_kind != HCC_RASTERIZER_STATE_FIELD_KIND_NOINTERP) {
+					HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_RASTERIZER_STATE_RESOURCE_MUST_BE_NOINTERP, (int)data_type_name.size, data_type_name.data);
+				}
+
+				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE);
 				break;
 			};
 			case HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE: {
@@ -1756,7 +1762,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 					HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE, (int)data_type_name.size, data_type_name.data);
 				}
-				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_BUFFER_ELEMENT);
+				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE);
 				break;
 			};
 		}
@@ -3631,7 +3637,6 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 	bool found_extern = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_EXTERN;
 	bool found_thread_local = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_THREAD_LOCAL;
 	bool found_dispatch_group = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_DISPATCH_GROUP;
-	bool found_invocation = w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_INVOCATION;
 
 	if (found_static && found_extern) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_AND_EXTERN);
@@ -3645,10 +3650,6 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_DISPATCH_GROUP_MUST_BE_GLOBAL);
 	}
 
-	if (!is_global && found_invocation) {
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVOCATION_MUST_BE_GLOBAL);
-	}
-
 	HccASTVariable variable;
 	variable.ast_file = w->astgen.ast_file;
 	variable.identifier_string_id = identifier_string_id;
@@ -3656,9 +3657,7 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 	variable.data_type = hcc_astgen_generate_array_data_type_if_exists(w, *data_type_mut, true);
 	variable.initializer_constant_id.idx_plus_one = 0;
 	if (is_global) {
-		if (found_invocation) {
-			variable.storage_duration = HCC_AST_STORAGE_DURATION_INVOCATION;
-		} else if (found_dispatch_group) {
+		if (found_dispatch_group) {
 			variable.storage_duration = HCC_AST_STORAGE_DURATION_DISPATCH_GROUP;
 		} else if (found_thread_local) {
 			variable.storage_duration = HCC_AST_STORAGE_DURATION_THREAD;
@@ -3671,10 +3670,6 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 
 	if (variable.storage_duration == HCC_AST_STORAGE_DURATION_STATIC) {
 		hcc_astgen_error_1(w, HCC_ERROR_CODE_STATIC_UNSUPPORTED_ON_SPIRV);
-	}
-
-	if (variable.storage_duration == HCC_AST_STORAGE_DURATION_THREAD) {
-		hcc_astgen_error_1(w, HCC_ERROR_CODE_THREAD_LOCAL_UNSUPPORTED_ON_SPIRV);
 	}
 
 	token = hcc_ata_iter_peek(w->astgen.token_iter);
@@ -3695,11 +3690,14 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNSIZED_ARRAY_REQUIRES_AN_INITIALIZATION, (int)data_type_name.size, data_type_name.data, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data, (int)identifier_string.size, identifier_string.data);
 			}
 			if (init_expr_out) *init_expr_out = NULL;
+			if (variable.storage_duration == HCC_AST_STORAGE_DURATION_THREAD) {
+				variable.initializer_constant_id = hcc_constant_table_deduplicate_zero(w->cu, variable.data_type);
+			}
 			break;
 		case HCC_ATA_TOKEN_EQUAL: {
 			hcc_ata_iter_next(w->astgen.token_iter);
 
-			if (found_dispatch_group) {
+			if (variable.storage_duration == HCC_AST_STORAGE_DURATION_DISPATCH_GROUP) {
 				hcc_astgen_error_1(w, HCC_ERROR_CODE_DISPATCH_GROUP_CANNOT_HAVE_INITIALIZER);
 			}
 

@@ -10,6 +10,12 @@ The **hcc** compiler has a very simple command line interface (CLI) and behaves 
 - [--hlsl-packing](#--hlsl-packing)
 - [--hlsl \<path\>](#--hlsl-path)
 - [--msl \<path\>](#--msl-path)
+- [--max-descriptors](#--max-descriptors-num)
+- [--enable-int8](#--enable-int8)
+- [--enable-int16](#--enable-int16)
+- [--enable-int64](#--enable-int64)
+- [--enable-float16](#--enable-float16)
+- [--enable-float64](#--enable-float64)
 - [--debug-time](#--debug-time)
 - [--debug-ata](#--debug-ata)
 - [--debug-ast](#--debug-ast)
@@ -91,6 +97,24 @@ Use this flag to specify a directory to output the MSL code designed for use wit
 ```
 hcc -fi game_shaders.c -fo game_shaders.spirv --msl game_shaders_msl
 ```
+
+## --max-descriptors \<num\>
+Use this flags to specify the maximum number of resource descriptor that can be used across all shaders. this must be compiled into your shaders & must match the CPU side when you setup your graphics API. see the [integrating in your engine docs]()
+
+## --enable-int8
+Adds support for 8bit integer types that can be used fully throughout your code and will place the necessary SPIR-V capability feature flags in the final binary.
+
+## --enable-int16
+Adds support for 16bit integer types that can be used fully throughout your code and will place the necessary SPIR-V capability feature flags in the final binary.
+
+## --enable-int64
+Adds support for 64bit integer types that can be used fully throughout your code and will place the necessary SPIR-V capability feature flags in the final binary.
+
+## --enable-float16
+Adds support for 16bit float type `__hcc_half_t` that can be used fully throughout your code and will place the necessary SPIR-V capability feature flags in the final binary.
+
+## --enable-float64
+Adds support for 64bit float type `double` that can be used fully throughout your code and will place the necessary SPIR-V capability feature flags in the final binary.
 
 ## --debug-time
 Use this flag to show a detailed view of how long each stage of the compiler took to compile your shaders. This will be useful information to help see where the problems are in compilation for developers of HCC but also in your build pipeline.

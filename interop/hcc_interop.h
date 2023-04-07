@@ -90,7 +90,7 @@ struct HccMetadata {
 	uint32_t               shaders_count;
 	uint32_t               resource_structs_count;
 	uint32_t               bundled_constants_size_max;
-	uint32_t               resource_descriptors_max; // from hcc --resource-descriptors-max argument
+	uint32_t               resource_descriptors_max; // from hcc --max-descriptors argument
 };
 
 extern const char* hcc_resource_access_mode_strings[HCC_RESOURCE_ACCESS_MODE_COUNT];

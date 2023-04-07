@@ -1322,6 +1322,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t window_width
 		switch (vk_result) {
 			case VK_ERROR_OUT_OF_DATE_KHR:
 			case VK_SUBOPTIMAL_KHR:
+				gpu_vk_recreate_swapchain_and_friends(window_width, window_height);
 				break;
 			default:
 				APP_VK_ASSERT(vk_result);

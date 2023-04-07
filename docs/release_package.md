@@ -16,9 +16,9 @@
 
 - **Compiler & Libraries:**
 	- hcc | [docs](command_line.md)
-	- libc (minimal GPU version of libc) | [docs](libc.md)
+	- libc (minimal GPU version of libc) | [docs](intrinsics.md#libc)
 	- libhccintrinsics (shader programming intrinsics) | [docs](intrinsics.md)
-	- libhmaths (vector & matrix maths) | [docs](../libhmaths/docs.md)
+	- libhmaths (vector & matrix maths) | [docs](../libhmaths)
 
 - **Sample Application:**
 	- samples/\* | [docs](#sample-application)
@@ -26,7 +26,7 @@
 	- playground/\* | [docs](#playground-application)
 
 - **Engine Integration helpers:**
-	- interop/\* | [docs](integrating_in_your_engine.md)
+	- interop/\* | [docs](integrating_into_your_engine.md)
 
 ## Sample Application
 
