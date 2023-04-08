@@ -55,7 +55,16 @@ void platform_open_console(void) {
 		close(fds[1]);
 		char f[PATH_MAX + 1];
 		sprintf(f, "/dev/fd/%d", fds[0]);
-		execlp("xterm", "xterm", "-bg", "black", "-fg", "white", "-fa", "Monospace", "-fs", "12", "-e", "cat", f, NULL);
+		if (system("command -v konsole") == 0) {
+			execlp("konsole", "konsole", "-e", "cat", f, NULL);
+		} else {
+			execlp("xterm", "xterm", "-bg", "black", "-fg", "white", "-fa", "Monospace", "-fs", "12", "-e", "cat", f, NULL);
+		}
+		abort();
+	}
+
+	if (system("command -v konsole") != 0 && system("command -v xterm") != 0) {
+		platform_message_box("konsole or xterm is required to display the compiler output!\nPlease install one");
 		abort();
 	}
 
