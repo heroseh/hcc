@@ -210,9 +210,12 @@ The benefit to this approach, is that you'll be able to:
 
 ## Global Variables
 
-Like other shading languages, HCC allows you to declare global variables that can be used in your shaders. Unfortunately GPUs don't allow `static` globals variables like C does, so `static` is not allowed in HCC. Although we do not have support for `static` (aka. A kind shared memory across all threads), we do have Hcc\*Buffer resources that can be accessed across dispatch groups in compute & across different shaders entirely.
+Like other shading languages, HCC allows you to declare global variables that can be used in your shaders. Unfortunately GPUs don't allow mutable `static` globals variables like C does, so `static` is not allowed in HCC unless it is `const`. Although we do not have support for mutable `static` (aka. A kind shared memory across all threads), we do have Hcc\*Buffer resources that can be accessed across dispatch groups in compute & across different shaders entirely.
 
 Instead HCC supports the following:
+### `static`
+`static` must be `const` and is the same value across all invocations.
+
 ### `_Thread_local`
 `_Thread_local` has the lifetime and scope of your invocation from the shader entry point. It can be explicit initialized or will be implicit initialized to zero.
 

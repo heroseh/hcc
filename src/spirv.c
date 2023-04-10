@@ -374,10 +374,10 @@ HccSPIRVId hcc_spirv_decl_deduplicate(HccCU* cu, HccDecl decl) {
 						has_initializer = false;
 						break;
 					case HCC_AST_STORAGE_DURATION_THREAD:
+					case HCC_AST_STORAGE_DURATION_STATIC:
 						storage_class =  HCC_SPIRV_STORAGE_CLASS_PRIVATE;
 						has_initializer = true;
 						break;
-					case HCC_AST_STORAGE_DURATION_STATIC:
 					case HCC_AST_STORAGE_DURATION_AUTOMATIC:
 						HCC_ABORT("unsupported storage duration for SPIR-V backend: %u", ast_global_variable->storage_duration);
 						break;

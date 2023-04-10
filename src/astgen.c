@@ -3696,7 +3696,7 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		variable.storage_duration = found_static ? HCC_AST_STORAGE_DURATION_STATIC : HCC_AST_STORAGE_DURATION_AUTOMATIC;
 	}
 
-	if (variable.storage_duration == HCC_AST_STORAGE_DURATION_STATIC) {
+	if (!HCC_DATA_TYPE_IS_CONST(variable.data_type) && variable.storage_duration == HCC_AST_STORAGE_DURATION_STATIC) {
 		hcc_astgen_error_1(w, HCC_ERROR_CODE_STATIC_UNSUPPORTED_ON_SPIRV);
 	}
 

@@ -43,11 +43,11 @@ struct ColorPickerBC {
 #define TIMELINE_SELECT_START 1.3f
 #define TIMELINE_SELECT_END   INFINITY_F32
 
-_Thread_local const float cube_half_size = CUBE_HALF_SIZE;
-_Thread_local const float cube_size = CUBE_SIZE;
-_Thread_local const float cube_border_half_size = CUBE_BORDER_HALF_SIZE;
-_Thread_local const float cube_axis_offset = CUBE_AXIS_OFFSET;
-_Thread_local const float selected_max_offset = SELECTED_MAX_OFFSET;
+static const float cube_half_size = CUBE_HALF_SIZE;
+static const float cube_size = CUBE_SIZE;
+static const float cube_border_half_size = CUBE_BORDER_HALF_SIZE;
+static const float cube_axis_offset = CUBE_AXIS_OFFSET;
+static const float selected_max_offset = SELECTED_MAX_OFFSET;
 
 typedef struct ColorPickerFragment ColorPickerFragment;
 HCC_FRAGMENT_STATE struct ColorPickerFragment {
