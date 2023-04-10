@@ -3693,7 +3693,10 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 			variable.storage_duration = HCC_AST_STORAGE_DURATION_STATIC;
 		}
 	} else {
+#if 0 // we don't have mutable statics, so just disable this path
 		variable.storage_duration = found_static ? HCC_AST_STORAGE_DURATION_STATIC : HCC_AST_STORAGE_DURATION_AUTOMATIC;
+#endif
+		variable.storage_duration = HCC_AST_STORAGE_DURATION_AUTOMATIC;
 	}
 
 	if (!HCC_DATA_TYPE_IS_CONST(variable.data_type) && variable.storage_duration == HCC_AST_STORAGE_DURATION_STATIC) {
@@ -3912,6 +3915,7 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 		}
 	} else {
 		variable.linkage = HCC_AST_LINKAGE_INTERNAL;
+#if 0 // we don't have mutable statics, so just disable this path
 		if (found_static) {
 			//
 			// found static global variable so just add it to the global variable array for the AST
@@ -3921,10 +3925,13 @@ HccDecl hcc_astgen_generate_variable_decl(HccWorker* w, bool is_global, HccDataT
 			uint32_t variable_idx = dst_variable - cu->ast.global_variables;
 			decl = HCC_DECL(GLOBAL_VARIABLE, variable_idx);
 		} else {
+#endif
 			decl = hcc_astgen_variable_stack_add_local(w, identifier_string_id);
 			HccASTVariable* dst_variable = hcc_stack_push(w->astgen.function_params_and_variables);
 			*dst_variable = variable;
+#if 0
 		}
+#endif
 	}
 
 	w->astgen.specifier_flags &= ~HCC_ASTGEN_SPECIFIER_FLAGS_ALL_VARIABLE_SPECIFIERS;

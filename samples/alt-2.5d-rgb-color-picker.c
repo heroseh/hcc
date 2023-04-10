@@ -90,7 +90,6 @@ bool is_at_timeline_range(float start, float end, float time_) {
 	return start <= time_ && time_ <= end;
 }
 
-_Thread_local float scale = 1.f;
 f32x4 distance_cubes(
 	f32x3 ray_sample_pos,
 	f32x3 is_split_axis_v3,
@@ -99,6 +98,8 @@ f32x4 distance_cubes(
 	float offset_ratio,
 	float time_
 ) {
+	static const float scale = 1.f;
+
 	//
 	// rotate the sample position towards local space of the cube
 #if 1
