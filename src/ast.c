@@ -708,6 +708,13 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 								hcc_iio_write_fmt(iio, ".%.*s", (int)identifier_string.size, identifier_string.data);
 							}
 							data_type = field->data_type;
+						} else if (HCC_DATA_TYPE_IS_VECTOR(data_type)) {
+							switch (entry_idx) {
+								case 0: hcc_iio_write_fmt(iio, ".x"); break;
+								case 1: hcc_iio_write_fmt(iio, ".y"); break;
+								case 2: hcc_iio_write_fmt(iio, ".z"); break;
+								case 3: hcc_iio_write_fmt(iio, ".w"); break;
+							}
 						}
 					}
 				} else {

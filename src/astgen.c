@@ -28,6 +28,7 @@ void hcc_astgen_init(HccWorker* w, HccASTGenSetup* setup) {
 	w->astgen.curly_initializer.nested = hcc_stack_init(HccASTGenCurlyInitializerNested, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED, setup->curly_initializer_nested_reserve_cap, setup->curly_initializer_nested_reserve_cap);
 	w->astgen.curly_initializer.nested_curlys = hcc_stack_init(HccASTGenCurlyInitializerCurly, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_CURLYS, setup->curly_initializer_nested_curlys_reserve_cap, setup->curly_initializer_nested_curlys_reserve_cap);
 	w->astgen.curly_initializer.nested_elmts = hcc_stack_init(HccASTGenCurlyInitializerElmt, HCC_ALLOC_TAG_ASTGEN_CURLY_INITIALIZER_NESTED_ELMTS, setup->curly_initializer_nested_elmts_reserve_cap, setup->curly_initializer_nested_elmts_reserve_cap);
+	w->astgen.curly_initializer.composite_constant_ids = hcc_stack_init(HccConstantId, 0, setup->curly_initializer_composite_constant_ids_grow_count, setup->curly_initializer_composite_constant_ids_reserve_cap);
 }
 
 void hcc_astgen_deinit(HccWorker* w) {
@@ -36,6 +37,7 @@ void hcc_astgen_deinit(HccWorker* w) {
 	hcc_stack_deinit(w->astgen.compound_type_find_fields);
 	hcc_stack_deinit(w->astgen.compound_field_names);
 	hcc_stack_deinit(w->astgen.compound_field_locations);
+	hcc_stack_deinit(w->astgen.curly_initializer.composite_constant_ids);
 }
 
 void hcc_astgen_reset(HccWorker* w) {
@@ -1791,6 +1793,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		}
 		hcc_astgen_ensure_semicolon(w);
 		token = hcc_ata_iter_peek(w->astgen.token_iter);
+		compound_data_type.scalars_count_recursive += hcc_data_type_scalars_count_recursive(w->cu, compound_field->data_type);
 
 		//
 		// TODO: in future this will be a platform specific problem
@@ -2881,7 +2884,32 @@ CURLY_INITIALIZER_FINISH: {}
 			}
 
 			if (is_const) {
-				//HCC_ABORT("TODO implement constants for curly initializers");
+				HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, curly_initializer_expr->data_type);
+				uint32_t scalars_count = hcc_data_type_scalars_count_recursive(w->cu, data_type);
+				hcc_stack_resize(gen->composite_constant_ids, scalars_count);
+				HCC_ZERO_ELMT_MANY(gen->composite_constant_ids, scalars_count);
+
+				HccASTExpr* initializer_expr = curly_initializer_expr->curly_initializer.first_expr->next_stmt;
+				while (initializer_expr) {
+					HccASTExpr* value_expr = initializer_expr->designated_initializer.value_expr;
+					HCC_DEBUG_ASSERT(value_expr->type == HCC_AST_EXPR_TYPE_CONSTANT, "expected constant expression");
+
+					HccDataType field_data_type = value_expr->data_type;
+					field_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, field_data_type);
+
+					uint64_t* elmt_indices = &w->cu->ast.designated_initializer_elmt_indices[initializer_expr->designated_initializer.elmt_indices_start_idx];
+					uint32_t scalar_start_idx = hcc_data_type_composite_scalar_start_idx_recursive(w->cu, data_type, elmt_indices, initializer_expr->designated_initializer.elmts_count);
+					if (HCC_DATA_TYPE_IS_COMPOSITE(field_data_type)) {
+						hcc_data_type_composite_splat_constants_recursive(w->cu, field_data_type, value_expr->constant.id, &gen->composite_constant_ids[scalar_start_idx]);
+					} else {
+						gen->composite_constant_ids[scalar_start_idx] = value_expr->constant.id;
+					}
+
+					initializer_expr = initializer_expr->next_stmt;
+				}
+
+				curly_initializer_expr->type = HCC_AST_EXPR_TYPE_CONSTANT;
+				curly_initializer_expr->constant.id = hcc_constant_table_deduplicate_composite_recursive(w->cu, data_type, gen->composite_constant_ids);
 			} else {
 				if (w->astgen.function) {
 					w->astgen.function->max_instrs_count += fields_set_count * 2; // (HCC_AML_OP_STORE + HCC_AML_OP_PTR_ACCESS_CHAIN) per set field

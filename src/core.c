@@ -51,6 +51,8 @@ void _hcc_assert_failed(const char* cond, const char* file, int line, const char
 	va_end(va_args);
 
 	fprintf(stderr, "\nfile: %s:%u\n", file, line);
+	char* stacktrace = b_stacktrace_get_string();
+	fprintf(stderr, "stacktrace:\n%s\n\n", stacktrace);
 	abort();
 }
 
@@ -63,6 +65,8 @@ _Noreturn uintptr_t _hcc_abort(const char* file, int line, const char* message, 
 	va_end(va_args);
 
 	fprintf(stderr, "\nfile: %s:%u\n", file, line);
+	char* stacktrace = b_stacktrace_get_string();
+	fprintf(stderr, "stacktrace:\n%s\n\n", stacktrace);
 	abort();
 }
 
@@ -2997,7 +3001,7 @@ bool hcc_data_type_is_condition(HccDataType data_type) {
 	return HCC_DATA_TYPE_IS_AST_BASIC(data_type) || HCC_DATA_TYPE_IS_POINTER(data_type);
 }
 
-uint32_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type) {
+uint64_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type) {
 	HccString data_type_string = hcc_data_type_string(cu, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_COMPOSITE(data_type), "internal error: expected a composite type but got '%.*s'", (int)data_type_string.size, data_type_string.data);
 
@@ -3005,18 +3009,146 @@ uint32_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type) 
 		case HCC_DATA_TYPE_ARRAY: {
 			HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
 			HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
-			uint64_t count;
-			hcc_constant_as_uint(cu, constant, &count);
-			return count;
+			uint64_t elmts_count;
+			hcc_constant_as_uint(cu, constant, &elmts_count);
+			return elmts_count;
 		};
 		case HCC_DATA_TYPE_STRUCT:
 		case HCC_DATA_TYPE_UNION: {
 			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
 			return d->fields_count;
 		};
+		case HCC_DATA_TYPE_AML_INTRINSIC: {
+			HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+			uint64_t scalars_count = HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type) * HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
+			if (scalars_count > 1) {
+				return scalars_count;
+			}
+			hcc_fallthrough;
+		};
 		default:
 			HCC_ABORT("unhandled data type '%u'", data_type);
 	}
+}
+
+uint64_t hcc_data_type_composite_scalar_start_idx_recursive_(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count, uint64_t elmt_indices_idx) {
+	if (elmt_indices_idx == elmt_indices_count) {
+		return 0;
+	}
+
+	uint64_t elmt_idx = elmt_indices[elmt_indices_idx];
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
+			HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
+			uint64_t elmts_count;
+			hcc_constant_as_uint(cu, constant, &elmts_count);
+			HCC_DEBUG_ASSERT(elmt_idx < elmts_count, "element idx of '%u' is out of bound of the array data type of '%u'", elmt_idx, elmts_count);
+			HccDataType elmt_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, d->element_data_type);
+			uint64_t scalars_per_elmt = hcc_data_type_scalars_count_recursive(cu, elmt_data_type);
+			uint64_t scalar_start_idx_in_elmt = hcc_data_type_composite_scalar_start_idx_recursive_(cu, elmt_data_type, elmt_indices, elmt_indices_count, elmt_indices_idx + 1);
+			return scalars_per_elmt * elmt_idx + scalar_start_idx_in_elmt;
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
+			uint64_t scalars_start_idx = 0;
+			HCC_DEBUG_ASSERT(elmt_idx < d->fields_count, "element idx of '%u' is out of bound of the struct/union data type of '%u'", elmt_idx, d->fields_count);
+			for (uint32_t field_idx = 0; field_idx < elmt_idx; field_idx += 1) {
+				HccCompoundField* field = &d->fields[field_idx];
+				scalars_start_idx += hcc_data_type_scalars_count_recursive(cu, field->data_type);
+			}
+			HccCompoundField* field = &d->fields[elmt_idx];
+			HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
+			scalars_start_idx += hcc_data_type_composite_scalar_start_idx_recursive_(cu, field_data_type, elmt_indices, elmt_indices_count, elmt_indices_idx + 1);
+			return scalars_start_idx;
+		};
+		default:
+			return elmt_idx;
+	}
+}
+
+uint64_t hcc_data_type_composite_scalar_start_idx_recursive(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	if (!HCC_DATA_TYPE_IS_COMPOSITE(data_type)) {
+		return UINT32_MAX;
+	}
+
+	return hcc_data_type_composite_scalar_start_idx_recursive_(cu, data_type, elmt_indices, elmt_indices_count, 0);
+}
+
+void hcc_data_type_composite_splat_constants_recursive_(HccCU* cu, HccDataType data_type, HccConstantId constant_id, HccConstantId* dst_constant_ids) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+
+	HccConstant constant = hcc_constant_table_get(cu, constant_id);
+	HccDataType expected_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	HCC_DEBUG_ASSERT(data_type == expected_data_type, "constant is the type we expect it to be");
+	HccConstantId* src_constant_ids = constant.data;
+
+	if (constant.size == 0) {
+		uint64_t scalars_count = hcc_data_type_scalars_count_recursive(cu, data_type);
+		for (uint32_t scalar_idx = 0; scalar_idx < scalars_count; scalar_idx += 1) {
+			dst_constant_ids[scalar_idx].idx_plus_one = 0;
+		}
+		return;
+	}
+
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
+			HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
+			uint64_t elmts_count;
+			hcc_constant_as_uint(cu, constant, &elmts_count);
+
+			HccDataType elmt_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, d->element_data_type);
+			if (HCC_DATA_TYPE_IS_COMPOSITE(elmt_data_type)) {
+				uint64_t scalars_start_idx = 0;
+				uint64_t scalars_per_elmt = hcc_data_type_scalars_count_recursive(cu, elmt_data_type);
+				for (uint32_t field_idx = 0; field_idx < elmts_count; field_idx += 1) {
+					hcc_data_type_composite_splat_constants_recursive_(cu, elmt_data_type, src_constant_ids[field_idx], &dst_constant_ids[scalars_start_idx]);
+					scalars_start_idx += scalars_per_elmt;
+				}
+			} else {
+				HCC_COPY_ELMT_MANY(dst_constant_ids, src_constant_ids, elmts_count);
+			}
+
+			break;
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
+			uint64_t scalars_start_idx = 0;
+			for (uint32_t field_idx = 0; field_idx < d->fields_count; field_idx += 1) {
+				HccCompoundField* field = &d->fields[field_idx];
+				HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
+				hcc_data_type_composite_splat_constants_recursive_(cu, field_data_type, src_constant_ids[field_idx], &dst_constant_ids[scalars_start_idx]);
+				scalars_start_idx += hcc_data_type_scalars_count_recursive(cu, field_data_type);
+			}
+			break;
+		};
+		case HCC_DATA_TYPE_AML_INTRINSIC: {
+			HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+			uint64_t scalars_count = HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type) * HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
+			if (scalars_count > 1) {
+				HCC_COPY_ELMT_MANY(dst_constant_ids, src_constant_ids, scalars_count);
+				break;
+			}
+			hcc_fallthrough;
+		};
+		default:
+			dst_constant_ids[0] = constant_id;
+			break;
+	}
+}
+
+void hcc_data_type_composite_splat_constants_recursive(HccCU* cu, HccDataType data_type, HccConstantId constant_id, HccConstantId* dst_constant_ids) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	if (!HCC_DATA_TYPE_IS_COMPOSITE(data_type)) {
+		return;
+	}
+
+	hcc_data_type_composite_splat_constants_recursive_(cu, data_type, constant_id, dst_constant_ids);
 }
 
 bool hcc_data_type_is_rasterizer_state(HccCU* cu, HccDataType data_type) {
@@ -3329,6 +3461,26 @@ HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccData
 	}
 }
 
+uint64_t hcc_data_type_scalars_count_recursive(HccCU* cu, HccDataType data_type) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
+			return d->scalars_count_recursive;
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
+			return d->scalars_count_recursive;
+		};
+		case HCC_DATA_TYPE_AML_INTRINSIC: {
+			HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+			return HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type) * HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
+		};
+		default:
+			return 1;
+	}
+}
 
 HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type) {
 	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
@@ -3855,6 +4007,13 @@ HccDataType hcc_array_data_type_deduplicate(HccCU* cu, HccDataType element_data_
 	d->element_data_type = element_data_type;
 	d->element_count_constant_id = element_count_constant_id;
 
+	if (element_count_constant_id.idx_plus_one) {
+		uint64_t elmts_count = UINT64_MAX;
+		HccConstant constant = hcc_constant_table_get(cu, element_count_constant_id);
+		hcc_constant_as_uint(cu, constant, &elmts_count);
+		d->scalars_count_recursive = hcc_data_type_scalars_count_recursive(cu, element_data_type) * elmts_count;
+	}
+
 	uint32_t array_data_types_idx = d - cu->dtt.arrays;
 	atomic_store(&entry->id, array_data_types_idx + 1);
 	HccDataType data_type = HCC_DATA_TYPE(ARRAY, array_data_types_idx);
@@ -4181,8 +4340,17 @@ void hcc_constant_print(HccCU* cu, HccConstantId constant_id, HccIIO* iio) {
 		return;
 	}
 
-	if (HCC_DATA_TYPE_IS_AST_BASIC(constant.data_type) || HCC_DATA_TYPE_IS_AML_INTRINSIC(constant.data_type)) {
-		hcc_data_type_print_basic(cu, constant.data_type, constant.data, iio);
+	if (HCC_DATA_TYPE_IS_COMPOSITE(constant.data_type)) {
+		uint32_t fields_count = hcc_data_type_composite_fields_count(cu, constant.data_type);
+		HccConstantId* src_constant_ids = constant.data;
+		HccString data_type_name = hcc_data_type_string(cu, constant.data_type);
+		hcc_iio_write_fmt(iio, "%.*s: {", (int)data_type_name.size, data_type_name.data);
+		for (uint32_t i = 0; i < fields_count; i += 1) {
+			hcc_constant_print(cu, src_constant_ids[i], iio);
+			hcc_iio_write_fmt(iio, i + 1 < fields_count ? ", " : " ");
+		}
+		hcc_iio_write_fmt(iio, "}");
+	} else if (HCC_DATA_TYPE_IS_AST_BASIC(constant.data_type) || HCC_DATA_TYPE_IS_AML_INTRINSIC(constant.data_type)) {
 	} else {
 		HCC_ABORT("unhandled type '%u'", constant.data_type);
 	}
@@ -4257,6 +4425,11 @@ bool hcc_constant_as_float(HccCU* cu, HccConstant constant, double* out) {
 	return false;
 }
 
+bool hcc_constant_is_zero(HccCU* cu, HccConstantId constant_id) {
+	HccConstant constant = hcc_constant_table_get(cu, constant_id);
+	return constant.is_zero;
+}
+
 // ===========================================
 //
 //
@@ -4278,7 +4451,8 @@ HccHash hcc_constant_key_hash(void* key, uintptr_t size) {
 	HccConstantEntry* entry = key;
 	HccHash hash = HCC_HASH_FNV_INIT;
 	hash = hcc_hash_fnv(&entry->data_type, sizeof(entry->data_type), hash);
-	hash = hcc_hash_fnv(&entry->size, sizeof(entry->size), hash);
+	uint32_t constant_size = entry->size;
+	hash = hcc_hash_fnv(&constant_size, sizeof(constant_size), hash);
 	hash = hcc_hash_fnv(entry->data, entry->size, hash);
 	return hash;
 }
@@ -4286,16 +4460,14 @@ HccHash hcc_constant_key_hash(void* key, uintptr_t size) {
 void hcc_constant_table_init(HccCU* cu, HccConstantTableSetup* setup) {
 	cu->constant_table.entries_hash_table = hcc_hash_table_init(HccConstantEntry, 0, hcc_constant_entry_key_cmp, hcc_constant_key_hash, setup->entries_cap);
 	cu->constant_table.data = hcc_stack_init(uint8_t, 0, setup->data_grow_size, setup->data_reserve_size);
-	cu->constant_table.composite_fields_buffer = hcc_stack_init(HccConstantId, 0, setup->composite_fields_buffer_grow_count, setup->composite_fields_buffer_reserve_cap);
 }
 
 void hcc_constant_table_deinit(HccCU* cu) {
 	hcc_hash_table_deinit(cu->constant_table.entries_hash_table);
 	hcc_stack_deinit(cu->constant_table.data);
-	hcc_stack_deinit(cu->constant_table.composite_fields_buffer);
 }
 
-HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_type, void* data, uint32_t data_size, uint32_t data_align) {
+HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_type, void* data, uint32_t data_size, uint32_t data_align, bool is_zero) {
 	HCC_UNUSED(data_align);
 	HCC_DEBUG_ASSERT(data_type != 0, "data type must be set to a non void type");
 
@@ -4303,6 +4475,7 @@ HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_ty
 	entry.data = data;
 	entry.size = data_size;
 	entry.data_type = data_type;
+	entry.is_zero = is_zero;
 
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->constant_table.entries_hash_table, &entry);
 	HccConstantEntry* e = &cu->constant_table.entries_hash_table[insert.idx];
@@ -4336,22 +4509,139 @@ HccConstantId hcc_constant_table_deduplicate_basic(HccCU* cu, HccDataType data_t
 	uint64_t align;
 	hcc_data_type_size_align(cu, data_type, &size, &align);
 
-	return _hcc_constant_table_deduplicate_end(cu, data_type, basic, size, align);
+	bool is_zero = false;
+	switch (size) {
+		case 8: is_zero = basic->u64 == 0; break;
+		case 4: is_zero = basic->u32 == 0; break;
+		case 2: is_zero = basic->u16 == 0; break;
+		case 1: is_zero = basic->u8 == 0; break;
+	}
+
+	return _hcc_constant_table_deduplicate_end(cu, data_type, basic, size, align, is_zero);
 }
 
-HccConstantId* hcc_constant_table_deduplicate_composite_start(HccCU* cu, HccDataType data_type, uint32_t* fields_count_out) {
+HccConstantId hcc_constant_table_deduplicate_composite(HccCU* cu, HccDataType data_type, HccConstantId* fields, uint32_t fields_count) {
 	HccString data_type_string = hcc_data_type_string(cu, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_COMPOSITE(data_type), "internal error: expected a composite type but got '%.*s'", (int)data_type_string.size, data_type_string.data);
 
-	uint32_t fields_count = hcc_data_type_composite_fields_count(cu, data_type);
-	*fields_count_out = fields_count;
-	return hcc_stack_push_many(cu->constant_table.composite_fields_buffer, fields_count);
+	uint32_t expected_fields_count = hcc_data_type_composite_fields_count(cu, data_type);
+	HCC_ASSERT(fields_count == expected_fields_count, "expected fields count to be '%u' but got '%u'", expected_fields_count, fields_count);
+	HccConstantId constant_id = _hcc_constant_table_deduplicate_end(cu, data_type, fields, fields_count * sizeof(HccConstantId), alignof(HccConstantId), false);
+	return constant_id;
 }
 
-HccConstantId hcc_constant_table_deduplicate_composite_end(HccCU* cu, HccDataType data_type, HccConstantId* fields, uint32_t fields_count) {
-	HccConstantId constant_id = _hcc_constant_table_deduplicate_end(cu, data_type, fields, fields_count * sizeof(HccConstantId), alignof(HccConstantId));
-	hcc_stack_pop_many(cu->constant_table.composite_fields_buffer, fields_count);
-	return constant_id;
+HccConstantId hcc_constant_table_deduplicate_composite_recursive_(HccCU* cu, HccDataType data_type, HccConstantId* flat_scalar_constant_ids) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
+			HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
+
+			uint64_t elmts_count;
+			hcc_constant_as_uint(cu, constant, &elmts_count);
+
+			bool all_zero = true;
+			for (uint32_t scalar_idx = 0; scalar_idx < d->scalars_count_recursive; scalar_idx += 1) {
+				HccConstantId scalar_constant_id = flat_scalar_constant_ids[scalar_idx];
+				if (scalar_constant_id.idx_plus_one != 0 && !hcc_constant_is_zero(cu, scalar_constant_id)) {
+					all_zero = false;
+					break;
+				}
+			}
+
+			if (all_zero) {
+				return hcc_constant_table_deduplicate_zero(cu, data_type);
+			}
+
+			HccDataType elmt_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, d->element_data_type);
+			uint32_t scalars_start_idx = 0;
+			uint32_t elmt_scalars_count = hcc_data_type_scalars_count_recursive(cu, elmt_data_type);
+			for (uint32_t field_idx = 0; field_idx < elmts_count; field_idx += 1) {
+				HccConstantId field_constant_id = hcc_constant_table_deduplicate_composite_recursive_(cu, elmt_data_type, &flat_scalar_constant_ids[scalars_start_idx]);
+
+				//
+				// HACK: reused the flat_scalar_constant_ids array to store the field constant ids linearly.
+				// this is fine since the data in flat_scalar_constant_ids is only read once.
+				flat_scalar_constant_ids[field_idx] = field_constant_id;
+				scalars_start_idx += elmt_scalars_count;
+			}
+			return hcc_constant_table_deduplicate_composite(cu, data_type, flat_scalar_constant_ids, elmts_count);
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
+
+			bool all_zero = true;
+			for (uint32_t scalar_idx = 0; scalar_idx < d->scalars_count_recursive; scalar_idx += 1) {
+				HccConstantId scalar_constant_id = flat_scalar_constant_ids[scalar_idx];
+				if (scalar_constant_id.idx_plus_one != 0 && !hcc_constant_is_zero(cu, scalar_constant_id)) {
+					all_zero = false;
+					break;
+				}
+			}
+
+			if (all_zero) {
+				return hcc_constant_table_deduplicate_zero(cu, data_type);
+			}
+
+			uint32_t scalars_start_idx = 0;
+			for (uint32_t field_idx = 0; field_idx < d->fields_count; field_idx += 1) {
+				HccCompoundField* field = &d->fields[field_idx];
+				HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
+				HccConstantId field_constant_id = hcc_constant_table_deduplicate_composite_recursive_(cu, field_data_type, &flat_scalar_constant_ids[scalars_start_idx]);
+
+				//
+				// HACK: reused the flat_scalar_constant_ids array to store the field constant ids linearly.
+				// this is fine since the data in flat_scalar_constant_ids is only read once.
+				flat_scalar_constant_ids[field_idx] = field_constant_id;
+
+				scalars_start_idx += hcc_data_type_scalars_count_recursive(cu, field_data_type);
+			}
+			return hcc_constant_table_deduplicate_composite(cu, data_type, flat_scalar_constant_ids, d->fields_count);
+		};
+		case HCC_DATA_TYPE_AML_INTRINSIC: {
+			HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+			uint32_t scalars_count = HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type) * HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
+
+			if (scalars_count > 1) {
+				bool all_zero = true;
+				for (uint32_t scalar_idx = 0; scalar_idx < scalars_count; scalar_idx += 1) {
+					HccConstantId scalar_constant_id = flat_scalar_constant_ids[scalar_idx];
+					if (scalar_constant_id.idx_plus_one != 0 && !hcc_constant_is_zero(cu, scalar_constant_id)) {
+						all_zero = false;
+						break;
+					}
+				}
+
+				if (all_zero) {
+					return hcc_constant_table_deduplicate_zero(cu, data_type);
+				}
+
+				HccDataType scalar_data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type));
+				for (uint32_t scalar_idx = 0; scalar_idx < scalars_count; scalar_idx += 1) {
+					if (flat_scalar_constant_ids[scalar_idx].idx_plus_one == 0) {
+						flat_scalar_constant_ids[scalar_idx] = hcc_constant_table_deduplicate_zero(cu, scalar_data_type);
+					}
+				}
+
+				return hcc_constant_table_deduplicate_composite(cu, data_type, flat_scalar_constant_ids, scalars_count);
+			}
+			hcc_fallthrough;
+		};
+		default:
+			if (flat_scalar_constant_ids[0].idx_plus_one) {
+				return flat_scalar_constant_ids[0];
+			}
+			return hcc_constant_table_deduplicate_zero(cu, data_type);
+	}
+}
+
+HccConstantId hcc_constant_table_deduplicate_composite_recursive(HccCU* cu, HccDataType data_type, HccConstantId* flat_scalar_constant_ids) {
+	HccString data_type_string = hcc_data_type_string(cu, data_type);
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_COMPOSITE(data_type), "internal error: expected a composite type but got '%.*s'", (int)data_type_string.size, data_type_string.data);
+
+	return hcc_constant_table_deduplicate_composite_recursive_(cu, data_type, flat_scalar_constant_ids);
 }
 
 HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_type) {
@@ -4365,7 +4655,7 @@ HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_ty
 		HccBasic zero = {0};
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &zero);
 	} else {
-		return _hcc_constant_table_deduplicate_end(cu, data_type, NULL, 0, 0);
+		return _hcc_constant_table_deduplicate_end(cu, data_type, NULL, 0, 0, true);
 	}
 }
 
@@ -4400,6 +4690,7 @@ HccConstant hcc_constant_table_get(HccCU* cu, HccConstantId id) {
 	constant.data_type = entry->data_type;
 	constant.data = entry->data;
 	constant.size = entry->size;
+	constant.is_zero = entry->is_zero;
 	return constant;
 }
 

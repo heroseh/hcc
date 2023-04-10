@@ -968,8 +968,9 @@ HccHash hcc_u64_key_hash(void* key, uintptr_t size);
 
 typedef struct HccArrayDataType HccArrayDataType;
 struct HccArrayDataType {
-	HccDataType element_data_type;
+	HccDataType   element_data_type;
 	HccConstantId element_count_constant_id;
+	uint64_t      scalars_count_recursive;
 };
 
 typedef struct HccBufferDataType HccBufferDataType;
@@ -1019,6 +1020,7 @@ struct HccCompoundDataType {
 	HccCompoundField*         fields;
 	uint16_t                  fields_count;
 	uint16_t                  largest_sized_field_idx;
+	uint32_t                  scalars_count_recursive;
 	HccAMLScalarDataTypeMask  scalar_data_types_mask;
 	HccCompoundDataTypeFlags  flags;
 	HccCompoundDataTypeKind   kind;
@@ -1122,22 +1124,22 @@ bool hcc_constant_read_int_extend_64(HccCU* cu, HccConstant constant, uint64_t* 
 typedef struct HccConstantEntry HccConstantEntry;
 struct HccConstantEntry {
 	void*                  data;
-	uint32_t               size;
+	uint32_t               size: 31;
+	uint32_t               is_zero: 1;
 	HccAtomic(HccDataType) data_type;
 };
 
 typedef struct HccConstantTable HccConstantTable;
 struct HccConstantTable {
 	HccHashTable(HccConstantEntry) entries_hash_table;
-	HccStack(uint8_t)                 data;
-	HccStack(HccConstantId)        composite_fields_buffer;
+	HccStack(uint8_t)              data;
 };
 
 bool hcc_constant_entry_key_cmp(void* a, void* b, uintptr_t size);
 
 void hcc_constant_table_init(HccCU* cu, HccConstantTableSetup* setup);
 void hcc_constant_table_deinit(HccCU* cu);
-HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_type, void* data, uint32_t data_size, uint32_t data_align);
+HccConstantId _hcc_constant_table_deduplicate_end(HccCU* cu, HccDataType data_type, void* data, uint32_t data_size, uint32_t data_align, bool is_zero);
 
 // ===========================================
 //
@@ -1760,6 +1762,8 @@ struct HccASTGenCurlyInitializer {
 	// a stack to keep track of each nested elements when we tunnel into nested data types
 	// so we can tunnel out and resume from where we were
 	HccStack(HccASTGenCurlyInitializerElmt) nested_elmts;
+
+	HccStack(HccConstantId) composite_constant_ids;
 
 	HccASTExpr* prev_initializer_expr;
 	HccASTExpr* first_initializer_expr;

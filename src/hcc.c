@@ -280,8 +280,6 @@ HccTaskSetup hcc_task_setup_default = {
 			.data_grow_size = 1048576,   // 1MB
 			.data_reserve_size = 67108864, // 64MB
 			.entries_cap = 1048576,
-			.composite_fields_buffer_grow_count = 256,
-			.composite_fields_buffer_reserve_cap = 1024,
 		},
 		.dtt = {
 			.arrays_grow_count = 1024,
@@ -903,6 +901,8 @@ HccCompilerSetup hcc_compiler_setup_default = {
 		.curly_initializer_nested_reserve_cap = 2048,
 		.curly_initializer_nested_curlys_reserve_cap = 2048,
 		.curly_initializer_nested_elmts_reserve_cap = 2048,
+		.curly_initializer_composite_constant_ids_grow_count = 2048,
+		.curly_initializer_composite_constant_ids_reserve_cap = 262144,
 	},
 	.amlgen = {
 		.placeholder = 1,

@@ -1597,7 +1597,9 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type);
 void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_out, uint64_t* align_out);
 void hcc_data_type_print_basic(HccCU* cu, HccDataType data_type, void* data, HccIIO* iio);
 bool hcc_data_type_is_condition(HccDataType data_type);
-uint32_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type);
+uint64_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type);
+uint64_t hcc_data_type_composite_scalar_start_idx_recursive(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count);
+void hcc_data_type_composite_splat_constants_recursive(HccCU* cu, HccDataType data_type, HccConstantId constant_id, HccConstantId* dst_constant_ids);
 bool hcc_data_type_is_rasterizer_state(HccCU* cu, HccDataType data_type);
 bool hcc_data_type_is_fragment_state(HccCU* cu, HccDataType data_type);
 HccDataType hcc_data_type_strip_pointer(HccCU* cu, HccDataType data_type);
@@ -1609,6 +1611,7 @@ HccDataType hcc_data_type_signed_to_unsigned(HccCU* cu, HccDataType data_type);
 HccDataType hcc_data_type_unsigned_to_signed(HccCU* cu, HccDataType data_type);
 HccCanCast hcc_data_type_can_cast(HccCU* cu, HccDataType dst_data_type, HccDataType src_data_type);
 HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccDataType data_type);
+uint64_t hcc_data_type_scalars_count_recursive(HccCU* cu, HccDataType data_type);
 
 HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type);
 HccBasic hcc_basic_eval(HccCU* cu, HccASTBinaryOp binary_op, HccDataType data_type, HccBasic left_eval, HccBasic right_eval);
@@ -1677,14 +1680,13 @@ struct HccConstantTableSetup {
 	uint32_t data_grow_size;
 	uint32_t data_reserve_size;
 	uint32_t entries_cap;
-	uint32_t composite_fields_buffer_grow_count;
-	uint32_t composite_fields_buffer_reserve_cap;
 };
 
 typedef struct HccConstant HccConstant;
 struct HccConstant {
 	void*       data;
-	uint32_t    size;
+	uint32_t    size: 31;
+	uint32_t    is_zero: 1;
 	HccDataType data_type;
 };
 
@@ -1693,6 +1695,7 @@ bool hcc_constant_as_uint(HccCU* cu, HccConstant constant, uint64_t* out);
 bool hcc_constant_as_sint(HccCU* cu, HccConstant constant, int64_t* out);
 bool hcc_constant_as_sint32(HccCU* cu, HccConstant constant, int32_t* out);
 bool hcc_constant_as_float(HccCU* cu, HccConstant constant, double* out);
+bool hcc_constant_is_zero(HccCU* cu, HccConstantId constant_id);
 
 // ===========================================
 //
@@ -1703,8 +1706,8 @@ bool hcc_constant_as_float(HccCU* cu, HccConstant constant, double* out);
 // ===========================================
 
 HccConstantId hcc_constant_table_deduplicate_basic(HccCU* cu, HccDataType data_type, HccBasic* basic);
-HccConstantId* hcc_constant_table_deduplicate_composite_start(HccCU* cu, HccDataType data_type, uint32_t* fields_count_out);
-HccConstantId hcc_constant_table_deduplicate_composite_end(HccCU* cu, HccDataType data_type, HccConstantId* fields, uint32_t fields_count);
+HccConstantId hcc_constant_table_deduplicate_composite(HccCU* cu, HccDataType data_type, HccConstantId* fields, uint32_t fields_count);
+HccConstantId hcc_constant_table_deduplicate_composite_recursive(HccCU* cu, HccDataType data_type, HccConstantId* flat_scalar_constant_ids);
 HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_type);
 HccConstantId hcc_constant_table_deduplicate_one(HccCU* cu, HccDataType data_type);
 HccConstantId hcc_constant_table_deduplicate_minus_one(HccCU* cu, HccDataType data_type);
@@ -2887,6 +2890,8 @@ struct HccASTGenSetup {
 	uint32_t curly_initializer_nested_reserve_cap;
 	uint32_t curly_initializer_nested_curlys_reserve_cap;
 	uint32_t curly_initializer_nested_elmts_reserve_cap;
+	uint32_t curly_initializer_composite_constant_ids_grow_count;
+	uint32_t curly_initializer_composite_constant_ids_reserve_cap;
 };
 
 typedef struct HccASTLinkSetup HccASTLinkSetup;

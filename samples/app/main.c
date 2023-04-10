@@ -91,12 +91,11 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	{
+	{ // CPU side code setting up buffer data
 		VoxelModel* models = gpu_map_resource(voxel_model_buffer_id);
 		models[0].position = f32x3(0.f, 0.f, 1024.f);
 		models[0].half_size = f32x3(APP_LOGO_VOXEL_WIDTH / 2, APP_LOGO_VOXEL_HEIGHT / 2, APP_LOGO_VOXEL_DEPTH / 2);
 		models[0].color = logo_voxel_texture_id;
-		//APP_ABORT("offsetof(VoxelModel, color) = %zu\n", offsetof(VoxelModel, color));
 	}
 
 	gpu_stage_uploads_flush();

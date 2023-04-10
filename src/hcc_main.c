@@ -39,26 +39,9 @@ int main(int argc, char** argv) {
 	task_setup.options = options;
 	HCC_ENSURE(hcc_task_init(&task_setup, &task));
 
-	{
-		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libc"));
-		HCC_ENSURE(hcc_task_add_include_path(task, path));
-	}
-
-	{
-		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhccintrinsics"));
-		HCC_ENSURE(hcc_task_add_include_path(task, path));
-	}
-
-	{
-		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths"));
-		HCC_ENSURE(hcc_task_add_include_path(task, path));
-
-		path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths/hmaths.c"));
-		HCC_ENSURE(hcc_task_add_input_code_file(task, path.data, NULL));
-	}
-
 	int arg_idx = 1;
 	const char* output_file_path = NULL;
+	bool output_final_file = true;
 	bool has_input = false;
 	bool debug_time = false;
 	const char* hlsl_dir = NULL;
@@ -235,21 +218,21 @@ int main(int argc, char** argv) {
 			hcc_iio_set_ascii_colors_enabled(stdout_iio, enable_stdout_color);
 			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ATAGEN);
-			output_file_path = NULL;
+			output_final_file = false;
 		} else if (strcmp(argv[arg_idx], "--debug-ast") == 0) {
 			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
 			*stdout_iio = hcc_iio_file(stdout);
 			hcc_iio_set_ascii_colors_enabled(stdout_iio, enable_stdout_color);
 			HCC_ENSURE(hcc_task_add_output_ast_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_ASTLINK);
-			output_file_path = NULL;
+			output_final_file = false;
 		} else if (strcmp(argv[arg_idx], "--debug-aml") == 0) {
 			HccIIO* stdout_iio = HCC_ARENA_ALCTOR_ALLOC_ELMT(HccIIO, &_hcc_gs.arena_alctor);
 			*stdout_iio = hcc_iio_file(stdout);
 			hcc_iio_set_ascii_colors_enabled(stdout_iio, enable_stdout_color);
 			HCC_ENSURE(hcc_task_add_output_aml_text(task, stdout_iio));
 			hcc_task_set_final_worker_job_type(task, HCC_WORKER_JOB_TYPE_AMLOPT);
-			output_file_path = NULL;
+			output_final_file = false;
 		} else if (strcmp(argv[arg_idx], "--help") == 0) {
 			printf(
 				"hcc version 0.0.1 help:\n"
@@ -286,6 +269,24 @@ int main(int argc, char** argv) {
 		arg_idx += 1;
 	}
 
+	{
+		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libc"));
+		HCC_ENSURE(hcc_task_add_include_path(task, path));
+	}
+
+	{
+		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhccintrinsics"));
+		HCC_ENSURE(hcc_task_add_include_path(task, path));
+	}
+
+	{
+		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths"));
+		HCC_ENSURE(hcc_task_add_include_path(task, path));
+
+		path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths/hmaths.c"));
+		HCC_ENSURE(hcc_task_add_input_code_file(task, path.data, NULL));
+	}
+
 	if (!has_input) {
 		fprintf(stderr, "missing input file/s. please call hcc with one or more '-fi' flag/s followed by the .c file/s you wish to compile\n");
 		exit(1);
@@ -316,7 +317,7 @@ int main(int argc, char** argv) {
 	} else {
 		HCC_ENSURE(result);
 
-		if (output_file_path) {
+		if (output_file_path && output_final_file) {
 			char shell_command[1024];
 			if (hcc_options_get_bool(options, HCC_OPTION_KEY_SPIRV_OPT)) {
 				snprintf(shell_command, sizeof(shell_command), "spirv-opt%s --scalar-block-layout -O -o %s %s", HCC_EXE_EXTENSION, output_file_path, output_file_path);

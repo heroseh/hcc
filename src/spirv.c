@@ -519,6 +519,16 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 			operands_count = 2;
 			op = *(bool*)c.data ? HCC_SPIRV_OP_CONSTANT_TRUE : HCC_SPIRV_OP_CONSTANT_FALSE;
 			operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
+		} else if (HCC_DATA_TYPE_IS_COMPOSITE(c.data_type)) {
+			HccConstantId* src_constant_ids = c.data;
+
+			uint32_t fields_count = hcc_data_type_composite_fields_count(cu, c.data_type);
+			operands_count = 2 + fields_count;
+			op = HCC_SPIRV_OP_CONSTANT_COMPOSITE;
+			operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
+			for (uint32_t field_idx = 0; field_idx < fields_count; field_idx += 1) {
+				operands[2 + field_idx] = hcc_spirv_constant_deduplicate(cu, src_constant_ids[field_idx]);
+			}
 		} else if (HCC_DATA_TYPE_TYPE(c.data_type) == HCC_DATA_TYPE_AML_INTRINSIC) {
 			HccAMLIntrinsicDataType intrin = HCC_DATA_TYPE_AUX(c.data_type);
 			if (HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(intrin)) {
