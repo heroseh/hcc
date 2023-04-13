@@ -3415,6 +3415,15 @@ HccCanCast hcc_data_type_can_cast(HccCU* cu, HccDataType dst_data_type, HccDataT
 		}
 	}
 
+	resolved_dst_data_type = hcc_data_type_lower_ast_to_aml(cu, resolved_dst_data_type);
+	resolved_src_data_type = hcc_data_type_lower_ast_to_aml(cu, resolved_src_data_type);
+	if (resolved_dst_data_type == HCC_DATA_TYPE_AML_INTRINSIC_U32 && HCC_DATA_TYPE_IS_RESOURCE(resolved_src_data_type)) {
+		return HCC_CAN_CAST_YES;
+	}
+	if (HCC_DATA_TYPE_IS_RESOURCE(resolved_dst_data_type) && resolved_src_data_type == HCC_DATA_TYPE_AML_INTRINSIC_U32) {
+		return HCC_CAN_CAST_YES;
+	}
+
 	return HCC_CAN_CAST_NO_DIFFERENT_TYPES;
 }
 
@@ -5042,6 +5051,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INTRINSIC_NOT_FOUND_TYPEDEF] = "'typedef %.*s' is not a valid intrinsic for this compiler version",
 		[HCC_ERROR_CODE_INTRINSIC_INVALID_TYPEDEF] = "this intrinsic is supposed to be 'typedef %.*s %.*s' instead of 'typedef %.*s %.*s'",
 		[HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST] = "type mismatch '%.*s' is does not implicitly cast to '%.*s'",
+		[HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST_BUT_CAN_EXPLICITLY] = "type mismatch '%.*s' is does not implicitly cast to '%.*s' but it can explicitly eg. (%.*s)expression",
 		[HCC_ERROR_CODE_TYPE_MISMATCH] = "type mismatch '%.*s' and '%.*s'",
 		[HCC_ERROR_CODE_UNSUPPORTED_BINARY_OPERATOR] = "operator '%s' is not supported for data type '%.*s' and '%.*s'",
 		[HCC_ERROR_CODE_INVALID_CURLY_EXPR] = "'{' can only be used as the assignment of variable declarations or compound literals",

@@ -123,7 +123,9 @@ void voxel_raytracer_cs(HccComputeSV const* const sv, VoxelRaytracerBC const* co
 		}
 	}
 
-	store_textureG(bc->output, u32x2(sv->dispatch_idx.x, sv->dispatch_idx.y), color);
+	uint32_t int32_cast_test = (uint32_t)bc->output;
+	HccRwTexture2D(f32x4) resource_cast_test = (HccRwTexture2D(f32x4))int32_cast_test;
+	store_textureG(resource_cast_test, u32x2(sv->dispatch_idx.x, sv->dispatch_idx.y), color);
 }
 
 #endif // __HCC__

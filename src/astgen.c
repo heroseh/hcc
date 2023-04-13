@@ -452,7 +452,12 @@ void hcc_astgen_data_type_ensure_compatible_assignment(HccWorker* w, HccLocation
 	if (!hcc_astgen_data_type_check_compatible_assignment(w, target_data_type, source_expr_mut)) {
 		HccString target_data_type_name = hcc_data_type_string(w->cu, target_data_type);
 		HccString source_data_type_name = hcc_data_type_string(w->cu, (*source_expr_mut)->data_type);
-		hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST, other_location, (int)source_data_type_name.size, source_data_type_name.data, (int)target_data_type_name.size, target_data_type_name.data);
+		HccCanCast can_cast = hcc_data_type_can_cast(w->cu, target_data_type, (*source_expr_mut)->data_type);
+		if (can_cast == HCC_CAN_CAST_YES) {
+			hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST_BUT_CAN_EXPLICITLY, other_location, (int)source_data_type_name.size, source_data_type_name.data, (int)target_data_type_name.size, target_data_type_name.data, (int)target_data_type_name.size, target_data_type_name.data);
+		} else {
+			hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST, other_location, (int)source_data_type_name.size, source_data_type_name.data, (int)target_data_type_name.size, target_data_type_name.data);
+		}
 	}
 }
 

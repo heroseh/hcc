@@ -443,8 +443,8 @@ void generate_texture_intrinsics_file(void) {
 		"texture, sampler, coord",
 		"$tS: sample_$tr_$vx",
 		false,
-		false,
 		true,
+		false,
 		false,
 		VECTOR_1
 	);
@@ -456,8 +456,8 @@ void generate_texture_intrinsics_file(void) {
 		"texture, sampler, coord, mip_bias",
 		"$tS: sample_mip_bias_$tr_$vx",
 		false,
-		false,
 		true,
+		false,
 		false,
 		VECTOR_1
 	);
@@ -469,8 +469,8 @@ void generate_texture_intrinsics_file(void) {
 		"texture, sampler, coord, ddx, ddy",
 		"$tS: sample_mip_gradient_$tr_$vx",
 		false,
-		false,
 		true,
+		false,
 		false,
 		VECTOR_1
 	);
@@ -482,8 +482,8 @@ void generate_texture_intrinsics_file(void) {
 		"texture, sampler, coord, level",
 		"$tS: sample_mip_level_$tr_$vx",
 		false,
-		false,
 		true,
+		false,
 		false,
 		VECTOR_1
 	);

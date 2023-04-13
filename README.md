@@ -37,8 +37,6 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - Vulkan 1.3+ with the following features:
 	- vulkanMemoryModel
 	- vulkanMemoryModelDeviceScope
-	- shaderStorageImageReadWithoutFormat (currently a problem on Intel cards when using HccRoTexture and loading)
-	- shaderStorageImageWriteWithoutFormat
 	- shaderSampledImageArrayNonUniformIndexing
 	- shaderStorageBufferArrayNonUniformIndexing
 	- shaderStorageImageArrayNonUniformIndexing
@@ -50,6 +48,9 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 	- descriptorBindingPartiallyBound
 	- scalarBlockLayout
 	- shaderDemoteToHelperInvocation
+	- for each **format** used as a STORAGE_IMAGE you'll need check for the following:
+		- VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT  (HccRoTexture, HccRwTexture)
+		- VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT (HccWoTexture, HccRwTexture)
 
 ## What does it look like?
 

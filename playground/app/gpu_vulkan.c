@@ -354,6 +354,27 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		gpu.physical_device = physical_devices[0];
 
 		vkGetPhysicalDeviceMemoryProperties(gpu.physical_device, &gpu.memory_properties);
+
+		VkFormatProperties3 format_props3 = {
+			.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3,
+			.pNext = NULL,
+		};
+
+		VkFormatProperties2 format_props2 = {
+			.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
+			.pNext = &format_props3,
+		};
+		vkGetPhysicalDeviceFormatProperties2(gpu.physical_device, VK_FORMAT_R8G8B8A8_UNORM, &format_props2);
+
+		APP_ASSERT(
+			format_props3.optimalTilingFeatures & VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT,
+			"our shaders READ from a storage image in the VK_FORMAT_R8G8B8A8_UNORM format and this device does not support it"
+		);
+
+		APP_ASSERT(
+			format_props3.optimalTilingFeatures & VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT,
+			"our shaders WRITE from a storage image in the VK_FORMAT_R8G8B8A8_UNORM format and this device does not support it"
+		);
 	}
 
 	{
@@ -381,13 +402,17 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			.pQueuePriorities = queue_priorities
 		};
 
-		VkPhysicalDeviceVulkan12Features features_1_1 = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		VkPhysicalDeviceVulkan13Features features_1_3 = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 			.pNext = NULL,
+			.dynamicRendering = VK_TRUE,
+			.synchronization2 = VK_TRUE,
+			.shaderDemoteToHelperInvocation = VK_TRUE,
+			.maintenance4 = VK_TRUE,
 		};
 		VkPhysicalDeviceVulkan12Features features_1_2 = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-			.pNext = &features_1_1,
+			.pNext = &features_1_3,
 			.vulkanMemoryModel = VK_TRUE,
 			.vulkanMemoryModelDeviceScope = VK_TRUE,
 			.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
@@ -401,19 +426,13 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 			.descriptorBindingPartiallyBound = VK_TRUE,
 			.scalarBlockLayout = VK_TRUE,
 		};
-		VkPhysicalDeviceVulkan13Features features_1_3 = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		VkPhysicalDeviceVulkan12Features features_1_1 = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
 			.pNext = &features_1_2,
-			.dynamicRendering = VK_TRUE,
-			.synchronization2 = VK_TRUE,
-			.shaderDemoteToHelperInvocation = VK_TRUE,
-			.maintenance4 = VK_TRUE,
 		};
 		VkPhysicalDeviceFeatures2 features = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-			.pNext = &features_1_3,
-			.features.shaderStorageImageReadWithoutFormat = VK_TRUE,
-			.features.shaderStorageImageWriteWithoutFormat = VK_TRUE,
+			.pNext = &features_1_1,
 		};
 
 		static const char* extensions[] = {

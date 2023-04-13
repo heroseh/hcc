@@ -32,6 +32,41 @@ binding = 3, type = VK_DESCRIPTOR_TYPE_SAMPLER,        descriptors_count = <max-
 
 \<max-descriptors\> must be compiled into the shaders and is configurable by the hcc command line using the [--max-descriptors](command_line.md#--max-descriptors-num) argument. This number is also output into the shader metadata using the [-fomc](command_line.md#--fomc-pathh) argument. You'll find it in the `HccMetadata.resource_descriptors_max` field declared in [interop/hcc_interop.h](../interop/hcc_interop.h).
 
+| Hcc Resource Type              | Vulkan Descriptor Type            |
+| ------------------------------ | --------------------------------- |
+| HccRoSampler                   | VK_DESCRIPTOR_TYPE_SAMPLER        |
+| HccRoBuffer(T)                 | VK_DESCRIPTOR_TYPE_STORAGE_BUFFER |
+| HccWoBuffer(T)                 | VK_DESCRIPTOR_TYPE_STORAGE_BUFFER |
+| HccRwBuffer(T)                 | VK_DESCRIPTOR_TYPE_STORAGE_BUFFER |
+| HccRoTexture1D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRoTexture1DArray(T)         | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRoTexture2D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRoTexture2DArray(T)         | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRoTexture2DMS(T)            | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRoTexture2DMSArray(T)       | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRoTexture3D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccWoTexture1D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccWoTexture1DArray(T)         | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccWoTexture2D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccWoTexture2DArray(T)         | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccWoTexture2DMS(T)            | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccWoTexture2DMSArray(T)       | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccWoTexture3D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRwTexture1D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRwTexture1DArray(T)         | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRwTexture2D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRwTexture2DArray(T)         | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRwTexture2DMS(T)            | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRwTexture2DMSArray(T)       | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccRwTexture3D(T)              | VK_DESCRIPTOR_TYPE_STORAGE_IMAGE  |
+| HccSampleTexture1D(T)          | VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE  |
+| HccSampleTexture1DArray(T)     | VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE  |
+| HccSampleTexture2D(T)          | VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE  |
+| HccSampleTexture2DArray(T)     | VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE  |
+| HccSampleTextureCube(T)        | VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE  |
+| HccSampleTextureCubeArray(T)   | VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE  |
+| HccSampleTexture3D(T)          | VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE  |
+
 ## Bundled Constants
 
 Bundled constants map to Vulkan's Push Constants, DX12's Root Constants & Metal's Set\*Bytes().

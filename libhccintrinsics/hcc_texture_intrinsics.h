@@ -397,6 +397,30 @@ u32x4 fetch_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, u32x3 idx);
 
 //
 // sample a texel from 'texture' at 'coord' using 'sampler'
+float sample_texture_1d_f32(HccSampleTexture1D(float) texture, HccRoSampler sampler, float coord);
+int32_t sample_texture_1d_s32(HccSampleTexture1D(int32_t) texture, HccRoSampler sampler, float coord);
+uint32_t sample_texture_1d_u32(HccSampleTexture1D(uint32_t) texture, HccRoSampler sampler, float coord);
+f32x2 sample_texture_1d_f32x2(HccSampleTexture1D(f32x2) texture, HccRoSampler sampler, float coord);
+s32x2 sample_texture_1d_s32x2(HccSampleTexture1D(s32x2) texture, HccRoSampler sampler, float coord);
+u32x2 sample_texture_1d_u32x2(HccSampleTexture1D(u32x2) texture, HccRoSampler sampler, float coord);
+f32x3 sample_texture_1d_f32x3(HccSampleTexture1D(f32x3) texture, HccRoSampler sampler, float coord);
+s32x3 sample_texture_1d_s32x3(HccSampleTexture1D(s32x3) texture, HccRoSampler sampler, float coord);
+u32x3 sample_texture_1d_u32x3(HccSampleTexture1D(u32x3) texture, HccRoSampler sampler, float coord);
+f32x4 sample_texture_1d_f32x4(HccSampleTexture1D(f32x4) texture, HccRoSampler sampler, float coord);
+s32x4 sample_texture_1d_s32x4(HccSampleTexture1D(s32x4) texture, HccRoSampler sampler, float coord);
+u32x4 sample_texture_1d_u32x4(HccSampleTexture1D(u32x4) texture, HccRoSampler sampler, float coord);
+float sample_texture_1d_array_f32(HccSampleTexture1DArray(float) texture, HccRoSampler sampler, f32x2 coord);
+int32_t sample_texture_1d_array_s32(HccSampleTexture1DArray(int32_t) texture, HccRoSampler sampler, f32x2 coord);
+uint32_t sample_texture_1d_array_u32(HccSampleTexture1DArray(uint32_t) texture, HccRoSampler sampler, f32x2 coord);
+f32x2 sample_texture_1d_array_f32x2(HccSampleTexture1DArray(f32x2) texture, HccRoSampler sampler, f32x2 coord);
+s32x2 sample_texture_1d_array_s32x2(HccSampleTexture1DArray(s32x2) texture, HccRoSampler sampler, f32x2 coord);
+u32x2 sample_texture_1d_array_u32x2(HccSampleTexture1DArray(u32x2) texture, HccRoSampler sampler, f32x2 coord);
+f32x3 sample_texture_1d_array_f32x3(HccSampleTexture1DArray(f32x3) texture, HccRoSampler sampler, f32x2 coord);
+s32x3 sample_texture_1d_array_s32x3(HccSampleTexture1DArray(s32x3) texture, HccRoSampler sampler, f32x2 coord);
+u32x3 sample_texture_1d_array_u32x3(HccSampleTexture1DArray(u32x3) texture, HccRoSampler sampler, f32x2 coord);
+f32x4 sample_texture_1d_array_f32x4(HccSampleTexture1DArray(f32x4) texture, HccRoSampler sampler, f32x2 coord);
+s32x4 sample_texture_1d_array_s32x4(HccSampleTexture1DArray(s32x4) texture, HccRoSampler sampler, f32x2 coord);
+u32x4 sample_texture_1d_array_u32x4(HccSampleTexture1DArray(u32x4) texture, HccRoSampler sampler, f32x2 coord);
 float sample_texture_2d_f32(HccSampleTexture2D(float) texture, HccRoSampler sampler, f32x2 coord);
 int32_t sample_texture_2d_s32(HccSampleTexture2D(int32_t) texture, HccRoSampler sampler, f32x2 coord);
 uint32_t sample_texture_2d_u32(HccSampleTexture2D(uint32_t) texture, HccRoSampler sampler, f32x2 coord);
@@ -409,6 +433,18 @@ u32x3 sample_texture_2d_u32x3(HccSampleTexture2D(u32x3) texture, HccRoSampler sa
 f32x4 sample_texture_2d_f32x4(HccSampleTexture2D(f32x4) texture, HccRoSampler sampler, f32x2 coord);
 s32x4 sample_texture_2d_s32x4(HccSampleTexture2D(s32x4) texture, HccRoSampler sampler, f32x2 coord);
 u32x4 sample_texture_2d_u32x4(HccSampleTexture2D(u32x4) texture, HccRoSampler sampler, f32x2 coord);
+float sample_texture_2d_array_f32(HccSampleTexture2DArray(float) texture, HccRoSampler sampler, f32x3 coord);
+int32_t sample_texture_2d_array_s32(HccSampleTexture2DArray(int32_t) texture, HccRoSampler sampler, f32x3 coord);
+uint32_t sample_texture_2d_array_u32(HccSampleTexture2DArray(uint32_t) texture, HccRoSampler sampler, f32x3 coord);
+f32x2 sample_texture_2d_array_f32x2(HccSampleTexture2DArray(f32x2) texture, HccRoSampler sampler, f32x3 coord);
+s32x2 sample_texture_2d_array_s32x2(HccSampleTexture2DArray(s32x2) texture, HccRoSampler sampler, f32x3 coord);
+u32x2 sample_texture_2d_array_u32x2(HccSampleTexture2DArray(u32x2) texture, HccRoSampler sampler, f32x3 coord);
+f32x3 sample_texture_2d_array_f32x3(HccSampleTexture2DArray(f32x3) texture, HccRoSampler sampler, f32x3 coord);
+s32x3 sample_texture_2d_array_s32x3(HccSampleTexture2DArray(s32x3) texture, HccRoSampler sampler, f32x3 coord);
+u32x3 sample_texture_2d_array_u32x3(HccSampleTexture2DArray(u32x3) texture, HccRoSampler sampler, f32x3 coord);
+f32x4 sample_texture_2d_array_f32x4(HccSampleTexture2DArray(f32x4) texture, HccRoSampler sampler, f32x3 coord);
+s32x4 sample_texture_2d_array_s32x4(HccSampleTexture2DArray(s32x4) texture, HccRoSampler sampler, f32x3 coord);
+u32x4 sample_texture_2d_array_u32x4(HccSampleTexture2DArray(u32x4) texture, HccRoSampler sampler, f32x3 coord);
 float sample_texture_cube_f32(HccSampleTextureCube(float) texture, HccRoSampler sampler, f32x3 coord);
 int32_t sample_texture_cube_s32(HccSampleTextureCube(int32_t) texture, HccRoSampler sampler, f32x3 coord);
 uint32_t sample_texture_cube_u32(HccSampleTextureCube(uint32_t) texture, HccRoSampler sampler, f32x3 coord);
@@ -433,9 +469,45 @@ u32x3 sample_texture_cube_array_u32x3(HccSampleTextureCubeArray(u32x3) texture, 
 f32x4 sample_texture_cube_array_f32x4(HccSampleTextureCubeArray(f32x4) texture, HccRoSampler sampler, f32x4 coord);
 s32x4 sample_texture_cube_array_s32x4(HccSampleTextureCubeArray(s32x4) texture, HccRoSampler sampler, f32x4 coord);
 u32x4 sample_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) texture, HccRoSampler sampler, f32x4 coord);
+float sample_texture_3d_f32(HccSampleTexture3D(float) texture, HccRoSampler sampler, f32x3 coord);
+int32_t sample_texture_3d_s32(HccSampleTexture3D(int32_t) texture, HccRoSampler sampler, f32x3 coord);
+uint32_t sample_texture_3d_u32(HccSampleTexture3D(uint32_t) texture, HccRoSampler sampler, f32x3 coord);
+f32x2 sample_texture_3d_f32x2(HccSampleTexture3D(f32x2) texture, HccRoSampler sampler, f32x3 coord);
+s32x2 sample_texture_3d_s32x2(HccSampleTexture3D(s32x2) texture, HccRoSampler sampler, f32x3 coord);
+u32x2 sample_texture_3d_u32x2(HccSampleTexture3D(u32x2) texture, HccRoSampler sampler, f32x3 coord);
+f32x3 sample_texture_3d_f32x3(HccSampleTexture3D(f32x3) texture, HccRoSampler sampler, f32x3 coord);
+s32x3 sample_texture_3d_s32x3(HccSampleTexture3D(s32x3) texture, HccRoSampler sampler, f32x3 coord);
+u32x3 sample_texture_3d_u32x3(HccSampleTexture3D(u32x3) texture, HccRoSampler sampler, f32x3 coord);
+f32x4 sample_texture_3d_f32x4(HccSampleTexture3D(f32x4) texture, HccRoSampler sampler, f32x3 coord);
+s32x4 sample_texture_3d_s32x4(HccSampleTexture3D(s32x4) texture, HccRoSampler sampler, f32x3 coord);
+u32x4 sample_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, HccRoSampler sampler, f32x3 coord);
 #ifdef HCC_HAS_C_GENERIC_SUPPORT
 #define sample_textureG(texture, sampler, coord) \
 	_Generic((texture), \
+		HccSampleTexture1D(float): sample_texture_1d_f32, \
+		HccSampleTexture1D(int32_t): sample_texture_1d_s32, \
+		HccSampleTexture1D(uint32_t): sample_texture_1d_u32, \
+		HccSampleTexture1D(f32x2): sample_texture_1d_f32x2, \
+		HccSampleTexture1D(s32x2): sample_texture_1d_s32x2, \
+		HccSampleTexture1D(u32x2): sample_texture_1d_u32x2, \
+		HccSampleTexture1D(f32x3): sample_texture_1d_f32x3, \
+		HccSampleTexture1D(s32x3): sample_texture_1d_s32x3, \
+		HccSampleTexture1D(u32x3): sample_texture_1d_u32x3, \
+		HccSampleTexture1D(f32x4): sample_texture_1d_f32x4, \
+		HccSampleTexture1D(s32x4): sample_texture_1d_s32x4, \
+		HccSampleTexture1D(u32x4): sample_texture_1d_u32x4, \
+		HccSampleTexture1DArray(float): sample_texture_1d_array_f32, \
+		HccSampleTexture1DArray(int32_t): sample_texture_1d_array_s32, \
+		HccSampleTexture1DArray(uint32_t): sample_texture_1d_array_u32, \
+		HccSampleTexture1DArray(f32x2): sample_texture_1d_array_f32x2, \
+		HccSampleTexture1DArray(s32x2): sample_texture_1d_array_s32x2, \
+		HccSampleTexture1DArray(u32x2): sample_texture_1d_array_u32x2, \
+		HccSampleTexture1DArray(f32x3): sample_texture_1d_array_f32x3, \
+		HccSampleTexture1DArray(s32x3): sample_texture_1d_array_s32x3, \
+		HccSampleTexture1DArray(u32x3): sample_texture_1d_array_u32x3, \
+		HccSampleTexture1DArray(f32x4): sample_texture_1d_array_f32x4, \
+		HccSampleTexture1DArray(s32x4): sample_texture_1d_array_s32x4, \
+		HccSampleTexture1DArray(u32x4): sample_texture_1d_array_u32x4, \
 		HccSampleTexture2D(float): sample_texture_2d_f32, \
 		HccSampleTexture2D(int32_t): sample_texture_2d_s32, \
 		HccSampleTexture2D(uint32_t): sample_texture_2d_u32, \
@@ -448,6 +520,18 @@ u32x4 sample_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) texture, 
 		HccSampleTexture2D(f32x4): sample_texture_2d_f32x4, \
 		HccSampleTexture2D(s32x4): sample_texture_2d_s32x4, \
 		HccSampleTexture2D(u32x4): sample_texture_2d_u32x4, \
+		HccSampleTexture2DArray(float): sample_texture_2d_array_f32, \
+		HccSampleTexture2DArray(int32_t): sample_texture_2d_array_s32, \
+		HccSampleTexture2DArray(uint32_t): sample_texture_2d_array_u32, \
+		HccSampleTexture2DArray(f32x2): sample_texture_2d_array_f32x2, \
+		HccSampleTexture2DArray(s32x2): sample_texture_2d_array_s32x2, \
+		HccSampleTexture2DArray(u32x2): sample_texture_2d_array_u32x2, \
+		HccSampleTexture2DArray(f32x3): sample_texture_2d_array_f32x3, \
+		HccSampleTexture2DArray(s32x3): sample_texture_2d_array_s32x3, \
+		HccSampleTexture2DArray(u32x3): sample_texture_2d_array_u32x3, \
+		HccSampleTexture2DArray(f32x4): sample_texture_2d_array_f32x4, \
+		HccSampleTexture2DArray(s32x4): sample_texture_2d_array_s32x4, \
+		HccSampleTexture2DArray(u32x4): sample_texture_2d_array_u32x4, \
 		HccSampleTextureCube(float): sample_texture_cube_f32, \
 		HccSampleTextureCube(int32_t): sample_texture_cube_s32, \
 		HccSampleTextureCube(uint32_t): sample_texture_cube_u32, \
@@ -471,12 +555,48 @@ u32x4 sample_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) texture, 
 		HccSampleTextureCubeArray(u32x3): sample_texture_cube_array_u32x3, \
 		HccSampleTextureCubeArray(f32x4): sample_texture_cube_array_f32x4, \
 		HccSampleTextureCubeArray(s32x4): sample_texture_cube_array_s32x4, \
-		HccSampleTextureCubeArray(u32x4): sample_texture_cube_array_u32x4 \
+		HccSampleTextureCubeArray(u32x4): sample_texture_cube_array_u32x4, \
+		HccSampleTexture3D(float): sample_texture_3d_f32, \
+		HccSampleTexture3D(int32_t): sample_texture_3d_s32, \
+		HccSampleTexture3D(uint32_t): sample_texture_3d_u32, \
+		HccSampleTexture3D(f32x2): sample_texture_3d_f32x2, \
+		HccSampleTexture3D(s32x2): sample_texture_3d_s32x2, \
+		HccSampleTexture3D(u32x2): sample_texture_3d_u32x2, \
+		HccSampleTexture3D(f32x3): sample_texture_3d_f32x3, \
+		HccSampleTexture3D(s32x3): sample_texture_3d_s32x3, \
+		HccSampleTexture3D(u32x3): sample_texture_3d_u32x3, \
+		HccSampleTexture3D(f32x4): sample_texture_3d_f32x4, \
+		HccSampleTexture3D(s32x4): sample_texture_3d_s32x4, \
+		HccSampleTexture3D(u32x4): sample_texture_3d_u32x4 \
 	)(texture, sampler, coord)
 #endif // HCC_HAS_C_GENERIC_SUPPORT
 
 //
 // sample a texel from 'texture' at 'coord' using 'sampler' with a 'mip_bias'
+float sample_mip_bias_texture_1d_f32(HccSampleTexture1D(float) texture, HccRoSampler sampler, float coord, float mip_bias);
+int32_t sample_mip_bias_texture_1d_s32(HccSampleTexture1D(int32_t) texture, HccRoSampler sampler, float coord, float mip_bias);
+uint32_t sample_mip_bias_texture_1d_u32(HccSampleTexture1D(uint32_t) texture, HccRoSampler sampler, float coord, float mip_bias);
+f32x2 sample_mip_bias_texture_1d_f32x2(HccSampleTexture1D(f32x2) texture, HccRoSampler sampler, float coord, float mip_bias);
+s32x2 sample_mip_bias_texture_1d_s32x2(HccSampleTexture1D(s32x2) texture, HccRoSampler sampler, float coord, float mip_bias);
+u32x2 sample_mip_bias_texture_1d_u32x2(HccSampleTexture1D(u32x2) texture, HccRoSampler sampler, float coord, float mip_bias);
+f32x3 sample_mip_bias_texture_1d_f32x3(HccSampleTexture1D(f32x3) texture, HccRoSampler sampler, float coord, float mip_bias);
+s32x3 sample_mip_bias_texture_1d_s32x3(HccSampleTexture1D(s32x3) texture, HccRoSampler sampler, float coord, float mip_bias);
+u32x3 sample_mip_bias_texture_1d_u32x3(HccSampleTexture1D(u32x3) texture, HccRoSampler sampler, float coord, float mip_bias);
+f32x4 sample_mip_bias_texture_1d_f32x4(HccSampleTexture1D(f32x4) texture, HccRoSampler sampler, float coord, float mip_bias);
+s32x4 sample_mip_bias_texture_1d_s32x4(HccSampleTexture1D(s32x4) texture, HccRoSampler sampler, float coord, float mip_bias);
+u32x4 sample_mip_bias_texture_1d_u32x4(HccSampleTexture1D(u32x4) texture, HccRoSampler sampler, float coord, float mip_bias);
+float sample_mip_bias_texture_1d_array_f32(HccSampleTexture1DArray(float) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+int32_t sample_mip_bias_texture_1d_array_s32(HccSampleTexture1DArray(int32_t) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+uint32_t sample_mip_bias_texture_1d_array_u32(HccSampleTexture1DArray(uint32_t) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+f32x2 sample_mip_bias_texture_1d_array_f32x2(HccSampleTexture1DArray(f32x2) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+s32x2 sample_mip_bias_texture_1d_array_s32x2(HccSampleTexture1DArray(s32x2) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+u32x2 sample_mip_bias_texture_1d_array_u32x2(HccSampleTexture1DArray(u32x2) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+f32x3 sample_mip_bias_texture_1d_array_f32x3(HccSampleTexture1DArray(f32x3) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+s32x3 sample_mip_bias_texture_1d_array_s32x3(HccSampleTexture1DArray(s32x3) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+u32x3 sample_mip_bias_texture_1d_array_u32x3(HccSampleTexture1DArray(u32x3) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+f32x4 sample_mip_bias_texture_1d_array_f32x4(HccSampleTexture1DArray(f32x4) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+s32x4 sample_mip_bias_texture_1d_array_s32x4(HccSampleTexture1DArray(s32x4) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+u32x4 sample_mip_bias_texture_1d_array_u32x4(HccSampleTexture1DArray(u32x4) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
 float sample_mip_bias_texture_2d_f32(HccSampleTexture2D(float) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
 int32_t sample_mip_bias_texture_2d_s32(HccSampleTexture2D(int32_t) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
 uint32_t sample_mip_bias_texture_2d_u32(HccSampleTexture2D(uint32_t) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
@@ -489,6 +609,18 @@ u32x3 sample_mip_bias_texture_2d_u32x3(HccSampleTexture2D(u32x3) texture, HccRoS
 f32x4 sample_mip_bias_texture_2d_f32x4(HccSampleTexture2D(f32x4) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
 s32x4 sample_mip_bias_texture_2d_s32x4(HccSampleTexture2D(s32x4) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
 u32x4 sample_mip_bias_texture_2d_u32x4(HccSampleTexture2D(u32x4) texture, HccRoSampler sampler, f32x2 coord, float mip_bias);
+float sample_mip_bias_texture_2d_array_f32(HccSampleTexture2DArray(float) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+int32_t sample_mip_bias_texture_2d_array_s32(HccSampleTexture2DArray(int32_t) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+uint32_t sample_mip_bias_texture_2d_array_u32(HccSampleTexture2DArray(uint32_t) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+f32x2 sample_mip_bias_texture_2d_array_f32x2(HccSampleTexture2DArray(f32x2) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+s32x2 sample_mip_bias_texture_2d_array_s32x2(HccSampleTexture2DArray(s32x2) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+u32x2 sample_mip_bias_texture_2d_array_u32x2(HccSampleTexture2DArray(u32x2) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+f32x3 sample_mip_bias_texture_2d_array_f32x3(HccSampleTexture2DArray(f32x3) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+s32x3 sample_mip_bias_texture_2d_array_s32x3(HccSampleTexture2DArray(s32x3) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+u32x3 sample_mip_bias_texture_2d_array_u32x3(HccSampleTexture2DArray(u32x3) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+f32x4 sample_mip_bias_texture_2d_array_f32x4(HccSampleTexture2DArray(f32x4) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+s32x4 sample_mip_bias_texture_2d_array_s32x4(HccSampleTexture2DArray(s32x4) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+u32x4 sample_mip_bias_texture_2d_array_u32x4(HccSampleTexture2DArray(u32x4) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
 float sample_mip_bias_texture_cube_f32(HccSampleTextureCube(float) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
 int32_t sample_mip_bias_texture_cube_s32(HccSampleTextureCube(int32_t) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
 uint32_t sample_mip_bias_texture_cube_u32(HccSampleTextureCube(uint32_t) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
@@ -513,9 +645,45 @@ u32x3 sample_mip_bias_texture_cube_array_u32x3(HccSampleTextureCubeArray(u32x3) 
 f32x4 sample_mip_bias_texture_cube_array_f32x4(HccSampleTextureCubeArray(f32x4) texture, HccRoSampler sampler, f32x4 coord, float mip_bias);
 s32x4 sample_mip_bias_texture_cube_array_s32x4(HccSampleTextureCubeArray(s32x4) texture, HccRoSampler sampler, f32x4 coord, float mip_bias);
 u32x4 sample_mip_bias_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) texture, HccRoSampler sampler, f32x4 coord, float mip_bias);
+float sample_mip_bias_texture_3d_f32(HccSampleTexture3D(float) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+int32_t sample_mip_bias_texture_3d_s32(HccSampleTexture3D(int32_t) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+uint32_t sample_mip_bias_texture_3d_u32(HccSampleTexture3D(uint32_t) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+f32x2 sample_mip_bias_texture_3d_f32x2(HccSampleTexture3D(f32x2) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+s32x2 sample_mip_bias_texture_3d_s32x2(HccSampleTexture3D(s32x2) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+u32x2 sample_mip_bias_texture_3d_u32x2(HccSampleTexture3D(u32x2) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+f32x3 sample_mip_bias_texture_3d_f32x3(HccSampleTexture3D(f32x3) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+s32x3 sample_mip_bias_texture_3d_s32x3(HccSampleTexture3D(s32x3) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+u32x3 sample_mip_bias_texture_3d_u32x3(HccSampleTexture3D(u32x3) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+f32x4 sample_mip_bias_texture_3d_f32x4(HccSampleTexture3D(f32x4) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+s32x4 sample_mip_bias_texture_3d_s32x4(HccSampleTexture3D(s32x4) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
+u32x4 sample_mip_bias_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, HccRoSampler sampler, f32x3 coord, float mip_bias);
 #ifdef HCC_HAS_C_GENERIC_SUPPORT
 #define sample_mip_bias_textureG(texture, sampler, coord, mip_bias) \
 	_Generic((texture), \
+		HccSampleTexture1D(float): sample_mip_bias_texture_1d_f32, \
+		HccSampleTexture1D(int32_t): sample_mip_bias_texture_1d_s32, \
+		HccSampleTexture1D(uint32_t): sample_mip_bias_texture_1d_u32, \
+		HccSampleTexture1D(f32x2): sample_mip_bias_texture_1d_f32x2, \
+		HccSampleTexture1D(s32x2): sample_mip_bias_texture_1d_s32x2, \
+		HccSampleTexture1D(u32x2): sample_mip_bias_texture_1d_u32x2, \
+		HccSampleTexture1D(f32x3): sample_mip_bias_texture_1d_f32x3, \
+		HccSampleTexture1D(s32x3): sample_mip_bias_texture_1d_s32x3, \
+		HccSampleTexture1D(u32x3): sample_mip_bias_texture_1d_u32x3, \
+		HccSampleTexture1D(f32x4): sample_mip_bias_texture_1d_f32x4, \
+		HccSampleTexture1D(s32x4): sample_mip_bias_texture_1d_s32x4, \
+		HccSampleTexture1D(u32x4): sample_mip_bias_texture_1d_u32x4, \
+		HccSampleTexture1DArray(float): sample_mip_bias_texture_1d_array_f32, \
+		HccSampleTexture1DArray(int32_t): sample_mip_bias_texture_1d_array_s32, \
+		HccSampleTexture1DArray(uint32_t): sample_mip_bias_texture_1d_array_u32, \
+		HccSampleTexture1DArray(f32x2): sample_mip_bias_texture_1d_array_f32x2, \
+		HccSampleTexture1DArray(s32x2): sample_mip_bias_texture_1d_array_s32x2, \
+		HccSampleTexture1DArray(u32x2): sample_mip_bias_texture_1d_array_u32x2, \
+		HccSampleTexture1DArray(f32x3): sample_mip_bias_texture_1d_array_f32x3, \
+		HccSampleTexture1DArray(s32x3): sample_mip_bias_texture_1d_array_s32x3, \
+		HccSampleTexture1DArray(u32x3): sample_mip_bias_texture_1d_array_u32x3, \
+		HccSampleTexture1DArray(f32x4): sample_mip_bias_texture_1d_array_f32x4, \
+		HccSampleTexture1DArray(s32x4): sample_mip_bias_texture_1d_array_s32x4, \
+		HccSampleTexture1DArray(u32x4): sample_mip_bias_texture_1d_array_u32x4, \
 		HccSampleTexture2D(float): sample_mip_bias_texture_2d_f32, \
 		HccSampleTexture2D(int32_t): sample_mip_bias_texture_2d_s32, \
 		HccSampleTexture2D(uint32_t): sample_mip_bias_texture_2d_u32, \
@@ -528,6 +696,18 @@ u32x4 sample_mip_bias_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) 
 		HccSampleTexture2D(f32x4): sample_mip_bias_texture_2d_f32x4, \
 		HccSampleTexture2D(s32x4): sample_mip_bias_texture_2d_s32x4, \
 		HccSampleTexture2D(u32x4): sample_mip_bias_texture_2d_u32x4, \
+		HccSampleTexture2DArray(float): sample_mip_bias_texture_2d_array_f32, \
+		HccSampleTexture2DArray(int32_t): sample_mip_bias_texture_2d_array_s32, \
+		HccSampleTexture2DArray(uint32_t): sample_mip_bias_texture_2d_array_u32, \
+		HccSampleTexture2DArray(f32x2): sample_mip_bias_texture_2d_array_f32x2, \
+		HccSampleTexture2DArray(s32x2): sample_mip_bias_texture_2d_array_s32x2, \
+		HccSampleTexture2DArray(u32x2): sample_mip_bias_texture_2d_array_u32x2, \
+		HccSampleTexture2DArray(f32x3): sample_mip_bias_texture_2d_array_f32x3, \
+		HccSampleTexture2DArray(s32x3): sample_mip_bias_texture_2d_array_s32x3, \
+		HccSampleTexture2DArray(u32x3): sample_mip_bias_texture_2d_array_u32x3, \
+		HccSampleTexture2DArray(f32x4): sample_mip_bias_texture_2d_array_f32x4, \
+		HccSampleTexture2DArray(s32x4): sample_mip_bias_texture_2d_array_s32x4, \
+		HccSampleTexture2DArray(u32x4): sample_mip_bias_texture_2d_array_u32x4, \
 		HccSampleTextureCube(float): sample_mip_bias_texture_cube_f32, \
 		HccSampleTextureCube(int32_t): sample_mip_bias_texture_cube_s32, \
 		HccSampleTextureCube(uint32_t): sample_mip_bias_texture_cube_u32, \
@@ -551,12 +731,48 @@ u32x4 sample_mip_bias_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) 
 		HccSampleTextureCubeArray(u32x3): sample_mip_bias_texture_cube_array_u32x3, \
 		HccSampleTextureCubeArray(f32x4): sample_mip_bias_texture_cube_array_f32x4, \
 		HccSampleTextureCubeArray(s32x4): sample_mip_bias_texture_cube_array_s32x4, \
-		HccSampleTextureCubeArray(u32x4): sample_mip_bias_texture_cube_array_u32x4 \
+		HccSampleTextureCubeArray(u32x4): sample_mip_bias_texture_cube_array_u32x4, \
+		HccSampleTexture3D(float): sample_mip_bias_texture_3d_f32, \
+		HccSampleTexture3D(int32_t): sample_mip_bias_texture_3d_s32, \
+		HccSampleTexture3D(uint32_t): sample_mip_bias_texture_3d_u32, \
+		HccSampleTexture3D(f32x2): sample_mip_bias_texture_3d_f32x2, \
+		HccSampleTexture3D(s32x2): sample_mip_bias_texture_3d_s32x2, \
+		HccSampleTexture3D(u32x2): sample_mip_bias_texture_3d_u32x2, \
+		HccSampleTexture3D(f32x3): sample_mip_bias_texture_3d_f32x3, \
+		HccSampleTexture3D(s32x3): sample_mip_bias_texture_3d_s32x3, \
+		HccSampleTexture3D(u32x3): sample_mip_bias_texture_3d_u32x3, \
+		HccSampleTexture3D(f32x4): sample_mip_bias_texture_3d_f32x4, \
+		HccSampleTexture3D(s32x4): sample_mip_bias_texture_3d_s32x4, \
+		HccSampleTexture3D(u32x4): sample_mip_bias_texture_3d_u32x4 \
 	)(texture, sampler, coord, mip_bias)
 #endif // HCC_HAS_C_GENERIC_SUPPORT
 
 //
 // sample a texel from 'texture' at 'coord' using 'sampler' using a custom 'ddx' and 'ddy' to select the mip level
+float sample_mip_gradient_texture_1d_f32(HccSampleTexture1D(float) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+int32_t sample_mip_gradient_texture_1d_s32(HccSampleTexture1D(int32_t) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+uint32_t sample_mip_gradient_texture_1d_u32(HccSampleTexture1D(uint32_t) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+f32x2 sample_mip_gradient_texture_1d_f32x2(HccSampleTexture1D(f32x2) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+s32x2 sample_mip_gradient_texture_1d_s32x2(HccSampleTexture1D(s32x2) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+u32x2 sample_mip_gradient_texture_1d_u32x2(HccSampleTexture1D(u32x2) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+f32x3 sample_mip_gradient_texture_1d_f32x3(HccSampleTexture1D(f32x3) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+s32x3 sample_mip_gradient_texture_1d_s32x3(HccSampleTexture1D(s32x3) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+u32x3 sample_mip_gradient_texture_1d_u32x3(HccSampleTexture1D(u32x3) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+f32x4 sample_mip_gradient_texture_1d_f32x4(HccSampleTexture1D(f32x4) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+s32x4 sample_mip_gradient_texture_1d_s32x4(HccSampleTexture1D(s32x4) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+u32x4 sample_mip_gradient_texture_1d_u32x4(HccSampleTexture1D(u32x4) texture, HccRoSampler sampler, float coord, float ddx, float ddy);
+float sample_mip_gradient_texture_1d_array_f32(HccSampleTexture1DArray(float) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+int32_t sample_mip_gradient_texture_1d_array_s32(HccSampleTexture1DArray(int32_t) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+uint32_t sample_mip_gradient_texture_1d_array_u32(HccSampleTexture1DArray(uint32_t) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+f32x2 sample_mip_gradient_texture_1d_array_f32x2(HccSampleTexture1DArray(f32x2) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+s32x2 sample_mip_gradient_texture_1d_array_s32x2(HccSampleTexture1DArray(s32x2) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+u32x2 sample_mip_gradient_texture_1d_array_u32x2(HccSampleTexture1DArray(u32x2) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+f32x3 sample_mip_gradient_texture_1d_array_f32x3(HccSampleTexture1DArray(f32x3) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+s32x3 sample_mip_gradient_texture_1d_array_s32x3(HccSampleTexture1DArray(s32x3) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+u32x3 sample_mip_gradient_texture_1d_array_u32x3(HccSampleTexture1DArray(u32x3) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+f32x4 sample_mip_gradient_texture_1d_array_f32x4(HccSampleTexture1DArray(f32x4) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+s32x4 sample_mip_gradient_texture_1d_array_s32x4(HccSampleTexture1DArray(s32x4) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+u32x4 sample_mip_gradient_texture_1d_array_u32x4(HccSampleTexture1DArray(u32x4) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
 float sample_mip_gradient_texture_2d_f32(HccSampleTexture2D(float) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
 int32_t sample_mip_gradient_texture_2d_s32(HccSampleTexture2D(int32_t) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
 uint32_t sample_mip_gradient_texture_2d_u32(HccSampleTexture2D(uint32_t) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
@@ -569,6 +785,18 @@ u32x3 sample_mip_gradient_texture_2d_u32x3(HccSampleTexture2D(u32x3) texture, Hc
 f32x4 sample_mip_gradient_texture_2d_f32x4(HccSampleTexture2D(f32x4) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
 s32x4 sample_mip_gradient_texture_2d_s32x4(HccSampleTexture2D(s32x4) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
 u32x4 sample_mip_gradient_texture_2d_u32x4(HccSampleTexture2D(u32x4) texture, HccRoSampler sampler, f32x2 coord, f32x2 ddx, f32x2 ddy);
+float sample_mip_gradient_texture_2d_array_f32(HccSampleTexture2DArray(float) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+int32_t sample_mip_gradient_texture_2d_array_s32(HccSampleTexture2DArray(int32_t) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+uint32_t sample_mip_gradient_texture_2d_array_u32(HccSampleTexture2DArray(uint32_t) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+f32x2 sample_mip_gradient_texture_2d_array_f32x2(HccSampleTexture2DArray(f32x2) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+s32x2 sample_mip_gradient_texture_2d_array_s32x2(HccSampleTexture2DArray(s32x2) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+u32x2 sample_mip_gradient_texture_2d_array_u32x2(HccSampleTexture2DArray(u32x2) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+f32x3 sample_mip_gradient_texture_2d_array_f32x3(HccSampleTexture2DArray(f32x3) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+s32x3 sample_mip_gradient_texture_2d_array_s32x3(HccSampleTexture2DArray(s32x3) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+u32x3 sample_mip_gradient_texture_2d_array_u32x3(HccSampleTexture2DArray(u32x3) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+f32x4 sample_mip_gradient_texture_2d_array_f32x4(HccSampleTexture2DArray(f32x4) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+s32x4 sample_mip_gradient_texture_2d_array_s32x4(HccSampleTexture2DArray(s32x4) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+u32x4 sample_mip_gradient_texture_2d_array_u32x4(HccSampleTexture2DArray(u32x4) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
 float sample_mip_gradient_texture_cube_f32(HccSampleTextureCube(float) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
 int32_t sample_mip_gradient_texture_cube_s32(HccSampleTextureCube(int32_t) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
 uint32_t sample_mip_gradient_texture_cube_u32(HccSampleTextureCube(uint32_t) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
@@ -593,9 +821,45 @@ u32x3 sample_mip_gradient_texture_cube_array_u32x3(HccSampleTextureCubeArray(u32
 f32x4 sample_mip_gradient_texture_cube_array_f32x4(HccSampleTextureCubeArray(f32x4) texture, HccRoSampler sampler, f32x4 coord, f32x4 ddx, f32x4 ddy);
 s32x4 sample_mip_gradient_texture_cube_array_s32x4(HccSampleTextureCubeArray(s32x4) texture, HccRoSampler sampler, f32x4 coord, f32x4 ddx, f32x4 ddy);
 u32x4 sample_mip_gradient_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) texture, HccRoSampler sampler, f32x4 coord, f32x4 ddx, f32x4 ddy);
+float sample_mip_gradient_texture_3d_f32(HccSampleTexture3D(float) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+int32_t sample_mip_gradient_texture_3d_s32(HccSampleTexture3D(int32_t) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+uint32_t sample_mip_gradient_texture_3d_u32(HccSampleTexture3D(uint32_t) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+f32x2 sample_mip_gradient_texture_3d_f32x2(HccSampleTexture3D(f32x2) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+s32x2 sample_mip_gradient_texture_3d_s32x2(HccSampleTexture3D(s32x2) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+u32x2 sample_mip_gradient_texture_3d_u32x2(HccSampleTexture3D(u32x2) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+f32x3 sample_mip_gradient_texture_3d_f32x3(HccSampleTexture3D(f32x3) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+s32x3 sample_mip_gradient_texture_3d_s32x3(HccSampleTexture3D(s32x3) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+u32x3 sample_mip_gradient_texture_3d_u32x3(HccSampleTexture3D(u32x3) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+f32x4 sample_mip_gradient_texture_3d_f32x4(HccSampleTexture3D(f32x4) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+s32x4 sample_mip_gradient_texture_3d_s32x4(HccSampleTexture3D(s32x4) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
+u32x4 sample_mip_gradient_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, HccRoSampler sampler, f32x3 coord, f32x3 ddx, f32x3 ddy);
 #ifdef HCC_HAS_C_GENERIC_SUPPORT
 #define sample_mip_gradient_textureG(texture, sampler, coord, ddx, ddy) \
 	_Generic((texture), \
+		HccSampleTexture1D(float): sample_mip_gradient_texture_1d_f32, \
+		HccSampleTexture1D(int32_t): sample_mip_gradient_texture_1d_s32, \
+		HccSampleTexture1D(uint32_t): sample_mip_gradient_texture_1d_u32, \
+		HccSampleTexture1D(f32x2): sample_mip_gradient_texture_1d_f32x2, \
+		HccSampleTexture1D(s32x2): sample_mip_gradient_texture_1d_s32x2, \
+		HccSampleTexture1D(u32x2): sample_mip_gradient_texture_1d_u32x2, \
+		HccSampleTexture1D(f32x3): sample_mip_gradient_texture_1d_f32x3, \
+		HccSampleTexture1D(s32x3): sample_mip_gradient_texture_1d_s32x3, \
+		HccSampleTexture1D(u32x3): sample_mip_gradient_texture_1d_u32x3, \
+		HccSampleTexture1D(f32x4): sample_mip_gradient_texture_1d_f32x4, \
+		HccSampleTexture1D(s32x4): sample_mip_gradient_texture_1d_s32x4, \
+		HccSampleTexture1D(u32x4): sample_mip_gradient_texture_1d_u32x4, \
+		HccSampleTexture1DArray(float): sample_mip_gradient_texture_1d_array_f32, \
+		HccSampleTexture1DArray(int32_t): sample_mip_gradient_texture_1d_array_s32, \
+		HccSampleTexture1DArray(uint32_t): sample_mip_gradient_texture_1d_array_u32, \
+		HccSampleTexture1DArray(f32x2): sample_mip_gradient_texture_1d_array_f32x2, \
+		HccSampleTexture1DArray(s32x2): sample_mip_gradient_texture_1d_array_s32x2, \
+		HccSampleTexture1DArray(u32x2): sample_mip_gradient_texture_1d_array_u32x2, \
+		HccSampleTexture1DArray(f32x3): sample_mip_gradient_texture_1d_array_f32x3, \
+		HccSampleTexture1DArray(s32x3): sample_mip_gradient_texture_1d_array_s32x3, \
+		HccSampleTexture1DArray(u32x3): sample_mip_gradient_texture_1d_array_u32x3, \
+		HccSampleTexture1DArray(f32x4): sample_mip_gradient_texture_1d_array_f32x4, \
+		HccSampleTexture1DArray(s32x4): sample_mip_gradient_texture_1d_array_s32x4, \
+		HccSampleTexture1DArray(u32x4): sample_mip_gradient_texture_1d_array_u32x4, \
 		HccSampleTexture2D(float): sample_mip_gradient_texture_2d_f32, \
 		HccSampleTexture2D(int32_t): sample_mip_gradient_texture_2d_s32, \
 		HccSampleTexture2D(uint32_t): sample_mip_gradient_texture_2d_u32, \
@@ -608,6 +872,18 @@ u32x4 sample_mip_gradient_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32
 		HccSampleTexture2D(f32x4): sample_mip_gradient_texture_2d_f32x4, \
 		HccSampleTexture2D(s32x4): sample_mip_gradient_texture_2d_s32x4, \
 		HccSampleTexture2D(u32x4): sample_mip_gradient_texture_2d_u32x4, \
+		HccSampleTexture2DArray(float): sample_mip_gradient_texture_2d_array_f32, \
+		HccSampleTexture2DArray(int32_t): sample_mip_gradient_texture_2d_array_s32, \
+		HccSampleTexture2DArray(uint32_t): sample_mip_gradient_texture_2d_array_u32, \
+		HccSampleTexture2DArray(f32x2): sample_mip_gradient_texture_2d_array_f32x2, \
+		HccSampleTexture2DArray(s32x2): sample_mip_gradient_texture_2d_array_s32x2, \
+		HccSampleTexture2DArray(u32x2): sample_mip_gradient_texture_2d_array_u32x2, \
+		HccSampleTexture2DArray(f32x3): sample_mip_gradient_texture_2d_array_f32x3, \
+		HccSampleTexture2DArray(s32x3): sample_mip_gradient_texture_2d_array_s32x3, \
+		HccSampleTexture2DArray(u32x3): sample_mip_gradient_texture_2d_array_u32x3, \
+		HccSampleTexture2DArray(f32x4): sample_mip_gradient_texture_2d_array_f32x4, \
+		HccSampleTexture2DArray(s32x4): sample_mip_gradient_texture_2d_array_s32x4, \
+		HccSampleTexture2DArray(u32x4): sample_mip_gradient_texture_2d_array_u32x4, \
 		HccSampleTextureCube(float): sample_mip_gradient_texture_cube_f32, \
 		HccSampleTextureCube(int32_t): sample_mip_gradient_texture_cube_s32, \
 		HccSampleTextureCube(uint32_t): sample_mip_gradient_texture_cube_u32, \
@@ -631,12 +907,48 @@ u32x4 sample_mip_gradient_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32
 		HccSampleTextureCubeArray(u32x3): sample_mip_gradient_texture_cube_array_u32x3, \
 		HccSampleTextureCubeArray(f32x4): sample_mip_gradient_texture_cube_array_f32x4, \
 		HccSampleTextureCubeArray(s32x4): sample_mip_gradient_texture_cube_array_s32x4, \
-		HccSampleTextureCubeArray(u32x4): sample_mip_gradient_texture_cube_array_u32x4 \
+		HccSampleTextureCubeArray(u32x4): sample_mip_gradient_texture_cube_array_u32x4, \
+		HccSampleTexture3D(float): sample_mip_gradient_texture_3d_f32, \
+		HccSampleTexture3D(int32_t): sample_mip_gradient_texture_3d_s32, \
+		HccSampleTexture3D(uint32_t): sample_mip_gradient_texture_3d_u32, \
+		HccSampleTexture3D(f32x2): sample_mip_gradient_texture_3d_f32x2, \
+		HccSampleTexture3D(s32x2): sample_mip_gradient_texture_3d_s32x2, \
+		HccSampleTexture3D(u32x2): sample_mip_gradient_texture_3d_u32x2, \
+		HccSampleTexture3D(f32x3): sample_mip_gradient_texture_3d_f32x3, \
+		HccSampleTexture3D(s32x3): sample_mip_gradient_texture_3d_s32x3, \
+		HccSampleTexture3D(u32x3): sample_mip_gradient_texture_3d_u32x3, \
+		HccSampleTexture3D(f32x4): sample_mip_gradient_texture_3d_f32x4, \
+		HccSampleTexture3D(s32x4): sample_mip_gradient_texture_3d_s32x4, \
+		HccSampleTexture3D(u32x4): sample_mip_gradient_texture_3d_u32x4 \
 	)(texture, sampler, coord, ddx, ddy)
 #endif // HCC_HAS_C_GENERIC_SUPPORT
 
 //
 // sample a texel from 'texture' at 'coord' using 'sampler' using mip 'level'
+float sample_mip_level_texture_1d_f32(HccSampleTexture1D(float) texture, HccRoSampler sampler, float coord, float level);
+int32_t sample_mip_level_texture_1d_s32(HccSampleTexture1D(int32_t) texture, HccRoSampler sampler, float coord, float level);
+uint32_t sample_mip_level_texture_1d_u32(HccSampleTexture1D(uint32_t) texture, HccRoSampler sampler, float coord, float level);
+f32x2 sample_mip_level_texture_1d_f32x2(HccSampleTexture1D(f32x2) texture, HccRoSampler sampler, float coord, float level);
+s32x2 sample_mip_level_texture_1d_s32x2(HccSampleTexture1D(s32x2) texture, HccRoSampler sampler, float coord, float level);
+u32x2 sample_mip_level_texture_1d_u32x2(HccSampleTexture1D(u32x2) texture, HccRoSampler sampler, float coord, float level);
+f32x3 sample_mip_level_texture_1d_f32x3(HccSampleTexture1D(f32x3) texture, HccRoSampler sampler, float coord, float level);
+s32x3 sample_mip_level_texture_1d_s32x3(HccSampleTexture1D(s32x3) texture, HccRoSampler sampler, float coord, float level);
+u32x3 sample_mip_level_texture_1d_u32x3(HccSampleTexture1D(u32x3) texture, HccRoSampler sampler, float coord, float level);
+f32x4 sample_mip_level_texture_1d_f32x4(HccSampleTexture1D(f32x4) texture, HccRoSampler sampler, float coord, float level);
+s32x4 sample_mip_level_texture_1d_s32x4(HccSampleTexture1D(s32x4) texture, HccRoSampler sampler, float coord, float level);
+u32x4 sample_mip_level_texture_1d_u32x4(HccSampleTexture1D(u32x4) texture, HccRoSampler sampler, float coord, float level);
+float sample_mip_level_texture_1d_array_f32(HccSampleTexture1DArray(float) texture, HccRoSampler sampler, f32x2 coord, float level);
+int32_t sample_mip_level_texture_1d_array_s32(HccSampleTexture1DArray(int32_t) texture, HccRoSampler sampler, f32x2 coord, float level);
+uint32_t sample_mip_level_texture_1d_array_u32(HccSampleTexture1DArray(uint32_t) texture, HccRoSampler sampler, f32x2 coord, float level);
+f32x2 sample_mip_level_texture_1d_array_f32x2(HccSampleTexture1DArray(f32x2) texture, HccRoSampler sampler, f32x2 coord, float level);
+s32x2 sample_mip_level_texture_1d_array_s32x2(HccSampleTexture1DArray(s32x2) texture, HccRoSampler sampler, f32x2 coord, float level);
+u32x2 sample_mip_level_texture_1d_array_u32x2(HccSampleTexture1DArray(u32x2) texture, HccRoSampler sampler, f32x2 coord, float level);
+f32x3 sample_mip_level_texture_1d_array_f32x3(HccSampleTexture1DArray(f32x3) texture, HccRoSampler sampler, f32x2 coord, float level);
+s32x3 sample_mip_level_texture_1d_array_s32x3(HccSampleTexture1DArray(s32x3) texture, HccRoSampler sampler, f32x2 coord, float level);
+u32x3 sample_mip_level_texture_1d_array_u32x3(HccSampleTexture1DArray(u32x3) texture, HccRoSampler sampler, f32x2 coord, float level);
+f32x4 sample_mip_level_texture_1d_array_f32x4(HccSampleTexture1DArray(f32x4) texture, HccRoSampler sampler, f32x2 coord, float level);
+s32x4 sample_mip_level_texture_1d_array_s32x4(HccSampleTexture1DArray(s32x4) texture, HccRoSampler sampler, f32x2 coord, float level);
+u32x4 sample_mip_level_texture_1d_array_u32x4(HccSampleTexture1DArray(u32x4) texture, HccRoSampler sampler, f32x2 coord, float level);
 float sample_mip_level_texture_2d_f32(HccSampleTexture2D(float) texture, HccRoSampler sampler, f32x2 coord, float level);
 int32_t sample_mip_level_texture_2d_s32(HccSampleTexture2D(int32_t) texture, HccRoSampler sampler, f32x2 coord, float level);
 uint32_t sample_mip_level_texture_2d_u32(HccSampleTexture2D(uint32_t) texture, HccRoSampler sampler, f32x2 coord, float level);
@@ -649,6 +961,18 @@ u32x3 sample_mip_level_texture_2d_u32x3(HccSampleTexture2D(u32x3) texture, HccRo
 f32x4 sample_mip_level_texture_2d_f32x4(HccSampleTexture2D(f32x4) texture, HccRoSampler sampler, f32x2 coord, float level);
 s32x4 sample_mip_level_texture_2d_s32x4(HccSampleTexture2D(s32x4) texture, HccRoSampler sampler, f32x2 coord, float level);
 u32x4 sample_mip_level_texture_2d_u32x4(HccSampleTexture2D(u32x4) texture, HccRoSampler sampler, f32x2 coord, float level);
+float sample_mip_level_texture_2d_array_f32(HccSampleTexture2DArray(float) texture, HccRoSampler sampler, f32x3 coord, float level);
+int32_t sample_mip_level_texture_2d_array_s32(HccSampleTexture2DArray(int32_t) texture, HccRoSampler sampler, f32x3 coord, float level);
+uint32_t sample_mip_level_texture_2d_array_u32(HccSampleTexture2DArray(uint32_t) texture, HccRoSampler sampler, f32x3 coord, float level);
+f32x2 sample_mip_level_texture_2d_array_f32x2(HccSampleTexture2DArray(f32x2) texture, HccRoSampler sampler, f32x3 coord, float level);
+s32x2 sample_mip_level_texture_2d_array_s32x2(HccSampleTexture2DArray(s32x2) texture, HccRoSampler sampler, f32x3 coord, float level);
+u32x2 sample_mip_level_texture_2d_array_u32x2(HccSampleTexture2DArray(u32x2) texture, HccRoSampler sampler, f32x3 coord, float level);
+f32x3 sample_mip_level_texture_2d_array_f32x3(HccSampleTexture2DArray(f32x3) texture, HccRoSampler sampler, f32x3 coord, float level);
+s32x3 sample_mip_level_texture_2d_array_s32x3(HccSampleTexture2DArray(s32x3) texture, HccRoSampler sampler, f32x3 coord, float level);
+u32x3 sample_mip_level_texture_2d_array_u32x3(HccSampleTexture2DArray(u32x3) texture, HccRoSampler sampler, f32x3 coord, float level);
+f32x4 sample_mip_level_texture_2d_array_f32x4(HccSampleTexture2DArray(f32x4) texture, HccRoSampler sampler, f32x3 coord, float level);
+s32x4 sample_mip_level_texture_2d_array_s32x4(HccSampleTexture2DArray(s32x4) texture, HccRoSampler sampler, f32x3 coord, float level);
+u32x4 sample_mip_level_texture_2d_array_u32x4(HccSampleTexture2DArray(u32x4) texture, HccRoSampler sampler, f32x3 coord, float level);
 float sample_mip_level_texture_cube_f32(HccSampleTextureCube(float) texture, HccRoSampler sampler, f32x3 coord, float level);
 int32_t sample_mip_level_texture_cube_s32(HccSampleTextureCube(int32_t) texture, HccRoSampler sampler, f32x3 coord, float level);
 uint32_t sample_mip_level_texture_cube_u32(HccSampleTextureCube(uint32_t) texture, HccRoSampler sampler, f32x3 coord, float level);
@@ -673,9 +997,45 @@ u32x3 sample_mip_level_texture_cube_array_u32x3(HccSampleTextureCubeArray(u32x3)
 f32x4 sample_mip_level_texture_cube_array_f32x4(HccSampleTextureCubeArray(f32x4) texture, HccRoSampler sampler, f32x4 coord, float level);
 s32x4 sample_mip_level_texture_cube_array_s32x4(HccSampleTextureCubeArray(s32x4) texture, HccRoSampler sampler, f32x4 coord, float level);
 u32x4 sample_mip_level_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4) texture, HccRoSampler sampler, f32x4 coord, float level);
+float sample_mip_level_texture_3d_f32(HccSampleTexture3D(float) texture, HccRoSampler sampler, f32x3 coord, float level);
+int32_t sample_mip_level_texture_3d_s32(HccSampleTexture3D(int32_t) texture, HccRoSampler sampler, f32x3 coord, float level);
+uint32_t sample_mip_level_texture_3d_u32(HccSampleTexture3D(uint32_t) texture, HccRoSampler sampler, f32x3 coord, float level);
+f32x2 sample_mip_level_texture_3d_f32x2(HccSampleTexture3D(f32x2) texture, HccRoSampler sampler, f32x3 coord, float level);
+s32x2 sample_mip_level_texture_3d_s32x2(HccSampleTexture3D(s32x2) texture, HccRoSampler sampler, f32x3 coord, float level);
+u32x2 sample_mip_level_texture_3d_u32x2(HccSampleTexture3D(u32x2) texture, HccRoSampler sampler, f32x3 coord, float level);
+f32x3 sample_mip_level_texture_3d_f32x3(HccSampleTexture3D(f32x3) texture, HccRoSampler sampler, f32x3 coord, float level);
+s32x3 sample_mip_level_texture_3d_s32x3(HccSampleTexture3D(s32x3) texture, HccRoSampler sampler, f32x3 coord, float level);
+u32x3 sample_mip_level_texture_3d_u32x3(HccSampleTexture3D(u32x3) texture, HccRoSampler sampler, f32x3 coord, float level);
+f32x4 sample_mip_level_texture_3d_f32x4(HccSampleTexture3D(f32x4) texture, HccRoSampler sampler, f32x3 coord, float level);
+s32x4 sample_mip_level_texture_3d_s32x4(HccSampleTexture3D(s32x4) texture, HccRoSampler sampler, f32x3 coord, float level);
+u32x4 sample_mip_level_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, HccRoSampler sampler, f32x3 coord, float level);
 #ifdef HCC_HAS_C_GENERIC_SUPPORT
 #define sample_mip_level_textureG(texture, sampler, coord, level) \
 	_Generic((texture), \
+		HccSampleTexture1D(float): sample_mip_level_texture_1d_f32, \
+		HccSampleTexture1D(int32_t): sample_mip_level_texture_1d_s32, \
+		HccSampleTexture1D(uint32_t): sample_mip_level_texture_1d_u32, \
+		HccSampleTexture1D(f32x2): sample_mip_level_texture_1d_f32x2, \
+		HccSampleTexture1D(s32x2): sample_mip_level_texture_1d_s32x2, \
+		HccSampleTexture1D(u32x2): sample_mip_level_texture_1d_u32x2, \
+		HccSampleTexture1D(f32x3): sample_mip_level_texture_1d_f32x3, \
+		HccSampleTexture1D(s32x3): sample_mip_level_texture_1d_s32x3, \
+		HccSampleTexture1D(u32x3): sample_mip_level_texture_1d_u32x3, \
+		HccSampleTexture1D(f32x4): sample_mip_level_texture_1d_f32x4, \
+		HccSampleTexture1D(s32x4): sample_mip_level_texture_1d_s32x4, \
+		HccSampleTexture1D(u32x4): sample_mip_level_texture_1d_u32x4, \
+		HccSampleTexture1DArray(float): sample_mip_level_texture_1d_array_f32, \
+		HccSampleTexture1DArray(int32_t): sample_mip_level_texture_1d_array_s32, \
+		HccSampleTexture1DArray(uint32_t): sample_mip_level_texture_1d_array_u32, \
+		HccSampleTexture1DArray(f32x2): sample_mip_level_texture_1d_array_f32x2, \
+		HccSampleTexture1DArray(s32x2): sample_mip_level_texture_1d_array_s32x2, \
+		HccSampleTexture1DArray(u32x2): sample_mip_level_texture_1d_array_u32x2, \
+		HccSampleTexture1DArray(f32x3): sample_mip_level_texture_1d_array_f32x3, \
+		HccSampleTexture1DArray(s32x3): sample_mip_level_texture_1d_array_s32x3, \
+		HccSampleTexture1DArray(u32x3): sample_mip_level_texture_1d_array_u32x3, \
+		HccSampleTexture1DArray(f32x4): sample_mip_level_texture_1d_array_f32x4, \
+		HccSampleTexture1DArray(s32x4): sample_mip_level_texture_1d_array_s32x4, \
+		HccSampleTexture1DArray(u32x4): sample_mip_level_texture_1d_array_u32x4, \
 		HccSampleTexture2D(float): sample_mip_level_texture_2d_f32, \
 		HccSampleTexture2D(int32_t): sample_mip_level_texture_2d_s32, \
 		HccSampleTexture2D(uint32_t): sample_mip_level_texture_2d_u32, \
@@ -688,6 +1048,18 @@ u32x4 sample_mip_level_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4)
 		HccSampleTexture2D(f32x4): sample_mip_level_texture_2d_f32x4, \
 		HccSampleTexture2D(s32x4): sample_mip_level_texture_2d_s32x4, \
 		HccSampleTexture2D(u32x4): sample_mip_level_texture_2d_u32x4, \
+		HccSampleTexture2DArray(float): sample_mip_level_texture_2d_array_f32, \
+		HccSampleTexture2DArray(int32_t): sample_mip_level_texture_2d_array_s32, \
+		HccSampleTexture2DArray(uint32_t): sample_mip_level_texture_2d_array_u32, \
+		HccSampleTexture2DArray(f32x2): sample_mip_level_texture_2d_array_f32x2, \
+		HccSampleTexture2DArray(s32x2): sample_mip_level_texture_2d_array_s32x2, \
+		HccSampleTexture2DArray(u32x2): sample_mip_level_texture_2d_array_u32x2, \
+		HccSampleTexture2DArray(f32x3): sample_mip_level_texture_2d_array_f32x3, \
+		HccSampleTexture2DArray(s32x3): sample_mip_level_texture_2d_array_s32x3, \
+		HccSampleTexture2DArray(u32x3): sample_mip_level_texture_2d_array_u32x3, \
+		HccSampleTexture2DArray(f32x4): sample_mip_level_texture_2d_array_f32x4, \
+		HccSampleTexture2DArray(s32x4): sample_mip_level_texture_2d_array_s32x4, \
+		HccSampleTexture2DArray(u32x4): sample_mip_level_texture_2d_array_u32x4, \
 		HccSampleTextureCube(float): sample_mip_level_texture_cube_f32, \
 		HccSampleTextureCube(int32_t): sample_mip_level_texture_cube_s32, \
 		HccSampleTextureCube(uint32_t): sample_mip_level_texture_cube_u32, \
@@ -711,7 +1083,19 @@ u32x4 sample_mip_level_texture_cube_array_u32x4(HccSampleTextureCubeArray(u32x4)
 		HccSampleTextureCubeArray(u32x3): sample_mip_level_texture_cube_array_u32x3, \
 		HccSampleTextureCubeArray(f32x4): sample_mip_level_texture_cube_array_f32x4, \
 		HccSampleTextureCubeArray(s32x4): sample_mip_level_texture_cube_array_s32x4, \
-		HccSampleTextureCubeArray(u32x4): sample_mip_level_texture_cube_array_u32x4 \
+		HccSampleTextureCubeArray(u32x4): sample_mip_level_texture_cube_array_u32x4, \
+		HccSampleTexture3D(float): sample_mip_level_texture_3d_f32, \
+		HccSampleTexture3D(int32_t): sample_mip_level_texture_3d_s32, \
+		HccSampleTexture3D(uint32_t): sample_mip_level_texture_3d_u32, \
+		HccSampleTexture3D(f32x2): sample_mip_level_texture_3d_f32x2, \
+		HccSampleTexture3D(s32x2): sample_mip_level_texture_3d_s32x2, \
+		HccSampleTexture3D(u32x2): sample_mip_level_texture_3d_u32x2, \
+		HccSampleTexture3D(f32x3): sample_mip_level_texture_3d_f32x3, \
+		HccSampleTexture3D(s32x3): sample_mip_level_texture_3d_s32x3, \
+		HccSampleTexture3D(u32x3): sample_mip_level_texture_3d_u32x3, \
+		HccSampleTexture3D(f32x4): sample_mip_level_texture_3d_f32x4, \
+		HccSampleTexture3D(s32x4): sample_mip_level_texture_3d_s32x4, \
+		HccSampleTexture3D(u32x4): sample_mip_level_texture_3d_u32x4 \
 	)(texture, sampler, coord, level)
 #endif // HCC_HAS_C_GENERIC_SUPPORT
 

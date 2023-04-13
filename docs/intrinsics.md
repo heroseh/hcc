@@ -18,6 +18,26 @@
 
 All Hcc\*Buffer, Hcc\*Texture & HccRoSampler resources are fully bindless in HCC. This means that each resource is a 32bit unsigned integer underneath and can be uploaded as is to the GPU via [Bundled Constants](#bundled-constants) or in the contents of a Hcc\*Buffer itself. This also allows you to pass them around in the shader with no limiations, including into function arguments, writing them out in to buffers or writing in [Rasterizer State](#rasterizer-state).
 
+You can even explicitly cast between a `uint32_t` and **any** resource type. Here are some examples of how this is can be leveraged:
+1. You can pack extra information into a `uint32_t` that is masked out before casting into a resource
+2. The resource could be a constant integer that you simply cast into the resource
+3. Your resource id is calculated on the GPU
+```c
+// 1. packing extra info
+uint32_t texture_and_array_layer = buffer[0].texture_and_array_layer;
+HccSampleTexture2DArray(f32x4) tex = (HccSampleTexture2DArray(f32x4))(texture_and_array_layer & 0xffffff);
+uint32_t array_layer = (texture_and_array_layer >> 24) & 0xff;
+f32x4 texel = sample_textureG(tex, sampler, u32x3(uv.x, uv.y, array_layer));
+
+// 2. resource constant
+HccSampleTexture2D(f32x4) noise_tex = (HccSampleTexture2D(f32x4))GAME_RES_ID_NOISE_TEXTURE;
+f32x4 texel = sample_textureG(noise_tex, sampler, uv);
+
+// 3. calculated resource id
+HccSampleTexture2D(f32x4) tex = (HccSampleTexture2D(f32x4))(buffer[0].base_res_id + slot_idx);
+f32x4 texel = sample_textureG(tex, sampler, uv);
+```
+
 Please refer to the [engine integration docs](integrating_into_your_engine.md#bindless-resources) to learn how Bindless Resources hook up CPU side.
 
 Here is a list of all of the Resource Types available in HCC:
