@@ -184,7 +184,7 @@ f32x4 distance_cubes(
 	return last_dist_sq;
 }
 
-HCC_PIXEL void color_picker_fs(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, ColorPickerBC const* const bc, void const* const state, ColorPickerPixel* const pixel_out) {
+HCC_PIXEL void color_picker_ps(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, ColorPickerBC const* const bc, void const* const state, ColorPickerPixel* const pixel_out) {
 	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 
 	// a value from -1.f to 1.f

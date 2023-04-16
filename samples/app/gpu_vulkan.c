@@ -671,7 +671,7 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 					.flags = 0,
 					.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
 					.module = gpu.shader_module,
-					.pName = hcc_shader_infos[sample->graphics.shader_fs].name,
+					.pName = hcc_shader_infos[sample->graphics.shader_ps].name,
 					.pSpecializationInfo = NULL,
 				},
 			};

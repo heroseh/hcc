@@ -5,14 +5,14 @@
 typedef uint16_t HccShader;
 enum HccShader {
 	HCC_SHADER_triangle_vs,
-	HCC_SHADER_triangle_fs,
+	HCC_SHADER_triangle_ps,
 	HCC_SHADER_compute_square_cs,
 	HCC_SHADER_texture_vs,
-	HCC_SHADER_texture_fs,
+	HCC_SHADER_texture_ps,
 	HCC_SHADER_color_picker_vs,
-	HCC_SHADER_color_picker_fs,
+	HCC_SHADER_color_picker_ps,
 	HCC_SHADER_blob_vacation_vs,
-	HCC_SHADER_blob_vacation_fs,
+	HCC_SHADER_blob_vacation_ps,
 	HCC_SHADER_voxel_raytracer_cs,
 };
 
@@ -36,7 +36,7 @@ HccShaderInfo hcc_shader_infos[] = {
 		/* .dispatch_group_size_z = */  0,
 	},
 	{
-		/* .name = */                   "triangle_fs",
+		/* .name = */                   "triangle_ps",
 		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 20,
 		/* .dispatch_group_size_x = */  0,
@@ -60,7 +60,7 @@ HccShaderInfo hcc_shader_infos[] = {
 		/* .dispatch_group_size_z = */  0,
 	},
 	{
-		/* .name = */                   "texture_fs",
+		/* .name = */                   "texture_ps",
 		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 36,
 		/* .dispatch_group_size_x = */  0,
@@ -76,7 +76,7 @@ HccShaderInfo hcc_shader_infos[] = {
 		/* .dispatch_group_size_z = */  0,
 	},
 	{
-		/* .name = */                   "color_picker_fs",
+		/* .name = */                   "color_picker_ps",
 		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 12,
 		/* .dispatch_group_size_x = */  0,
@@ -92,7 +92,7 @@ HccShaderInfo hcc_shader_infos[] = {
 		/* .dispatch_group_size_z = */  0,
 	},
 	{
-		/* .name = */                   "blob_vacation_fs",
+		/* .name = */                   "blob_vacation_ps",
 		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 12,
 		/* .dispatch_group_size_x = */  0,

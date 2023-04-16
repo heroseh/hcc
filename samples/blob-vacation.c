@@ -208,7 +208,7 @@ f32x4x4 gen_mat_view(f32x3 camera_pos, f32x3 center, f32x3 up) {
 	return m;
 }
 
-HCC_PIXEL void blob_vacation_fs(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, BlobVacationBC const* const bc, void const* const state, BlobVacationPixel* const pixel_out) {
+HCC_PIXEL void blob_vacation_ps(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, BlobVacationBC const* const bc, void const* const state, BlobVacationPixel* const pixel_out) {
 	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 
 	f32x3 view_dir = ray_direction_for_uv(45.f, screen_size, f32x2(sv->pixel_coord.x, sv->pixel_coord.y));

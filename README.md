@@ -90,7 +90,7 @@ HCC_PIXEL_STATE struct Pixel {
     f32x4 color;
 };
 
-HCC_PIXEL void triangle_fs(
+HCC_PIXEL void triangle_ps(
     HccPixelSV const* const sv,
     HccPixelSVOut* const sv_out,
     TriangleBC const* const bc,

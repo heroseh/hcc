@@ -43,7 +43,7 @@ HCC_PIXEL_STATE struct TexturePixel {
 	f32x4 color;
 };
 
-HCC_PIXEL void texture_fs(
+HCC_PIXEL void texture_ps(
 	HccPixelSV const* const sv,
 	HccPixelSVOut* const sv_out,
 	TextureBC const* const bc,

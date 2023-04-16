@@ -78,7 +78,7 @@ struct AppSample {
 
 	struct {
 		HccShader   shader_vs;
-		HccShader   shader_fs;
+		HccShader   shader_ps;
 		AppTopology topology;
 		uint32_t    vertices_count;
 	} graphics;
@@ -96,7 +96,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.shader_vs = HCC_SHADER_triangle_vs,
-			.shader_fs = HCC_SHADER_triangle_fs,
+			.shader_ps = HCC_SHADER_triangle_ps,
 			.topology = APP_TOPOLOGY_TRIANGLE_LIST,
 			.vertices_count = 3,
 		},
@@ -116,7 +116,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.shader_vs = HCC_SHADER_texture_vs,
-			.shader_fs = HCC_SHADER_texture_fs,
+			.shader_ps = HCC_SHADER_texture_ps,
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
 		},
@@ -126,7 +126,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.shader_vs = HCC_SHADER_color_picker_vs,
-			.shader_fs = HCC_SHADER_color_picker_fs,
+			.shader_ps = HCC_SHADER_color_picker_ps,
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
 		},
@@ -136,7 +136,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 		.shader_type = APP_SHADER_TYPE_GRAPHICS,
 		.graphics = {
 			.shader_vs = HCC_SHADER_blob_vacation_vs,
-			.shader_fs = HCC_SHADER_blob_vacation_fs,
+			.shader_ps = HCC_SHADER_blob_vacation_ps,
 			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
 			.vertices_count = 4,
 		},
