@@ -98,23 +98,23 @@
 // ===========================================
 
 typedef struct HccVertexSV HccVertexSV;
-struct HccVertexSV {
+struct HccVertexSV { // these are incomplete, please file an issue on the specific system values you need
 	int32_t vertex_idx;
 	int32_t instance_idx;
 };
 
 typedef struct HccVertexSVOut HccVertexSVOut;
-struct HccVertexSVOut {
+struct HccVertexSVOut { // these are incomplete, please file an issue on the specific system values you need
 	f32x4    position;
 };
 
 typedef struct HccPixelSV HccPixelSV;
-struct HccPixelSV {
+struct HccPixelSV { // these are incomplete, please file an issue on the specific system values you need
 	f32x4 pixel_coord;
 };
 
 typedef struct HccPixelSVOut HccPixelSVOut;
-struct HccPixelSVOut {
+struct HccPixelSVOut { // these are incomplete, please file an issue on the specific system values you need
 	float depth;
 };
 
