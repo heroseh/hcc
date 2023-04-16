@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _HCC_FRAGMENT_INTRINSICS_H_
-#define _HCC_FRAGMENT_INTRINSICS_H_
+#ifndef _HCC_PIXEL_INTRINSICS_H_
+#define _HCC_PIXEL_INTRINSICS_H_
 
 //
 // returns the difference between 'v' on the threads in a quad along the X axis
@@ -145,9 +145,9 @@ f32x4 fwidth_coarse_f32x4(f32x4 v);
 	)(v)
 
 //
-// discards the fragment so no writes will make it to output fragment render target and stops the fragment shader here.
+// discards the pixel so no writes will make it to output pixel render target and stops the pixel shader here.
 // this will demote this thread to a helper thread so it will continue executing but will not write out to extern buffers or textures.
-_Noreturn void discard_fragment(void);
+_Noreturn void discard_pixel(void);
 
-#endif // _HCC_FRAGMENT_INTRINSICS_H_
+#endif // _HCC_PIXEL_INTRINSICS_H_
 

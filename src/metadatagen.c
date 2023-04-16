@@ -107,8 +107,8 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 			case HCC_SHADER_STAGE_VERTEX:
 				param_idx = HCC_VERTEX_SHADER_PARAM_BC;
 				break;
-			case HCC_SHADER_STAGE_FRAGMENT:
-				param_idx = HCC_FRAGMENT_SHADER_PARAM_BC;
+			case HCC_SHADER_STAGE_PIXEL:
+				param_idx = HCC_PIXEL_SHADER_PARAM_BC;
 				break;
 			case HCC_SHADER_STAGE_COMPUTE:
 				param_idx = HCC_COMPUTE_SHADER_PARAM_BC;

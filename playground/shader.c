@@ -25,13 +25,13 @@ HCC_VERTEX void vertex(
 	state_out->uv = unorm;
 }
 
-HCC_FRAGMENT void fragment(
-	HccFragmentSV const* const sv,
-	HccFragmentSVOut* const sv_out,
+HCC_PIXEL void pixel(
+	HccPixelSV const* const sv,
+	HccPixelSVOut* const sv_out,
 	ShaderBC const* const bc,
 	RasterizerState const* const state,
-	Fragment* const frag_out
+	Pixel* const pixel_out
 ) {
-	frag_out->color = f32x4(state->uv.x, state->uv.y, 0.f, 1.f);
+	pixel_out->color = f32x4(state->uv.x, state->uv.y, 0.f, 1.f);
 }
 

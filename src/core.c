@@ -3156,9 +3156,9 @@ bool hcc_data_type_is_rasterizer_state(HccCU* cu, HccDataType data_type) {
 	return HCC_DATA_TYPE_IS_STRUCT(data_type) && (hcc_compound_data_type_get(cu, data_type)->kind == HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE);
 }
 
-bool hcc_data_type_is_fragment_state(HccCU* cu, HccDataType data_type) {
+bool hcc_data_type_is_pixel_state(HccCU* cu, HccDataType data_type) {
 	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
-	return HCC_DATA_TYPE_IS_STRUCT(data_type) && (hcc_compound_data_type_get(cu, data_type)->kind == HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE);
+	return HCC_DATA_TYPE_IS_STRUCT(data_type) && (hcc_compound_data_type_get(cu, data_type)->kind == HCC_COMPOUND_DATA_TYPE_KIND_PIXEL_STATE);
 }
 
 HccDataType hcc_data_type_strip_pointer(HccCU* cu, HccDataType data_type) {
@@ -5114,11 +5114,11 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_CONTINUE_STATEMENT_USAGE] = "'continue' can only be used within a switch statement, a for loop or a while loop",
 		[HCC_ERROR_CODE_MULTIPLE_SHADER_STAGES_ON_FUNCTION] = "only a single shader stage can be specified in a function declaration",
 		[HCC_ERROR_CODE_VERTEX_SHADER_MUST_RETURN_RASTERIZER_STATE] = "vertex shader must return a type that was declare with HCC_DEFINE_RASTERIZER_STATE",
-		[HCC_ERROR_CODE_FRAGMENT_SHADER_MUST_RETURN_FRAGMENT_STATE] = "fragment shader must return a type that was declare with HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_PIXEL_SHADER_MUST_RETURN_PIXEL_STATE] = "pixel shader must return a type that was declare with HCC_DEFINE_PIXEL_STATE",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM] = "expected an identifier for a function parameter e.g. uint32_t param_identifier",
 		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM] = "redefinition of '%.*s' function parameter identifier",
 		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BC const *const bc, S *const state_out); where BC is your structure of bundled constants and S defined with HCC_DEFINE_RASTERIZER_STATE or void'",
-		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT] = "invalid function prototype for fragment shader, expected to be 'void fragment(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BC const* const bc, S const* const state, F* const frag_out); where BC is your structure of bundled constants, S defined with HCC_DEFINE_RASTERIZER_STATE or void' and F defined with HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL] = "invalid function prototype for pixel shader, expected to be 'void pixel(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, BC const* const bc, S const* const state, F* const pixel_out); where BC is your structure of bundled constants, S defined with HCC_DEFINE_RASTERIZER_STATE or void' and F defined with HCC_DEFINE_PIXEL_STATE",
 		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_COMPUTE] = "invalid function prototype for compute shader, expected to be 'void compute(HccComputeSV const* const sv, BC const* const bc); where BC is your structure of bundled constants",
 		[HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR] = "expected a ',' to declaring more function parameters or a ')' to finish declaring function parameters",
 		[HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION] = "cannot call shaders like regular functions. they can only be used as entry points",
@@ -5126,12 +5126,12 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_UNEXPECTED_TOKEN_FUNCTION_PROTOTYPE_END] = "unexpected token '%s', expected ';' to end the function definition or '{' to define a function body",
 		[HCC_ERROR_CODE_UNEXPECTED_TOKEN] = "unexpected token '%s'",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE] = "'%.*s' data type is not supported as a RasterizerState field. data type must be an intrinsic type (scalar, vector or matrix) or a resource type (buffer, texture or sampler)",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE] = "'%.*s' data type is not supported as a FragmentState field. data type must be an intrinsic type (scalar, vector or matrix)",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_COMPOUND_DATA_TYPE] = "'%.*s' data type is not supported as a compound type field. data type cannot be a HCC_RASTERIZER_STATE or HCC_FRAGMENT_STATE",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM] = "'%.*s' data type is not supported as a function parameter. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_PIXEL_STATE] = "'%.*s' data type is not supported as a PixelState field. data type must be an intrinsic type (scalar, vector or matrix)",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_COMPOUND_DATA_TYPE] = "'%.*s' data type is not supported as a compound type field. data type cannot be a HCC_RASTERIZER_STATE or HCC_PIXEL_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM] = "'%.*s' data type is not supported as a function parameter. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_PIXEL_STATE",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM_INLINE] = "the function must be 'inline' if you want to use the '%.*s' data type as a function parameter. resources and array data types are only supported with the 'inline' function specifier",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE] = "'%.*s' data type is not supported as a variable. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE] = "'%.*s' data type is not supported as a pointer data type. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_FRAGMENT_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE] = "'%.*s' data type is not supported as a variable. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_PIXEL_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE] = "'%.*s' data type is not supported as a pointer data type. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_PIXEL_STATE",
 		[HCC_ERROR_CODE_RASTERIZER_STATE_RESOURCE_MUST_BE_NOINTERP] = "'%.*s' data type has a resource type that is not marked as HCC_NOINTERP. you cannot interpolate your resources",
 		[HCC_ERROR_CODE_ONLY_SINGLE_POINTERS_ARE_SUPPORTED] = "only a single pointer is supported",
 		[HCC_ERROR_CODE_POINTERS_NOT_SUPPORTED] = "pointers are not supported outside of entry point and intrinsics function prototypes",
@@ -5167,8 +5167,8 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_FUNCTION_RECURSION] = "function '%.*s' is recursively called! callstack:\n%s",
 		[HCC_ERROR_CODE_UNSUPPORTED_INTRINSIC_TYPE_USED] = "unsupported intrinsic type '%.*s' has been used. if you wish to use this type, please turn on extension support for the follow types: %.*s",
 		[HCC_ERROR_CODE_UNION_ONLY_ALLOW_WITH_PHYSICAL_POINTERS] = "the '%.*s' union data type cannot be used unless you enable 'physical pointer' compiler option",
-		[HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_FRAGMENT_SHADER] = "function '%.*s' has sample with implicit mip used outside of a fragment shader! callstack:\n%s",
-		[HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_FRAGMENT_SHADER] = "function '%.*s' cannot be used outside of a fragment shader! callstack:\n%s",
+		[HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_PIXEL_SHADER] = "function '%.*s' has sample with implicit mip used outside of a pixel shader! callstack:\n%s",
+		[HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_PIXEL_SHADER] = "function '%.*s' cannot be used outside of a pixel shader! callstack:\n%s",
 		[HCC_ERROR_CODE_HLSL_PACKING_NO_STRUCT] = "HLSL packing rules do not allow structs. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_NO_UNION] = "HLSL packing rules do not allow unions. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_NO_ARRAY] = "HLSL packing rules do not allow arrays. in future will a proper DXIL backend this error could be worked around",
@@ -5464,8 +5464,8 @@ void hcc_message_print_code(HccIIO* iio, HccLocation* location) {
 const char* hcc_intrinisic_compound_data_type_strings[HCC_COMPOUND_DATA_TYPE_IDX_STRINGS_COUNT] = {
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV] = "HccVertexSV",
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_VERTEX_SV_OUT] = "HccVertexSVOut",
-	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV] = "HccFragmentSV",
-	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV_OUT] = "HccFragmentSVOut",
+	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_PIXEL_SV] = "HccPixelSV",
+	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_PIXEL_SV_OUT] = "HccPixelSVOut",
 	[HCC_COMPOUND_DATA_TYPE_IDX_HCC_COMPUTE_SV] = "HccComputeSV",
 };
 
@@ -5484,7 +5484,7 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 	[HCC_FUNCTION_IDX_UNPACK_U8X4_F32X4] = "unpack_u8x4_f32x4",
 	[HCC_FUNCTION_IDX_PACK_S8X4_F32X4] = "pack_s8x4_f32x4",
 	[HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4] = "unpack_s8x4_f32x4",
-	[HCC_FUNCTION_IDX_DISCARD_FRAGMENT] = "discard_fragment",
+	[HCC_FUNCTION_IDX_DISCARD_PIXEL] = "discard_pixel",
 	[HCC_FUNCTION_IDX_MEMORY_BARRIER_RESOURCE] = "memory_barrier_resource",
 	[HCC_FUNCTION_IDX_MEMORY_BARRIER_DISPATCH_GROUP] = "memory_barrier_dispatch_group",
 	[HCC_FUNCTION_IDX_MEMORY_BARRIER_ALL] = "memory_barrier_all",

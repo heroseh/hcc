@@ -43,19 +43,19 @@ HCC_VERTEX void triangle_vs(
 	state_out->color = mulG(colors[sv->vertex_idx], bc->tint);
 }
 
-typedef struct TriangleFragment TriangleFragment;
-HCC_FRAGMENT_STATE struct TriangleFragment {
+typedef struct TrianglePixel TrianglePixel;
+HCC_PIXEL_STATE struct TrianglePixel {
 	f32x4 color;
 };
 
-HCC_FRAGMENT void triangle_fs(
-	HccFragmentSV const* const sv,
-	HccFragmentSVOut* const sv_out,
+HCC_PIXEL void triangle_fs(
+	HccPixelSV const* const sv,
+	HccPixelSVOut* const sv_out,
 	TriangleBC const* const bc,
 	TriangleRasterizerState const* const state,
-	TriangleFragment* const frag_out
+	TrianglePixel* const pixel_out
 ) {
-	frag_out->color = state->color;
+	pixel_out->color = state->color;
 }
 
 #endif // __HCC__

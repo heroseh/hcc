@@ -10,8 +10,8 @@ struct ShaderBC {
 	uint32_t screen_height;
 };
 
-typedef struct Fragment Fragment;
-HCC_FRAGMENT_STATE struct Fragment {
+typedef struct Pixel Pixel;
+HCC_PIXEL_STATE struct Pixel {
 	f32x4 color;
 };
 

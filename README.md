@@ -13,7 +13,7 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - Windows & Linux support
 - Vulkan 1.3+
 - Aims for C11 support
-- Vertex, Fragment & Compute shader support
+- Vertex, Pixel & Compute shader support
 - Included Maths library for GPU programming (will be available to also be used CPU very soon!) [More Info]()
 - Textures, Atomics, Quad & Wave Intrinsics [More Info]()
 - \_Generic support for Maths & Intrinsics functions for C compliant overloads [More Info]()
@@ -54,7 +54,7 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 
 ## What does it look like?
 
-Here is a vertex & fragment shader triangle sample:
+Here is a vertex & pixel shader triangle sample:
 ```c
 typedef struct Vertex Vertex;
 struct Vertex {
@@ -85,19 +85,19 @@ HCC_VERTEX void triangle_vs(
     state_out->color = mulG(unpack_u8x4_f32x4(vertex.color), bc->tint);
 }
 
-typedef struct Fragment Fragment;
-HCC_FRAGMENT_STATE struct Fragment {
+typedef struct Pixel Pixel;
+HCC_PIXEL_STATE struct Pixel {
     f32x4 color;
 };
 
-HCC_FRAGMENT void triangle_fs(
-    HccFragmentSV const* const sv,
-    HccFragmentSVOut* const sv_out,
+HCC_PIXEL void triangle_fs(
+    HccPixelSV const* const sv,
+    HccPixelSVOut* const sv_out,
     TriangleBC const* const bc,
     RasterizerState const* const state,
-    Fragment* const frag_out
+    Pixel* const pixel_out
 ) {
-    frag_out->color = state->color;
+    pixel_out->color = state->color;
 }
 ```
 

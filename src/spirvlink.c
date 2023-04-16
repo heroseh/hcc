@@ -207,7 +207,7 @@ void hcc_spirvlink_link(HccWorker* w) {
 		HccSPIRVWord execution_model;
 		switch (entry_point->shader_stage) {
 			case HCC_SHADER_STAGE_VERTEX: execution_model = HCC_SPIRV_EXECUTION_MODEL_VERTEX; break;
-			case HCC_SHADER_STAGE_FRAGMENT: execution_model = HCC_SPIRV_EXECUTION_MODEL_FRAGMENT; break;
+			case HCC_SHADER_STAGE_PIXEL: execution_model = HCC_SPIRV_EXECUTION_MODEL_FRAGMENT; break;
 			case HCC_SHADER_STAGE_COMPUTE: execution_model = HCC_SPIRV_EXECUTION_MODEL_GL_COMPUTE; break;
 			case HCC_SHADER_STAGE_MESH_TASK:
 			case HCC_SHADER_STAGE_MESH:
@@ -231,7 +231,7 @@ void hcc_spirvlink_link(HccWorker* w) {
 		switch (entry_point->shader_stage) {
 			case HCC_SHADER_STAGE_VERTEX:
 				break;
-			case HCC_SHADER_STAGE_FRAGMENT:
+			case HCC_SHADER_STAGE_PIXEL:
 				operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_EXECUTION_MODE, 2);
 				operands[0] = entry_point->spirv_id;
 				operands[1] = HCC_SPIRV_EXECUTION_MODE_ORIGIN_UPPER_LEFT;
@@ -256,14 +256,14 @@ void hcc_spirvlink_link(HccWorker* w) {
 
 	HccSPIRVId vertex_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_VERTEX_SV);
 	HccSPIRVId vertex_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_VERTEX_SV_OUT);
-	HccSPIRVId fragment_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_FRAGMENT_SV);
-	HccSPIRVId fragment_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_FRAGMENT_SV_OUT);
+	HccSPIRVId pixel_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_PIXEL_SV);
+	HccSPIRVId pixel_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_PIXEL_SV_OUT);
 	HccSPIRVId compute_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_COMPUTE_SV);
 
 	HccSPIRVId variable_input_vertex_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_VERTEX_SV));
 	HccSPIRVId variable_output_vertex_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_VERTEX_SV_OUT));
-	HccSPIRVId variable_input_fragment_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_FRAGMENT_SV));
-	HccSPIRVId variable_output_fragment_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_FRAGMENT_SV_OUT));
+	HccSPIRVId variable_input_pixel_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_PIXEL_SV));
+	HccSPIRVId variable_output_pixel_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_PIXEL_SV_OUT));
 	HccSPIRVId variable_input_compute_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_COMPUTE_SV));
 
 	{ // HccVertexSV
@@ -288,18 +288,18 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[3] = HCC_SPIRV_BUILTIN_POSITION;
 	}
 
-	{ // HccFragmentSV
+	{ // HccPixelSV
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = fragment_sv_type_id;
-		operands[1] = HCC_FRAGMENT_SV_FRAG_COORD;
+		operands[0] = pixel_sv_type_id;
+		operands[1] = HCC_PIXEL_SV_PIXEL_COORD;
 		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
 		operands[3] = HCC_SPIRV_BUILTIN_FRAG_COORD;
 	}
 
-	{ // HccFragmentSVOut
+	{ // HccPixelSVOut
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = fragment_sv_out_type_id;
-		operands[1] = HCC_FRAGMENT_SV_OUT_DEPTH;
+		operands[0] = pixel_sv_out_type_id;
+		operands[1] = HCC_PIXEL_SV_OUT_DEPTH;
 		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
 		operands[3] = HCC_SPIRV_BUILTIN_FRAG_DEPTH;
 	}
@@ -353,13 +353,13 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
 
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
-		operands[0] = variable_input_fragment_sv_type_id;
-		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_FRAGMENT_SV;
+		operands[0] = variable_input_pixel_sv_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_PIXEL_SV;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
 
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
-		operands[0] = variable_output_fragment_sv_out_type_id;
-		operands[1] = HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAGMENT_SV_OUT;
+		operands[0] = variable_output_pixel_sv_out_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_OUTPUT_PIXEL_SV_OUT;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
 
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);

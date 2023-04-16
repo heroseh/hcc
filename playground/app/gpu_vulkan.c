@@ -577,7 +577,7 @@ bool gpu_reload_shaders(void) {
 			.flags = 0,
 			.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
 			.module = shader_module,
-			.pName = "fragment",
+			.pName = "pixel",
 			.pSpecializationInfo = NULL,
 		},
 	};

@@ -36,7 +36,7 @@ A minimal Vulkan application designed to demo some sample shaders and to show in
 
 #### What samples do you have?
 - **samples/triangle.c**
-	- Most basic vertex & fragment shader
+	- Most basic vertex & pixel shader
 - **samples/compute-square.c**
 	- Most basic compute shader
 - **samples/texture.c**

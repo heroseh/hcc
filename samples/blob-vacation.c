@@ -19,8 +19,8 @@ static const float BLOB_MAX_DIST = 100.f;
 static const float BLOB_EPSILON = 0.0001f;
 static const int BLOB_MAX_MARCHING_STEPS = 1024;
 
-typedef struct BlobVacationFragment BlobVacationFragment;
-HCC_FRAGMENT_STATE struct BlobVacationFragment {
+typedef struct BlobVacationPixel BlobVacationPixel;
+HCC_PIXEL_STATE struct BlobVacationPixel {
 	f32x4 color;
 };
 
@@ -208,10 +208,10 @@ f32x4x4 gen_mat_view(f32x3 camera_pos, f32x3 center, f32x3 up) {
 	return m;
 }
 
-HCC_FRAGMENT void blob_vacation_fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, BlobVacationBC const* const bc, void const* const state, BlobVacationFragment* const frag_out) {
+HCC_PIXEL void blob_vacation_fs(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, BlobVacationBC const* const bc, void const* const state, BlobVacationPixel* const pixel_out) {
 	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 
-	f32x3 view_dir = ray_direction_for_uv(45.f, screen_size, f32x2(sv->frag_coord.x, sv->frag_coord.y));
+	f32x3 view_dir = ray_direction_for_uv(45.f, screen_size, f32x2(sv->pixel_coord.x, sv->pixel_coord.y));
 	f32x3 camera_pos = f32x3(4.f, 6.f, 42.f);
 
 	// animate camera
@@ -244,11 +244,11 @@ HCC_FRAGMENT void blob_vacation_fs(HccFragmentSV const* const sv, HccFragmentSVO
 		// sun glare
 		col = addG(col, mulsG(f32x3(1.f, 0.4f, 0.2f), 0.2f * powG(sun, 32.f)));
 
-		frag_out->color = f32x4(col.x, col.y, col.z, 1.f);
+		pixel_out->color = f32x4(col.x, col.y, col.z, 1.f);
 		return;
 	}
 
-	// the closest ray marched point we hit to the camera for this fragment
+	// the closest ray marched point we hit to the camera for this pixel
 	f32x3 p = addG(camera_pos, mulsG(world_dir, dist));
 
 	f32x3 ambient_color = mulG(f32x3(0.2f, 0.2f, 0.2f), color);
@@ -256,7 +256,7 @@ HCC_FRAGMENT void blob_vacation_fs(HccFragmentSV const* const sv, HccFragmentSVO
 
 	color = phong_illumination(ambient_color, diffuse_color, p, camera_pos, bc->time_);
 
-	frag_out->color = f32x4(color.x, color.y, color.z, 1.f);
+	pixel_out->color = f32x4(color.x, color.y, color.z, 1.f);
 }
 
 #endif // __HCC__

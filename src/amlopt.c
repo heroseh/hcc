@@ -189,17 +189,17 @@ bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 		HccAMLInstr* aml_instr = &aml_function->words[aml_word_idx];
 		HccAMLOp aml_op = HCC_AML_INSTR_OP(aml_instr);
 
-		if (used_in_shader_stage != HCC_SHADER_STAGE_FRAGMENT) {
+		if (used_in_shader_stage != HCC_SHADER_STAGE_PIXEL) {
 			switch (aml_op) {
 				case HCC_AML_OP_SAMPLE_TEXTURE:
 				case HCC_AML_OP_SAMPLE_MIP_BIAS_TEXTURE:
 				{
 					const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
 					HccString identifier_string = hcc_string_table_get(aml_function->identifier_string_id);
-					hcc_amlopt_error_1(w, HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_FRAGMENT_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_SAMPLE_TEXTURE_WITH_IMPLICIT_MIP_OUTSIDE_OF_PIXEL_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
 					break;
 				};
-				case HCC_AML_OP_DISCARD_FRAGMENT:
+				case HCC_AML_OP_DISCARD_PIXEL:
 				case HCC_AML_OP_DDX:
 				case HCC_AML_OP_DDY:
 				case HCC_AML_OP_FWIDTH:
@@ -212,7 +212,7 @@ bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 				{
 					const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
 					HccString identifier_string = hcc_string_table_get(aml_function->identifier_string_id);
-					hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_FRAGMENT_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
+					hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_PIXEL_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
 					break;
 				};
 			}
@@ -336,8 +336,8 @@ const HccAMLFunction* hcc_amlopt_check_for_unsupported_features(HccWorker* w, Hc
 				case HCC_SHADER_STAGE_VERTEX:
 					param_idx = HCC_VERTEX_SHADER_PARAM_BC;
 					break;
-				case HCC_SHADER_STAGE_FRAGMENT:
-					param_idx = HCC_FRAGMENT_SHADER_PARAM_BC;
+				case HCC_SHADER_STAGE_PIXEL:
+					param_idx = HCC_PIXEL_SHADER_PARAM_BC;
 					break;
 				case HCC_SHADER_STAGE_COMPUTE:
 					param_idx = HCC_COMPUTE_SHADER_PARAM_BC;

@@ -37,7 +37,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	},
 	{
 		/* .name = */                   "triangle_fs",
-		/* .stage = */                  HCC_SHADER_STAGE_FRAGMENT,
+		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 20,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,
@@ -61,7 +61,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	},
 	{
 		/* .name = */                   "texture_fs",
-		/* .stage = */                  HCC_SHADER_STAGE_FRAGMENT,
+		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 36,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,
@@ -77,7 +77,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	},
 	{
 		/* .name = */                   "color_picker_fs",
-		/* .stage = */                  HCC_SHADER_STAGE_FRAGMENT,
+		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 12,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,
@@ -93,7 +93,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	},
 	{
 		/* .name = */                   "blob_vacation_fs",
-		/* .stage = */                  HCC_SHADER_STAGE_FRAGMENT,
+		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 12,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,

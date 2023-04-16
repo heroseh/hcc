@@ -5,7 +5,7 @@
 typedef uint16_t HccShader;
 enum HccShader {
 	HCC_SHADER_vertex,
-	HCC_SHADER_fragment,
+	HCC_SHADER_pixel,
 };
 
 typedef uint16_t HccResourceStruct;
@@ -23,8 +23,8 @@ HccShaderInfo hcc_shader_infos[] = {
 		/* .dispatch_group_size_z = */  0,
 	},
 	{
-		/* .name = */                   "fragment",
-		/* .stage = */                  HCC_SHADER_STAGE_FRAGMENT,
+		/* .name = */                   "pixel",
+		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
 		/* .bundled_constants_size = */ 12,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,

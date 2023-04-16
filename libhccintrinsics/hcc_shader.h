@@ -24,24 +24,24 @@
 
 #ifdef __HCC_GPU__
 #define HCC_VERTEX __hcc_vertex
-#define HCC_FRAGMENT __hcc_fragment
+#define HCC_PIXEL __hcc_pixel
 #define HCC_COMPUTE(x, y, z) __hcc_compute(x, y, z)
 #define HCC_MESHTASK __hcc_meshtask
 #define HCC_MESH __hcc_mesh
 #define HCC_RASTERIZER_STATE __hcc_rasterizer_state
 #define HCC_NOINTERP __hcc_nointerp
-#define HCC_FRAGMENT_STATE __hcc_fragment_state
+#define HCC_PIXEL_STATE __hcc_pixel_state
 #define HCC_INTERP __hcc_interp
 #define HCC_DISPATCH_GROUP __hcc_dispatch_group
 #else // !__HCC_GPU__
 #define HCC_VERTEX
-#define HCC_FRAGMENT
+#define HCC_PIXEL
 #define HCC_COMPUTE(x, y, z)
 #define HCC_MESHTASK
 #define HCC_MESH
 #define HCC_RASTERIZER_STATE
 #define HCC_NOINTERP
-#define HCC_FRAGMENT_STATE
+#define HCC_PIXEL_STATE
 #define HCC_INTERP
 #define HCC_DISPATCH_GROUP static
 #endif // !__HCC_GPU__
@@ -108,13 +108,13 @@ struct HccVertexSVOut {
 	f32x4    position;
 };
 
-typedef struct HccFragmentSV HccFragmentSV;
-struct HccFragmentSV {
-	f32x4 frag_coord;
+typedef struct HccPixelSV HccPixelSV;
+struct HccPixelSV {
+	f32x4 pixel_coord;
 };
 
-typedef struct HccFragmentSVOut HccFragmentSVOut;
-struct HccFragmentSVOut {
+typedef struct HccPixelSVOut HccPixelSVOut;
+struct HccPixelSVOut {
 	float depth;
 };
 
@@ -127,7 +127,7 @@ struct HccComputeSV {
 };
 
 #include "hcc_texture_intrinsics.h"
-#include "hcc_fragment_intrinsics.h"
+#include "hcc_pixel_intrinsics.h"
 #include "hcc_wave_intrinsics.h"
 #include "hcc_atomic_intrinsics.h"
 

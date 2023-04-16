@@ -7,11 +7,11 @@ HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 	[HCC_ASTGEN_SPECIFIER_INLINE] =           HCC_ATA_TOKEN_KEYWORD_INLINE,
 	[HCC_ASTGEN_SPECIFIER_NO_RETURN] =        HCC_ATA_TOKEN_KEYWORD_NO_RETURN,
 	[HCC_ASTGEN_SPECIFIER_RASTERIZER_STATE] = HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE,
-	[HCC_ASTGEN_SPECIFIER_FRAGMENT_STATE] =   HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE,
+	[HCC_ASTGEN_SPECIFIER_PIXEL_STATE] =      HCC_ATA_TOKEN_KEYWORD_PIXEL_STATE,
 	[HCC_ASTGEN_SPECIFIER_NOINTERP] =         HCC_ATA_TOKEN_KEYWORD_NOINTERP,
 	[HCC_ASTGEN_SPECIFIER_INTERP] =           HCC_ATA_TOKEN_KEYWORD_INTERP,
 	[HCC_ASTGEN_SPECIFIER_VERTEX] =           HCC_ATA_TOKEN_KEYWORD_VERTEX,
-	[HCC_ASTGEN_SPECIFIER_FRAGMENT] =         HCC_ATA_TOKEN_KEYWORD_FRAGMENT,
+	[HCC_ASTGEN_SPECIFIER_PIXEL] =            HCC_ATA_TOKEN_KEYWORD_PIXEL,
 	[HCC_ASTGEN_SPECIFIER_COMPUTE] =          HCC_ATA_TOKEN_KEYWORD_COMPUTE,
 };
 
@@ -188,7 +188,7 @@ void hcc_astgen_data_type_ensure_valid_variable(HccWorker* w, HccDataType data_t
 			HccErrorCode error_code;
 			switch (d->kind) {
 				case HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE:
-				case HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE:
+				case HCC_COMPOUND_DATA_TYPE_KIND_PIXEL_STATE:
 					goto ERR;
 			}
 		}
@@ -640,14 +640,14 @@ void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_NO_RETURN;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_RASTERIZER_STATE) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT_STATE) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_PIXEL_STATE) {
+			keyword_token = HCC_ATA_TOKEN_KEYWORD_PIXEL_STATE;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_NOINTERP) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_NOINTERP;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_VERTEX;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT) {
-			keyword_token = HCC_ATA_TOKEN_KEYWORD_FRAGMENT;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_PIXEL) {
+			keyword_token = HCC_ATA_TOKEN_KEYWORD_PIXEL;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE) {
 			keyword_token = HCC_ATA_TOKEN_KEYWORD_COMPUTE;
 		}
@@ -1247,11 +1247,11 @@ HccATAToken hcc_astgen_generate_specifiers(HccWorker* w) {
 			case HCC_ATA_TOKEN_KEYWORD_INLINE:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_INLINE;           break;
 			case HCC_ATA_TOKEN_KEYWORD_NO_RETURN:        flag = HCC_ASTGEN_SPECIFIER_FLAGS_NO_RETURN;        break;
 			case HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE: flag = HCC_ASTGEN_SPECIFIER_FLAGS_RASTERIZER_STATE; break;
-			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE:   flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT_STATE;   break;
+			case HCC_ATA_TOKEN_KEYWORD_PIXEL_STATE:      flag = HCC_ASTGEN_SPECIFIER_FLAGS_PIXEL_STATE;   break;
 			case HCC_ATA_TOKEN_KEYWORD_INTERP:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_INTERP;           break;
 			case HCC_ATA_TOKEN_KEYWORD_NOINTERP:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_NOINTERP;         break;
 			case HCC_ATA_TOKEN_KEYWORD_VERTEX:           flag = HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX;           break;
-			case HCC_ATA_TOKEN_KEYWORD_FRAGMENT:         flag = HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT;         break;
+			case HCC_ATA_TOKEN_KEYWORD_PIXEL:            flag = HCC_ASTGEN_SPECIFIER_FLAGS_PIXEL;         break;
 			case HCC_ATA_TOKEN_KEYWORD_COMPUTE:
 				flag = HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE;
 				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
@@ -1578,7 +1578,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			//
 			// ensure only one specifier is enabled
 			if (!HCC_IS_POWER_OF_TWO_OR_ZERO(w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_ALL_STRUCT_FIELD_SPECIFIERS)) {
-				hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_FRAGMENT_STATE]);
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_INVALID_SPECIFIER_CONFIG_FOR_STRUCT, hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_RASTERIZER_STATE], hcc_ata_token_strings[HCC_ATA_TOKEN_KEYWORD_PIXEL_STATE]);
 			}
 
 			uint32_t idx = hcc_leastsetbitidx32(w->astgen.specifier_flags);
@@ -1591,8 +1591,8 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 				case HCC_ASTGEN_SPECIFIER_RASTERIZER_STATE:
 					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_RASTERIZER_STATE;
 					break;
-				case HCC_ASTGEN_SPECIFIER_FRAGMENT_STATE:
-					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE;
+				case HCC_ASTGEN_SPECIFIER_PIXEL_STATE:
+					compound_data_type.kind = HCC_COMPOUND_DATA_TYPE_KIND_PIXEL_STATE;
 					break;
 			}
 		}
@@ -1763,13 +1763,13 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE);
 				break;
 			};
-			case HCC_COMPOUND_DATA_TYPE_KIND_FRAGMENT_STATE: {
+			case HCC_COMPOUND_DATA_TYPE_KIND_PIXEL_STATE: {
 				HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
 				if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type) || HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(lowered_data_type)) > 1) {
 					HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE, (int)data_type_name.size, data_type_name.data);
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_DATA_TYPE_PIXEL_STATE, (int)data_type_name.size, data_type_name.data);
 				}
-				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FRAGMENT_STATE);
+				hcc_astgen_data_type_ensure_has_no_pointers(w, compound_field->data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_PIXEL_STATE);
 				break;
 			};
 		}
@@ -4398,8 +4398,8 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 
 		if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_VERTEX) {
 			shader_stage = HCC_SHADER_STAGE_VERTEX;
-		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_FRAGMENT) {
-			shader_stage = HCC_SHADER_STAGE_FRAGMENT;
+		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_PIXEL) {
+			shader_stage = HCC_SHADER_STAGE_PIXEL;
 		} else if (w->astgen.specifier_flags & HCC_ASTGEN_SPECIFIER_FLAGS_COMPUTE) {
 			shader_stage = HCC_SHADER_STAGE_COMPUTE;
 		}
@@ -4558,9 +4558,9 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			}
 			break;
 		};
-		case HCC_SHADER_STAGE_FRAGMENT: {
+		case HCC_SHADER_STAGE_PIXEL: {
 			if (function.params_count != 5) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, params_location);
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, params_location);
 			}
 			HccASTVariable* param;
 			HccDataType param_data_type;
@@ -4568,47 +4568,47 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			//
 			// return data type
 			if (hcc_decl_resolve_and_keep_qualifiers(w->cu, return_data_type) != HCC_DATA_TYPE_AST_BASIC_VOID) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, return_data_type_location);
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, return_data_type_location);
 			}
 
 			//
-			// param[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV]: HccFragmentSV const* const
-			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV);
+			// param[HCC_PIXEL_SHADER_PARAM_PIXEL_SV]: HccPixelSV const* const
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_PIXEL_SHADER_PARAM_PIXEL_SV);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV))) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_PIXEL_SV))) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, param->identifier_location);
 			}
 
 			//
-			// param[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV_OUT]: HccFragmentSVOut* const
-			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV_OUT);
+			// param[HCC_PIXEL_SHADER_PARAM_PIXEL_SV_OUT]: HccPixelSVOut* const
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_PIXEL_SHADER_PARAM_PIXEL_SV_OUT);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_FRAGMENT_SV_OUT)) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_PIXEL_SV_OUT)) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, param->identifier_location);
 			}
 
 			//
-			// param[HCC_FRAGMENT_SHADER_PARAM_BC]: Bundled Constants
-			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_BC);
+			// param[HCC_PIXEL_SHADER_PARAM_BC]: Bundled Constants
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_PIXEL_SHADER_PARAM_BC);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
 			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_STRUCT(hcc_decl_resolve_and_keep_qualifiers(w->cu, hcc_data_type_strip_pointer(w->cu, param_data_type)))) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, param->identifier_location);
 			}
 
 			//
-			// param[HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE]: HCC_DEFINE_RASTERIZER_STATE
-			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE);
+			// param[HCC_PIXEL_SHADER_PARAM_RASTERIZER_STATE]: HCC_DEFINE_RASTERIZER_STATE
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_PIXEL_SHADER_PARAM_RASTERIZER_STATE);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
 			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || !HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || (param_data_type != HCC_DATA_TYPE_CONST(0) && !hcc_data_type_is_rasterizer_state(w->cu, param_data_type))) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, param->identifier_location);
 			}
 
 			//
-			// param[HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE]: HCC_DEFINE_FRAGMENT_STATE
-			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE);
+			// param[HCC_PIXEL_SHADER_PARAM_PIXEL_STATE]: HCC_DEFINE_PIXEL_STATE
+			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_PIXEL_SHADER_PARAM_PIXEL_STATE);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_fragment_state(w->cu, param_data_type)) {
-				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_FRAGMENT, param->identifier_location);
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_pixel_state(w->cu, param_data_type)) {
+				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, param->identifier_location);
 			}
 
 			break;
@@ -4627,7 +4627,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			}
 
 			//
-			// param[HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV]: HccFragmentSV const* const
+			// param[HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV]: HccPixelSV const* const
 			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
 			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || hcc_data_type_strip_pointer(w->cu, param_data_type) != HCC_DATA_TYPE_CONST(HCC_DATA_TYPE(STRUCT, HCC_COMPOUND_DATA_TYPE_IDX_HCC_COMPUTE_SV))) {

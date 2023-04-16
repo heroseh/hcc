@@ -49,8 +49,8 @@ static const float cube_border_half_size = CUBE_BORDER_HALF_SIZE;
 static const float cube_axis_offset = CUBE_AXIS_OFFSET;
 static const float selected_max_offset = SELECTED_MAX_OFFSET;
 
-typedef struct ColorPickerFragment ColorPickerFragment;
-HCC_FRAGMENT_STATE struct ColorPickerFragment {
+typedef struct ColorPickerPixel ColorPickerPixel;
+HCC_PIXEL_STATE struct ColorPickerPixel {
 	f32x4 color;
 };
 
@@ -184,13 +184,13 @@ f32x4 distance_cubes(
 	return last_dist_sq;
 }
 
-HCC_FRAGMENT void color_picker_fs(HccFragmentSV const* const sv, HccFragmentSVOut* const sv_out, ColorPickerBC const* const bc, void const* const state, ColorPickerFragment* const frag_out) {
+HCC_PIXEL void color_picker_fs(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, ColorPickerBC const* const bc, void const* const state, ColorPickerPixel* const pixel_out) {
 	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
 
 	// a value from -1.f to 1.f
 	f32x2 screen_pos = f32x2(
-		(sv->frag_coord.x * 2.f - screen_size.x) / screen_size.y,
-		(sv->frag_coord.y * 2.f - screen_size.y) / -screen_size.y
+		(sv->pixel_coord.x * 2.f - screen_size.x) / screen_size.y,
+		(sv->pixel_coord.y * 2.f - screen_size.y) / -screen_size.y
 	);
 
 	f32x3 world_up = f32x3(0.f, -1.f, 0.f);
@@ -240,7 +240,7 @@ HCC_FRAGMENT void color_picker_fs(HccFragmentSV const* const sv, HccFragmentSVOu
 		color.z = dist.z;
 	}
 
-	frag_out->color = f32x4(color.x, color.y, color.z, 1.f);
+	pixel_out->color = f32x4(color.x, color.y, color.z, 1.f);
 }
 
 #endif // __HCC__

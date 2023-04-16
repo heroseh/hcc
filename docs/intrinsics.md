@@ -4,12 +4,12 @@
 - [Bundled Constants](#bundled-constants)
 - [System Values](#system-values)
 - [Rasterizer State](#rasterizer-state)
-- [Fragment State](#fragment-state)
+- [Pixel State](#pixel-state)
 - [Global Variables](#global-variables)
 - [8bit, 16bit, 64bit integer & float support](#8bit-16bit-64bit-integer--float-support)
 - [Vector & Matrix Maths](#vector--matrix-maths)
 - [Atomics](#atomics)
-- [Fragment](#fragment)
+- [Pixel](#pixel)
 - [Textures](#textures)
 - [Quad & Wave](#quad--wave)
 - [Libc](#libc)
@@ -84,7 +84,7 @@ Bundled Constants are the initial way you get data to your shader. They are just
 
 Please refer to the [engine integration docs](integrating_into_your_engine.md#bundled-constants) to learn how this works CPU side.
 
-When writing GPU side code, Bundled Constants are passed into the vertex & fragment shader via the 3rd argument and for the compute shader it is the 2nd argument.
+When writing GPU side code, Bundled Constants are passed into the vertex & pixel shader via the 3rd argument and for the compute shader it is the 2nd argument.
 Below is a minimal code example of this, but missing the usage code inside of functions. Please see the [samples](release_package.md#sample-application) folder for a more in-depth example.
 ```c
 #include <hcc_shader.h>
@@ -109,12 +109,12 @@ HCC_VERTEX void vertex_shader(
     BundledConstants const* const bc, // passed in here
     RS* const state_out
 );
-HCC_FRAGMENT void fragment_shader(
-    HccFragmentSV const* const sv,
-    HccFragmentSVOut* const sv_out,
+HCC_PIXEL void pixel_shader(
+    HccPixelSV const* const sv,
+    HccPixelSVOut* const sv_out,
     BundledConstants const* const bc, // passed in here
     RS const* const state,
-    Frag* const frag_out
+    Pixel* const pixel_out
 );
 HCC_COMPUTE(8, 8, 1) void compute_shader(
     HccComputeSV const* const sv,
@@ -136,12 +136,12 @@ HCC_VERTEX void vertex_shader(
     BC const* const bc,
     RS* const state_out
 );
-HCC_FRAGMENT void fragment_shader(
-    HccFragmentSV const* const sv,  // input system values
-    HccFragmentSVOut* const sv_out, // output system values
+HCC_PIXEL void pixel_shader(
+    HccPixelSV const* const sv,  // input system values
+    HccPixelSVOut* const sv_out, // output system values
     BC const* const bc,
     RS const* const state,
-    Frag* const frag_out
+    Pixel* const pixel_out
 );
 HCC_COMPUTE(8, 8, 1) void compute_shader(
     HccComputeSV const* const sv,   // input system values
@@ -154,15 +154,15 @@ Please see the [samples](release_package.md#sample-application) folder for a mor
 For more info check out the documentation in [hcc_shader.h](../libhccintrinsics/hcc_shader.h) for:
 - HccVertexSV
 - HccVertexSVOut
-- HccFragmentSV
-- HccFragmentSVOut
+- HccPixelSV
+- HccPixelSVOut
 - HccComputeSV
 
 ## Rasterizer State
 
-Like other shading languages, HCC allows you to pass state from the vertex shader to the fragment shader that can be interpolated from state that is at the vertices to the fragment.
+Like other shading languages, HCC allows you to pass state from the vertex shader to the pixel shader that can be interpolated from state that is at the vertices to the pixel.
 
-Unlike other shading languages, this is a custom structure that is passed in as the 4th parameter to the vertex & fragment shader entry points. You must declare this structure with a `HCC_RASTERIZER_STATE` specifier like so:
+Unlike other shading languages, this is a custom structure that is passed in as the 4th parameter to the vertex & pixel shader entry points. You must declare this structure with a `HCC_RASTERIZER_STATE` specifier like so:
 ```c
 typedef struct RasterizerState RasterizerState;
 HCC_RASTERIZER_STATE struct RasterizerState {
@@ -171,9 +171,9 @@ HCC_RASTERIZER_STATE struct RasterizerState {
     HCC_INTERP   f32x4                 color;
 };
 ```
-Each field is limited to being an intrinsic data type (scalar or vector) or a resource (buffer, texture or sampler). Each field must be explicitly prefixed with either `HCC_INTERP` or `HCC_NOINTERP` to decide if you wish the value to be interpolated or not from the vertex shader to the fragment shader.
+Each field is limited to being an intrinsic data type (scalar or vector) or a resource (buffer, texture or sampler). Each field must be explicitly prefixed with either `HCC_INTERP` or `HCC_NOINTERP` to decide if you wish the value to be interpolated or not from the vertex shader to the pixel shader.
 
-Then you may use this structure in the vertex & fragment entry points like so:
+Then you may use this structure in the vertex & pixel entry points like so:
 ```c
 HCC_VERTEX void vertex_shader(
     HccVertexSV const* const sv,
@@ -181,12 +181,12 @@ HCC_VERTEX void vertex_shader(
     BC const* const bc,
     RasterizerState* const state_out    // output per vertex here
 );
-HCC_FRAGMENT void fragment_shader(
-    HccFragmentSV const* const sv,
-    HccFragmentSVOut* const sv_out,
+HCC_PIXEL void pixel_shader(
+    HccPixelSV const* const sv,
+    HccPixelSVOut* const sv_out,
     BC const* const bc,
-    RasterizerState const* const state, // input per fragment here
-    Frag* const frag_out
+    RasterizerState const* const state, // input per pixel here
+    Pixel* const pixel_out
 );
 ```
 
@@ -194,31 +194,31 @@ Please see the [samples](release_package.md#sample-application) folder for a mor
 
 The benefit to this approach, is that you'll be able to:
 - reuse the same structure in multiple shaders
-- the structure will not go out of sync between vertex & fragment shaders
+- the structure will not go out of sync between vertex & pixel shaders
 - help remove the limitation of declaring multiple shaders in a single file
 
-## Fragment State
+## Pixel State
 
-Like other shading languages, HCC allows you to output a fragment from the fragment shader to a single or multiple render targets.
+Like other shading languages, HCC allows you to output a pixel from the pixel shader to a single or multiple render targets.
 
-Unlike other shading languages, this is a custom structure that is passed in as the 5th parameter to the fragment shader entry point. You must declare this structure with a `HCC_FRAGMENT_STATE` specifier like so:
+Unlike other shading languages, this is a custom structure that is passed in as the 5th parameter to the pixel shader entry point. You must declare this structure with a `HCC_PIXEL_STATE` specifier like so:
 ```c
-typedef struct Fragment Fragment;
-HCC_FRAGMENT_STATE struct Fragment {
+typedef struct Pixel Pixel;
+HCC_PIXEL_STATE struct Pixel {
 	f32x4 albedo;   // render target slot 0
 	f32x4 emissive; // render target slot 1
 };
 ```
 Each field is limited to being a intrinsic data type (scalar or vector). Each field represents a render target and they are assigned their slot index internally using the index of the field. In this example `albedo` will be slot 0 and `emissive` will be slot 1.
 
-Then you may use this structure in the fragment entry points like so:
+Then you may use this structure in the pixel entry points like so:
 ```c
-HCC_FRAGMENT void fragment_shader(
-    HccFragmentSV const* const sv,
-    HccFragmentSVOut* const sv_out,
+HCC_PIXEL void pixel_shader(
+    HccPixelSV const* const sv,
+    HccPixelSVOut* const sv_out,
     BC const* const bc,
     RS const* const state,
-    Fragment* const frag_out // output here per fragment
+    Pixel* const pixel_out // output here per pixel
 );
 ```
 
@@ -269,11 +269,11 @@ Like other shading languages, HCC allows for atomic operations (thread-safe writ
 
 You can find the functions and their documentation in [hcc_atomic_intrinsics.h](../libhccintrinsics/hcc_atomic_intrinsics.h)
 
-## Fragment
+## Pixel
 
-Like other shading languages, HCC has special functions that can only be used in a fragment shader. Such as discarding a pixel with the `discard_fragment()` function and calculating the partial derivative using functions like `ddxG` and `ddyG`.
+Like other shading languages, HCC has special functions that can only be used in a pixel shader. Such as discarding a pixel with the `discard_pixel()` function and calculating the partial derivative using functions like `ddxG` and `ddyG`.
 
-You can find the functions and their documentation in [hcc_fragment_intrinsics.h](../libhccintrinsics/hcc_fragment_intrinsics.h)
+You can find the functions and their documentation in [hcc_pixel_intrinsics.h](../libhccintrinsics/hcc_pixel_intrinsics.h)
 
 ## Textures
 

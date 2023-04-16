@@ -271,7 +271,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					}
 
 					//
-					// the left expression is either HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD or HCC_AML_OP_FRAGMENT_STATE_STORE_FIELD.
+					// the left expression is either HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD or HCC_AML_OP_PIXEL_STATE_STORE_FIELD.
 					// so we just need to complete the instruction by setting the store operand.
 					//
 					w->amlgen.access_chain_operands[0] = right_operand;
@@ -537,7 +537,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 								case HCC_FUNCTION_IDX_UNPACK_U8X4_F32X4: op = HCC_AML_OP_UNPACK_U8X4_F32X4; break;
 								case HCC_FUNCTION_IDX_PACK_S8X4_F32X4: op = HCC_AML_OP_PACK_S8X4_F32X4; break;
 								case HCC_FUNCTION_IDX_UNPACK_S8X4_F32X4: op = HCC_AML_OP_UNPACK_S8X4_F32X4; break;
-								case HCC_FUNCTION_IDX_DISCARD_FRAGMENT: op = HCC_AML_OP_DISCARD_FRAGMENT; break;
+								case HCC_FUNCTION_IDX_DISCARD_PIXEL: op = HCC_AML_OP_DISCARD_PIXEL; break;
 								case HCC_FUNCTION_IDX_MEMORY_BARRIER_RESOURCE: op = HCC_AML_OP_MEMORY_BARRIER_RESOURCE; break;
 								case HCC_FUNCTION_IDX_MEMORY_BARRIER_DISPATCH_GROUP: op = HCC_AML_OP_MEMORY_BARRIER_DISPATCH_GROUP; break;
 								case HCC_FUNCTION_IDX_MEMORY_BARRIER_ALL: op = HCC_AML_OP_MEMORY_BARRIER_ALL; break;

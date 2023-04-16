@@ -291,8 +291,8 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 					hcc_fallthrough;
 				case HCC_DATA_TYPE_HCC_VERTEX_SV:
 				case HCC_DATA_TYPE_HCC_VERTEX_SV_OUT:
-				case HCC_DATA_TYPE_HCC_FRAGMENT_SV:
-				case HCC_DATA_TYPE_HCC_FRAGMENT_SV_OUT:
+				case HCC_DATA_TYPE_HCC_PIXEL_SV:
+				case HCC_DATA_TYPE_HCC_PIXEL_SV_OUT:
 				case HCC_DATA_TYPE_HCC_COMPUTE_SV:
 					operands = hcc_spirv_add_decorate(cu, 2);
 					operands[0] = spirv_id;
@@ -613,17 +613,17 @@ HccSPIRVStorageClass hcc_spirv_storage_class_from_aml_operand(HccCU* cu, const H
 								HCC_ABORT("unhandled parameter %u", param_idx);
 						}
 						break;
-					case HCC_SHADER_STAGE_FRAGMENT:
+					case HCC_SHADER_STAGE_PIXEL:
 						switch (param_idx) {
-							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV:
+							case HCC_PIXEL_SHADER_PARAM_PIXEL_SV:
 								return HCC_SPIRV_STORAGE_CLASS_INPUT;
-							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_SV_OUT:
+							case HCC_PIXEL_SHADER_PARAM_PIXEL_SV_OUT:
 								return HCC_SPIRV_STORAGE_CLASS_OUTPUT;
-							case HCC_FRAGMENT_SHADER_PARAM_BC:
+							case HCC_PIXEL_SHADER_PARAM_BC:
 								return HCC_SPIRV_STORAGE_CLASS_PUSH_CONSTANT;
-							case HCC_FRAGMENT_SHADER_PARAM_RASTERIZER_STATE:
+							case HCC_PIXEL_SHADER_PARAM_RASTERIZER_STATE:
 								return HCC_SPIRV_STORAGE_CLASS_INPUT;
-							case HCC_FRAGMENT_SHADER_PARAM_FRAGMENT_STATE:
+							case HCC_PIXEL_SHADER_PARAM_PIXEL_STATE:
 								return HCC_SPIRV_STORAGE_CLASS_OUTPUT;
 							default:
 								HCC_ABORT("unhandled parameter %u", param_idx);
