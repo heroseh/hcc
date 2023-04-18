@@ -14,12 +14,12 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - Vulkan 1.3+
 - Aims for C11 support
 - Vertex, Pixel & Compute shader support
-- Included Maths library for GPU programming (will be available to also be used CPU very soon!) [More Info]()
-- Textures, Atomics, Quad & Wave Intrinsics [More Info]()
-- \_Generic support for Maths & Intrinsics functions for C compliant overloads [More Info]()
-- Vulkan interop code to help setup with your engine [More Info]()
-- 5 working samples and a samples application to see how it can plug into your engine [More Info]()
-- live playground application to have a play by writing shader code! [More Info]()
+- Included Maths library for GPU programming (will be available to also be used CPU very soon!) [More Info](libhmaths/)
+- Textures, Atomics, Quad & Wave Intrinsics [More Info](docs/intrinsics.md)
+- \_Generic support for Maths & Intrinsics functions for C compliant overloads
+- Vulkan interop code to help setup with your engine [More Info](docs/integrating_into_your_engine.md)
+- 5 working samples and a samples application to see how it can plug into your engine [More Info](docs/release_package.md#sample-application)
+- live playground application to have a play by writing shader code! [More Info](docs/release_package.md#playground-application)
 - multiple shaders in a single file
 - Compiler only depends on libc, optionally uses the SPIR-V tools for validation and optimization
 
