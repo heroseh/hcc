@@ -14,7 +14,7 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - Vulkan 1.3+
 - Aims for C11 support
 - Vertex, Pixel & Compute shader support
-- Included Maths library for GPU programming (will be available to also be used CPU very soon!) [More Info](libhmaths/)
+- Included Maths library for GPU programming (will be available to also be used CPU very soon!) [More Info](https://github.com/heroseh/hmaths/)
 - Textures, Atomics, Quad & Wave Intrinsics [More Info](docs/intrinsics.md)
 - \_Generic support for Maths & Intrinsics functions for C compliant overloads
 - Vulkan interop code to help setup with your engine [More Info](docs/integrating_into_your_engine.md)
