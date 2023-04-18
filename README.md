@@ -103,11 +103,15 @@ HCC_PIXEL void triangle_ps(
 
 ## Great, how do I find out more?
 
-You can download the latest release here:
-- [hcc-0.0.1-windows]()
-- [hcc-0.0.1-linux]()
+You can download the latest release [here](https://github.com/heroseh/hcc/releases/):
 
-We also have the documentation you can check out [here]()
+We also have the documentation you can check out [here](docs/)
+
+# Support
+
+If enjoy using the project, please consider sending a tip to show your support. Thank you! :)
+
+[![](https://storage.ko-fi.com/cdn/brandasset/kofi_bg_tag_white.png)](https://ko-fi.com/hero_dev)
 
 ## FAQ
 - Q: Do you plan on DX12 or Metal support?
@@ -130,10 +134,4 @@ Catch live development on the compiler at [Twitch](https://twitch.tv/hero_dev)
 # Contributor
 
 If you like the project and are a competent C programmer, please consider being a contributor. Join the Discord or open up some Github issues related to the features you want to work on.
-
-# Support
-
-If enjoy using the project, please consider sending a tip to show your support. Thank you! :)
-
-[![](https://storage.ko-fi.com/cdn/brandasset/kofi_bg_tag_white.png)](https://ko-fi.com/hero_dev)
 
