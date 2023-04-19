@@ -793,6 +793,58 @@ void hcc_astgen_ensure_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr
 	}
 }
 
+void hcc_astgen_ensure_static_assert(HccWorker* w) {
+	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
+	HCC_DEBUG_ASSERT(token == HCC_ATA_TOKEN_KEYWORD_STATIC_ASSERT, "expected a static_assert token here");
+
+	if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT);
+	}
+	hcc_ata_iter_next(w->astgen.token_iter);
+
+	HccLocation* cond_location_before = hcc_ata_iter_location(w->astgen.token_iter);
+
+	HccASTExpr* cond_expr = hcc_astgen_generate_cond_expr(w);
+	if (cond_expr->type != HCC_AST_EXPR_TYPE_CONSTANT) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_COND_NOT_COMPILE_TIME_CONSTANT);
+	}
+
+	HccLocation* cond_location_after = hcc_ata_iter_location(w->astgen.token_iter);
+	HccString cond_string = hcc_string(
+		&cond_location_before->code_file->code.data[cond_location_before->code_start_idx],
+		cond_location_after->code_end_idx - cond_location_before->code_start_idx
+	);
+
+	token = hcc_ata_iter_peek(w->astgen.token_iter);
+	HccString message_string = hcc_string(NULL, 0);
+	if (token == HCC_ATA_TOKEN_COMMA) {
+		token = hcc_ata_iter_next(w->astgen.token_iter);
+		if (token != HCC_ATA_TOKEN_STRING) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_STRING_MESSAGE_FOR_STATIC_ASSERT);
+		}
+		HccATAValue value = hcc_ata_iter_next_value(w->astgen.token_iter);
+		message_string = hcc_string_table_get(value.string_id);
+
+		token = hcc_ata_iter_next(w->astgen.token_iter);
+	}
+
+	if (token != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT);
+	}
+
+	HccConstant constant = hcc_constant_table_get(w->cu, cond_expr->constant.id);
+
+	uint64_t cond;
+	bool res = hcc_constant_as_uint(w->cu, constant, &cond);
+	if (!res || !cond) {
+		if (message_string.data) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE_MSG, (int)cond_string.size, cond_string.data, (int)message_string.size, message_string.data);
+		} else {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE_MSG, (int)cond_string.size, cond_string.data);
+		}
+	}
+}
+
 void hcc_astgen_variable_stack_open(HccWorker* w) {
 	if (hcc_stack_count(w->astgen.variable_stack_strings) == 0) {
 		w->astgen.next_var_idx = 0;

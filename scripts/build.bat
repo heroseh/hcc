@@ -1,6 +1,6 @@
 @echo off
 
-SET FLAGS=-pedantic -std=c11 -Werror -Wfloat-conversion -Wextra -g -Wl,-nodefaultlib:libcmt -ldbghelp -lonecore -lsynchronization -lmsvcrt -luser32 
+SET FLAGS=-pedantic -std=c11 -Werror -Wfloat-conversion -Wextra -g -Wl,-nodefaultlib:libcmt -ldbghelp -lonecore -lsynchronization -lmsvcrt -luser32
 IF "%~1" == "release" (
   SET FLAGS=%FLAGS% -O2
 )
@@ -26,6 +26,6 @@ IF %EXIT_CODE% NEQ 0 (
 IF "%~1" == "release" (
   echo "=========== Building Release Package ==========="
   cd build
-  powershell Compress-Archive -Force -DestinationPath hcc-0.0.1-windows.zip -LiteralPath hcc.exe, ..\libc, ..\libhmaths, ..\libhccintrinsics, ..\interop, ..\samples, ..\playground, ..\docs, ..\README.md, ..\LICENSE
+  powershell Compress-Archive -Force -DestinationPath hcc-0.0.2-windows.zip -LiteralPath hcc.exe, ..\libc, ..\libhmaths, ..\libhccintrinsics, ..\interop, ..\samples, ..\playground, ..\docs, ..\README.md, ..\LICENSE
   cd ..
 )

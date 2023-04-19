@@ -1962,6 +1962,7 @@ void hcc_astgen_ensure_no_unused_specifiers_data_type(HccWorker* w);
 void hcc_astgen_ensure_no_unused_specifiers_identifier(HccWorker* w);
 bool hcc_astgen_check_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr);
 void hcc_astgen_ensure_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr);
+void hcc_astgen_ensure_static_assert(HccWorker* w);
 
 void hcc_astgen_variable_stack_open(HccWorker* w);
 void hcc_astgen_variable_stack_close(HccWorker* w);

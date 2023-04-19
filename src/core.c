@@ -5151,6 +5151,12 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_COMMA_COMPUTE] = "expected ',' to define the next dimension of the dispatch group size",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_COMPUTE] = "expected ')' to finish the HCC_COMPUTE specifier",
 		[HCC_ERROR_CODE_UNSIZED_ARRAY_REQUIRES_AN_INITIALIZATION] = "a variable that is an unsized array requires initialization, '%.*s %.*s[] = { ... };' or an explicit size '%.*s %.*s[42];'",
+		[HCC_ERROR_CODE_STATIC_ASSERT_COND_NOT_COMPILE_TIME_CONSTANT] = "_Static_assert condition is not a compile-time expression",
+		[HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE] = "_Static_assert failed '%.s'",
+		[HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE_MSG] = "_Static_assert failed '%.s' : %s",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT] = "expected a '(' to follow _Static_assert. eg. _Static_assert(sizeof(int) == 4, \"int must be 4 bytes\")",
+		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_STATIC_ASSERT] = "expected a ')' to finish the _Static_assert",
+		[HCC_ERROR_CODE_EXPECTED_STRING_MESSAGE_FOR_STATIC_ASSERT] = "expected a string message to follow the ',' of the _Static_assert. eg. _Static_assert(sizeof(int) == 4, \"int must be 4 bytes\")",
 
 		//
 		// ASTLINK

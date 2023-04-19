@@ -1983,10 +1983,12 @@ bool hcc_atagen_consume_backslash(HccWorker* w) {
 	bool found_newline = false;
 	if (byte == '\r') {
 		hcc_atagen_advance_column(w, 1);
+		byte = w->atagen.code[w->atagen.location.code_end_idx];
 		found_newline = true;
 	}
 	if (byte == '\n'){
 		hcc_atagen_advance_column(w, 1);
+		byte = w->atagen.code[w->atagen.location.code_end_idx];
 		found_newline = true;
 	}
 	if (found_newline) {
