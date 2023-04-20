@@ -1538,6 +1538,10 @@ MAKE_NEW: {}
 
 			link_ptr = &link->next;
 		}
+	} else {
+		HccEnumValue* dst_enum_values = hcc_stack_push_many_thread_safe(cu->dtt.enum_values, enum_data_type.values_count);
+		HCC_COPY_ELMT_MANY(dst_enum_values, enum_data_type.values, enum_data_type.values_count);
+		enum_data_type.values = dst_enum_values;
 	}
 
 	//
