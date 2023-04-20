@@ -144,7 +144,7 @@ const char* app_vk_result_string(VkResult result) {
 	}
 }
 
-void gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t window_height) {
+bool gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t window_height) {
 	VkResult vk_result;
 	{
 		if (gpu.swapchain_images) {
@@ -167,6 +167,10 @@ void gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t windo
 		if (swapchain_extent.width == 0xFFFFFFFF) {
 			swapchain_extent.width = APP_CLAMP(window_width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
 			swapchain_extent.height = APP_CLAMP(window_height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
+		}
+
+		if (swapchain_extent.width == 0 || swapchain_extent.height == 0) {
+			return false;
 		}
 
 		gpu.swapchain_width = swapchain_extent.width;
@@ -322,6 +326,8 @@ void gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t windo
 		APP_VK_ASSERT(vkCreateSemaphore(gpu.device, &create_info, NULL, &gpu.swapchain_image_ready_semaphore));
 		APP_VK_ASSERT(vkCreateSemaphore(gpu.device, &create_info, NULL, &gpu.swapchain_present_ready_semaphore));
 	}
+
+	return true;
 }
 
 VkBool32 gpu_vk_handle_validation_error(
@@ -855,6 +861,10 @@ void gpu_init_sample(AppSampleEnum sample_enum) {
 }
 
 void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t window_width, uint32_t window_height) {
+	if (window_width == 0 || window_height == 0) {
+		return;
+	}
+
 	VkResult vk_result;
 
 	AppSample* sample = &app_samples[sample_enum];
@@ -874,7 +884,9 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t window_width
 		switch (vk_result) {
 			case VK_ERROR_OUT_OF_DATE_KHR:
 			case VK_SUBOPTIMAL_KHR:
-				gpu_vk_recreate_swapchain_and_friends(window_width, window_height);
+				if (!gpu_vk_recreate_swapchain_and_friends(window_width, window_height)) {
+					return;
+				}
 				break;
 			default:
 				APP_VK_ASSERT(vk_result);
