@@ -26,6 +26,6 @@ IF %EXIT_CODE% NEQ 0 (
 IF "%~1" == "release" (
   echo "=========== Building Release Package ==========="
   cd build
-  powershell Compress-Archive -Force -DestinationPath hcc-0.0.2-windows.zip -LiteralPath hcc.exe, hcc.pdb, ..\libc, ..\libhmaths, ..\libhccintrinsics, ..\interop, ..\samples, ..\playground, ..\docs, ..\README.md, ..\LICENSE
+  powershell Compress-Archive -Force -DestinationPath hcc-0.0.3-windows.zip -LiteralPath hcc.exe, hcc.pdb, ..\libc, ..\libhmaths, ..\libhccintrinsics, ..\interop, ..\samples, ..\playground, ..\docs, ..\README.md, ..\LICENSE
   cd ..
 )
