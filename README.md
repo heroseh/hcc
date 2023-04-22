@@ -24,8 +24,8 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - Compiler only depends on libc, optionally uses the SPIR-V tools for validation and optimization
 
 ## Limitations
-- No pointer support outside compiler intrinsics
-- No union support
+- No pointer support outside compiler intrinsics (planned soon after release)
+- No union support (planned soon after release)
 - No debug info (planned soon after release)
 - No string support (planned soon after release)
 - No structure bitfields (planned soon after release)
