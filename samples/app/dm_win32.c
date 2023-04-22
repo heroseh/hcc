@@ -2,7 +2,8 @@
 typedef struct DmWin32 DmWin32;
 struct DmWin32 {
 	HINSTANCE hinstance;
-	HWND hwnd;
+	HWND      hwnd;
+	DmEvent*  event;
 };
 
 DmWin32 dm;
@@ -14,8 +15,39 @@ void dm_screen_dims(int* width_out, int* height_out) {
 	*width_out = GetSystemMetrics(SM_CXSCREEN);
 	*height_out = GetSystemMetrics(SM_CYSCREEN);
 }
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
-	return DefWindowProcA(hwnd, Msg, wParam, lParam);
+	DmEvent* e = dm.event;
+
+	if (e) { // When called via DispatchMessage after TranslateMessage
+		switch (Msg) {
+		case WM_SIZE:
+			e->type = DM_EVENT_TYPE_WINDOW_RESIZED;
+			e->window_width = LOWORD(lParam);
+			e->window_height = HIWORD(lParam);
+			dm.event = NULL;
+			return 0;
+
+		case WM_CHAR:
+			e->type = DM_EVENT_TYPE_KEY_PRESSED;
+			e->key = wParam;
+			dm.event = NULL;
+			return 0;
+
+		case WM_CLOSE:
+			e->type = DM_EVENT_TYPE_WINDOW_CLOSED;
+			dm.event = NULL;
+			return 0;
+
+		default:
+			return DefWindowProcA(hwnd, Msg, wParam, lParam);
+		}
+	} else { // when called via PeekMessage or CreateWindowEx
+		switch (Msg) {
+		default:
+			return DefWindowProcA(hwnd, Msg, wParam, lParam);
+		}
+	}
 }
 
 DmWindow dm_window_open(int width, int height) {
@@ -40,7 +72,7 @@ DmWindow dm_window_open(int width, int height) {
 	HWND hwnd = CreateWindowExA(
 		0,                              // Optional window styles.
 		CLASS_NAME,                     // Window class
-		"Hcc Samples",    // Window text
+		"Hcc Samples",                  // Window text
 		WS_OVERLAPPEDWINDOW,            // Window style
 
 		// Size and position
@@ -76,6 +108,9 @@ DmWindow dm_window_open(int width, int height) {
 }
 
 bool dm_process_events(DmEvent* e) {
+	e->type = DM_EVENT_TYPE_UNKNOWN;
+	dm.event = e;
+
 	MSG msg;
 	if (!PeekMessage(&msg, dm.hwnd, 0, 0, PM_REMOVE)) {
 		return false;
@@ -84,19 +119,5 @@ bool dm_process_events(DmEvent* e) {
 	TranslateMessage(&msg);
 	DispatchMessage(&msg);
 
-	if (msg.message == WM_CHAR) {
-		e->type = DM_EVENT_TYPE_KEY_PRESSED;
-		e->key = msg.wParam;
-	} else if (msg.message == WM_CLOSE) {
-		e->type = DM_EVENT_TYPE_WINDOW_CLOSED;
-	} else if (msg.message == WM_SIZE) {
-		e->type = DM_EVENT_TYPE_WINDOW_RESIZED;
-		e->window_width = LOWORD(msg.lParam);
-		e->window_height = HIWORD(msg.lParam);
-	} else {
-		e->type = DM_EVENT_TYPE_UNKNOWN;
-	}
-
 	return true;
 }
-
