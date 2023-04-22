@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FLAGS="-pedantic -D_GNU_SOURCE -std=gnu11 -Werror -Wfloat-conversion -Wimplicit-fallthrough -Wextra -g -lm -pthread"
+FLAGS="-pedantic -D_GNU_SOURCE -std=gnu11 -Werror -Wfloat-conversion -Wimplicit-fallthrough -Wextra -g -lm -ldl -pthread"
 if [ "${1}" = "release" ]; then
 	FLAGS="$FLAGS -O2"
 fi
