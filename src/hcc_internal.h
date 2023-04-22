@@ -2,7 +2,9 @@
 
 #include <setjmp.h> // jmp_buf
 #include <stdatomic.h>
+#if defined(HCC_ARCH_X86_64)
 #include <immintrin.h>
+#endif
 #include <signal.h>
 
 #include "hcc.h"
@@ -44,6 +46,8 @@ typedef struct HccWorker HccWorker;
 
 #ifdef HCC_ARCH_X86_64
 #define HCC_BYTE_ORDER HCC_LITTLE_ENDIAN
+#elif defined(HCC_ARCH_AARCH64)
+#define HCC_BYTE_ORDER HCC_LITTLE_ENDIAN
 #else
 #error "unsupported platform"
 #endif
@@ -51,6 +55,8 @@ typedef struct HccWorker HccWorker;
 #elif defined(HCC_OS_WINDOWS)
 
 #ifdef HCC_ARCH_X86_64
+#define HCC_BYTE_ORDER HCC_LITTLE_ENDIAN
+#elif defined(HCC_ARCH_AARCH64)
 #define HCC_BYTE_ORDER HCC_LITTLE_ENDIAN
 #else
 #error "unsupported platform"
@@ -85,7 +91,12 @@ typedef struct HccWorker HccWorker;
 #define HCC_CONTRIBUTOR_TASK(msg)
 #endif
 
+#if defined(HCC_ARCH_X86_64)
 #define HCC_CPU_RELAX() _mm_pause()
+#else
+// There is no direct equivalent to _mm_pause on arm, sse2neon recommends using this inline assembly statement
+#define HCC_CPU_RELAX() __asm__ __volatile__("isb\n")
+#endif
 
 #define HCC_LEAST_SET_BIT_REMOVE(bitset) ((bitset) & ((bitset) - 1))
 
@@ -1312,6 +1323,7 @@ enum HccPPPredefinedMacro {
 	HCC_PP_PREDEFINED_MACRO___HCC__,
 	HCC_PP_PREDEFINED_MACRO___HCC_GPU__,
 	HCC_PP_PREDEFINED_MACRO___HCC_X86_64__,
+	HCC_PP_PREDEFINED_MACRO___HCC_AARCH64__,
 	HCC_PP_PREDEFINED_MACRO___HCC_LINUX__,
 	HCC_PP_PREDEFINED_MACRO___HCC_WINDOWS__,
 

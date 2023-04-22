@@ -734,10 +734,11 @@ void hcc_thread_start(HccThread* thread, HccThreadSetup* setup) {
 	if ((res = pthread_attr_init(&attr))) {
 		hcc_bail(HCC_ERROR_THREAD_INIT, res);
 	}
-
+#ifdef HCC_ARCH_X86_64
 	if ((res = pthread_attr_setstack(&attr, setup->call_stack, setup->call_stack_size))) {
 		hcc_bail(HCC_ERROR_THREAD_INIT, res);
 	}
+#endif
 
 	if ((res = pthread_create(&thread->handle, &attr, (void*(*)(void*))setup->thread_main_fn, setup->arg))) {
 		hcc_bail(HCC_ERROR_THREAD_INIT, res);
