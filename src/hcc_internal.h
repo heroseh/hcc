@@ -2308,6 +2308,8 @@ typedef HccSPIRVWord HccSPIRVInstr;
 typedef uint16_t HccSPIRVOp;
 enum {
 	HCC_SPIRV_OP_NO_OP = 0,
+	HCC_SPIRV_OP_NAME = 5,
+	HCC_SPIRV_OP_MEMBER_NAME = 6,
 	HCC_SPIRV_OP_EXTENSION = 10,
 	HCC_SPIRV_OP_EXT_INST_IMPORT = 11,
 	HCC_SPIRV_OP_EXT_INST = 12,
@@ -2797,6 +2799,7 @@ struct HccSPIRV {
 	HccStack(HccSPIRVEntryPoint)                 entry_points;
 	HccStack(HccSPIRVId)                         entry_point_global_variable_ids;
 	HccStack(HccSPIRVWord)                       global_variable_words;
+	HccStack(HccSPIRVWord)                       name_words;
 	HccStack(HccSPIRVWord)                       decorate_words;
 	HccSPIRVId                                   resource_descriptors_max_constant_spirv_id;
 	HccSPIRVId                                   scope_device_spirv_id;
@@ -2828,7 +2831,11 @@ HccSPIRVId hcc_spirv_decl_deduplicate(HccCU* cu, HccDecl decl);
 void hcc_spirv_resource_descriptor_binding_deduplicate(HccCU* cu, HccDataType data_type, HccSPIRVDescriptorBindingInfo* info_out);
 HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id);
 HccSPIRVStorageClass hcc_spirv_storage_class_from_aml_operand(HccCU* cu, const HccAMLFunction* aml_function, HccAMLOperand aml_operand);
+uint32_t hcc_spirv_string_words_count(uint32_t string_size);
+void hcc_spirv_encode_string(HccSPIRVWord* dst_words, HccString string);
 HccSPIRVOperand* hcc_spirv_add_global_variable(HccCU* cu, uint32_t operands_count);
+void hcc_spirv_add_name(HccCU* cu, uint32_t spirv_id, HccString name);
+void hcc_spirv_add_member_name(HccCU* cu, uint32_t spirv_id, uint32_t member_idx, HccString name);
 HccSPIRVOperand* hcc_spirv_add_decorate(HccCU* cu, uint32_t operands_count);
 HccSPIRVOperand* hcc_spirv_add_member_decorate(HccCU* cu, uint32_t operands_count);
 HccSPIRVOperand* hcc_spirv_function_add_instr(HccSPIRVFunction* function, HccSPIRVOp op, uint32_t operands_count);

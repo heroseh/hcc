@@ -41,24 +41,10 @@ void hcc_spirvlink_instr_add_operand(HccWorker* w, HccSPIRVWord word) {
 }
 
 void hcc_spirvlink_instr_add_operands_string(HccWorker* w, char* string, uint32_t string_size) {
-	uint32_t i = 0;
-	for (; string_size - i >= 4; i += 4) {
-		HccSPIRVWord word = 0;
-		word |= string[i + 0] << 0;
-		word |= string[i + 1] << 8;
-		word |= string[i + 2] << 16;
-		word |= string[i + 3] << 24;
-		hcc_spirvlink_instr_add_operand(w, word);
-	}
-
-	if (i <= string_size) {
-		HccSPIRVWord word = 0;
-		if (i + 0 < string_size) word |= string[i + 0] << 0;
-		if (i + 1 < string_size) word |= string[i + 1] << 8;
-		if (i + 2 < string_size) word |= string[i + 2] << 16;
-		if (i + 3 < string_size) word |= string[i + 3] << 24;
-		hcc_spirvlink_instr_add_operand(w, word);
-	}
+	uint32_t words_count = hcc_spirv_string_words_count(string_size);
+	HCC_DEBUG_ASSERT_ARRAY_RESIZE(w->spirvlink.instr_operands_count + words_count, HCC_SPIRVLINK_INSTR_OPERANDS_CAP);
+	hcc_spirv_encode_string(&w->spirvlink.instr_operands[w->spirvlink.instr_operands_count], hcc_string(string, string_size));
+	w->spirvlink.instr_operands_count += words_count;
 }
 
 void hcc_spirvlink_instr_end(HccWorker* w) {
@@ -252,6 +238,11 @@ void hcc_spirvlink_link(HccWorker* w) {
 				break;
 			default: HCC_ABORT("unhandled shader stage: %u", entry_point->shader_stage);
 		}
+	}
+
+	{ // debug info
+		HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.name_words));
+		HCC_COPY_ELMT_MANY(words, cu->spirv.name_words, hcc_stack_count(cu->spirv.name_words));
 	}
 
 	HccSPIRVId vertex_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_VERTEX_SV);

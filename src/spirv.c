@@ -36,7 +36,8 @@ void hcc_spirv_init(HccCU* cu, HccCUSetup* setup) {
 	cu->spirv.entry_points = hcc_stack_init(HccSPIRVEntryPoint, HCC_ALLOC_TAG_SPIRV_ENTRY_POINTS, setup->functions_grow_count, setup->functions_reserve_cap);
 	cu->spirv.entry_point_global_variable_ids = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_ENTRY_POINT_GLOBAL_VARIABLE_IDS, setup->ast.global_variables_grow_count, setup->ast.global_variables_reserve_cap);
 	cu->spirv.global_variable_words = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_GLOBAL_VARIABLE_WORDS, setup->ast.global_variables_grow_count * 4, setup->ast.global_variables_reserve_cap * 4);
-	cu->spirv.decorate_words = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_DECORATE_WORDS, setup->ast.global_variables_grow_count * 4, setup->ast.global_variables_reserve_cap * 4);
+	cu->spirv.name_words = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_NAME_WORDS, types_grow_count, types_reserve_cap);
+	cu->spirv.decorate_words = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_DECORATE_WORDS, types_grow_count, types_reserve_cap);
 
 	HccBasic basic = { .u32 = hcc_options_get_u32(cu->options, HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX) };
 	cu->spirv.resource_descriptors_max_constant_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
@@ -282,7 +283,11 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		type->operands = operands;
 		type->operands_count = operands_count;
 
-		if (HCC_DATA_TYPE_IS_STRUCT(data_type)) {
+		if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
+			hcc_spirv_add_name(cu, spirv_id, hcc_data_type_string(cu, data_type));
+		}
+
+		if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
 			switch (data_type) {
 				default:
 					if (!needs_block) {
@@ -303,12 +308,14 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 			HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
 			for (uint32_t field_idx = 0; field_idx < dt->fields_count; field_idx += 1) {
 				HccCompoundField* field = &dt->fields[field_idx];
+				hcc_spirv_add_member_name(cu, spirv_id, field_idx, hcc_string_table_get(field->identifier_string_id));
 				operands = hcc_spirv_add_member_decorate(cu, 4);
 				operands[0] = spirv_id;
 				operands[1] = field_idx;
 				operands[2] = HCC_SPIRV_DECORATION_OFFSET;
 				operands[3] = field->byte_offset;
 			}
+
 		} else if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
 			HccArrayDataType* dt = hcc_array_data_type_get(cu, data_type);
 			uint64_t element_size;
@@ -662,11 +669,56 @@ HccSPIRVStorageClass hcc_spirv_storage_class_from_aml_operand(HccCU* cu, const H
 	}
 }
 
+uint32_t hcc_spirv_string_words_count(uint32_t string_size) {
+	return (string_size + 4) / 4;
+}
+
+void hcc_spirv_encode_string(HccSPIRVWord* dst_words, HccString string) {
+	uint32_t word_idx = 0;
+	uint32_t i = 0;
+	for (; string.size - i >= 4; i += 4) {
+		HccSPIRVWord word = 0;
+		word |= string.data[i + 0] << 0;
+		word |= string.data[i + 1] << 8;
+		word |= string.data[i + 2] << 16;
+		word |= string.data[i + 3] << 24;
+		dst_words[word_idx] = word;
+		word_idx += 1;
+	}
+
+	if (i <= string.size) {
+		HccSPIRVWord word = 0;
+		if (i + 0 < string.size) word |= string.data[i + 0] << 0;
+		if (i + 1 < string.size) word |= string.data[i + 1] << 8;
+		if (i + 2 < string.size) word |= string.data[i + 2] << 16;
+		if (i + 3 < string.size) word |= string.data[i + 3] << 24;
+		dst_words[word_idx] = word;
+		word_idx += 1;
+	}
+}
+
 HccSPIRVOperand* hcc_spirv_add_global_variable(HccCU* cu, uint32_t operands_count) {
 	uint32_t words_count = operands_count + 1;
 	HccSPIRVWord* words = hcc_stack_push_many(cu->spirv.global_variable_words, words_count);
 	words[0] = (words_count << 16) | HCC_SPIRV_OP_VARIABLE;
 	return &words[1];
+}
+
+void hcc_spirv_add_name(HccCU* cu, uint32_t spirv_id, HccString name) {
+	uint32_t words_count = 2 + hcc_spirv_string_words_count(name.size);
+	HccSPIRVWord* words = hcc_stack_push_many(cu->spirv.name_words, words_count);
+	words[0] = (words_count << 16) | HCC_SPIRV_OP_NAME;
+	words[1] = spirv_id;
+	hcc_spirv_encode_string(&words[2], name);
+}
+
+void hcc_spirv_add_member_name(HccCU* cu, uint32_t spirv_id, uint32_t member_idx, HccString name) {
+	uint32_t words_count = 3 + hcc_spirv_string_words_count(name.size);
+	HccSPIRVWord* words = hcc_stack_push_many(cu->spirv.name_words, words_count);
+	words[0] = (words_count << 16) | HCC_SPIRV_OP_MEMBER_NAME;
+	words[1] = spirv_id;
+	words[2] = member_idx;
+	hcc_spirv_encode_string(&words[3], name);
 }
 
 HccSPIRVOperand* hcc_spirv_add_decorate(HccCU* cu, uint32_t operands_count) {

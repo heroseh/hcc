@@ -2795,7 +2795,7 @@ HccString hcc_data_type_string(HccCU* cu, HccDataType data_type) {
 						identifier = hcc_string_table_get(d->identifier_string_id);
 					}
 				}
-				uint32_t string_size = snprintf(buf, sizeof(buf), "%s(#%u) %s%.*s", compound_name, HCC_DATA_TYPE_AUX(data_type), HCC_DATA_TYPE_IS_FORWARD_DECL(data_type) ? "[forward_decl] " : "", (int)identifier.size, identifier.data);
+				uint32_t string_size = snprintf(buf, sizeof(buf), "%.*s", (int)identifier.size, identifier.data);
 				string = hcc_string(buf, string_size);
 				break;
 			};
