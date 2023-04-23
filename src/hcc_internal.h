@@ -1,13 +1,13 @@
 #pragma once
 
+#include "hcc.h"
+
 #include <setjmp.h> // jmp_buf
 #include <stdatomic.h>
 #if defined(HCC_ARCH_X86_64)
 #include <immintrin.h>
 #endif
 #include <signal.h>
-
-#include "hcc.h"
 
 #if defined(HCC_OS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
