@@ -1201,9 +1201,13 @@ void hcc_ppgen_copy_expand_predefined_macro(HccWorker* w, HccPPPredefinedMacro p
 	switch (predefined_macro) {
 		case HCC_PP_PREDEFINED_MACRO___FILE__: {
 			HccATAValue value;
-			hcc_string_table_deduplicate(w->atagen.location.code_file->path_string.data, w->atagen.location.code_file->path_string.size, &value.string_id);
-			hcc_atagen_token_add(w, HCC_ATA_TOKEN_STRING);
-			hcc_atagen_token_value_add(w, value);
+			if (hcc_atagen_is_last_token_string(w->atagen.dst_token_bag)) {
+				hcc_atagen_token_merge_append_string(w, w->atagen.dst_token_bag, hcc_string(w->atagen.location.code_file->path_string.data, w->atagen.location.code_file->path_string.size));
+			} else {
+				hcc_string_table_deduplicate(w->atagen.location.code_file->path_string.data, w->atagen.location.code_file->path_string.size, &value.string_id);
+				hcc_atagen_token_add(w, HCC_ATA_TOKEN_STRING);
+				hcc_atagen_token_value_add(w, value);
+			}
 			break;
 		};
 		case HCC_PP_PREDEFINED_MACRO___LINE__: {
@@ -1450,20 +1454,27 @@ void hcc_ppgen_copy_expand_range(HccWorker* w, HccPPExpand* expand, HccATATokenB
 		//
 		// copy the token/location/value
 		//
-		*hcc_stack_push(dst_bag->tokens) = token;
-
-		if (flags & (HCC_PP_EXPAND_FLAGS_IS_ARGS | HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS)) {
-			location = HCC_PP_TOKEN_SET_PREEXPANDED_MACRO_ARG(location);
-		}
-		*hcc_stack_push(dst_bag->locations) = location;
-
-		expand->cursor.token_idx += 1;
-
-		uint32_t num_values = hcc_ata_token_num_values(token);
-		for (uint32_t value_idx = 0; value_idx < num_values; value_idx += 1) {
-			*hcc_stack_push(dst_bag->values) =
-				*hcc_stack_get(src_bag->values, expand->cursor.token_value_idx);
+		if (token == HCC_ATA_TOKEN_STRING && hcc_atagen_is_last_token_string(dst_bag)) {
+			HccString append_string = hcc_string_table_get(hcc_stack_get(src_bag->values, expand->cursor.token_value_idx)->string_id);
+			hcc_atagen_token_merge_append_string(w, dst_bag, append_string);
+			expand->cursor.token_idx += 1;
 			expand->cursor.token_value_idx += 1;
+		} else {
+			*hcc_stack_push(dst_bag->tokens) = token;
+
+			if (flags & (HCC_PP_EXPAND_FLAGS_IS_ARGS | HCC_PP_EXPAND_FLAGS_DEST_IS_ARGS)) {
+				location = HCC_PP_TOKEN_SET_PREEXPANDED_MACRO_ARG(location);
+			}
+			*hcc_stack_push(dst_bag->locations) = location;
+
+			expand->cursor.token_idx += 1;
+
+			uint32_t num_values = hcc_ata_token_num_values(token);
+			for (uint32_t value_idx = 0; value_idx < num_values; value_idx += 1) {
+				*hcc_stack_push(dst_bag->values) =
+					*hcc_stack_get(src_bag->values, expand->cursor.token_value_idx);
+				expand->cursor.token_value_idx += 1;
+			}
 		}
 	}
 }
@@ -1521,16 +1532,21 @@ void hcc_ppgen_copy_expand_macro(HccWorker* w, HccPPMacro* macro, HccLocation* m
 					HccStringId string_id = hcc_ata_token_bag_stringify_range(args_src_bag, &param_arg_expand->cursor, NULL, w->atagen.ppgen.stringify_buffer, hcc_stack_cap(w->atagen.ppgen.stringify_buffer), NULL);
 					hcc_ppgen_expand_pop(w, param_arg_expand);
 
-					//
-					// push on the location
-					HccLocation* dst_location = hcc_worker_alloc_location(w);
-					*dst_location = *HCC_PP_TOKEN_STRIP_PREEXPANDED_MACRO_ARG(*hcc_stack_get(src_bag->locations, cursor.token_idx));
-					dst_location->parent_location = HCC_PP_TOKEN_STRIP_PREEXPANDED_MACRO_ARG(callsite_location);
-					dst_location->macro = macro;
-					*hcc_stack_push(alt_dst_bag->locations) = HCC_PP_TOKEN_SET_PREEXPANDED_MACRO_ARG(dst_location);
+					if (token == HCC_ATA_TOKEN_STRING && hcc_atagen_is_last_token_string(alt_dst_bag)) {
+						HccString append_string = hcc_string_table_get(string_id);
+						hcc_atagen_token_merge_append_string(w, alt_dst_bag, append_string);
+					} else {
+						//
+						// push on the location
+						HccLocation* dst_location = hcc_worker_alloc_location(w);
+						*dst_location = *HCC_PP_TOKEN_STRIP_PREEXPANDED_MACRO_ARG(*hcc_stack_get(src_bag->locations, cursor.token_idx));
+						dst_location->parent_location = HCC_PP_TOKEN_STRIP_PREEXPANDED_MACRO_ARG(callsite_location);
+						dst_location->macro = macro;
 
-					*hcc_stack_push(alt_dst_bag->tokens) = HCC_ATA_TOKEN_STRING;
-					hcc_stack_push(alt_dst_bag->values)->string_id = string_id;
+						*hcc_stack_push(alt_dst_bag->locations) = HCC_PP_TOKEN_SET_PREEXPANDED_MACRO_ARG(dst_location);
+						*hcc_stack_push(alt_dst_bag->tokens) = HCC_ATA_TOKEN_STRING;
+						hcc_stack_push(alt_dst_bag->values)->string_id = string_id;
+					}
 
 					cursor.token_idx += 1;
 					cursor.token_value_idx += 1;
@@ -1598,16 +1614,22 @@ void hcc_ppgen_copy_expand_macro(HccWorker* w, HccPPMacro* macro, HccLocation* m
 			//
 			// copy the token/location/value
 			//
-
-			*hcc_stack_push(alt_dst_bag->tokens) = token;
-			*hcc_stack_push(alt_dst_bag->locations) = *hcc_stack_get(src_bag->locations, cursor.token_idx);
-			cursor.token_idx += 1;
-
-			uint32_t num_values = hcc_ata_token_num_values(token);
-			for (uint32_t value_idx = 0; value_idx < num_values; value_idx += 1) {
-				*hcc_stack_push(alt_dst_bag->values) =
-					*hcc_stack_get(src_bag->values, cursor.token_value_idx);
+			if (token == HCC_ATA_TOKEN_STRING && hcc_atagen_is_last_token_string(alt_dst_bag)) {
+				HccString append_string = hcc_string_table_get(hcc_stack_get(src_bag->values, cursor.token_value_idx)->string_id);
+				hcc_atagen_token_merge_append_string(w, alt_dst_bag, append_string);
+				cursor.token_idx += 1;
 				cursor.token_value_idx += 1;
+			} else {
+				*hcc_stack_push(alt_dst_bag->tokens) = token;
+				*hcc_stack_push(alt_dst_bag->locations) = *hcc_stack_get(src_bag->locations, cursor.token_idx);
+				cursor.token_idx += 1;
+
+				uint32_t num_values = hcc_ata_token_num_values(token);
+				for (uint32_t value_idx = 0; value_idx < num_values; value_idx += 1) {
+					*hcc_stack_push(alt_dst_bag->values) =
+						*hcc_stack_get(src_bag->values, cursor.token_value_idx);
+					cursor.token_value_idx += 1;
+				}
 			}
 		}
 
@@ -1975,6 +1997,26 @@ void hcc_atagen_location_setup_new_file(HccWorker* w, HccCodeFile* code_file) {
 	w->atagen.code = code_file->code.data;
 	w->atagen.code_size = code_file->code.size;
 	w->atagen.pp_if_span_id = 0;
+}
+
+bool hcc_atagen_is_last_token_string(HccATATokenBag* bag) {
+	return hcc_stack_count(bag->tokens) > 0 && *hcc_stack_get_last(bag->tokens) == HCC_ATA_TOKEN_STRING;
+}
+
+void hcc_atagen_token_merge_append_string(HccWorker* w, HccATATokenBag* bag, HccString append_string) {
+	HCC_DEBUG_ASSERT(hcc_stack_count(bag->tokens) > 0 && *hcc_stack_get_last(bag->tokens) == HCC_ATA_TOKEN_STRING, "expected string token");
+
+	HccString prepend_string = hcc_string_table_get(hcc_stack_get_last(bag->values)->string_id);
+
+	uint32_t stringify_buffer_start_idx = hcc_stack_count(w->string_buffer);
+	hcc_stack_push_string(w->string_buffer, prepend_string);
+	hcc_stack_pop(w->string_buffer); // remove \0
+	hcc_stack_push_string(w->string_buffer, append_string);
+	HccStringId string_id;
+	hcc_string_table_deduplicate(&w->string_buffer[stringify_buffer_start_idx], hcc_stack_count(w->string_buffer) - stringify_buffer_start_idx, &string_id);
+	hcc_stack_resize(w->string_buffer, stringify_buffer_start_idx);
+
+	hcc_stack_get_last(bag->values)->string_id = string_id;
 }
 
 bool hcc_atagen_consume_backslash(HccWorker* w) {
@@ -2367,7 +2409,8 @@ void hcc_atagen_parse_string(HccWorker* w, char terminator_byte, bool ignore_esc
 	w->atagen.location.column_end += 1;
 
 	uint32_t stringify_buffer_start_idx = hcc_stack_count(w->string_buffer);
-	if (w->atagen.run_mode == HCC_ATAGEN_RUN_MODE_PP_INCLUDE_OPERAND || ignore_escape_sequences_except_double_quotes) {
+	bool is_pp = w->atagen.run_mode == HCC_ATAGEN_RUN_MODE_PP_INCLUDE_OPERAND || ignore_escape_sequences_except_double_quotes;
+	if (is_pp) {
 		bool ended_with_terminator = false;
 		while (w->atagen.location.code_end_idx < w->atagen.code_size) {
 			char byte = w->atagen.code[w->atagen.location.code_end_idx];
@@ -2461,13 +2504,18 @@ void hcc_atagen_parse_string(HccWorker* w, char terminator_byte, bool ignore_esc
 
 	hcc_stack_push_char(w->string_buffer, '\0');
 
-	HccATAValue token_value;
 	uint32_t string_size = hcc_stack_count(w->string_buffer) - stringify_buffer_start_idx;
-	hcc_string_table_deduplicate(hcc_stack_get(w->string_buffer, stringify_buffer_start_idx), string_size, &token_value.string_id);
-	hcc_stack_resize(w->string_buffer, stringify_buffer_start_idx);
 
-	hcc_atagen_token_add(w, terminator_byte == '>' ? HCC_ATA_TOKEN_INCLUDE_PATH_SYSTEM : HCC_ATA_TOKEN_STRING);
-	hcc_atagen_token_value_add(w, token_value);
+	if (!is_pp && hcc_atagen_is_last_token_string(w->atagen.dst_token_bag)) {
+		hcc_atagen_token_merge_append_string(w, w->atagen.dst_token_bag, hcc_string(hcc_stack_get(w->string_buffer, stringify_buffer_start_idx), string_size));
+	} else {
+		HccATAValue token_value;
+		hcc_string_table_deduplicate(hcc_stack_get(w->string_buffer, stringify_buffer_start_idx), string_size, &token_value.string_id);
+		hcc_atagen_token_add(w, terminator_byte == '>' ? HCC_ATA_TOKEN_INCLUDE_PATH_SYSTEM : HCC_ATA_TOKEN_STRING);
+		hcc_atagen_token_value_add(w, token_value);
+	}
+
+	hcc_stack_resize(w->string_buffer, stringify_buffer_start_idx);
 }
 
 uint32_t hcc_atagen_find_macro_param(HccWorker* w, HccStringId ident_string_id) {

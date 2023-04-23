@@ -4714,6 +4714,7 @@ HccBasic hcc_constant_table_get_basic(HccCU* cu, HccConstantId id) {
 	HCC_ASSERT(HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(intrinsic_data_type), "basic eval only work on basic types, not vectors");
 
 	HccBasic basic;
+	basic.u64 = 0;
 	switch (intrinsic_data_type) {
 		case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.bool_ = *(bool*)entry->data; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S8: basic.s8 = *(int8_t*)entry->data; break;
@@ -5082,6 +5083,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_SQUARE_BRACE_USED_ON_NON_ARRAY_DATA_TYPE] = "unexpected '[', this can only be used when the left expression is an array, pointer, RoBuffer or RwBuffer but got '%.*s'",
 		[HCC_ERROR_CODE_FULL_STOP_USED_ON_NON_COMPOUND_DATA_TYPE] = "unexpected '.', this can only be used when the left expression is a struct, union or vector type but got '%.*s'",
 		[HCC_ERROR_CODE_ARROW_RIGHT_USED_ON_NON_COMPOUND_DATA_TYPE_POINTER] = "unexpected '->', this can only be used when the left expression is a pointer to a struct, union or vector type but got '%.*s'",
+		[HCC_ERROR_CODE_COMPOUND_DATA_TYPE_IS_EMPTY] = "'%.*s' is an empty struct/union, please declare some fields in between the '{' and '}'",
 		[HCC_ERROR_CODE_CANNOT_ASSIGN_TO_CONST] = "cannot assign to a target that has a constant data type of '%.*s'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_CONDITION_EXPR] = "expected a '(' for the condition expression",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_CONDITION_EXPR] = "expected a ')' to finish the condition expression",
@@ -5152,9 +5154,10 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_COMMA_COMPUTE] = "expected ',' to define the next dimension of the dispatch group size",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_COMPUTE] = "expected ')' to finish the HCC_COMPUTE specifier",
 		[HCC_ERROR_CODE_UNSIZED_ARRAY_REQUIRES_AN_INITIALIZATION] = "a variable that is an unsized array requires initialization, '%.*s %.*s[] = { ... };' or an explicit size '%.*s %.*s[42];'",
+		[HCC_ERROR_CODE_STATIC_ASSERT_COND_MUST_BE_INTEGER_CONSTANT] = "_Static_assert condition is not an integer/boolean constant",
 		[HCC_ERROR_CODE_STATIC_ASSERT_COND_NOT_COMPILE_TIME_CONSTANT] = "_Static_assert condition is not a compile-time expression",
-		[HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE] = "_Static_assert failed '%.s'",
-		[HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE_MSG] = "_Static_assert failed '%.s' : %s",
+		[HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE] = "_Static_assert failed, false == '%.*s'",
+		[HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE_MSG] = "_Static_assert failed, false == '%.*s' : %.*s",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT] = "expected a '(' to follow _Static_assert. eg. _Static_assert(sizeof(int) == 4, \"int must be 4 bytes\")",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_STATIC_ASSERT] = "expected a ')' to finish the _Static_assert",
 		[HCC_ERROR_CODE_EXPECTED_STRING_MESSAGE_FOR_STATIC_ASSERT] = "expected a string message to follow the ',' of the _Static_assert. eg. _Static_assert(sizeof(int) == 4, \"int must be 4 bytes\")",

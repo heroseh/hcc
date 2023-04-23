@@ -793,27 +793,28 @@ void hcc_astgen_ensure_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr
 	}
 }
 
-void hcc_astgen_ensure_static_assert(HccWorker* w) {
+HccATAToken hcc_astgen_ensure_static_assert(HccWorker* w) {
 	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
 	HCC_DEBUG_ASSERT(token == HCC_ATA_TOKEN_KEYWORD_STATIC_ASSERT, "expected a static_assert token here");
 
 	if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT);
 	}
+	HccLocation* cond_location_before = hcc_ata_iter_location(w->astgen.token_iter);
 	hcc_ata_iter_next(w->astgen.token_iter);
 
-	HccLocation* cond_location_before = hcc_ata_iter_location(w->astgen.token_iter);
+	HccASTExpr* cond_expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
+	hcc_astgen_data_type_ensure_is_condition(w, cond_expr->data_type);
+	{
+		HccDataType data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, cond_expr->data_type);
+		if (data_type == HCC_DATA_TYPE_AST_BASIC_FLOAT || data_type == HCC_DATA_TYPE_AST_BASIC_DOUBLE) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_COND_MUST_BE_INTEGER_CONSTANT);
+		}
+	}
 
-	HccASTExpr* cond_expr = hcc_astgen_generate_cond_expr(w);
 	if (cond_expr->type != HCC_AST_EXPR_TYPE_CONSTANT) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_COND_NOT_COMPILE_TIME_CONSTANT);
 	}
-
-	HccLocation* cond_location_after = hcc_ata_iter_location(w->astgen.token_iter);
-	HccString cond_string = hcc_string(
-		&cond_location_before->code_file->code.data[cond_location_before->code_start_idx],
-		cond_location_after->code_end_idx - cond_location_before->code_start_idx
-	);
 
 	token = hcc_ata_iter_peek(w->astgen.token_iter);
 	HccString message_string = hcc_string(NULL, 0);
@@ -828,21 +829,28 @@ void hcc_astgen_ensure_static_assert(HccWorker* w) {
 		token = hcc_ata_iter_next(w->astgen.token_iter);
 	}
 
-	if (token != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
-		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT);
+	if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_STATIC_ASSERT);
 	}
+	HccLocation* cond_location_after = hcc_ata_iter_location(w->astgen.token_iter);
+	HccString cond_string = hcc_string(
+		&cond_location_before->code_file->code.data[cond_location_before->code_start_idx + 1],
+		cond_location_after->code_end_idx - cond_location_before->code_start_idx - 2
+	);
 
 	HccConstant constant = hcc_constant_table_get(w->cu, cond_expr->constant.id);
 
-	uint64_t cond;
-	bool res = hcc_constant_as_uint(w->cu, constant, &cond);
-	if (!res || !cond) {
+	HccBasic basic = hcc_constant_table_get_basic(w->cu, cond_expr->constant.id);
+	if (!basic.u64) {
 		if (message_string.data) {
 			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE_MSG, (int)cond_string.size, cond_string.data, (int)message_string.size, message_string.data);
 		} else {
-			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE_MSG, (int)cond_string.size, cond_string.data);
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_STATIC_ASSERT_EVALUATED_FALSE, (int)cond_string.size, cond_string.data);
 		}
 	}
+
+	hcc_ata_iter_next(w->astgen.token_iter);
+	return hcc_astgen_ensure_semicolon(w);
 }
 
 void hcc_astgen_variable_stack_open(HccWorker* w) {
@@ -1669,6 +1677,13 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 	bool found_position = false;
 	uint32_t resource_constants_size = 0;
 	while (token != HCC_ATA_TOKEN_CURLY_CLOSE) { // for each field
+		if (token == HCC_ATA_TOKEN_KEYWORD_STATIC_ASSERT) {
+			token = hcc_astgen_ensure_static_assert(w);
+			if (token == HCC_ATA_TOKEN_CURLY_CLOSE) {
+				break;
+			}
+		}
+
 		HccCompoundField* compound_field = hcc_stack_push(w->astgen.compound_fields);
 		compound_data_type.fields_count += 1;
 		token = hcc_astgen_generate_specifiers(w);
@@ -1888,6 +1903,11 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 		}
 
 		field_idx += 1;
+	}
+
+	if (field_idx == 0) {
+		HccString data_type_name = hcc_string_table_get(identifier_string_id);
+		hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_COMPOUND_DATA_TYPE_IS_EMPTY, compound_data_type.identifier_location, (int)data_type_name.size, data_type_name.data);
 	}
 
 	hcc_stack_clear(w->astgen.compound_field_names);
@@ -2708,6 +2728,17 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 			expr->data_type = data_type;
 			expr->location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_ata_iter_next(w->astgen.token_iter);
+			return expr;
+		};
+		case HCC_ATA_TOKEN_STRING: {
+			HccConstantId constant_id = hcc_ata_iter_next_value(w->astgen.token_iter).constant_id;
+
+			HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CONSTANT);
+			expr->constant.id = constant_id;
+			expr->data_type = hcc_pointer_data_type_deduplicate(w->cu, HCC_DATA_TYPE_AST_BASIC_CHAR);
+			expr->location = hcc_ata_iter_location(w->astgen.token_iter);
+			hcc_ata_iter_next(w->astgen.token_iter);
+
 			return expr;
 		};
 		case HCC_ATA_TOKEN_IDENT: {
@@ -4405,6 +4436,9 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 		case HCC_ATA_TOKEN_SEMICOLON:
 			hcc_ata_iter_next(w->astgen.token_iter);
 			return NULL;
+		case HCC_ATA_TOKEN_KEYWORD_STATIC_ASSERT:
+			hcc_astgen_ensure_static_assert(w);
+			return NULL;
 		default: {
 			hcc_astgen_generate_specifiers(w);
 			HccASTExpr* expr = hcc_astgen_generate_expr(w, 0);
@@ -4925,6 +4959,9 @@ void hcc_astgen_generate(HccWorker* w) {
 				goto END_OF_FILE;
 			case HCC_ATA_TOKEN_KEYWORD_TYPEDEF:
 				hcc_astgen_generate_typedef(w);
+				break;
+			case HCC_ATA_TOKEN_KEYWORD_STATIC_ASSERT:
+				hcc_astgen_ensure_static_assert(w);
 				break;
 			default: {
 				HccDataType data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_UNEXPECTED_TOKEN, true);

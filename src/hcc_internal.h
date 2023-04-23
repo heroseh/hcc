@@ -1601,6 +1601,8 @@ _Noreturn void hcc_atagen_bail_error_2(HccWorker* w, HccErrorCode error_code, Hc
 void hcc_atagen_paused_file_push(HccWorker* w);
 void hcc_atagen_paused_file_pop(HccWorker* w);
 void hcc_atagen_location_setup_new_file(HccWorker* w, HccCodeFile* code_file);
+bool hcc_atagen_is_last_token_string(HccATATokenBag* bag);
+void hcc_atagen_token_merge_append_string(HccWorker* w, HccATATokenBag* bag, HccString append_string);
 
 bool hcc_atagen_consume_backslash(HccWorker* w);
 void hcc_atagen_consume_whitespace(HccWorker* w);
@@ -1974,7 +1976,7 @@ void hcc_astgen_ensure_no_unused_specifiers_data_type(HccWorker* w);
 void hcc_astgen_ensure_no_unused_specifiers_identifier(HccWorker* w);
 bool hcc_astgen_check_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr);
 void hcc_astgen_ensure_returns_from_all_diverging_paths(HccWorker* w, HccASTExpr* expr);
-void hcc_astgen_ensure_static_assert(HccWorker* w);
+HccATAToken hcc_astgen_ensure_static_assert(HccWorker* w);
 
 void hcc_astgen_variable_stack_open(HccWorker* w);
 void hcc_astgen_variable_stack_close(HccWorker* w);
