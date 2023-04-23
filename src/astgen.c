@@ -278,6 +278,7 @@ void hcc_astgen_insert_global_declaration(HccWorker* w, HccStringId identifier_s
 void hcc_astgen_eval_cast(HccWorker* w, HccASTExpr* expr, HccDataType dst_data_type) {
 	HCC_DEBUG_ASSERT(expr->type == HCC_AST_EXPR_TYPE_CONSTANT, "internal error: expected to be evaluating a constant");
 	HccConstant constant = hcc_constant_table_get(w->cu, expr->constant.id);
+	dst_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, dst_data_type);
 
 	HccBasic basic;
 	if (HCC_DATA_TYPE_TYPE(expr->data_type) == HCC_DATA_TYPE_AST_BASIC) {
