@@ -34,6 +34,10 @@
 #define HCC_ARCH_X86_64
 #endif
 
+#if defined(__aarch64__)
+#define HCC_ARCH_AARCH64
+#endif
+
 #ifndef alignof
 #define alignof _Alignof
 #endif
