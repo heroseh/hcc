@@ -90,8 +90,6 @@ int main(int argc, char** argv) {
 
 
 	bc.time_ = 0.f;
-	bc.screen_width = window_width;
-	bc.screen_height = window_height;
 	while (1) {
 		DmEvent event;
 		while (dm_process_events(&event)) {
@@ -115,6 +113,8 @@ int main(int argc, char** argv) {
 			recompile_shader();
 		}
 
+		bc.screen_width = window_width;
+		bc.screen_height = window_height;
 		gpu_render_frame(&bc, window_width, window_height);
 		bc.time_ += 0.01f;
 	}
