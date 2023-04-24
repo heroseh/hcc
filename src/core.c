@@ -221,12 +221,14 @@ ERROR_2:
 uint32_t hcc_path_canonicalize_internal(const char* path, char* out_buf) {
 #ifdef HCC_OS_LINUX
 	if (realpath(path, out_buf) == NULL) {
+		printf("file not found: %s\n", path);
 		return UINT32_MAX;
 	}
 	return strlen(out_buf);
 #elif defined(HCC_OS_WINDOWS)
 	DWORD size = GetFullPathNameA(path, MAX_PATH, out_buf, NULL);
 	if (size == 0) {
+		printf("file not found: %s\n", path);
 		return UINT32_MAX;
 	}
 	return size;
