@@ -439,6 +439,9 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			case HCC_AML_OP_NEGATE:
 			{
 				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+				if (HCC_DATA_TYPE_IS_RESOURCE(data_type)) {
+					data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
+				}
 				HccBasicTypeClass type_class = hcc_basic_type_class(cu, data_type);
 
 				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
@@ -752,9 +755,26 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				HccSPIRVDescriptorBindingInfo info;
 				hcc_spirv_resource_descriptor_binding_deduplicate(w->cu, data_type, &info);
 				hcc_spirvgen_found_global(w, info.variable_spirv_id);
+				HccSPIRVId descriptor_idx_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+
+				//
+				// MIN the descriptor index with the size of the descriptor array so it doesn't cause a crash on AMD drivers
+				// when the descriptor index is out of bounds.
+				HccSPIRVId bounded_descriptor_idx_spirv_id;
+				{
+					bounded_descriptor_idx_spirv_id = hcc_spirv_next_id(cu);
+
+					HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_EXT_INST, 6);
+					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32);
+					operands[1] = bounded_descriptor_idx_spirv_id;
+					operands[2] = HCC_SPIRV_ID_GLSL_STD_450;
+					operands[3] = HCC_SPIRV_GLSL_STD_450_OP_U_MIN;
+					operands[4] = descriptor_idx_spirv_id;
+					operands[5] = cu->spirv.resource_descriptors_max_constant_spirv_id;
+				}
 
 				bool is_buffer = HCC_DATA_TYPE_IS_BUFFER(data_type);
-				HccSPIRVId descriptor_idx_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				HccSPIRVId result_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
 				HccSPIRVId intermediate_result_id = is_buffer ? result_id : hcc_spirv_next_id(cu);
 
@@ -762,7 +782,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[0] = info.data_type_ptr_spirv_id;
 				operands[1] = intermediate_result_id;
 				operands[2] = info.variable_spirv_id;
-				operands[3] = descriptor_idx_spirv_id;
+				operands[3] = bounded_descriptor_idx_spirv_id;
 				if (is_buffer) {
 					// because of GLSL and it's terrible design, storage buffers need to be a structure and we only have a single element which is a runtime array
 					// this final operand will access that runtime array.

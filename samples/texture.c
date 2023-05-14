@@ -4,11 +4,6 @@
 #include <hmaths_types.h>
 #include <hcc_shader.h>
 
-typedef struct TextureVertex TextureVertex;
-struct TextureVertex {
-	f32x2 pos;
-};
-
 typedef struct TextureBC TextureBC;
 struct TextureBC {
 	HccRoTexture2D(f32x4)     texture;

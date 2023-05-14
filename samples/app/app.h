@@ -53,6 +53,7 @@ enum AppSampleEnum {
 	APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER,
 	APP_SAMPLE_BLOB_VACATION,
 	APP_SAMPLE_VOXEL_RAYTRACER,
+	APP_SAMPLE_SDF_2D,
 
 	APP_SAMPLE_COUNT,
 };
@@ -149,6 +150,16 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 			.dispatch_group_size_x = 1,
 			.dispatch_group_size_y = 1,
 			.dispatch_group_size_z = 1,
+		},
+	},
+	[APP_SAMPLE_SDF_2D] = {
+		.shader_name = "sdf-2d",
+		.shader_type = APP_SHADER_TYPE_GRAPHICS,
+		.graphics = {
+			.shader_vs = HCC_SHADER_sdf2d_vs,
+			.shader_ps = HCC_SHADER_sdf2d_ps,
+			.topology = APP_TOPOLOGY_TRIANGLE_STRIP,
+			.vertices_count = 4,
 		},
 	},
 };

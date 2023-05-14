@@ -1,0 +1,15 @@
+-pedantic
+-D_GNU_SOURCE
+-std=gnu11
+-Werror
+-Wfloat-conversion
+-Wimplicit-fallthrough
+-Wextra
+-g
+-lm
+-ldl
+-pthread
+-I./libhmaths/
+-I./libhccintrinsics/
+-Wno-sizeof-pointer-div
+

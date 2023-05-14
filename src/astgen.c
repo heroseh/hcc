@@ -1,3 +1,4 @@
+#include "hcc_internal.h"
 
 HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
 	[HCC_ASTGEN_SPECIFIER_STATIC] =           HCC_ATA_TOKEN_KEYWORD_STATIC,
@@ -240,6 +241,7 @@ HccCompoundField* hcc_astgen_compound_data_type_find_field_by_name_recursive(Hcc
 		HccCompoundField* field = &compound_data_type->fields[field_idx];
 		access->data_type = field->data_type;
 		access->idx = field_idx;
+		access->is_bitfield = field->is_bitfield;
 
 		if (field->identifier_string_id.idx_plus_one == 0) {
 			//
@@ -281,7 +283,11 @@ void hcc_astgen_eval_cast(HccWorker* w, HccASTExpr* expr, HccDataType dst_data_t
 	dst_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, dst_data_type);
 
 	HccBasic basic;
-	if (HCC_DATA_TYPE_TYPE(expr->data_type) == HCC_DATA_TYPE_AST_BASIC) {
+	if (HCC_DATA_TYPE_IS_RESOURCE(dst_data_type)) {
+		uint64_t uint;
+		hcc_constant_as_uint(w->cu, constant, &uint);
+		basic.u32 = uint;
+	} else if (HCC_DATA_TYPE_TYPE(expr->data_type) == HCC_DATA_TYPE_AST_BASIC) {
 		HccASTBasicDataType basic_data_type = HCC_DATA_TYPE_AUX(expr->data_type);
 		if (HCC_AST_BASIC_DATA_TYPE_IS_UINT(w->cu, basic_data_type)) {
 			uint64_t uint;
@@ -444,6 +450,16 @@ bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType 
 			hcc_astgen_generate_implicit_cast(w, target_data_type, source_expr_mut);
 			return true;
 		}
+	}
+
+	target_data_type = hcc_data_type_lower_ast_to_aml(w->cu, target_data_type);
+	source_data_type = hcc_data_type_lower_ast_to_aml(w->cu, source_data_type);
+	if (
+		(HCC_DATA_TYPE_IS_RESOURCE(target_data_type) && (source_data_type == HCC_DATA_TYPE_AML_INTRINSIC_U32 || source_data_type == HCC_DATA_TYPE_AML_INTRINSIC_S32)) ||
+		((target_data_type == HCC_DATA_TYPE_AML_INTRINSIC_U32 || target_data_type == HCC_DATA_TYPE_AML_INTRINSIC_S32) && HCC_DATA_TYPE_IS_RESOURCE(source_data_type))
+	) {
+		hcc_astgen_generate_implicit_cast(w, target_data_type, source_expr_mut);
+		return true;
 	}
 
 	return false;
@@ -1079,6 +1095,7 @@ HccATAToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccWorker* w)
 						HccFieldAccess* field = hcc_stack_get(w->astgen.compound_type_find_fields, i);
 						hcc_stack_get_last(gen->nested_elmts)->elmt_idx = field->idx;
 						hcc_astgen_curly_initializer_nested_elmt_push(w, field->data_type, hcc_decl_resolve_and_keep_qualifiers(w->cu, field->data_type));
+						gen->is_last_elmt_a_bitfield = field->is_bitfield;
 					}
 
 					if (hcc_stack_count(w->astgen.compound_type_find_fields) > 1) {
@@ -1117,6 +1134,7 @@ HccATAToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccWorker* w)
 
 					gen->elmt_data_type = scalar_data_type;
 					gen->resolved_elmt_data_type = scalar_data_type;
+					gen->is_last_elmt_a_bitfield = false;
 				} else {
 					HCC_ABORT("unexpected data type %u", gen->resolved_composite_data_type);
 				}
@@ -1149,6 +1167,7 @@ HccATAToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccWorker* w)
 
 				hcc_stack_get_last(gen->nested_elmts)->elmt_idx = elmt_idx;
 				hcc_astgen_curly_initializer_nested_elmt_push(w, gen->elmt_data_type, gen->resolved_elmt_data_type);
+				gen->is_last_elmt_a_bitfield = false;
 				break;
 			case HCC_ATA_TOKEN_EQUAL:
 				goto END;
@@ -1279,6 +1298,7 @@ HccASTExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccWork
 	initializer_expr->next_stmt = NULL;
 	initializer_expr->designated_initializer.elmt_indices_start_idx = dst_elmt_indices_start_idx;
 	initializer_expr->designated_initializer.elmts_count = elmt_indices_count;
+	initializer_expr->designated_initializer.is_bitfield = gen->is_last_elmt_a_bitfield;
 	initializer_expr->location = location;
 
 	//
@@ -1676,7 +1696,7 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 	compound_data_type.fields = fields;
 	uint32_t field_idx = 0;
 	bool found_position = false;
-	uint32_t resource_constants_size = 0;
+	bool found_bitfield = false;
 	while (token != HCC_ATA_TOKEN_CURLY_CLOSE) { // for each field
 		if (token == HCC_ATA_TOKEN_KEYWORD_STATIC_ASSERT) {
 			token = hcc_astgen_ensure_static_assert(w);
@@ -1868,42 +1888,237 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 			compound_field->data_type = hcc_astgen_generate_array_data_type_if_exists(w, compound_field->data_type, false);
 		}
+
+		if (token == HCC_ATA_TOKEN_COLON) {
+			found_bitfield = true;
+
+			if (compound_data_type.kind != HCC_COMPOUND_DATA_TYPE_KIND_DEFAULT) {
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_BITFIELD_IS_NOT_SUPPORTED_RASTERIZER_PIXEL_STATE);
+			}
+
+			if (!HCC_DATA_TYPE_IS_ENUM(data_type) && !HCC_DATA_TYPE_IS_AST_BASIC(data_type) && !HCC_AST_BASIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(data_type))) {
+				HccString data_type_name = hcc_data_type_string(w->cu, compound_field->data_type);
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_BITFIELD_IS_FOR_INTEGER_DATA_TYPES_ONLY, (int)data_type_name.size, data_type_name.data);
+			}
+
+			if (alignas_align) {
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_BITFIELD_ALIGNAS_NOT_SUPPORTED);
+			}
+
+			token = hcc_ata_iter_next(w->astgen.token_iter);
+
+			HccASTExpr* bits_count_expr = hcc_astgen_generate_expr(w, 0);
+			if (bits_count_expr->type != HCC_AST_EXPR_TYPE_CONSTANT || (!HCC_DATA_TYPE_IS_ENUM(bits_count_expr->data_type) && !HCC_DATA_TYPE_IS_AST_BASIC(bits_count_expr->data_type) && !HCC_AST_BASIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(bits_count_expr->data_type)))) {
+				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_BITFIELD);
+			}
+
+			HccConstant constant = hcc_constant_table_get(w->cu, bits_count_expr->constant.id);
+			uint64_t bits_count;
+			if (!hcc_constant_as_uint(w->cu, constant, &bits_count)) {
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_BITFIELD);
+			}
+			if (bits_count == 0) {
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_BITFIELD);
+			}
+
+			uint64_t size;
+			uint64_t align;
+			hcc_data_type_size_align(w->cu, data_type, &size, &align);
+			uint32_t max_bits_count = size * 8;
+
+			if (bits_count > max_bits_count) {
+				hcc_astgen_error_1(w, HCC_ERROR_CODE_BITFIELD_EXCEEDS_MAX_BITS_FOR_DATA_TYPE, max_bits_count);
+			}
+
+			compound_field->is_bitfield = true;
+			compound_field->bits_count = bits_count;
+			compound_field->storage_fields_count = 0;
+		} else {
+			compound_field->is_bitfield = false;
+		}
+		compound_field->storage_field_idx = field_idx;
+
 		hcc_astgen_ensure_semicolon(w);
 		token = hcc_ata_iter_peek(w->astgen.token_iter);
-		compound_data_type.scalars_count_recursive += hcc_data_type_scalars_count_recursive(w->cu, compound_field->data_type);
 
-		//
-		// TODO: in future this will be a platform specific problem
-		uint64_t size;
-		uint64_t align;
-		hcc_data_type_size_align(w->cu, compound_field->data_type, &size, &align);
-
-		if (alignas_align) {
-			if (alignas_align < align) {
-				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_ALIGNAS_REDUCES_ALIGNMENT, alignas_align, align);
-			}
-			align = alignas_align;
-		}
-
-		if (is_union) {
-			if (compound_data_type.size < size) {
-				compound_data_type.largest_sized_field_idx = field_idx;
-				compound_data_type.size = size;
-			}
-			compound_field->byte_offset = 0;
-		} else {
-			compound_data_type.size = HCC_INT_ROUND_UP_ALIGN(compound_data_type.size, align);
-			compound_field->byte_offset = compound_data_type.size;
-			compound_data_type.size += size;
-		}
-		compound_data_type.align = HCC_MAX(compound_data_type.align, align);
-
-		if (is_resource_constant) {
-			resource_constants_size = HCC_INT_ROUND_UP_ALIGN(resource_constants_size, align) + size;
-			resource_constants_size = HCC_MAX(resource_constants_size, align);
-		}
+		// store here for later when we calculate the proper alignment of the fields
+		compound_field->byte_offset = alignas_align;
 
 		field_idx += 1;
+	}
+	compound_data_type.storage_fields_count = compound_data_type.fields_count;
+
+	if (found_bitfield) {
+		compound_data_type.storage_fields = hcc_stack_push_many_thread_safe(cu->dtt.compound_fields, compound_data_type.fields_count);
+	} else {
+		compound_data_type.storage_fields = compound_data_type.fields;
+	}
+
+	uint32_t storage_field_idx = 0;
+	HccTargetArch target_arch = hcc_options_get_u32(w->cu->options, HCC_OPTION_KEY_TARGET_ARCH);
+	HccTargetOS   target_os = hcc_options_get_u32(w->cu->options, HCC_OPTION_KEY_TARGET_OS);
+	bool has_int8_support = hcc_options_get_bool(w->cu->options, HCC_OPTION_KEY_INT8_ENABLED);
+	bool has_int16_support = hcc_options_get_bool(w->cu->options, HCC_OPTION_KEY_INT16_ENABLED);
+	bool has_int64_support = hcc_options_get_bool(w->cu->options, HCC_OPTION_KEY_INT64_ENABLED);
+	uint64_t byte_offset = 0;
+	uint64_t prev_size = 0;
+	uint64_t prev_align = 0;
+	bool     prev_is_bitfield = false;
+	uint32_t bit_offset = 0;
+	uint32_t storage_field_bits_cap = 0;
+	for (uint32_t field_idx = 0; field_idx < compound_data_type.fields_count; field_idx += 1) {
+		HccCompoundField* field = &compound_data_type.fields[field_idx];
+
+		uint64_t size;
+		uint64_t align;
+		hcc_data_type_size_align(w->cu, field->data_type, &size, &align);
+
+		if (field->is_bitfield) {
+			//
+			// unfortunately bit-fields placement is implementation defined, so handle this for each platform
+			switch (target_arch) {
+				case HCC_TARGET_ARCH_X86_64:
+					switch (target_os) {
+						case HCC_TARGET_OS_LINUX: {
+							if (!prev_is_bitfield) {
+								byte_offset = is_union ? 0 : compound_data_type.size;
+								bit_offset = 0;
+								storage_field_bits_cap = 0;
+							}
+
+							uint32_t new_bit_offset = bit_offset + field->bits_count;
+
+							if (new_bit_offset > storage_field_bits_cap) {
+								byte_offset = is_union ? 0 : compound_data_type.size;
+								bit_offset = 0;
+							}
+
+							field->byte_offset = byte_offset;
+							field->bit_offset = bit_offset;
+
+							if (new_bit_offset > storage_field_bits_cap) {
+								new_bit_offset = field->bits_count;
+								HccCompoundField* storage_field = &compound_data_type.storage_fields[storage_field_idx];
+								storage_field_idx += 1;
+
+								byte_offset = compound_data_type.size;
+
+								HccDataType storage_field_data_type
+									= byte_offset % 8 == 0 && has_int64_support ? HCC_DATA_TYPE_AST_BASIC_ULONG
+									: byte_offset % 4 == 0                      ? HCC_DATA_TYPE_AST_BASIC_UINT
+									: byte_offset % 2 == 0 && has_int16_support ? HCC_DATA_TYPE_AST_BASIC_USHORT
+									: has_int8_support                          ? HCC_DATA_TYPE_AST_BASIC_UCHAR
+									: HCC_DATA_TYPE_AST_BASIC_UINT              ;
+
+								uint64_t storage_field_size;
+								uint64_t storage_field_align;
+								hcc_data_type_size_align(w->cu, storage_field_data_type, &storage_field_size, &storage_field_align);
+
+								*storage_field = *field;
+								storage_field->is_bitfield = true;
+								storage_field->byte_offset = byte_offset;
+								storage_field->data_type = storage_field_data_type;
+
+								storage_field_bits_cap = storage_field_size * 8;
+								if (is_union) {
+									if (compound_data_type.size < size) {
+										compound_data_type.largest_sized_field_idx = storage_field_idx - 1;
+										compound_data_type.size = size;
+									}
+									new_bit_offset = 0;
+								} else {
+									compound_data_type.size += storage_field_size;
+								}
+							}
+
+							bit_offset = new_bit_offset;
+							compound_data_type.align = HCC_MAX(compound_data_type.align, align);
+							break;
+						};
+						default:
+							HCC_ABORT("bit-fields have not been implemented for your platform!");
+					}
+					break;
+				default:
+					HCC_ABORT("bit-fields have not been implemented for your platform!");
+			}
+		} else {
+			uint64_t alignas_align = field->byte_offset;
+			if (alignas_align) {
+				if (alignas_align < align) {
+					hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_ALIGNAS_REDUCES_ALIGNMENT, field->identifier_location, alignas_align, align);
+				}
+				align = alignas_align;
+			}
+
+			if (is_union) {
+				if (compound_data_type.size < size) {
+					compound_data_type.largest_sized_field_idx = storage_field_idx;
+					compound_data_type.size = size;
+				}
+			} else {
+				compound_data_type.size = HCC_INT_ROUND_UP_ALIGN(compound_data_type.size, align);
+				field->byte_offset = compound_data_type.size;
+				compound_data_type.size += size;
+			}
+			compound_data_type.align = HCC_MAX(compound_data_type.align, align);
+
+			//
+			// this field is not a bitfield but we add a storage field here since our compound data type has a bitfield
+			// and building a storage_fields array.
+			if (found_bitfield) {
+				compound_data_type.storage_fields[storage_field_idx] = *field;
+			}
+			storage_field_idx += 1;
+		}
+
+		prev_is_bitfield = field->is_bitfield;
+		prev_size = size;
+		prev_align = align;
+	}
+
+	if (found_bitfield) {
+		compound_data_type.storage_fields_count = storage_field_idx;
+
+		uint32_t field_idx = 0;
+		uint32_t remaining_field_bits_count = compound_data_type.fields[0].bits_count;
+		for (storage_field_idx = 0; storage_field_idx < compound_data_type.storage_fields_count; storage_field_idx += 1) {
+			HccCompoundField* storage_field = &compound_data_type.storage_fields[storage_field_idx];
+
+			if (!storage_field->is_bitfield) {
+				HccCompoundField* field = &compound_data_type.fields[field_idx];
+				field->storage_field_idx = storage_field_idx;
+				field_idx += 1;
+				continue;
+			}
+
+			char field_name_buf[512];
+			uint32_t field_name_size = 0;
+			for (; field_idx < compound_data_type.fields_count; ) {
+				HccCompoundField* field = &compound_data_type.fields[field_idx];
+				if (!field->is_bitfield || field->byte_offset != storage_field->byte_offset) {
+					break;
+				}
+
+				field->storage_fields_count += 1;
+
+				HccString field_identifier_string = hcc_string_table_get(field->identifier_string_id);
+				field_name_size += snprintf(field_name_buf + field_name_size, sizeof(field_name_buf) - field_name_size, "%.*s|", (int)field_identifier_string.size, field_identifier_string.data);
+
+				compound_data_type.fields[field_idx].storage_field_idx = storage_field_idx;
+				field_idx += 1;
+			}
+
+			if (field_name_size) {
+				field_name_size -= 1; // remove trailing |
+				hcc_string_table_deduplicate(field_name_buf, field_name_size, &storage_field->identifier_string_id);
+			}
+		}
+	}
+
+	for (storage_field_idx = 0; storage_field_idx < compound_data_type.storage_fields_count; storage_field_idx += 1) {
+		HccCompoundField* storage_field = &compound_data_type.storage_fields[storage_field_idx];
+		compound_data_type.scalars_count_recursive += hcc_data_type_scalars_count_recursive(w->cu, storage_field->data_type);
 	}
 
 	if (field_idx == 0) {
@@ -1939,6 +2154,9 @@ HccDataType hcc_astgen_generate_compound_data_type(HccWorker* w) {
 			HccCompoundField* new_fields = hcc_stack_push_many_thread_safe(cu->dtt.compound_fields, compound_data_type.fields_count);
 			HCC_COPY_ELMT_MANY(new_fields, compound_data_type.fields, compound_data_type.fields_count);
 			compound_data_type.fields = new_fields;
+			if (!found_bitfield) {
+				compound_data_type.storage_fields = new_fields;
+			}
 
 			HccCompoundDataType* dst_compound_data_type;
 			uint32_t compound_idx;
@@ -2646,6 +2864,21 @@ HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, H
 		unary_expr_data_type = hcc_data_type_strip_pointer(w->cu, inner_expr->data_type);
 	} else if (unary_op == HCC_AST_UNARY_OP_ADDRESS_OF) {
 		unary_expr_data_type = hcc_pointer_data_type_deduplicate(w->cu, inner_expr->data_type);
+		if (
+			inner_expr->type == HCC_AST_EXPR_TYPE_BINARY_OP &&
+			(inner_expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS || inner_expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT)
+		) {
+			HccDataType resolved_accessee_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, inner_expr->binary.left_expr->data_type);
+			if (HCC_DATA_TYPE_IS_COMPOUND(resolved_accessee_data_type)) {
+				HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(w->cu, resolved_accessee_data_type);
+				HccCompoundField* field = &compound_data_type->fields[inner_expr->binary.field_idx];
+				if (field->is_bitfield) {
+					HccString data_type_name = hcc_data_type_string(w->cu, resolved_accessee_data_type);
+					HccString identifier_string = hcc_string_table_get(field->identifier_string_id);
+					hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_ADDRESS_OF_NOT_SUPPORT_ON_BITFIELD, field->identifier_location, (int)data_type_name.size, data_type_name.data, (int)identifier_string.size, identifier_string.data);
+				}
+			}
+		}
 	} else if (HCC_DATA_TYPE_IS_AST_BASIC(resolved_data_type)) {
 		if (unary_op == HCC_AST_UNARY_OP_LOGICAL_NOT) {
 			unary_expr_data_type = HCC_DATA_TYPE_AST_BASIC_BOOL;
@@ -2903,6 +3136,7 @@ UNARY:
 					continue;
 				}
 
+				gen->is_last_elmt_a_bitfield = false;
 				location = hcc_ata_iter_location(w->astgen.token_iter);
 				if (token == HCC_ATA_TOKEN_FULL_STOP || token == HCC_ATA_TOKEN_SQUARE_OPEN) {
 					token = hcc_astgen_curly_initializer_next_elmt_with_designator(w);
@@ -2956,6 +3190,7 @@ UNARY:
 				}
 			}
 CURLY_INITIALIZER_FINISH: {}
+			gen->is_last_elmt_a_bitfield = false;
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 			curly_initializer_expr->curly_initializer.first_expr = gen->first_initializer_expr;
 			if (gen->elmts_end_idx == UINT64_MAX) { // if curly initializer was for an unsized array
@@ -2991,9 +3226,65 @@ CURLY_INITIALIZER_FINISH: {}
 					field_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, field_data_type);
 
 					uint64_t* elmt_indices = &w->cu->ast.designated_initializer_elmt_indices[initializer_expr->designated_initializer.elmt_indices_start_idx];
-					uint32_t scalar_start_idx = hcc_data_type_composite_scalar_start_idx_recursive(w->cu, data_type, elmt_indices, initializer_expr->designated_initializer.elmts_count);
+					HccDataType final_composite_data_type = 0;
+					uint32_t scalar_start_idx = hcc_data_type_composite_scalar_start_idx_recursive(w->cu, data_type, elmt_indices, initializer_expr->designated_initializer.elmts_count, &final_composite_data_type);
+					HccCompoundDataType* compound_data_type = NULL;
+					HccCompoundField* field = NULL;
+					if (HCC_DATA_TYPE_IS_COMPOUND(final_composite_data_type)) {
+						compound_data_type = hcc_compound_data_type_get(w->cu, final_composite_data_type);
+						field = &compound_data_type->fields[elmt_indices[initializer_expr->designated_initializer.elmts_count - 1]];
+					}
+
 					if (HCC_DATA_TYPE_IS_COMPOSITE(field_data_type)) {
 						hcc_data_type_composite_splat_constants_recursive(w->cu, field_data_type, value_expr->constant.id, &gen->composite_constant_ids[scalar_start_idx]);
+					} else if (field && field->is_bitfield) {
+						HccConstant value_constant = hcc_constant_table_get(w->cu, value_expr->constant.id);
+						uint64_t value;
+						HCC_DEBUG_ASSERT(hcc_constant_read_int_no_extend_64(w->cu, value_constant, &value), "expected integer type");
+
+						uint32_t storage_field_end_idx = field->storage_field_idx + field->storage_fields_count;
+						uint32_t bit_offset = field->bit_offset;
+						uint32_t bits_count = field->bits_count;
+						uint32_t src_bit_offset = 0;
+						for (uint32_t storage_field_idx = field->storage_field_idx; storage_field_idx < storage_field_end_idx; storage_field_idx += 1) {
+							HccCompoundField* storage_field = &compound_data_type->storage_fields[storage_field_idx];
+
+							uint64_t og_value;
+							HccConstantId og_constant_id = gen->composite_constant_ids[scalar_start_idx + (storage_field_idx - field->storage_field_idx)];
+							if (og_constant_id.idx_plus_one == 0) {
+								og_value = 0;
+							} else {
+								HccConstant og_constant = hcc_constant_table_get(w->cu, og_constant_id);
+
+								HCC_DEBUG_ASSERT(hcc_constant_read_int_no_extend_64(w->cu, og_constant, &og_value), "expected integer type");
+							}
+
+							uint64_t size, align;
+							hcc_data_type_size_align(w->cu, storage_field->data_type, &size, &align);
+							uint32_t field_storage_field_bits_count = HCC_MIN(size * 8, bits_count);
+
+							uint64_t mask = (((uint64_t)1 << field_storage_field_bits_count) - 1) << bit_offset;
+							og_value &= ~mask;
+
+							HccAMLOperand shifted_src_operand;
+							if (src_bit_offset == bit_offset) {
+								og_value |= value & mask;
+							} else {
+								uint64_t shift_amount;
+								if (src_bit_offset < bit_offset) {
+									shift_amount = bit_offset - src_bit_offset;
+									og_value |= (value << shift_amount) & mask;
+								} else {
+									shift_amount = src_bit_offset - bit_offset;
+									og_value |= (value >> shift_amount) & mask;
+								}
+							}
+
+							gen->composite_constant_ids[scalar_start_idx + (storage_field_idx - field->storage_field_idx)] = hcc_constant_table_deduplicate_basic(w->cu, storage_field->data_type, (HccBasic*)&og_value);
+							bit_offset = 0;
+							bits_count -= field_storage_field_bits_count;
+							src_bit_offset += field_storage_field_bits_count;
+						}
 					} else {
 						gen->composite_constant_ids[scalar_start_idx] = value_expr->constant.id;
 					}
@@ -3460,6 +3751,8 @@ HccASTExpr* hcc_astgen_generate_field_access_expr(HccWorker* w, HccASTExpr* left
 			expr->binary.op = is_indirect ? HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT : HCC_AST_BINARY_OP_FIELD_ACCESS;
 			expr->binary.left_expr = left_expr; // link to the previous expression
 			expr->binary.field_idx = access->idx;
+			expr->binary.is_assign = false;
+			expr->binary.is_bitfield = access->is_bitfield;
 			expr->data_type = access->data_type | qualifier_mask;
 			expr->location = location;
 			left_expr = expr;
@@ -3494,6 +3787,8 @@ HccASTExpr* hcc_astgen_generate_field_access_expr(HccWorker* w, HccASTExpr* left
 		expr->binary.op = is_indirect ? HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT : HCC_AST_BINARY_OP_FIELD_ACCESS;
 		expr->binary.left_expr = left_expr; // link to the previous expression
 		expr->binary.field_idx = field_idx;
+		expr->binary.is_assign = false;
+		expr->binary.is_bitfield = false;
 		expr->data_type = scalar_data_type | qualifier_mask;
 		expr->location = location;
 		left_expr = expr;
@@ -3696,6 +3991,7 @@ FIELD_ACCESS: {}
 				expr->binary.left_expr = left_expr;
 				expr->binary.right_expr = right_expr;
 				expr->binary.is_assign = is_assign;
+				expr->binary.is_bitfield = false;
 				expr->data_type = data_type;
 				expr->location = location;
 				left_expr = expr;
@@ -4049,6 +4345,7 @@ HccASTExpr* hcc_astgen_generate_variable_decl_stmt(HccWorker* w, HccDataType dat
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 			stmt->binary.op = HCC_AST_BINARY_OP_ASSIGN;
 			stmt->binary.is_assign = true;
+			stmt->binary.is_bitfield = false;
 			stmt->binary.left_expr = left_expr;
 			stmt->binary.right_expr = init_expr;
 			stmt->location = location;
@@ -4057,6 +4354,7 @@ HccASTExpr* hcc_astgen_generate_variable_decl_stmt(HccWorker* w, HccDataType dat
 				HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 				expr->binary.op = HCC_AST_BINARY_OP_COMMA;
 				expr->binary.is_assign = false;
+				expr->binary.is_bitfield = false;
 				expr->binary.left_expr = prev_expr;
 				expr->binary.right_expr = stmt;
 				expr->location = hcc_ata_iter_location(w->astgen.token_iter);

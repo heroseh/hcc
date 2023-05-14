@@ -110,10 +110,10 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 			case HCC_DATA_TYPE_STRUCT: {
 				HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
 				op = HCC_SPIRV_OP_TYPE_STRUCT;
-				operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, dt->fields_count + 1);
-				operands_count = dt->fields_count + 1;
-				for (uint32_t field_idx = 0; field_idx < dt->fields_count; field_idx += 1) {
-					HccCompoundField* field = &dt->fields[field_idx];
+				operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, dt->storage_fields_count + 1);
+				operands_count = dt->storage_fields_count + 1;
+				for (uint32_t field_idx = 0; field_idx < dt->storage_fields_count; field_idx += 1) {
+					HccCompoundField* field = &dt->storage_fields[field_idx];
 					operands[1 + field_idx] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, field->data_type);
 				}
 				break;
@@ -122,7 +122,7 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 				HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
 				op = HCC_SPIRV_OP_TYPE_STRUCT;
 				operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 2);
-				operands[1] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, dt->fields[dt->largest_sized_field_idx].data_type);
+				operands[1] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, dt->storage_fields[dt->largest_sized_field_idx].data_type);
 				operands_count = 2;
 				break;
 			};
@@ -306,8 +306,8 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 			}
 
 			HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
-			for (uint32_t field_idx = 0; field_idx < dt->fields_count; field_idx += 1) {
-				HccCompoundField* field = &dt->fields[field_idx];
+			for (uint32_t field_idx = 0; field_idx < dt->storage_fields_count; field_idx += 1) {
+				HccCompoundField* field = &dt->storage_fields[field_idx];
 				hcc_spirv_add_member_name(cu, spirv_id, field_idx, hcc_string_table_get(field->identifier_string_id));
 				operands = hcc_spirv_add_member_decorate(cu, 4);
 				operands[0] = spirv_id;
@@ -529,7 +529,7 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 		} else if (HCC_DATA_TYPE_IS_COMPOSITE(c.data_type)) {
 			HccConstantId* src_constant_ids = c.data;
 
-			uint32_t fields_count = hcc_data_type_composite_fields_count(cu, c.data_type);
+			uint32_t fields_count = hcc_data_type_composite_storage_fields_count(cu, c.data_type);
 			operands_count = 2 + fields_count;
 			op = HCC_SPIRV_OP_CONSTANT_COMPOSITE;
 			operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);

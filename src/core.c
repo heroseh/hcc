@@ -221,13 +221,13 @@ ERROR_2:
 uint32_t hcc_path_canonicalize_internal(const char* path, char* out_buf) {
 #ifdef HCC_OS_LINUX
 	if (realpath(path, out_buf) == NULL) {
-		return UINT32_MAX;
+		return 0;
 	}
 	return strlen(out_buf);
 #elif defined(HCC_OS_WINDOWS)
 	DWORD size = GetFullPathNameA(path, MAX_PATH, out_buf, NULL);
 	if (size == 0) {
-		return UINT32_MAX;
+		return 0;
 	}
 	return size;
 #else
@@ -3032,7 +3032,37 @@ uint64_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type) 
 	}
 }
 
-uint64_t hcc_data_type_composite_scalar_start_idx_recursive_(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count, uint64_t elmt_indices_idx) {
+uint64_t hcc_data_type_composite_storage_fields_count(HccCU* cu, HccDataType data_type) {
+	HccString data_type_string = hcc_data_type_string(cu, data_type);
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_COMPOSITE(data_type), "internal error: expected a composite type but got '%.*s'", (int)data_type_string.size, data_type_string.data);
+
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_ARRAY: {
+			HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
+			HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
+			uint64_t elmts_count;
+			hcc_constant_as_uint(cu, constant, &elmts_count);
+			return elmts_count;
+		};
+		case HCC_DATA_TYPE_STRUCT:
+		case HCC_DATA_TYPE_UNION: {
+			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
+			return d->storage_fields_count;
+		};
+		case HCC_DATA_TYPE_AML_INTRINSIC: {
+			HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+			uint64_t scalars_count = HCC_AML_INTRINSIC_DATA_TYPE_ROWS(intrinsic_data_type) * HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
+			if (scalars_count > 1) {
+				return scalars_count;
+			}
+			hcc_fallthrough;
+		};
+		default:
+			HCC_ABORT("unhandled data type '%u'", data_type);
+	}
+}
+
+uint64_t hcc_data_type_composite_scalar_start_idx_recursive_(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count, uint64_t elmt_indices_idx, HccDataType* final_composite_data_type_out) {
 	if (elmt_indices_idx == elmt_indices_count) {
 		return 0;
 	}
@@ -3041,6 +3071,7 @@ uint64_t hcc_data_type_composite_scalar_start_idx_recursive_(HccCU* cu, HccDataT
 	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	switch (HCC_DATA_TYPE_TYPE(data_type)) {
 		case HCC_DATA_TYPE_ARRAY: {
+			*final_composite_data_type_out = data_type;
 			HccArrayDataType* d = hcc_array_data_type_get(cu, data_type);
 			HccConstant constant = hcc_constant_table_get(cu, d->element_count_constant_id);
 			uint64_t elmts_count;
@@ -3048,21 +3079,23 @@ uint64_t hcc_data_type_composite_scalar_start_idx_recursive_(HccCU* cu, HccDataT
 			HCC_DEBUG_ASSERT(elmt_idx < elmts_count, "element idx of '%u' is out of bound of the array data type of '%u'", elmt_idx, elmts_count);
 			HccDataType elmt_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, d->element_data_type);
 			uint64_t scalars_per_elmt = hcc_data_type_scalars_count_recursive(cu, elmt_data_type);
-			uint64_t scalar_start_idx_in_elmt = hcc_data_type_composite_scalar_start_idx_recursive_(cu, elmt_data_type, elmt_indices, elmt_indices_count, elmt_indices_idx + 1);
+			uint64_t scalar_start_idx_in_elmt = hcc_data_type_composite_scalar_start_idx_recursive_(cu, elmt_data_type, elmt_indices, elmt_indices_count, elmt_indices_idx + 1, final_composite_data_type_out);
 			return scalars_per_elmt * elmt_idx + scalar_start_idx_in_elmt;
 		};
 		case HCC_DATA_TYPE_STRUCT:
 		case HCC_DATA_TYPE_UNION: {
+			*final_composite_data_type_out = data_type;
 			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
 			uint64_t scalars_start_idx = 0;
 			HCC_DEBUG_ASSERT(elmt_idx < d->fields_count, "element idx of '%u' is out of bound of the struct/union data type of '%u'", elmt_idx, d->fields_count);
-			for (uint32_t field_idx = 0; field_idx < elmt_idx; field_idx += 1) {
-				HccCompoundField* field = &d->fields[field_idx];
+			uint32_t storage_field_idx = d->fields[elmt_idx].storage_field_idx;
+			for (uint32_t field_idx = 0; field_idx < storage_field_idx; field_idx += 1) {
+				HccCompoundField* field = &d->storage_fields[field_idx];
 				scalars_start_idx += hcc_data_type_scalars_count_recursive(cu, field->data_type);
 			}
-			HccCompoundField* field = &d->fields[elmt_idx];
+			HccCompoundField* field = &d->storage_fields[storage_field_idx];
 			HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
-			scalars_start_idx += hcc_data_type_composite_scalar_start_idx_recursive_(cu, field_data_type, elmt_indices, elmt_indices_count, elmt_indices_idx + 1);
+			scalars_start_idx += hcc_data_type_composite_scalar_start_idx_recursive_(cu, field_data_type, elmt_indices, elmt_indices_count, elmt_indices_idx + 1, final_composite_data_type_out);
 			return scalars_start_idx;
 		};
 		default:
@@ -3070,13 +3103,13 @@ uint64_t hcc_data_type_composite_scalar_start_idx_recursive_(HccCU* cu, HccDataT
 	}
 }
 
-uint64_t hcc_data_type_composite_scalar_start_idx_recursive(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count) {
+uint64_t hcc_data_type_composite_scalar_start_idx_recursive(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count, HccDataType* final_composite_data_type_out) {
 	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 	if (!HCC_DATA_TYPE_IS_COMPOSITE(data_type)) {
 		return UINT32_MAX;
 	}
 
-	return hcc_data_type_composite_scalar_start_idx_recursive_(cu, data_type, elmt_indices, elmt_indices_count, 0);
+	return hcc_data_type_composite_scalar_start_idx_recursive_(cu, data_type, elmt_indices, elmt_indices_count, 0, final_composite_data_type_out);
 }
 
 void hcc_data_type_composite_splat_constants_recursive_(HccCU* cu, HccDataType data_type, HccConstantId constant_id, HccConstantId* dst_constant_ids) {
@@ -3120,8 +3153,8 @@ void hcc_data_type_composite_splat_constants_recursive_(HccCU* cu, HccDataType d
 		case HCC_DATA_TYPE_UNION: {
 			HccCompoundDataType* d = hcc_compound_data_type_get(cu, data_type);
 			uint64_t scalars_start_idx = 0;
-			for (uint32_t field_idx = 0; field_idx < d->fields_count; field_idx += 1) {
-				HccCompoundField* field = &d->fields[field_idx];
+			for (uint32_t field_idx = 0; field_idx < d->storage_fields_count; field_idx += 1) {
+				HccCompoundField* field = &d->storage_fields[field_idx];
 				HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
 				hcc_data_type_composite_splat_constants_recursive_(cu, field_data_type, src_constant_ids[field_idx], &dst_constant_ids[scalars_start_idx]);
 				scalars_start_idx += hcc_data_type_scalars_count_recursive(cu, field_data_type);
@@ -4342,7 +4375,41 @@ bool hcc_constant_read_int_extend_64(HccCU* cu, HccConstant constant, uint64_t* 
 	return true;
 }
 
+bool hcc_constant_read_int_no_extend_64(HccCU* cu, HccConstant constant, uint64_t* out) {
+	uint32_t size_align = 0;
+	if (HCC_DATA_TYPE_IS_AST_BASIC(constant.data_type)) {
+		HccASTBasicDataType basic_dt = HCC_DATA_TYPE_AUX(constant.data_type);
+		if (HCC_AST_BASIC_DATA_TYPE_IS_UINT(cu, basic_dt)) {
+			size_align = cu->dtt.basic_type_size_and_aligns[basic_dt];
+		} else if (HCC_AST_BASIC_DATA_TYPE_IS_SINT(cu, basic_dt)) {
+			size_align = cu->dtt.basic_type_size_and_aligns[basic_dt];
+		}
+	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(constant.data_type)) {
+		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(constant.data_type);
+		if (HCC_AML_INTRINSIC_DATA_TYPE_IS_UINT(intrinsic_data_type)) {
+			size_align = hcc_aml_intrinsic_data_type_scalar_size_aligns[intrinsic_data_type];
+		} else if (HCC_AML_INTRINSIC_DATA_TYPE_IS_SINT(intrinsic_data_type)) {
+			size_align = hcc_aml_intrinsic_data_type_scalar_size_aligns[intrinsic_data_type];
+		}
+	}
+
+	switch (size_align) {
+		case sizeof(uint8_t): *out = hcc_constant_read_8(constant); break;
+		case sizeof(uint16_t): *out = hcc_constant_read_16(constant); break;
+		case sizeof(uint32_t): *out = hcc_constant_read_32(constant); break;
+		case sizeof(uint64_t): *out = hcc_constant_read_64(constant); break;
+		default: return false;
+	}
+
+	return true;
+}
+
 void hcc_constant_print(HccCU* cu, HccConstantId constant_id, HccIIO* iio) {
+	if (constant_id.idx_plus_one == 0) {
+		hcc_iio_write_fmt(iio, "<ZERO>");
+		return;
+	}
+
 	HccConstant constant = hcc_constant_table_get(cu, constant_id);
 	if (constant.size == 0) {
 		HccString data_type_name = hcc_data_type_string(cu, constant.data_type);
@@ -4361,6 +4428,9 @@ void hcc_constant_print(HccCU* cu, HccConstantId constant_id, HccIIO* iio) {
 		}
 		hcc_iio_write_fmt(iio, "}");
 	} else if (HCC_DATA_TYPE_IS_AST_BASIC(constant.data_type) || HCC_DATA_TYPE_IS_AML_INTRINSIC(constant.data_type)) {
+		HccString data_type_name = hcc_data_type_string(cu, constant.data_type);
+		hcc_iio_write_fmt(iio, "%.*s: ", (int)data_type_name.size, data_type_name.data);
+		hcc_data_type_print_basic(cu, constant.data_type, constant.data, iio);
 	} else {
 		HCC_ABORT("unhandled type '%u'", constant.data_type);
 	}
@@ -4513,7 +4583,7 @@ HccConstantId hcc_constant_table_deduplicate_basic(HccCU* cu, HccDataType data_t
 	data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
 
 	HccString data_type_string = hcc_data_type_string(cu, data_type);
-	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type), "internal error: expected a basic type but got '%.*s'", (int)data_type_string.size, data_type_string.data);
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) || HCC_DATA_TYPE_IS_RESOURCE(data_type), "internal error: expected a basic type but got '%.*s'", (int)data_type_string.size, data_type_string.data);
 
 	uint64_t size;
 	uint64_t align;
@@ -4596,8 +4666,8 @@ HccConstantId hcc_constant_table_deduplicate_composite_recursive_(HccCU* cu, Hcc
 			}
 
 			uint32_t scalars_start_idx = 0;
-			for (uint32_t field_idx = 0; field_idx < d->fields_count; field_idx += 1) {
-				HccCompoundField* field = &d->fields[field_idx];
+			for (uint32_t field_idx = 0; field_idx < d->storage_fields_count; field_idx += 1) {
+				HccCompoundField* field = &d->storage_fields[field_idx];
 				HccDataType field_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, field->data_type);
 				HccConstantId field_constant_id = hcc_constant_table_deduplicate_composite_recursive_(cu, field_data_type, &flat_scalar_constant_ids[scalars_start_idx]);
 
@@ -5016,7 +5086,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INTRINSIC_VECTOR_INVALID_SIZE_AND_ALIGN] = "expected the size and align for the intrinsic vector type '%.*s' to be size '%u' and align '%u' but got size '%u' and align '%u'",
 		[HCC_ERROR_CODE_MISSING_RASTERIZER_STATE_SPECIFIER] = "'%s' specifier must be placed before this struct definition before using '%s' or '%s'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_ALIGNAS] = "expected '(' to follow _Alignas that contains a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
-		[HCC_ERROR_CODE_ALIGNAS_ON_SPECIAL_COMPOUND_DATA_TYPE] = "_Alignas cannot be used on structs declare with the HCC_DEFINE_* macros",
+		[HCC_ERROR_CODE_ALIGNAS_ON_SPECIAL_COMPOUND_DATA_TYPE] = "_Alignas cannot be used on structs declare with the HCC_RASTERIZER_STATE or HCC_PIXEL_STATE",
 		[HCC_ERROR_CODE_INVALID_ALIGNAS_INT_CONSTANT] = "_Alignas integer constant must be an unsigned value",
 		[HCC_ERROR_CODE_INVALID_ALIGNAS_OPERAND] = "invalid _Alignas operand. expected a type or integer constant. eg. _Alignas(int) or _Alignas(16)",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_ALIGNAS] = "expected ')' to follow the type or integer constant for _Alignas",
@@ -5041,7 +5111,6 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_NO_VOLATILE_QUALIFIERS_FOR_BUFFER_TYPE] = "buffer element data type is does not allow 'volatile' qualifier",
 		[HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE] = "texture element data type is does not allow 'const', 'volatile' or '_Atomic' qualifier",
 		[HCC_ERROR_CODE_INVALID_TEXEL_TYPE] = "expected texel type to be a intrinsic type but got '%.*s'",
-		[HCC_ERROR_CODE_INVALID_BUFFER_ELEMENT_TYPE] = "expected the ConstBuffer/RO/RWElementBuffer type to be defined using the HCC_DEFINE_BUFFER_ELEMENT macro but '%.*s' is not",
 		[HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE] = "'unsigned' and 'signed' cannot be used on this non-integer type",
 		[HCC_ERROR_CODE_COMPLEX_ON_NON_FLOAT_TYPE] = "'_Complex' cannot be used on this non-floating-point type",
 		[HCC_ERROR_CODE_MULTIPLE_TYPES_SPECIFIED] = "multiple types specfied",
@@ -5067,6 +5136,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_FIELD_DESIGNATOR] = "expected an '=' to assign a value or a '.' for an field designator",
 		[HCC_ERROR_CODE_EXPECTED_ASSIGN] = "expected an '=' to assign a '%.*s' value",
 		[HCC_ERROR_CODE_UNARY_OPERATOR_NOT_SUPPORTED] = "unary operator '%s' is not supported for the '%.*s' data type",
+		[HCC_ERROR_CODE_ADDRESS_OF_NOT_SUPPORT_ON_BITFIELD] = "cannot take the address of bit-field found at '%.*s.%.*s'",
 		[HCC_ERROR_CODE_UNDECLARED_IDENTIFIER] = "undeclared identifier '%.*s'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_EXPR] = "expected a ')' here to finish the expression",
 		[HCC_ERROR_CODE_INVALID_CAST] = "cannot cast '%.*s' to '%.*s'",
@@ -5116,12 +5186,12 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_BREAK_STATEMENT_USAGE] = "'break' can only be used within a switch statement, a for loop or a while loop",
 		[HCC_ERROR_CODE_INVALID_CONTINUE_STATEMENT_USAGE] = "'continue' can only be used within a switch statement, a for loop or a while loop",
 		[HCC_ERROR_CODE_MULTIPLE_SHADER_STAGES_ON_FUNCTION] = "only a single shader stage can be specified in a function declaration",
-		[HCC_ERROR_CODE_VERTEX_SHADER_MUST_RETURN_RASTERIZER_STATE] = "vertex shader must return a type that was declare with HCC_DEFINE_RASTERIZER_STATE",
-		[HCC_ERROR_CODE_PIXEL_SHADER_MUST_RETURN_PIXEL_STATE] = "pixel shader must return a type that was declare with HCC_DEFINE_PIXEL_STATE",
+		[HCC_ERROR_CODE_VERTEX_SHADER_MUST_RETURN_RASTERIZER_STATE] = "vertex shader must return a type that was declare with HCC_RASTERIZER_STATE",
+		[HCC_ERROR_CODE_PIXEL_SHADER_MUST_RETURN_PIXEL_STATE] = "pixel shader must return a type that was declare with HCC_PIXEL_STATE",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FUNCTION_PARAM] = "expected an identifier for a function parameter e.g. uint32_t param_identifier",
 		[HCC_ERROR_CODE_REDEFINITION_IDENTIFIER_FUNCTION_PARAM] = "redefinition of '%.*s' function parameter identifier",
-		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BC const *const bc, S *const state_out); where BC is your structure of bundled constants and S defined with HCC_DEFINE_RASTERIZER_STATE or void'",
-		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL] = "invalid function prototype for pixel shader, expected to be 'void pixel(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, BC const* const bc, S const* const state, F* const pixel_out); where BC is your structure of bundled constants, S defined with HCC_DEFINE_RASTERIZER_STATE or void' and F defined with HCC_DEFINE_PIXEL_STATE",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_VERTEX] = "invalid function prototype for vertex shader, expected to be 'void vertex(HccVertexSV const* const sv, HccVertexSVOut* const sv_out, BC const *const bc, S *const state_out); where BC is your structure of bundled constants and S defined with HCC_RASTERIZER_STATE or void'",
+		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL] = "invalid function prototype for pixel shader, expected to be 'void pixel(HccPixelSV const* const sv, HccPixelSVOut* const sv_out, BC const* const bc, S const* const state, F* const pixel_out); where BC is your structure of bundled constants, S defined with HCC_RASTERIZER_STATE or void' and F defined with HCC_PIXEL_STATE",
 		[HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_COMPUTE] = "invalid function prototype for compute shader, expected to be 'void compute(HccComputeSV const* const sv, BC const* const bc); where BC is your structure of bundled constants",
 		[HCC_ERROR_CODE_FUNCTION_INVALID_TERMINATOR] = "expected a ',' to declaring more function parameters or a ')' to finish declaring function parameters",
 		[HCC_ERROR_CODE_CANNOT_CALL_SHADER_FUNCTION] = "cannot call shaders like regular functions. they can only be used as entry points",
@@ -5131,10 +5201,10 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_RASTERIZER_STATE] = "'%.*s' data type is not supported as a RasterizerState field. data type must be an intrinsic type (scalar, vector or matrix) or a resource type (buffer, texture or sampler)",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_PIXEL_STATE] = "'%.*s' data type is not supported as a PixelState field. data type must be an intrinsic type (scalar, vector or matrix)",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_COMPOUND_DATA_TYPE] = "'%.*s' data type is not supported as a compound type field. data type cannot be a HCC_RASTERIZER_STATE or HCC_PIXEL_STATE",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM] = "'%.*s' data type is not supported as a function parameter. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_PIXEL_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM] = "'%.*s' data type is not supported as a function parameter. data type cannot be a HCC_RASTERIZER_STATE, HCC_PIXEL_STATE",
 		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_FUNCTION_PARAM_INLINE] = "the function must be 'inline' if you want to use the '%.*s' data type as a function parameter. resources and array data types are only supported with the 'inline' function specifier",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE] = "'%.*s' data type is not supported as a variable. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_PIXEL_STATE",
-		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE] = "'%.*s' data type is not supported as a pointer data type. data type cannot be a HCC_DEFINE_RASTERIZER_STATE, HCC_DEFINE_PIXEL_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE] = "'%.*s' data type is not supported as a variable. data type cannot be a HCC_RASTERIZER_STATE, HCC_PIXEL_STATE",
+		[HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_POINTER_DATA_TYPE] = "'%.*s' data type is not supported as a pointer data type. data type cannot be a HCC_RASTERIZER_STATE, HCC_PIXEL_STATE",
 		[HCC_ERROR_CODE_RASTERIZER_STATE_RESOURCE_MUST_BE_NOINTERP] = "'%.*s' data type has a resource type that is not marked as HCC_NOINTERP. you cannot interpolate your resources",
 		[HCC_ERROR_CODE_ONLY_SINGLE_POINTERS_ARE_SUPPORTED] = "only a single pointer is supported",
 		[HCC_ERROR_CODE_POINTERS_NOT_SUPPORTED] = "pointers are not supported outside of entry point and intrinsics function prototypes",
@@ -5161,6 +5231,11 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT] = "expected a '(' to follow _Static_assert. eg. _Static_assert(sizeof(int) == 4, \"int must be 4 bytes\")",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_STATIC_ASSERT] = "expected a ')' to finish the _Static_assert",
 		[HCC_ERROR_CODE_EXPECTED_STRING_MESSAGE_FOR_STATIC_ASSERT] = "expected a string message to follow the ',' of the _Static_assert. eg. _Static_assert(sizeof(int) == 4, \"int must be 4 bytes\")",
+		[HCC_ERROR_CODE_BITFIELD_IS_FOR_INTEGER_DATA_TYPES_ONLY] = "bit-field can only be used for integer or enum data type",
+		[HCC_ERROR_CODE_BITFIELD_ALIGNAS_NOT_SUPPORTED] = "_Alignas is not supported for a bit-field",
+		[HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_BITFIELD] = "expected an unsigned integer constant that is greater than 0 for the number of bits in this bit-field",
+		[HCC_ERROR_CODE_BITFIELD_EXCEEDS_MAX_BITS_FOR_DATA_TYPE] = "the number of bits of '%u' has exceeded for this data type",
+		[HCC_ERROR_CODE_BITFIELD_IS_NOT_SUPPORTED_RASTERIZER_PIXEL_STATE] = "bit-fields cannot be used for struct declared with HCC_RASTERIZER_STATE or HCC_PIXEL_STATE",
 
 		//
 		// ASTLINK

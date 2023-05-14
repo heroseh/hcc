@@ -1,3 +1,4 @@
+#include "hcc_internal.h"
 
 // ===========================================
 //
@@ -640,6 +641,10 @@ void hcc_ppgen_parse_include(HccWorker* w) {
 	}
 
 	path_string = hcc_path_canonicalize(path_string.data);
+	if (path_string.size == 0) {
+		hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_FAILED_TO_OPEN_FILE_FOR_READ, path_string.data);
+	}
+
 	HccCodeFile* code_file;
 	HccResult result = hcc_code_file_find_or_insert(path_string, &code_file);
 	if (!HCC_IS_SUCCESS(result)) {
@@ -2275,7 +2280,7 @@ uint32_t hcc_atagen_parse_num(HccWorker* w, HccATAToken* token_out) {
 
 			default: {
 				if (radix == 16 && ((digit >= 'a' && digit <= 'f') || (digit >= 'A' && digit <= 'F'))) {
-					uint32_t int_digit = 10 + (digit >= 'A' ? (digit - 'A') : (digit - 'a'));
+					uint32_t int_digit = 10 + (digit >= 'a' ? (digit - 'a') : (digit - 'A'));
 					HCC_DEBUG_ASSERT(token != HCC_ATA_TOKEN_LIT_FLOAT && token != HCC_ATA_TOKEN_LIT_DOUBLE, "internal error: expected to be dealing with integer literals here");
 					if (
 						!hcc_i64_checked_mul(u64, radix, &u64)        ||

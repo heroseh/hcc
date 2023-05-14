@@ -4,3 +4,4 @@
 #include "alt-2.5d-rgb-color-picker.c"
 #include "blob-vacation.c"
 #include "voxel-raytracer.c"
+#include "sdf-2d.c"

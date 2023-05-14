@@ -8,6 +8,9 @@
 #include <immintrin.h>
 #endif
 #include <signal.h>
+#include <stdarg.h>
+#include <string.h>
+#include <math.h>
 
 #if defined(HCC_OS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
@@ -1029,7 +1032,9 @@ struct HccCompoundDataType {
 	HccLocation*              identifier_location;
 	HccStringId               identifier_string_id;
 	HccCompoundField*         fields;
+	HccCompoundField*         storage_fields; // will be new array if it has bit fields where the bit fields are combined into their storage units
 	uint16_t                  fields_count;
+	uint16_t                  storage_fields_count;
 	uint16_t                  largest_sized_field_idx;
 	uint32_t                  scalars_count_recursive;
 	HccAMLScalarDataTypeMask  scalar_data_types_mask;
@@ -1042,11 +1047,16 @@ struct HccCompoundDataType {
 
 typedef struct HccCompoundField HccCompoundField;
 struct HccCompoundField {
-	HccLocation*                identifier_location;
-	HccStringId                 identifier_string_id;
-	HccDataType                 data_type;
-	uint32_t                    byte_offset;
-	HccRasterizerStateFieldKind rasterizer_state_field_kind;
+	HccLocation* identifier_location;
+	HccStringId  identifier_string_id;
+	HccDataType  data_type;
+	uint32_t     byte_offset;
+	uint32_t     storage_field_idx;
+	uint32_t     storage_fields_count        : 4;
+	uint32_t     bit_offset                  : 6;
+	uint32_t     bits_count                  : 7;
+	uint32_t     is_bitfield                 : 1;
+	uint32_t     rasterizer_state_field_kind : 3; // HccRasterizerStateFieldKind
 };
 
 typedef struct HccEnumDataType HccEnumDataType;
@@ -1117,6 +1127,7 @@ uint16_t hcc_constant_read_16(HccConstant constant);
 uint32_t hcc_constant_read_32(HccConstant constant);
 uint64_t hcc_constant_read_64(HccConstant constant);
 bool hcc_constant_read_int_extend_64(HccCU* cu, HccConstant constant, uint64_t* out);
+bool hcc_constant_read_int_no_extend_64(HccCU* cu, HccConstant constant, uint64_t* out);
 
 // ===========================================
 //
@@ -1719,7 +1730,8 @@ struct HccASTGenSwitchState {
 typedef struct HccFieldAccess HccFieldAccess;
 struct HccFieldAccess {
 	HccDataType data_type;
-	uint32_t    idx;
+	uint32_t    idx: 31;
+	uint32_t    is_bitfield: 1;
 };
 
 typedef struct HccASTGenCurlyInitializerCurly HccASTGenCurlyInitializerCurly;
@@ -1761,6 +1773,7 @@ struct HccASTGenCurlyInitializer {
 	HccDataType       resolved_composite_data_type;
 	HccDataType       resolved_elmt_data_type;
 	uint64_t          elmts_end_idx;
+	bool              is_last_elmt_a_bitfield;
 
 	//
 	// a stack to keep track the nested curly initializer expressions.
@@ -2208,6 +2221,8 @@ struct HccAMLGen {
 	HccAMLOp                last_op;
 	HccLocation*            last_location;
 	bool                    is_inside_basic_block;
+	HccAMLOperand           assignee_operand;
+	HccASTBinaryOp          assignee_binary_op;
 };
 
 void hcc_amlgen_init(HccWorker* w, HccCompilerSetup* setup);
@@ -2235,7 +2250,9 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 HccAMLOperand hcc_amlgen_generate_instr_access_chain_start(HccWorker* w, HccLocation* location, HccAMLOp op, HccAMLOperand base_ptr_operand, uint32_t count);
 void hcc_amlgen_generate_instr_access_chain_set_next_operand(HccWorker* w, HccAMLOperand operand);
 void hcc_amlgen_generate_instr_access_chain_end(HccWorker* w, HccDataType dst_data_type);
-HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation* location, HccDataType union_data_type, uint32_t field_idx, HccAMLOperand union_ptr_operand);
+HccAMLOperand hcc_amlgen_generate_bitfield_load(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand);
+HccAMLOperand hcc_amlgen_generate_bitfield_store(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand, HccAMLOperand old_dst_operand);
+HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation* location, HccDataType union_data_type, uint32_t storage_field_idx, HccAMLOperand union_ptr_operand);
 HccAMLOperand hcc_amlgen_generate_resource_descriptor_load(HccWorker* w, HccLocation* location, HccAMLOperand operand);
 void hcc_amlgen_generate(HccWorker* w);
 

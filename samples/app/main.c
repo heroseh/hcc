@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
 	GpuResourceId triangle_vertex_buffer_id = gpu_create_buffer(3 * sizeof(TriangleVertex));
 	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
 	GpuResourceId logo_voxel_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_3D, APP_LOGO_VOXEL_WIDTH, APP_LOGO_VOXEL_HEIGHT, APP_LOGO_VOXEL_DEPTH, 1, 1);
+	GpuResourceId shapes_buffer_id = gpu_create_buffer(1 * sizeof(SDFShape));
 	GpuResourceId voxel_model_buffer_id = gpu_create_buffer(1 * sizeof(VoxelModel));
 	GpuResourceId clamp_linear_sampler_id = gpu_create_sampler();
 
@@ -96,6 +97,16 @@ int main(int argc, char** argv) {
 		models[0].position = f32x3(0.f, 0.f, 1024.f);
 		models[0].half_size = f32x3(APP_LOGO_VOXEL_WIDTH / 2, APP_LOGO_VOXEL_HEIGHT / 2, APP_LOGO_VOXEL_DEPTH / 2);
 		models[0].color = logo_voxel_texture_id;
+	}
+
+	{ // CPU side code setting up buffer data
+		SDFShape* shape = gpu_map_resource(shapes_buffer_id);
+		shape->texture = logo_texture_id;
+		shape->type = SDF_SHAPE_TYPE_BOX;
+		shape->radius = 1;
+		shape->width = 3;
+		shape->height = 2;
+		shape->color = 0xff227788;
 	}
 
 	gpu_stage_uploads_flush();
@@ -228,6 +239,14 @@ int main(int argc, char** argv) {
 				bc->time_ = time_;
 				bc->screen_width = window_width;
 				bc->screen_height = window_height;
+				break;
+			};
+			case APP_SAMPLE_SDF_2D: {
+				SDF2dBC* bc = bundled_constants_ptr;
+				bc->shapes = shapes_buffer_id;
+				bc->sampler = clamp_linear_sampler_id;
+				bc->time_ = time_;
+				bc->ar = ar;
 				break;
 			};
 		}

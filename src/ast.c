@@ -958,15 +958,33 @@ CONSTANT: {}
 			for (uint32_t field_idx = 0; field_idx < d->fields_count; field_idx += 1) {
 				HccCompoundField* field = &d->fields[field_idx];
 				HccString data_type_name = hcc_data_type_string(cu, field->data_type);
-				hcc_iio_write_fmt(iio, "\t\t%.*s ", (int)data_type_name.size, data_type_name.data);
+				hcc_iio_write_fmt(iio, "\t\t%.*s", (int)data_type_name.size, data_type_name.data);
 				if (field->identifier_string_id.idx_plus_one) {
 					HccString identifier = hcc_string_table_get_or_empty(field->identifier_string_id);
-					hcc_iio_write_fmt(iio, "%.*s\n", (int)identifier.size, identifier.data);
-				} else {
-					hcc_iio_write_fmt(iio, "\n");
+					hcc_iio_write_fmt(iio, " %.*s", (int)identifier.size, identifier.data);
 				}
+				if (field->is_bitfield) {
+					hcc_iio_write_fmt(iio, " : %u @ %u.%u", field->bits_count, field->byte_offset, field->bit_offset);
+				} else {
+					hcc_iio_write_fmt(iio, " @ %u", field->byte_offset);
+				}
+				hcc_iio_write_fmt(iio, "\n");
 			}
 			hcc_iio_write_fmt(iio, "\t}\n");
+			if (d->fields != d->storage_fields) {
+				hcc_iio_write_fmt(iio, "\tstorage_fields: {\n");
+				for (uint32_t field_idx = 0; field_idx < d->storage_fields_count; field_idx += 1) {
+					HccCompoundField* field = &d->storage_fields[field_idx];
+					HccString data_type_name = hcc_data_type_string(cu, field->data_type);
+					hcc_iio_write_fmt(iio, "\t\t%.*s", (int)data_type_name.size, data_type_name.data);
+					if (field->identifier_string_id.idx_plus_one) {
+						HccString identifier = hcc_string_table_get_or_empty(field->identifier_string_id);
+						hcc_iio_write_fmt(iio, " %.*s", (int)identifier.size, identifier.data);
+					}
+					hcc_iio_write_fmt(iio, " @ %u\n", field->byte_offset);
+				}
+				hcc_iio_write_fmt(iio, "\t}\n");
+			}
 			hcc_iio_write_fmt(iio, "}\n");
 		}
 	}
@@ -1011,11 +1029,7 @@ CONSTANT: {}
 			hcc_iio_write_fmt(iio, "GLOBAL_VARIABLE(#%u): [%s] ", variable_idx, variable->linkage == HCC_AST_LINKAGE_EXTERNAL ? "extern" : "static");
 			hcc_ast_variable_to_string(cu, variable->data_type, variable->identifier_string_id, iio);
 			hcc_iio_write_fmt(iio, " = ");
-			if (variable->initializer_constant_id.idx_plus_one) {
-				hcc_constant_print(cu, variable->initializer_constant_id, iio);
-			} else {
-				hcc_iio_write_fmt(iio, "{0}");
-			}
+			hcc_constant_print(cu, variable->initializer_constant_id, iio);
 			hcc_iio_write_fmt(iio, "\n");
 		}
 	}

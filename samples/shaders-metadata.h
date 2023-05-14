@@ -14,6 +14,8 @@ enum HccShader {
 	HCC_SHADER_blob_vacation_vs,
 	HCC_SHADER_blob_vacation_ps,
 	HCC_SHADER_voxel_raytracer_cs,
+	HCC_SHADER_sdf2d_vs,
+	HCC_SHADER_sdf2d_ps,
 };
 
 typedef uint16_t HccResourceStruct;
@@ -24,6 +26,8 @@ enum HccResourceStruct {
 	HCC_RESOURCE_STRUCT_TextureBC,
 	HCC_RESOURCE_STRUCT_VoxelModel,
 	HCC_RESOURCE_STRUCT_VoxelRaytracerBC,
+	HCC_RESOURCE_STRUCT_SDFShape,
+	HCC_RESOURCE_STRUCT_SDF2dBC,
 };
 
 HccShaderInfo hcc_shader_infos[] = {
@@ -107,6 +111,22 @@ HccShaderInfo hcc_shader_infos[] = {
 		/* .dispatch_group_size_y = */  8,
 		/* .dispatch_group_size_z = */  1,
 	},
+	{
+		/* .name = */                   "sdf2d_vs",
+		/* .stage = */                  HCC_SHADER_STAGE_VERTEX,
+		/* .bundled_constants_size = */ 16,
+		/* .dispatch_group_size_x = */  0,
+		/* .dispatch_group_size_y = */  0,
+		/* .dispatch_group_size_z = */  0,
+	},
+	{
+		/* .name = */                   "sdf2d_ps",
+		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
+		/* .bundled_constants_size = */ 16,
+		/* .dispatch_group_size_x = */  0,
+		/* .dispatch_group_size_y = */  0,
+		/* .dispatch_group_size_z = */  0,
+	},
 };
 
 HccResourceInfo TriangleBC_resources[] = {
@@ -172,6 +192,30 @@ HccResourceInfo VoxelRaytracerBC_resources[] = {
 	},
 };
 
+HccResourceInfo SDFShape_resources[] = {
+	{
+		/* .name = */        "texture",
+		/* .offset = */      0,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_SAMPLE,
+		/* .type = */        HCC_RESOURCE_TYPE_TEXTURE_2D,
+	},
+};
+
+HccResourceInfo SDF2dBC_resources[] = {
+	{
+		/* .name = */        "shapes",
+		/* .offset = */      0,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
+		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
+	},
+	{
+		/* .name = */        "sampler",
+		/* .offset = */      4,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
+		/* .type = */        HCC_RESOURCE_TYPE_SAMPLER,
+	},
+};
+
 HccResourceStructInfo hcc_resource_structs[] = {
 	{0},
 	{
@@ -209,13 +253,27 @@ HccResourceStructInfo hcc_resource_structs[] = {
 		/* .size = */            20,
 		/* .align = */           4,
 	},
+	{
+		/* .name = */            "SDFShape",
+		/* .resources = */       SDFShape_resources,
+		/* .resources_count = */ 1,
+		/* .size = */            16,
+		/* .align = */           4,
+	},
+	{
+		/* .name = */            "SDF2dBC",
+		/* .resources = */       SDF2dBC_resources,
+		/* .resources_count = */ 2,
+		/* .size = */            16,
+		/* .align = */           4,
+	},
 };
 
 HccMetadata hcc_metadata = {
 	/* .shaders = */                    hcc_shader_infos,
 	/* .resource_structs = */           hcc_resource_structs,
-	/* .shaders_count = */              10,
-	/* .resource_structs_count = */     5,
+	/* .shaders_count = */              12,
+	/* .resource_structs_count = */     7,
 	/* .bundled_constants_size_max = */ 36,
 	/* .resource_descriptors_max = */   1024,
 };

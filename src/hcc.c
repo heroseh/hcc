@@ -541,6 +541,9 @@ HccResult hcc_task_add_input_code_file(HccTask* t, const char* file_path, HccOpt
 
 	HccTaskInputLocation* il = hcc_task_input_location_init(t, options);
 	il->file_path = hcc_path_canonicalize(file_path);
+	if (il->file_path.size == 0) {
+		return HccResult(HCC_ERROR_FILE_OPEN_READ, 0, NULL);
+	}
 
 	hcc_clear_bail_jmp_loc();
 	return HCC_RESULT_SUCCESS;

@@ -119,7 +119,7 @@ HccAMLOperand hcc_amlgen_current_basic_block(HccWorker* w) {
 }
 
 HccAMLOperand hcc_amlgen_generate_convert_to_bool(HccWorker* w, HccLocation* location, HccAMLOperand src_operand, HccDataType src_data_type, bool flip_bool_result) {
-	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(src_data_type) && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(src_data_type)) == 1, "only intrinsic scalar and vector data types are convertable to bool");
+	HCC_DEBUG_ASSERT((HCC_DATA_TYPE_IS_AML_INTRINSIC(src_data_type) && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(src_data_type)) == 1) || HCC_DATA_TYPE_IS_RESOURCE(src_data_type), "only intrinsic scalar and vector data types are convertable to bool");
 
 	HccDataType return_data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_BOOL | (HCC_DATA_TYPE_AUX(src_data_type) & HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK));
 	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, flip_bool_result ? HCC_AML_OP_EQUAL : HCC_AML_OP_NOT_EQUAL, 3);
@@ -154,9 +154,18 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				// to get a pointer that we can store the value in.
 				HccDataType data_type = variable_data_type;
 				HccAMLInstr* access_chain_instr = &w->amlgen.function->words[w->amlgen.function->words_count];
-				HccAMLOperand dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, variable_operand, initializer_expr->designated_initializer.elmts_count);
-				for (uint32_t elmt_indices_idx = 0; elmt_indices_idx < initializer_expr->designated_initializer.elmts_count; elmt_indices_idx += 1) {
+				uint32_t elmts_count = initializer_expr->designated_initializer.elmts_count;
+				if (initializer_expr->designated_initializer.is_bitfield) {
+					elmts_count -= 1;
+				}
+				HccAMLOperand dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, variable_operand, elmts_count);
+				for (uint32_t elmt_indices_idx = 0; elmt_indices_idx < elmts_count; elmt_indices_idx += 1) {
 					uint64_t elmt_idx = elmt_indices[elmt_indices_idx];
+					if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
+						HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, data_type);
+						HccCompoundField* field = &compound_data_type->fields[elmt_idx];
+						elmt_idx = field->storage_field_idx;
+					}
 
 					if (HCC_DATA_TYPE_IS_UNION(data_type)) {
 						hcc_amlgen_generate_instr_access_chain_end(w, data_type);
@@ -167,8 +176,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 						//
 						// start another access chain if we still have more fields we are going to access
-						if (elmt_indices_idx + 1 < initializer_expr->designated_initializer.elmts_count) {
-							uint32_t expected_operands_count = initializer_expr->designated_initializer.elmts_count - elmt_idx;
+						if (elmt_indices_idx + 1 < elmts_count) {
+							uint32_t expected_operands_count = elmts_count - elmt_idx;
 							access_chain_instr = &w->amlgen.function->words[w->amlgen.function->words_count];
 							dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, dst_elmt_operand, expected_operands_count);
 						}
@@ -193,7 +202,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						data_type = array_data_type->element_data_type;
 					} else if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
 						HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(cu, data_type);
-						HccCompoundField* field = &compound_data_type->fields[elmt_idx];
+						HccCompoundField* field = &compound_data_type->storage_fields[elmt_idx];
 						data_type = field->data_type;
 					} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 						data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type)));
@@ -213,7 +222,22 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					value_operand = HCC_AML_OPERAND(CONSTANT, zeroed_constant_id.idx_plus_one);
 				}
 
-				hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STORE, dst_elmt_operand, value_operand);
+				if (initializer_expr->designated_initializer.is_bitfield) {
+					HccCompoundDataType* dt = hcc_compound_data_type_get(w->cu, data_type);
+					uint32_t field_idx = elmt_indices[initializer_expr->designated_initializer.elmts_count - 1];
+
+					HccAMLOperand old_assignee_operand = w->amlgen.assignee_operand;
+					HccASTBinaryOp old_assignee_binary_op = w->amlgen.assignee_binary_op;
+					w->amlgen.assignee_operand = value_operand;
+					w->amlgen.assignee_binary_op = HCC_AST_BINARY_OP_ASSIGN;
+
+					hcc_amlgen_generate_bitfield_store(w, expr, dt, &dt->fields[field_idx], dst_elmt_operand, 0);
+
+					w->amlgen.assignee_operand = old_assignee_operand;
+					w->amlgen.assignee_binary_op = old_assignee_binary_op;
+				} else {
+					hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STORE, dst_elmt_operand, value_operand);
+				}
 
 				initializer_expr = initializer_expr->next_stmt;
 			}
@@ -263,19 +287,23 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				//
 				// generate the (left or left_ref) and right operand
 				HccAMLOperand right_operand = hcc_amlgen_generate_instrs(w, expr->binary.right_expr, false);
-				HccAMLOperand left_ref_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, expr->binary.is_assign);
+				bool left_is_bitfield = expr->binary.left_expr->type == HCC_AST_EXPR_TYPE_BINARY_OP && expr->binary.left_expr->binary.is_bitfield;
 
-				if (expr->binary.is_assign && w->amlgen.access_chain_operands) {
-					if (expr->binary.op != HCC_AST_BINARY_OP_ASSIGN) {
-						hcc_amlgen_error_1(w, HCC_ERROR_CODE_BUILT_IN_WRITE_ONLY_POINTER_CANNOT_BE_READ, expr->location);
-					}
+				HccAMLOperand old_assignee_operand;
+				HccASTBinaryOp old_assignee_binary_op;
+				if (expr->binary.is_assign && left_is_bitfield) {
+					old_assignee_operand = w->amlgen.assignee_operand;
+					old_assignee_binary_op = w->amlgen.assignee_binary_op;
+					w->amlgen.assignee_operand = right_operand;
+					w->amlgen.assignee_binary_op = expr->binary.op;
+				}
 
-					//
-					// the left expression is either HCC_AML_OP_RASTERIZER_STATE_STORE_FIELD or HCC_AML_OP_PIXEL_STATE_STORE_FIELD.
-					// so we just need to complete the instruction by setting the store operand.
-					//
-					w->amlgen.access_chain_operands[0] = right_operand;
-					w->amlgen.access_chain_operands = NULL;
+				HccAMLOperand left_ref_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, expr->binary.is_assign && !left_is_bitfield);
+
+				if (expr->binary.is_assign && left_is_bitfield) {
+					w->amlgen.assignee_operand = old_assignee_operand;
+					w->amlgen.assignee_binary_op = old_assignee_binary_op;
+					// hcc_amlgen_generate_bitfield_store returns the truncated version of right_operand
 					return left_ref_operand;
 				}
 
@@ -1026,13 +1054,31 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 			case HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT: {
 				HccASTExpr* left_expr = expr->binary.left_expr;
 				HccDataType left_data_type = hcc_data_type_lower_ast_to_aml(w->cu, left_expr->data_type);
+				HccDataType compound_data_type = left_data_type;
+				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT) {
+					compound_data_type = hcc_data_type_strip_pointer(w->cu, left_data_type);
+				}
+
+				HccCompoundDataType* dt;
+				HccCompoundField* field;
+				uint32_t field_idx;
+				bool is_bitfield;
+				if (HCC_DATA_TYPE_IS_COMPOUND(compound_data_type)) {
+					dt = hcc_compound_data_type_get(w->cu, compound_data_type);
+					field = &dt->fields[expr->binary.field_idx];
+					is_bitfield = field->is_bitfield;
+					field_idx = field->storage_field_idx;
+				} else {
+					field_idx = expr->binary.field_idx;
+					is_bitfield = false;
+				}
 
 				//
 				// if we have '->' operator and/or a union, we want to end the generation of the access chain here
 				// so we can load and/or bitcast the pointer.
 				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type)) {
 					child_count = 0;
-					child_want_variable_ref = HCC_DATA_TYPE_IS_UNION(left_data_type);
+					child_want_variable_ref = expr->binary.op != HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT;
 				} else {
 					child_count = count + 1;
 				}
@@ -1040,18 +1086,33 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 				//
 				// recursive down the left expression tree and generate the access chain
 				result_operand = hcc_amlgen_generate_instr_access_chain(w, left_expr, child_count, child_want_variable_ref);
-				uint32_t field_idx = expr->binary.field_idx;
 
-				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type)) {
+				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type) || is_bitfield) {
 					hcc_amlgen_generate_instr_access_chain_end(w, left_data_type);
 
-					if (HCC_DATA_TYPE_IS_UNION(left_data_type)) {
-						//
-						// bitcast if we are accessing a union field
-						result_operand = hcc_amlgen_generate_bitcast_union_field(w, expr->location, left_data_type, field_idx, result_operand);
-					}
+					if (is_bitfield) {
+						HCC_DEBUG_ASSERT(count == 0, "expected bitfield to be the last in the access chain");
+						HCC_DEBUG_ASSERT(!want_variable_ref, "expected bitfield not the be wanted as a reference");
 
-					result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, result_operand, count + !HCC_DATA_TYPE_IS_UNION(left_data_type));
+						HccAMLOperand base_ptr_operand = result_operand;
+						result_operand = 0;
+						if (!w->amlgen.assignee_operand || w->amlgen.assignee_binary_op != HCC_AST_BINARY_OP_ASSIGN) {
+							result_operand = hcc_amlgen_generate_bitfield_load(w, expr, dt, field, base_ptr_operand);
+						}
+
+						if (w->amlgen.assignee_operand) {
+							return hcc_amlgen_generate_bitfield_store(w, expr, dt, field, base_ptr_operand, result_operand);
+						}
+						return result_operand;
+					} else {
+						if (HCC_DATA_TYPE_IS_UNION(left_data_type)) {
+							//
+							// bitcast if we are accessing a union field
+							result_operand = hcc_amlgen_generate_bitcast_union_field(w, expr->location, left_data_type, field_idx, result_operand);
+						}
+
+						result_operand = hcc_amlgen_generate_instr_access_chain_start(w, expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, result_operand, count + !HCC_DATA_TYPE_IS_UNION(left_data_type));
+					}
 				}
 
 				//
@@ -1185,9 +1246,228 @@ void hcc_amlgen_generate_instr_access_chain_end(HccWorker* w, HccDataType dst_da
 	}
 }
 
-HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation* location, HccDataType union_data_type, uint32_t field_idx, HccAMLOperand union_ptr_operand) {
+HccAMLOperand hcc_amlgen_generate_bitfield_load(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand) {
+	HccDataType result_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
+	HccAMLOperand result_operand = 0;
+	HccDataType unsigned_result_data_type = result_data_type;
+	if (hcc_basic_type_class(w->cu, result_data_type) == HCC_BASIC_TYPE_CLASS_SINT) {
+		unsigned_result_data_type = hcc_data_type_signed_to_unsigned(w->cu, result_data_type);
+	}
+
+	uint32_t storage_field_end_idx = field->storage_field_idx + field->storage_fields_count;
+	uint32_t bit_offset = field->bit_offset;
+	uint32_t bits_count = field->bits_count;
+	uint32_t dst_bit_offset = 0;
+	for (uint32_t storage_field_idx = field->storage_field_idx; storage_field_idx < storage_field_end_idx; storage_field_idx += 1) {
+		HccCompoundField* storage_field = &dt->storage_fields[storage_field_idx];
+		HccDataType storage_field_data_type = hcc_data_type_lower_ast_to_aml(w->cu, storage_field->data_type);
+		HccDataType storage_field_ptr_data_type = hcc_pointer_data_type_deduplicate(w->cu, storage_field_data_type);
+
+		HccBasic storage_field_idx_basic = hcc_basic_from_uint(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, storage_field_idx);
+		HccConstantId storage_field_idx_constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, &storage_field_idx_basic);
+
+		HccAMLOperand storage_field_ptr_operand = hcc_amlgen_value_add(w, storage_field_ptr_data_type);
+		hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS,
+			storage_field_ptr_operand, base_ptr_operand, HCC_AML_OPERAND(CONSTANT, storage_field_idx_constant_id.idx_plus_one));
+
+		HccAMLOperand storage_field_operand = hcc_amlgen_value_add(w, storage_field_data_type);
+		hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD,
+			storage_field_operand, storage_field_ptr_operand);
+
+		uint64_t size, align;
+		hcc_data_type_size_align(w->cu, storage_field_data_type, &size, &align);
+		uint32_t field_storage_field_bits_count = HCC_MIN(size * 8, bits_count);
+
+		uint64_t mask = (((uint64_t)1 << field_storage_field_bits_count) - 1) << bit_offset;
+		HccBasic mask_basic = hcc_basic_from_uint(w->cu, storage_field_data_type, mask);
+		HccConstantId mask_constant_id = hcc_constant_table_deduplicate_basic(w->cu, storage_field_data_type, &mask_basic);
+
+		HccAMLOperand and_result_operand = hcc_amlgen_value_add(w, storage_field_data_type);
+		hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_AND,
+			and_result_operand, storage_field_operand, HCC_AML_OPERAND(CONSTANT, mask_constant_id.idx_plus_one));
+
+		HccAMLOperand converted_and_result_operand;
+		if (unsigned_result_data_type == storage_field_data_type) {
+			converted_and_result_operand = and_result_operand;
+		} else {
+			converted_and_result_operand = hcc_amlgen_value_add(w, unsigned_result_data_type);
+			hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_CONVERT, converted_and_result_operand, and_result_operand);
+		}
+
+		HccAMLOperand shifted_result_operand;
+		if (dst_bit_offset == bit_offset) {
+			shifted_result_operand = converted_and_result_operand;
+		} else {
+			uint64_t shift_amount;
+			HccAMLOp aml_op;
+			if (dst_bit_offset < bit_offset) {
+				shift_amount = bit_offset - dst_bit_offset;
+				aml_op = HCC_AML_OP_BIT_SHIFT_RIGHT;
+			} else {
+				shift_amount = dst_bit_offset - bit_offset;
+				aml_op = HCC_AML_OP_BIT_SHIFT_LEFT;
+			}
+
+			HccBasic shift_basic = hcc_basic_from_uint(w->cu, unsigned_result_data_type, shift_amount);
+			HccConstantId shift_constant_id = hcc_constant_table_deduplicate_basic(w->cu, unsigned_result_data_type, &shift_basic);
+
+			shifted_result_operand = hcc_amlgen_value_add(w, unsigned_result_data_type);
+			hcc_amlgen_instr_add_3(w, expr->location, aml_op,
+				shifted_result_operand, converted_and_result_operand, HCC_AML_OPERAND(CONSTANT, shift_constant_id.idx_plus_one));
+		}
+
+		if (result_operand) {
+			HccAMLOperand ord_result_operand = hcc_amlgen_value_add(w, unsigned_result_data_type);
+			hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_OR,
+				ord_result_operand, result_operand, shifted_result_operand);
+
+			result_operand = ord_result_operand;
+		} else {
+			result_operand = shifted_result_operand;
+		}
+
+		bit_offset = 0;
+		bits_count -= field_storage_field_bits_count;
+		dst_bit_offset += field_storage_field_bits_count;
+	}
+
+	if (unsigned_result_data_type != result_data_type) {
+		HccAMLOperand converted_result_operand = hcc_amlgen_value_add(w, result_data_type);
+		hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_CONVERT, converted_result_operand, result_operand);
+		result_operand = converted_result_operand;
+	}
+
+	return result_operand;
+}
+
+HccAMLOperand hcc_amlgen_generate_bitfield_store(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand, HccAMLOperand old_dst_operand) {
+	HccDataType result_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
+	HccAMLOperand result_operand = 0;
+	HccDataType field_data_type = hcc_data_type_lower_ast_to_aml(w->cu, field->data_type);
+
+	HccAMLOperand src_operand = w->amlgen.assignee_operand;
+	if (w->amlgen.assignee_binary_op != HCC_AST_BINARY_OP_ASSIGN) {
+		HccAMLOp op = HCC_AML_OP_NO_OP;
+		switch (w->amlgen.assignee_binary_op) {
+			case HCC_AST_BINARY_OP_ADD: op = HCC_AML_OP_ADD; break;
+			case HCC_AST_BINARY_OP_SUBTRACT: op = HCC_AML_OP_SUBTRACT; break;
+			case HCC_AST_BINARY_OP_MULTIPLY: op = HCC_AML_OP_MULTIPLY; break;
+			case HCC_AST_BINARY_OP_DIVIDE: op = HCC_AML_OP_DIVIDE; break;
+			case HCC_AST_BINARY_OP_MODULO: op = HCC_AML_OP_MODULO; break;
+			case HCC_AST_BINARY_OP_BIT_AND: op = HCC_AML_OP_BIT_AND; break;
+			case HCC_AST_BINARY_OP_BIT_OR: op = HCC_AML_OP_BIT_OR; break;
+			case HCC_AST_BINARY_OP_BIT_XOR: op = HCC_AML_OP_BIT_XOR; break;
+			case HCC_AST_BINARY_OP_BIT_SHIFT_LEFT: op = HCC_AML_OP_BIT_SHIFT_LEFT; break;
+			case HCC_AST_BINARY_OP_BIT_SHIFT_RIGHT: op = HCC_AML_OP_BIT_SHIFT_RIGHT; break;
+		}
+		HCC_DEBUG_ASSERT(op != HCC_AML_OP_NO_OP, "unhandled binary op %u", w->amlgen.assignee_binary_op);
+
+		HccAMLOperand op_result_operand = hcc_amlgen_value_add(w, field_data_type);
+		hcc_amlgen_instr_add_3(w, expr->location, op,
+			op_result_operand, old_dst_operand, src_operand);
+
+		src_operand = op_result_operand;
+	}
+
+	uint32_t storage_field_end_idx = field->storage_field_idx + field->storage_fields_count;
+	uint32_t bit_offset = field->bit_offset;
+	uint32_t bits_count = field->bits_count;
+	uint32_t src_bit_offset = 0;
+	for (uint32_t storage_field_idx = field->storage_field_idx; storage_field_idx < storage_field_end_idx; storage_field_idx += 1) {
+		HccCompoundField* storage_field = &dt->storage_fields[storage_field_idx];
+		HccDataType storage_field_data_type = hcc_data_type_lower_ast_to_aml(w->cu, storage_field->data_type);
+		HccDataType storage_field_ptr_data_type = hcc_pointer_data_type_deduplicate(w->cu, storage_field_data_type);
+
+		HccDataType unsigned_storage_field_data_type = storage_field_data_type;
+		if (hcc_basic_type_class(w->cu, storage_field_data_type) == HCC_BASIC_TYPE_CLASS_SINT) {
+			unsigned_storage_field_data_type = hcc_data_type_signed_to_unsigned(w->cu, storage_field_data_type);
+		}
+
+		HccBasic storage_field_idx_basic = hcc_basic_from_uint(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, storage_field_idx);
+		HccConstantId storage_field_idx_constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_S32, &storage_field_idx_basic);
+
+		HccAMLOperand storage_field_ptr_operand = hcc_amlgen_value_add(w, storage_field_ptr_data_type);
+		hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS,
+			storage_field_ptr_operand, base_ptr_operand, HCC_AML_OPERAND(CONSTANT, storage_field_idx_constant_id.idx_plus_one));
+
+		HccAMLOperand storage_field_operand = hcc_amlgen_value_add(w, storage_field_data_type);
+		hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD,
+			storage_field_operand, storage_field_ptr_operand);
+
+		uint64_t size, align;
+		hcc_data_type_size_align(w->cu, storage_field_data_type, &size, &align);
+		uint32_t field_storage_field_bits_count = HCC_MIN(size * 8, bits_count);
+
+		uint64_t mask = (((uint64_t)1 << field_storage_field_bits_count) - 1) << bit_offset;
+		HccBasic mask_basic = hcc_basic_from_uint(w->cu, storage_field_data_type, mask);
+		HccConstantId mask_constant_id = hcc_constant_table_deduplicate_basic(w->cu, storage_field_data_type, &mask_basic);
+
+		uint64_t clear_mask = ~((((uint64_t)1 << field_storage_field_bits_count) - 1) << bit_offset);
+		HccBasic clear_mask_basic = hcc_basic_from_uint(w->cu, storage_field_data_type, clear_mask);
+		HccConstantId clear_mask_constant_id = hcc_constant_table_deduplicate_basic(w->cu, storage_field_data_type, &clear_mask_basic);
+
+		HccAMLOperand and_operand = hcc_amlgen_value_add(w, storage_field_data_type);
+		hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_AND,
+			and_operand, storage_field_operand, HCC_AML_OPERAND(CONSTANT, clear_mask_constant_id.idx_plus_one));
+
+		HccAMLOperand converted_src_operand;
+		if (hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand) == unsigned_storage_field_data_type) {
+			converted_src_operand = src_operand;
+		} else {
+			converted_src_operand = hcc_amlgen_value_add(w, unsigned_storage_field_data_type);
+			hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_CONVERT, converted_src_operand, src_operand);
+		}
+
+		HccAMLOperand shifted_src_operand;
+		if (src_bit_offset == bit_offset) {
+			shifted_src_operand = converted_src_operand;
+		} else {
+			uint64_t shift_amount;
+			HccAMLOp aml_op;
+			if (src_bit_offset < bit_offset) {
+				shift_amount = bit_offset - src_bit_offset;
+				aml_op = HCC_AML_OP_BIT_SHIFT_LEFT;
+			} else {
+				shift_amount = src_bit_offset - bit_offset;
+				aml_op = HCC_AML_OP_BIT_SHIFT_RIGHT;
+			}
+
+			HccBasic shift_basic = hcc_basic_from_uint(w->cu, unsigned_storage_field_data_type, shift_amount);
+			HccConstantId shift_constant_id = hcc_constant_table_deduplicate_basic(w->cu, unsigned_storage_field_data_type, &shift_basic);
+
+			shifted_src_operand = hcc_amlgen_value_add(w, unsigned_storage_field_data_type);
+			hcc_amlgen_instr_add_3(w, expr->location, aml_op,
+				shifted_src_operand, converted_src_operand, HCC_AML_OPERAND(CONSTANT, shift_constant_id.idx_plus_one));
+
+			if (unsigned_storage_field_data_type != storage_field_data_type) {
+				HccAMLOperand converted_storage_field_operand = hcc_amlgen_value_add(w, storage_field_data_type);
+				hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_CONVERT, converted_storage_field_operand, shifted_src_operand);
+				shifted_src_operand = converted_storage_field_operand;
+			}
+		}
+
+		HccAMLOperand and_src_operand = hcc_amlgen_value_add(w, storage_field_data_type);
+		hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_AND,
+			and_src_operand, shifted_src_operand, HCC_AML_OPERAND(CONSTANT, mask_constant_id.idx_plus_one));
+
+		HccAMLOperand ord_operand = hcc_amlgen_value_add(w, storage_field_data_type);
+		hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_OR,
+			ord_operand, and_operand, and_src_operand);
+
+		hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STORE,
+			storage_field_ptr_operand, ord_operand);
+
+		bit_offset = 0;
+		bits_count -= field_storage_field_bits_count;
+		src_bit_offset += field_storage_field_bits_count;
+	}
+
+	return src_operand;
+}
+
+HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation* location, HccDataType union_data_type, uint32_t storage_field_idx, HccAMLOperand union_ptr_operand) {
 	HccCompoundDataType* compound_data_type = hcc_compound_data_type_get(w->cu, union_data_type);
-	HccCompoundField* field = &compound_data_type->fields[field_idx];
+	HccCompoundField* field = &compound_data_type->storage_fields[storage_field_idx];
 	HccDataType field_data_type = hcc_data_type_lower_ast_to_aml(w->cu, field->data_type);
 	HccDataType dst_data_type = hcc_pointer_data_type_deduplicate(w->cu, field_data_type);
 	return hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_BITCAST,

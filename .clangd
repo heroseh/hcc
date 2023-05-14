@@ -1,0 +1,8 @@
+CompileFlags:
+  Compiler: clang
+
+Diagnostics:
+  ClangTidy:
+    Add: modernize*
+    Remove: misc-sizeof-expression
+

@@ -574,7 +574,6 @@ enum {
 	HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE,
 	HCC_ERROR_CODE_EXPECTED_POD_DATA_TYPE_FOR_BUFFER,
 	HCC_ERROR_CODE_INVALID_TEXEL_TYPE,
-	HCC_ERROR_CODE_INVALID_BUFFER_ELEMENT_TYPE,
 	HCC_ERROR_CODE_UNSIGNED_OR_SIGNED_ON_NON_INT_TYPE,
 	HCC_ERROR_CODE_COMPLEX_ON_NON_FLOAT_TYPE,
 	HCC_ERROR_CODE_MULTIPLE_TYPES_SPECIFIED,
@@ -601,6 +600,7 @@ enum {
 	HCC_ERROR_CODE_EXPECTED_ASSIGN_OR_FIELD_DESIGNATOR,
 	HCC_ERROR_CODE_EXPECTED_ASSIGN,
 	HCC_ERROR_CODE_UNARY_OPERATOR_NOT_SUPPORTED,
+	HCC_ERROR_CODE_ADDRESS_OF_NOT_SUPPORT_ON_BITFIELD,
 	HCC_ERROR_CODE_UNDECLARED_IDENTIFIER,
 	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_EXPR,
 	HCC_ERROR_CODE_INVALID_CAST,
@@ -695,6 +695,11 @@ enum {
 	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_STATIC_ASSERT,
 	HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_STATIC_ASSERT,
 	HCC_ERROR_CODE_EXPECTED_STRING_MESSAGE_FOR_STATIC_ASSERT,
+	HCC_ERROR_CODE_BITFIELD_IS_FOR_INTEGER_DATA_TYPES_ONLY,
+	HCC_ERROR_CODE_BITFIELD_ALIGNAS_NOT_SUPPORTED,
+	HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_BITFIELD,
+	HCC_ERROR_CODE_BITFIELD_EXCEEDS_MAX_BITS_FOR_DATA_TYPE,
+	HCC_ERROR_CODE_BITFIELD_IS_NOT_SUPPORTED_RASTERIZER_PIXEL_STATE,
 
 	//
 	// ASTLINK
@@ -1614,7 +1619,8 @@ void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_o
 void hcc_data_type_print_basic(HccCU* cu, HccDataType data_type, void* data, HccIIO* iio);
 bool hcc_data_type_is_condition(HccDataType data_type);
 uint64_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type);
-uint64_t hcc_data_type_composite_scalar_start_idx_recursive(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count);
+uint64_t hcc_data_type_composite_storage_fields_count(HccCU* cu, HccDataType data_type);
+uint64_t hcc_data_type_composite_scalar_start_idx_recursive(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count, HccDataType* final_composite_data_type_out);
 void hcc_data_type_composite_splat_constants_recursive(HccCU* cu, HccDataType data_type, HccConstantId constant_id, HccConstantId* dst_constant_ids);
 bool hcc_data_type_is_rasterizer_state(HccCU* cu, HccDataType data_type);
 bool hcc_data_type_is_pixel_state(HccCU* cu, HccDataType data_type);
@@ -1793,6 +1799,7 @@ struct HccASTExpr {
 			uint8_t         is_stmt: 1;
 			HccASTBinaryOp  op;
 			bool            is_assign; // add/sub/mul/div assignment
+			bool            is_bitfield;
 			HccASTExpr*     left_expr;
 			union {
 				HccASTExpr* right_expr;
@@ -1831,6 +1838,7 @@ struct HccASTExpr {
 			HccASTExpr*     value_expr;
 			uint32_t        elmt_indices_start_idx; // index into HccAST.designated_initializer_elmt_indices
 			uint32_t        elmts_count;
+			bool            is_bitfield;
 		} designated_initializer;
 		struct {
 			HccASTExprType  type: 7;
