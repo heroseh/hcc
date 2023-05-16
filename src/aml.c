@@ -436,6 +436,8 @@ const char* hcc_aml_op_code_strings[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_GATHER_BLUE_TEXTURE] = "GATHER_BLUE_TEXTURE",
 	[HCC_AML_OP_GATHER_ALPHA_TEXTURE] = "GATHER_ALPHA_TEXTURE",
 	[HCC_AML_OP_STORE_TEXTURE] = "STORE_TEXTURE",
+	[HCC_AML_OP_LOAD_BYTE_BUFFER] = "LOAD_BYTE_BUFFER",
+	[HCC_AML_OP_STORE_BYTE_BUFFER] = "STORE_BYTE_BUFFER",
 };
 
 bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
@@ -593,6 +595,8 @@ bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_GATHER_BLUE_TEXTURE] = true,
 	[HCC_AML_OP_GATHER_ALPHA_TEXTURE] = true,
 	[HCC_AML_OP_STORE_TEXTURE] = false,
+	[HCC_AML_OP_LOAD_BYTE_BUFFER] = true,
+	[HCC_AML_OP_STORE_BYTE_BUFFER] = false,
 };
 
 // ===========================================

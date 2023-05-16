@@ -438,7 +438,7 @@ bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType 
 		return true;
 	}
 
-	if (HCC_DATA_TYPE_IS_TEXTURE(target_data_type) && HCC_DATA_TYPE_IS_TEXTURE(source_data_type)) {
+	if (HCC_DATA_TYPE_IS_RESOURCE(target_data_type) && HCC_DATA_TYPE_IS_RESOURCE(source_data_type)) {
 		HccResourceDataType target_resource_data_type = HCC_DATA_TYPE_AUX(target_data_type);
 		HccResourceDataType source_resource_data_type = HCC_DATA_TYPE_AUX(source_data_type);
 		HccResourceAccessMode target_access_mode = HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(target_resource_data_type);

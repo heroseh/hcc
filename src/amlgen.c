@@ -648,7 +648,10 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 										case HCC_FUNCTION_MANY_LOAD_TEXTURE:
 										case HCC_FUNCTION_MANY_FETCH_TEXTURE:
-										case HCC_FUNCTION_MANY_STORE_TEXTURE: {
+										case HCC_FUNCTION_MANY_STORE_TEXTURE:
+										case HCC_FUNCTION_MANY_LOAD_BYTE_BUFFER:
+										case HCC_FUNCTION_MANY_STORE_BYTE_BUFFER:
+										{
 											w->amlgen.temp_operands[temp_operands_start_idx + 0] = hcc_amlgen_generate_resource_descriptor_load(w, expr->location, w->amlgen.temp_operands[temp_operands_start_idx + 0]);
 											op = hcc_intrinisic_function_many_aml_ops[many];
 											break;

@@ -919,7 +919,7 @@ HccCompilerSetup hcc_compiler_setup_default = {
 	.worker_arena_size = 32768,
 	.workers_count = 1,
 	.worker_jobs_queue_cap = 4096,
-	.worker_call_stack_size = 65536,
+	.worker_call_stack_size = 131072,
 };
 
 void hcc_compiler_give_worker_job(HccCompiler* c, HccTask* t, HccWorkerJobType job_type, void* arg) {
@@ -1289,7 +1289,6 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 			}
 
 			if (support & HCC_MANY_TYPE_CLASS_TEXTURE) {
-				hcc_string_intrinsic_decl_add_function(buf, sizeof(buf), insert_idx, "%s", expected_string_id, support, 0, 0);
 				const char* fmt = "%s%s%s_%s%s";
 
 				for (uint32_t dim = 0; dim < HCC_TEXTURE_DIM_COUNT; dim += 1) {
@@ -1319,6 +1318,31 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 							}
 						}
 					}
+				}
+			}
+
+			if (support & HCC_MANY_TYPE_CLASS_BYTE_BUFFER) {
+				const char* fmt = "%s%s";
+
+				for (uint32_t vector = 1; vector <= 4; vector += 1) {
+					const char* vector_suffix;
+					switch (vector) {
+						case 1: vector_suffix = ""; break;
+						case 2: vector_suffix = "x2"; break;
+						case 3: vector_suffix = "x3"; break;
+						case 4: vector_suffix = "x4"; break;
+					}
+					snprintf(buf + insert_idx, sizeof(buf) - insert_idx, fmt, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_F32], vector_suffix);
+					hcc_string_table_intrinsic_add(expected_string_id, buf);
+					expected_string_id += 1;
+
+					snprintf(buf + insert_idx, sizeof(buf) - insert_idx, fmt, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_S32], vector_suffix);
+					hcc_string_table_intrinsic_add(expected_string_id, buf);
+					expected_string_id += 1;
+
+					snprintf(buf + insert_idx, sizeof(buf) - insert_idx, fmt, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_U32], vector_suffix);
+					hcc_string_table_intrinsic_add(expected_string_id, buf);
+					expected_string_id += 1;
 				}
 			}
 		}

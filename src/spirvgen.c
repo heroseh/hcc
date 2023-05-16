@@ -121,7 +121,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 	w->spirvgen.basic_block_base_id = hcc_spirv_next_id_many(cu, aml_function->basic_blocks_count);
 	w->spirvgen.basic_block_param_base_id = hcc_spirv_next_id_many(cu, aml_function->basic_block_params_count);
 
-	function->words_cap = (uint32_t)floorf((float)aml_function->words_count * 1.5f);
+	function->words_cap = (uint32_t)floorf((float)aml_function->words_cap * 1.5f);
 	function->words = hcc_stack_push_many(cu->spirv.function_words, function->words_cap);
 
 	HccSPIRVId function_spirv_id = hcc_spirv_decl_deduplicate(cu, function_decl);
@@ -757,23 +757,6 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				hcc_spirvgen_found_global(w, info.variable_spirv_id);
 				HccSPIRVId descriptor_idx_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 
-				//
-				// MIN the descriptor index with the size of the descriptor array so it doesn't cause a crash on AMD drivers
-				// when the descriptor index is out of bounds.
-				HccSPIRVId bounded_descriptor_idx_spirv_id;
-				{
-					bounded_descriptor_idx_spirv_id = hcc_spirv_next_id(cu);
-
-					HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
-					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_EXT_INST, 6);
-					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32);
-					operands[1] = bounded_descriptor_idx_spirv_id;
-					operands[2] = HCC_SPIRV_ID_GLSL_STD_450;
-					operands[3] = HCC_SPIRV_GLSL_STD_450_OP_U_MIN;
-					operands[4] = descriptor_idx_spirv_id;
-					operands[5] = cu->spirv.resource_descriptors_max_constant_spirv_id;
-				}
-
 				bool is_buffer = HCC_DATA_TYPE_IS_BUFFER(data_type);
 				HccSPIRVId result_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
 				HccSPIRVId intermediate_result_id = is_buffer ? result_id : hcc_spirv_next_id(cu);
@@ -782,7 +765,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[0] = info.data_type_ptr_spirv_id;
 				operands[1] = intermediate_result_id;
 				operands[2] = info.variable_spirv_id;
-				operands[3] = bounded_descriptor_idx_spirv_id;
+				operands[3] = descriptor_idx_spirv_id;
 				if (is_buffer) {
 					// because of GLSL and it's terrible design, storage buffers need to be a structure and we only have a single element which is a runtime array
 					// this final operand will access that runtime array.
@@ -1531,6 +1514,194 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) {
 					operands[3] = HCC_SPIRV_IMAGE_OPERAND_SAMPLE;
 					operands[4] = ms_sample_spirv_id;
+				}
+
+				break;
+			};
+
+			case HCC_AML_OP_LOAD_BYTE_BUFFER: {
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(return_data_type), "expected aml intrinsic type");
+				HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(return_data_type);
+				uint32_t scalars_count = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
+
+				HccBasic four_basic = { .u32 = 4 };
+				HccConstantId four_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &four_basic);
+
+				HccSPIRVId src_byte_buffer_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				HccSPIRVId word_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32);
+				HccSPIRVId ptr_word_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+
+				HccSPIRVId word_idx_spirv_id = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_U_DIV, 4);
+				operands[0] = word_type_spirv_id;
+				operands[1] = word_idx_spirv_id;
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+				operands[3] = hcc_spirv_constant_deduplicate(w->cu, four_constant_id);
+
+				HccSPIRVId dst_intermediate_spirv_id;
+				HccSPIRVId dst_intermediate_type_spirv_id;
+				HccSPIRVId dst_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				HccSPIRVId dst_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				if (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type) == HCC_DATA_TYPE_AML_INTRINSIC_U32) {
+					dst_intermediate_spirv_id = dst_spirv_id;
+					dst_intermediate_type_spirv_id = dst_type_spirv_id;
+				} else {
+					dst_intermediate_spirv_id = hcc_spirv_next_id(cu);
+					dst_intermediate_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE(HCC_AML_INTRINSIC_DATA_TYPE_U32, scalars_count, 1)));
+				}
+
+				if (scalars_count == 1) {
+					HccSPIRVId ptr_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 4);
+					operands[0] = ptr_word_type_spirv_id;
+					operands[1] = ptr_spirv_id;
+					operands[2] = src_byte_buffer_spirv_id;
+					operands[3] = word_idx_spirv_id;
+
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3);
+					operands[0] = word_type_spirv_id;
+					operands[1] = dst_intermediate_spirv_id;
+					operands[2] = ptr_spirv_id;
+				} else {
+					HccSPIRVId loaded_spirv_id[4];
+
+					HccBasic two_basic = { .u32 = 2 };
+					HccConstantId two_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &two_basic);
+
+					HccBasic three_basic = { .u32 = 3 };
+					HccConstantId three_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &three_basic);
+
+					HccConstantId add_constant_ids[4] = {
+						hcc_constant_table_deduplicate_zero(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32),
+						hcc_constant_table_deduplicate_one(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32),
+						two_constant_id,
+						three_constant_id,
+					};
+
+					for (uint32_t idx = 0; idx < scalars_count; idx += 1) {
+						loaded_spirv_id[idx] = hcc_spirv_next_id(cu);
+
+						HccSPIRVId added_word_idx_spirv_id = hcc_spirv_next_id(cu);
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_I_ADD, 4);
+						operands[0] = word_type_spirv_id;
+						operands[1] = added_word_idx_spirv_id;
+						operands[2] = word_idx_spirv_id;
+						operands[3] = hcc_spirv_constant_deduplicate(w->cu, add_constant_ids[idx]);
+
+						HccSPIRVId ptr_spirv_id = hcc_spirv_next_id(cu);
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 4);
+						operands[0] = ptr_word_type_spirv_id;
+						operands[1] = ptr_spirv_id;
+						operands[2] = src_byte_buffer_spirv_id;
+						operands[3] = added_word_idx_spirv_id;
+
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3);
+						operands[0] = word_type_spirv_id;
+						operands[1] = loaded_spirv_id[idx];
+						operands[2] = ptr_spirv_id;
+					}
+
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_COMPOSITE_CONSTRUCT, 2 + scalars_count);
+					operands[0] = dst_intermediate_type_spirv_id;
+					operands[1] = dst_intermediate_spirv_id;
+					for (uint32_t idx = 0; idx < scalars_count; idx += 1) {
+						operands[2 + idx] = loaded_spirv_id[idx];
+					}
+				}
+
+				if (dst_spirv_id != dst_intermediate_spirv_id) {
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_BITCAST, 3);
+					operands[0] = dst_type_spirv_id;
+					operands[1] = dst_spirv_id;
+					operands[2] = dst_intermediate_spirv_id;
+				}
+
+				break;
+			};
+
+			case HCC_AML_OP_STORE_BYTE_BUFFER: {
+				HccDataType store_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[2]);
+				HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(store_data_type), "expected aml intrinsic type");
+				HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(store_data_type);
+				uint32_t scalars_count = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(intrinsic_data_type);
+
+				HccBasic four_basic = { .u32 = 4 };
+				HccConstantId four_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &four_basic);
+
+				HccSPIRVId dst_byte_buffer_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				HccSPIRVId word_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32);
+				HccSPIRVId ptr_word_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+
+				HccSPIRVId word_idx_spirv_id = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_U_DIV, 4);
+				operands[0] = word_type_spirv_id;
+				operands[1] = word_idx_spirv_id;
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[3] = hcc_spirv_constant_deduplicate(w->cu, four_constant_id);
+
+				HccSPIRVId src_value_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+				if (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type) != HCC_DATA_TYPE_AML_INTRINSIC_U32) {
+					HccSPIRVId value_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_BITCAST, 3);
+					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE(HCC_AML_INTRINSIC_DATA_TYPE_U32, scalars_count, 1)));
+					operands[1] = value_spirv_id;
+					operands[2] = src_value_spirv_id;
+
+					src_value_spirv_id = value_spirv_id;
+				}
+
+				if (scalars_count == 1) {
+					HccSPIRVId ptr_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 4);
+					operands[0] = ptr_word_type_spirv_id;
+					operands[1] = ptr_spirv_id;
+					operands[2] = dst_byte_buffer_spirv_id;
+					operands[3] = word_idx_spirv_id;
+
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_STORE, 2);
+					operands[0] = ptr_spirv_id;
+					operands[1] = src_value_spirv_id;
+				} else {
+					HccBasic two_basic = { .u32 = 2 };
+					HccConstantId two_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &two_basic);
+
+					HccBasic three_basic = { .u32 = 3 };
+					HccConstantId three_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &three_basic);
+
+					HccConstantId add_constant_ids[4] = {
+						hcc_constant_table_deduplicate_zero(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32),
+						hcc_constant_table_deduplicate_one(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32),
+						two_constant_id,
+						three_constant_id,
+					};
+
+					for (uint32_t idx = 0; idx < scalars_count; idx += 1) {
+						HccSPIRVId added_word_idx_spirv_id = hcc_spirv_next_id(cu);
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_I_ADD, 4);
+						operands[0] = word_type_spirv_id;
+						operands[1] = added_word_idx_spirv_id;
+						operands[2] = word_idx_spirv_id;
+						operands[3] = hcc_spirv_constant_deduplicate(w->cu, add_constant_ids[idx]);
+
+						HccSPIRVId ptr_spirv_id = hcc_spirv_next_id(cu);
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 4);
+						operands[0] = ptr_word_type_spirv_id;
+						operands[1] = ptr_spirv_id;
+						operands[2] = dst_byte_buffer_spirv_id;
+						operands[3] = added_word_idx_spirv_id;
+
+						HccSPIRVId field_value_spirv_id = hcc_spirv_next_id(cu);
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_COMPOSITE_EXTRACT, 4);
+						operands[0] = word_type_spirv_id;
+						operands[1] = field_value_spirv_id;
+						operands[2] = src_value_spirv_id;
+						operands[3] = idx;
+
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_STORE, 2);
+						operands[0] = ptr_spirv_id;
+						operands[1] = field_value_spirv_id;
+					}
 				}
 
 				break;

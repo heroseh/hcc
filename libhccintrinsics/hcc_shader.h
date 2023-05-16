@@ -89,6 +89,62 @@
 #define HccSampleTexture3D(T) uint32_t
 #endif // !__HCC_GPU__
 
+typedef HccRoBuffer(uint32_t) HccRoByteBuffer;
+typedef HccRwBuffer(uint32_t) HccRwByteBuffer;
+typedef HccWoBuffer(uint32_t) HccWoByteBuffer;
+
+//
+// loads a value from 'byte_buffer' at 'byte_idx'.
+// 'byte_idx' is rounded down to the nearest 4 bytes due to the current limitation of 4 byte scalars types only being supported
+//
+uint32_t load_byte_buffer_u32(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+int32_t load_byte_buffer_s32(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+float load_byte_buffer_f32(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+u32x2 load_byte_buffer_u32x2(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+s32x2 load_byte_buffer_s32x2(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+f32x2 load_byte_buffer_f32x2(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+u32x3 load_byte_buffer_u32x3(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+s32x3 load_byte_buffer_s32x3(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+f32x3 load_byte_buffer_f32x3(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+u32x4 load_byte_buffer_u32x4(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+s32x4 load_byte_buffer_s32x4(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+f32x4 load_byte_buffer_f32x4(HccRoByteBuffer byte_buffer, uint32_t byte_idx);
+
+//
+// stores a value in 'byte_buffer' at 'byte_idx'.
+// 'byte_idx' is rounded down to the nearest 4 bytes due to the current limitation of 4 byte scalars types only being supported
+//
+void store_byte_buffer_u32(HccWoByteBuffer byte_buffer, uint32_t byte_idx, uint32_t value);
+void store_byte_buffer_s32(HccWoByteBuffer byte_buffer, uint32_t byte_idx, int32_t value);
+void store_byte_buffer_f32(HccWoByteBuffer byte_buffer, uint32_t byte_idx, float value);
+void store_byte_buffer_u32x2(HccWoByteBuffer byte_buffer, uint32_t byte_idx, u32x2 value);
+void store_byte_buffer_s32x2(HccWoByteBuffer byte_buffer, uint32_t byte_idx, s32x2 value);
+void store_byte_buffer_f32x2(HccWoByteBuffer byte_buffer, uint32_t byte_idx, f32x2 value);
+void store_byte_buffer_u32x3(HccWoByteBuffer byte_buffer, uint32_t byte_idx, u32x3 value);
+void store_byte_buffer_s32x3(HccWoByteBuffer byte_buffer, uint32_t byte_idx, s32x3 value);
+void store_byte_buffer_f32x3(HccWoByteBuffer byte_buffer, uint32_t byte_idx, f32x3 value);
+void store_byte_buffer_u32x4(HccWoByteBuffer byte_buffer, uint32_t byte_idx, u32x4 value);
+void store_byte_buffer_s32x4(HccWoByteBuffer byte_buffer, uint32_t byte_idx, s32x4 value);
+void store_byte_buffer_f32x4(HccWoByteBuffer byte_buffer, uint32_t byte_idx, f32x4 value);
+
+#ifdef HCC_HAS_C_GENERIC_SUPPORT
+#define store_byte_bufferG(byte_buffer, byte_idx, value) \
+	_Generic((value), \
+		uint32_t: store_byte_buffer_u32, \
+		int32_t: store_byte_buffer_s32, \
+		float: store_byte_buffer_f32, \
+		u32x2: store_byte_buffer_u32x2, \
+		s32x2: store_byte_buffer_s32x2, \
+		f32x2: store_byte_buffer_f32x2, \
+		u32x3: store_byte_buffer_u32x3, \
+		s32x3: store_byte_buffer_s32x3, \
+		f32x3: store_byte_buffer_f32x3, \
+		u32x4: store_byte_buffer_u32x4, \
+		s32x4: store_byte_buffer_s32x4, \
+		f32x4: store_byte_buffer_f32x4 \
+	)(byte_buffer, byte_idx, value)
+#endif // HCC_HAS_C_GENERIC_SUPPORT
+
 // ===========================================
 //
 //
