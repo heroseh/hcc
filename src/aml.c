@@ -367,6 +367,7 @@ const char* hcc_aml_op_code_strings[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_NORM] = "NORM",
 	[HCC_AML_OP_REFLECT] = "REFLECT",
 	[HCC_AML_OP_REFRACT] = "REFRACT",
+	[HCC_AML_OP_SHUFFLE] = "SHUFFLE",
 	[HCC_AML_OP_PACK_F16X2_F32X2] = "PACK_F16X2_F32X2",
 	[HCC_AML_OP_UNPACK_F16X2_F32X2] = "UNPACK_F16X2_F32X2",
 	[HCC_AML_OP_PACK_U16X2_F32X2] = "PACK_U16X2_F32X2",
@@ -527,6 +528,7 @@ bool hcc_aml_op_code_has_return_value[HCC_AML_OP_COUNT] = {
 	[HCC_AML_OP_NORM] = true,
 	[HCC_AML_OP_REFLECT] = true,
 	[HCC_AML_OP_REFRACT] = true,
+	[HCC_AML_OP_SHUFFLE] = true,
 	[HCC_AML_OP_PACK_F16X2_F32X2] = true,
 	[HCC_AML_OP_UNPACK_F16X2_F32X2] = true,
 	[HCC_AML_OP_PACK_U16X2_F32X2] = true,
@@ -869,6 +871,20 @@ void hcc_aml_print(HccCU* cu, HccIIO* iio) {
 						hcc_iio_write_fmt(iio, ", ");
 					}
 				}
+				hcc_iio_write_fmt(iio, "):\n");
+			} else if (op == HCC_AML_OP_SHUFFLE) {
+				for (uint32_t operand_idx = 1; operand_idx < 3; operand_idx += 1) {
+					hcc_aml_print_operand(cu, function, operands[operand_idx], iio, false);
+					hcc_iio_write_fmt(iio, ", ");
+				}
+				for (uint32_t operand_idx = 3; operand_idx < operands_count; operand_idx += 1) {
+					hcc_iio_write_fmt(iio, "%u", operands[operand_idx]);
+
+					if (operand_idx + 1 < operands_count) {
+						hcc_iio_write_fmt(iio, ", ");
+					}
+				}
+				hcc_iio_write_fmt(iio, ");\n");
 				hcc_iio_write_fmt(iio, "):\n");
 			} else {
 				for (uint32_t operand_idx = has_return_value_register; operand_idx < operands_count; operand_idx += 1) {

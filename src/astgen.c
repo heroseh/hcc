@@ -350,6 +350,83 @@ HccHash64 hcc_astgen_hash_compound_data_type_field(HccCU* cu, HccDataType data_t
 	return hash;
 }
 
+void hcc_astgen_vector_field_access(HccWorker* w, HccDataType vector_data_type, HccStringId identifier_string_id, uint32_t* field_idx_out, HccDataType* field_data_type_out) {
+	if (HCC_STRING_ID_SWIZZLE_XYZW_START <= identifier_string_id.idx_plus_one && identifier_string_id.idx_plus_one < HCC_STRING_ID_SWIZZLE_RGBA_END) {
+		HccSwizzle swizzle = (identifier_string_id.idx_plus_one - HCC_STRING_ID_SWIZZLE_XYZW_START) % HCC_SWIZZLE_COUNT;
+
+		if (!hcc_options_get_bool(w->cu->options, HCC_OPTION_KEY_UNORDERED_SWIZZLING_ENABLED) && !hcc_swizzle_is_ordered(swizzle)) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNORDERED_SWIZZLING_IS_NOT_ENABLED);
+		}
+
+		uint32_t src_num_elmts = hcc_swizzle_max_elmt(swizzle) + 1;
+		if (src_num_elmts > HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(vector_data_type))) {
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_TOO_MANY_SWIZZLE_COMPONENTS, src_num_elmts, HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(vector_data_type)));
+		}
+
+		uint32_t dst_num_elmts = hcc_swizzle_num_elmts_dst(swizzle);
+
+		HccAMLIntrinsicDataType scalar_intrinsic_data_type = HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(vector_data_type));
+		*field_data_type_out = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE(scalar_intrinsic_data_type, dst_num_elmts, 1));
+		*field_idx_out = 4 + swizzle;
+	} else {
+		uint32_t field_idx;
+		switch (identifier_string_id.idx_plus_one) {
+			case HCC_STRING_ID_X: field_idx = 0; break;
+			case HCC_STRING_ID_Y: field_idx = 1; break;
+			case HCC_STRING_ID_Z: field_idx = 2; break;
+			case HCC_STRING_ID_W: field_idx = 3; break;
+			case HCC_STRING_ID_R: field_idx = 0; break;
+			case HCC_STRING_ID_G: field_idx = 1; break;
+			case HCC_STRING_ID_B: field_idx = 2; break;
+			case HCC_STRING_ID_A: field_idx = 3; break;
+			default: {
+				HccString identifier_string = hcc_string_table_get(identifier_string_id);
+				HccString data_type_name = hcc_data_type_string(w->cu, vector_data_type);
+				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_CANNOT_FIND_FIELD_VECTOR, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data);
+			};
+		}
+
+		*field_data_type_out = hcc_data_type_higher_aml_to_ast(w->cu, HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(vector_data_type))));
+		*field_idx_out = field_idx;
+	}
+}
+
+uint32_t hcc_astgen_vector_simplify_swizzle(HccSwizzle left_swizzle, uint32_t field_idx) {
+	uint32_t remap[4];
+	hcc_swizzle_extract_indices(left_swizzle, remap);
+
+	if (field_idx < 4) {
+		return remap[field_idx];
+	} else {
+		HccSwizzle right_swizzle = field_idx - 4;
+		HccSwizzle final_swizzle = 0;
+		if (right_swizzle <= HCC_SWIZZLE_WW) {
+			right_swizzle -= HCC_SWIZZLE_XX;
+			final_swizzle |= remap[right_swizzle % 4] << 0;
+			final_swizzle |= remap[right_swizzle / 4] << 2;
+			final_swizzle += HCC_SWIZZLE_XX;
+		} else if (right_swizzle <= HCC_SWIZZLE_WWW) {
+			right_swizzle -= HCC_SWIZZLE_XXX;
+			int shifted = right_swizzle / 4;
+			final_swizzle |= remap[right_swizzle % 4] << 0;
+			final_swizzle |= remap[shifted       % 4] << 2;
+			final_swizzle |= remap[shifted       / 4] << 4;
+			final_swizzle += HCC_SWIZZLE_XXX;
+		} else {
+			right_swizzle -= HCC_SWIZZLE_XXXX;
+			int shifted = right_swizzle / 4;
+			int shifted_shifted = shifted / 4;
+			final_swizzle |= remap[right_swizzle   % 4] << 0;
+			final_swizzle |= remap[shifted         % 4] << 2;
+			final_swizzle |= remap[shifted_shifted % 4] << 4;
+			final_swizzle |= remap[shifted_shifted / 4] << 8;
+			final_swizzle += HCC_SWIZZLE_XXXX;
+		}
+
+		return final_swizzle + 4;
+	}
+}
+
 const char* hcc_astgen_type_specifier_string(HccASTGenTypeSpecifier specifier) {
 	switch (specifier) {
 		case HCC_ASTGEN_TYPE_SPECIFIER_VOID: return "void";
@@ -1007,6 +1084,12 @@ bool hcc_astgen_curly_initializer_next_elmt(HccWorker* w, HccDataType resolved_t
 		HccASTGenCurlyInitializerCurly* curly = hcc_stack_get_last(gen->nested_curlys);
 		bool had_explicit_designator_for_union_field = nested_elmt->had_explicit_designator_for_union_field;
 
+		if (HCC_DATA_TYPE_IS_VECTOR(nested_elmt->resolved_data_type) && nested_elmt->elmt_idx >= 4 && nested_elmt->elmt_idx != ((uint64_t)1 << 63) - 1) { // is_swizzle
+			// set the elmt index to the largest referenced component so it'll continue from there
+			HccSwizzle swizzle = nested_elmt->elmt_idx - 4;
+			nested_elmt->elmt_idx = hcc_swizzle_max_elmt(swizzle);
+		}
+
 		nested_elmt->elmt_idx += 1;
 		nested_elmt->had_explicit_designator_for_union_field = false;
 
@@ -1111,29 +1194,21 @@ HccATAToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccWorker* w)
 					HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(gen->resolved_composite_data_type);
 
 					uint32_t field_idx;
-					switch (identifier_string_id.idx_plus_one) {
-						case HCC_STRING_ID_X: field_idx = 0; break;
-						case HCC_STRING_ID_Y: field_idx = 1; break;
-						case HCC_STRING_ID_Z: field_idx = 2; break;
-						case HCC_STRING_ID_W: field_idx = 3; break;
-						case HCC_STRING_ID_R: field_idx = 0; break;
-						case HCC_STRING_ID_G: field_idx = 1; break;
-						case HCC_STRING_ID_B: field_idx = 2; break;
-						case HCC_STRING_ID_A: field_idx = 3; break;
-						default: {
-							HccString identifier_string = hcc_string_table_get(identifier_string_id);
-							HccString data_type_name = hcc_data_type_string(w->cu, gen->resolved_composite_data_type);
-							hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_CANNOT_FIND_FIELD_VECTOR, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data);
-						};
+					HccDataType return_data_type;
+					hcc_astgen_vector_field_access(w, gen->resolved_composite_data_type, identifier_string_id, &field_idx, &return_data_type);
+
+					if (HCC_DATA_TYPE_IS_VECTOR(hcc_stack_get_back(gen->nested_elmts, 1)->resolved_data_type) && hcc_stack_get_back(gen->nested_elmts, 1)->elmt_idx >= 4) {
+						HccSwizzle left_swizzle = hcc_stack_get_back(gen->nested_elmts, 1)->elmt_idx - 4;
+						field_idx = hcc_astgen_vector_simplify_swizzle(left_swizzle, field_idx);
+						hcc_stack_get_back(gen->nested_elmts, 1)->elmt_idx = field_idx;
+					} else {
+						hcc_stack_get_last(gen->nested_elmts)->elmt_idx = field_idx;
+						hcc_astgen_curly_initializer_nested_elmt_push(w, return_data_type, return_data_type);
 					}
 
-					HccDataType scalar_data_type = hcc_data_type_higher_aml_to_ast(w->cu, HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(gen->resolved_composite_data_type))));
-
-					hcc_stack_get_last(gen->nested_elmts)->elmt_idx = field_idx;
-					hcc_astgen_curly_initializer_nested_elmt_push(w, scalar_data_type, scalar_data_type);
-
-					gen->elmt_data_type = scalar_data_type;
-					gen->resolved_elmt_data_type = scalar_data_type;
+					gen->elmt_data_type = return_data_type;
+					gen->resolved_elmt_data_type = return_data_type;
+					gen->is_last_elmt_a_swizzle = field_idx >= 4;
 					gen->is_last_elmt_a_bitfield = false;
 				} else {
 					HCC_ABORT("unexpected data type %u", gen->resolved_composite_data_type);
@@ -1168,6 +1243,7 @@ HccATAToken hcc_astgen_curly_initializer_next_elmt_with_designator(HccWorker* w)
 				hcc_stack_get_last(gen->nested_elmts)->elmt_idx = elmt_idx;
 				hcc_astgen_curly_initializer_nested_elmt_push(w, gen->elmt_data_type, gen->resolved_elmt_data_type);
 				gen->is_last_elmt_a_bitfield = false;
+				gen->is_last_elmt_a_swizzle = false;
 				break;
 			case HCC_ATA_TOKEN_EQUAL:
 				goto END;
@@ -1206,10 +1282,7 @@ END: {}
 	hcc_stack_pop(gen->nested_elmts);
 
 	if (token != HCC_ATA_TOKEN_CURLY_OPEN) {
-		// take away one as the next call to hcc_astgen_curly_initializer_next_elmt
-		// will increment it past where the designator has specified.
 		nested_elmt = hcc_stack_get_last(gen->nested_elmts);
-		nested_elmt->elmt_idx -= 1;
 		nested_elmt->had_explicit_designator_for_union_field = HCC_DATA_TYPE_IS_UNION(gen->resolved_composite_data_type);
 	}
 	return token;
@@ -1298,6 +1371,7 @@ HccASTExpr* hcc_astgen_curly_initializer_generate_designated_initializer(HccWork
 	initializer_expr->next_stmt = NULL;
 	initializer_expr->designated_initializer.elmt_indices_start_idx = dst_elmt_indices_start_idx;
 	initializer_expr->designated_initializer.elmts_count = elmt_indices_count;
+	initializer_expr->designated_initializer.is_swizzle = gen->is_last_elmt_a_swizzle;
 	initializer_expr->designated_initializer.is_bitfield = gen->is_last_elmt_a_bitfield;
 	initializer_expr->location = location;
 
@@ -3115,6 +3189,11 @@ UNARY:
 			HccLocation* location = hcc_ata_iter_location(w->astgen.token_iter);
 			hcc_astgen_data_type_ensure_valid_variable(w, assign_data_type, HCC_ERROR_CODE_INVALID_DATA_TYPE_FOR_VARIABLE);
 
+			bool old_is_last_elmt_a_bitfield = gen->is_last_elmt_a_bitfield;
+			bool old_is_last_elmt_a_swizzle = gen->is_last_elmt_a_swizzle;
+			gen->is_last_elmt_a_bitfield = false;
+			gen->is_last_elmt_a_swizzle = false;
+
 			HccASTExpr* curly_initializer_expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CURLY_INITIALIZER);
 			curly_initializer_expr->data_type = assign_data_type;
 			curly_initializer_expr->location = location;
@@ -3137,24 +3216,37 @@ UNARY:
 				}
 
 				gen->is_last_elmt_a_bitfield = false;
+				gen->is_last_elmt_a_swizzle = false;
 				location = hcc_ata_iter_location(w->astgen.token_iter);
-				if (token == HCC_ATA_TOKEN_FULL_STOP || token == HCC_ATA_TOKEN_SQUARE_OPEN) {
+				bool found_designator = token == HCC_ATA_TOKEN_FULL_STOP || token == HCC_ATA_TOKEN_SQUARE_OPEN;
+				if (found_designator) {
 					token = hcc_astgen_curly_initializer_next_elmt_with_designator(w);
 					if (token == HCC_ATA_TOKEN_CURLY_OPEN) {
 						token = hcc_astgen_curly_initializer_open(w);
 						continue;
 					}
-				} else if (hcc_stack_get_last(gen->nested_curlys)->found_designator) {
-					hcc_astgen_warn_1(w, HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR);
+				} else {
+					if (hcc_stack_get_last(gen->nested_curlys)->found_designator) {
+						hcc_astgen_warn_1(w, HCC_WARN_CODE_NO_DESIGNATOR_AFTER_DESIGNATOR);
+					}
 				}
 
 				fields_set_count += 1;
+
+				HccDataType elmt_data_type = gen->elmt_data_type;
+				HccDataType resolved_elmt_data_type = gen->resolved_elmt_data_type;
 				HccASTExpr* value_expr = hcc_astgen_generate_expr_no_comma_operator(w, 0);
+				gen->elmt_data_type = elmt_data_type;
+				gen->resolved_elmt_data_type = resolved_elmt_data_type;
+
 				HccDataType resolved_value_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, value_expr->data_type);
-				bool emit_elmt_initializer = hcc_astgen_curly_initializer_next_elmt(w, resolved_value_data_type);
+				bool emit_elmt_initializer = true;
+				if (!found_designator) {
+					emit_elmt_initializer = hcc_astgen_curly_initializer_next_elmt(w, resolved_value_data_type);
+				}
 				if (emit_elmt_initializer) {
 					HccLocation* other_location = NULL;
-					hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, w->astgen.curly_initializer.elmt_data_type, &value_expr);
+					hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, gen->elmt_data_type, &value_expr);
 					HccASTExpr* initializer_expr = hcc_astgen_curly_initializer_generate_designated_initializer(w, location);
 					initializer_expr->designated_initializer.value_expr = value_expr;
 				}
@@ -3190,7 +3282,8 @@ UNARY:
 				}
 			}
 CURLY_INITIALIZER_FINISH: {}
-			gen->is_last_elmt_a_bitfield = false;
+			gen->is_last_elmt_a_bitfield = old_is_last_elmt_a_bitfield;
+			gen->is_last_elmt_a_swizzle = old_is_last_elmt_a_swizzle;
 			token = hcc_ata_iter_next(w->astgen.token_iter);
 			curly_initializer_expr->curly_initializer.first_expr = gen->first_initializer_expr;
 			if (gen->elmts_end_idx == UINT64_MAX) { // if curly initializer was for an unsized array
@@ -3236,7 +3329,21 @@ CURLY_INITIALIZER_FINISH: {}
 					}
 
 					if (HCC_DATA_TYPE_IS_COMPOSITE(field_data_type)) {
-						hcc_data_type_composite_splat_constants_recursive(w->cu, field_data_type, value_expr->constant.id, &gen->composite_constant_ids[scalar_start_idx]);
+						if (initializer_expr->designated_initializer.is_swizzle) {
+							uint32_t indices[4];
+							HccSwizzle swizzle = elmt_indices[initializer_expr->designated_initializer.elmts_count - 1] - 4;
+							hcc_swizzle_extract_indices(swizzle, indices);
+
+							HccConstant constant = hcc_constant_table_get(w->cu, value_expr->constant.id);
+							HccConstantId* src_constant_ids = constant.data;
+
+							uint32_t count = hcc_swizzle_num_elmts_dst(swizzle);
+							for (uint32_t idx = 0; idx < count; idx += 1) {
+								gen->composite_constant_ids[scalar_start_idx + indices[idx]] = src_constant_ids[idx];
+							}
+						} else {
+							hcc_data_type_composite_splat_constants_recursive(w->cu, field_data_type, value_expr->constant.id, &gen->composite_constant_ids[scalar_start_idx]);
+						}
 					} else if (field && field->is_bitfield) {
 						HccConstant value_constant = hcc_constant_table_get(w->cu, value_expr->constant.id);
 						uint64_t value;
@@ -3605,7 +3712,7 @@ void hcc_astgen_generate_binary_op(HccWorker* w, HccASTBinaryOp* binary_op_out, 
 		case HCC_ATA_TOKEN_COMMA:
 			*binary_op_out = HCC_AST_BINARY_OP_COMMA;
 			*precedence_out = 15;
-			*is_assignment_out = true;
+			*is_assignment_out = false;
 			break;
 		default:
 			*binary_op_out = HCC_AST_BINARY_OP_COUNT;
@@ -3751,8 +3858,8 @@ HccASTExpr* hcc_astgen_generate_field_access_expr(HccWorker* w, HccASTExpr* left
 			expr->binary.op = is_indirect ? HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT : HCC_AST_BINARY_OP_FIELD_ACCESS;
 			expr->binary.left_expr = left_expr; // link to the previous expression
 			expr->binary.field_idx = access->idx;
-			expr->binary.is_assign = false;
 			expr->binary.is_bitfield = access->is_bitfield;
+			expr->binary.is_swizzle = false;
 			expr->data_type = access->data_type | qualifier_mask;
 			expr->location = location;
 			left_expr = expr;
@@ -3760,39 +3867,31 @@ HccASTExpr* hcc_astgen_generate_field_access_expr(HccWorker* w, HccASTExpr* left
 	} else if (HCC_DATA_TYPE_IS_VECTOR(data_type)) {
 		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
 
-		//
-		// TODO: add swizzling support
-		//
-
 		uint32_t field_idx;
-		switch (identifier_string_id.idx_plus_one) {
-			case HCC_STRING_ID_X: field_idx = 0; break;
-			case HCC_STRING_ID_Y: field_idx = 1; break;
-			case HCC_STRING_ID_Z: field_idx = 2; break;
-			case HCC_STRING_ID_W: field_idx = 3; break;
-			case HCC_STRING_ID_R: field_idx = 0; break;
-			case HCC_STRING_ID_G: field_idx = 1; break;
-			case HCC_STRING_ID_B: field_idx = 2; break;
-			case HCC_STRING_ID_A: field_idx = 3; break;
-			default: {
-				HccString identifier_string = hcc_string_table_get(identifier_string_id);
-				HccString data_type_name = hcc_data_type_string(w->cu, data_type);
-				hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_CANNOT_FIND_FIELD_VECTOR, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data);
-			};
+		HccDataType return_data_type;
+		hcc_astgen_vector_field_access(w, data_type, identifier_string_id, &field_idx, &return_data_type);
+
+		if (left_expr->type == HCC_AST_EXPR_TYPE_BINARY_OP && left_expr->binary.is_swizzle) {
+			//
+			// do not create another expression as we have a swizzle on the left hand side
+			// so we can simplify the tree!
+			//
+			// eg 1: vec.yxwz.yz -> vec.xw
+			// eg 2: vec.agba.rb -> vec.ag
+			//
+			left_expr->binary.field_idx = hcc_astgen_vector_simplify_swizzle(left_expr->binary.field_idx - 4, field_idx);
+			left_expr->data_type = return_data_type;
+		} else {
+			HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
+			expr->binary.op = is_indirect ? HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT : HCC_AST_BINARY_OP_FIELD_ACCESS;
+			expr->binary.left_expr = left_expr; // link to the previous expression
+			expr->binary.field_idx = field_idx;
+			expr->binary.is_bitfield = false;
+			expr->binary.is_swizzle = field_idx >= 4;
+			expr->data_type = return_data_type | qualifier_mask;
+			expr->location = location;
+			left_expr = expr;
 		}
-
-		HccDataType scalar_data_type = hcc_data_type_higher_aml_to_ast(w->cu, HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type))));
-
-		HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
-		expr->binary.op = is_indirect ? HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT : HCC_AST_BINARY_OP_FIELD_ACCESS;
-		expr->binary.left_expr = left_expr; // link to the previous expression
-		expr->binary.field_idx = field_idx;
-		expr->binary.is_assign = false;
-		expr->binary.is_bitfield = false;
-		expr->data_type = scalar_data_type | qualifier_mask;
-		expr->location = location;
-		left_expr = expr;
-
 	} else {
 		HCC_ABORT("unexpected data type %u", data_type);
 	}
@@ -3926,6 +4025,7 @@ FIELD_ACCESS: {}
 			left_expr = hcc_astgen_generate_ternary_expr(w, left_expr);
 		} else {
 			HccASTExpr* right_expr = hcc_astgen_generate_expr(w, precedence);
+			HccASTExpr* og_left_expr = left_expr;
 
 			HccLocation* other_location = NULL;
 			if (binary_op == HCC_AST_BINARY_OP_ASSIGN) {
@@ -3937,6 +4037,12 @@ FIELD_ACCESS: {}
 			HccDataType data_type;
 			if (HCC_AST_BINARY_OP_EQUAL <= binary_op && binary_op <= HCC_AST_BINARY_OP_LOGICAL_OR) {
 				data_type = HCC_DATA_TYPE_AST_BASIC_BOOL;
+			} else if (binary_op == HCC_AST_BINARY_OP_ASSIGN && left_expr->type == HCC_AST_EXPR_TYPE_BINARY_OP && left_expr->binary.is_swizzle) {
+				if (hcc_swizzle_has_repeated_elmt(left_expr->binary.field_idx - 4)) {
+					hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_CANNOT_ASSIGN_TO_SWIZZLE_WITH_REPEATED_COMPONENTS, left_expr->location);
+				}
+
+				data_type = left_expr->binary.left_expr->data_type;
 			} else {
 				data_type = left_expr->data_type;
 			}
@@ -3983,6 +4089,25 @@ FIELD_ACCESS: {}
 					hcc_astgen_error_1(w, HCC_ERROR_CODE_CANNOT_ASSIGN_TO_CONST, (int)left_data_type_name.size, left_data_type_name.data);
 				}
 
+				if (binary_op != HCC_AST_BINARY_OP_ASSIGN && is_assign) {
+					if (w->astgen.function) {
+						w->astgen.function->max_instrs_count += 1; // HCC_AML_OP_{ADD, SUB, MUL} etc
+					}
+					HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
+					expr->binary.op = binary_op;
+					expr->binary.left_expr = left_expr;
+					expr->binary.right_expr = right_expr;
+					expr->binary.is_bitfield = false;
+					expr->binary.is_swizzle = false;
+					expr->data_type = data_type;
+					expr->location = location;
+
+					binary_op = HCC_AST_BINARY_OP_ASSIGN;
+					left_expr = og_left_expr;
+					right_expr = expr;
+					hcc_astgen_data_type_ensure_compatible_assignment(w, other_location, resolved_left_expr_data_type, &right_expr);
+				}
+
 				if (w->astgen.function) {
 					w->astgen.function->max_instrs_count += 1; // HCC_AML_OP_{ADD, SUB, MUL} etc
 				}
@@ -3990,8 +4115,8 @@ FIELD_ACCESS: {}
 				expr->binary.op = binary_op;
 				expr->binary.left_expr = left_expr;
 				expr->binary.right_expr = right_expr;
-				expr->binary.is_assign = is_assign;
 				expr->binary.is_bitfield = false;
+				expr->binary.is_swizzle = false;
 				expr->data_type = data_type;
 				expr->location = location;
 				left_expr = expr;
@@ -4344,8 +4469,8 @@ HccASTExpr* hcc_astgen_generate_variable_decl_stmt(HccWorker* w, HccDataType dat
 
 			HccASTExpr* stmt = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 			stmt->binary.op = HCC_AST_BINARY_OP_ASSIGN;
-			stmt->binary.is_assign = true;
 			stmt->binary.is_bitfield = false;
+			stmt->binary.is_swizzle = false;
 			stmt->binary.left_expr = left_expr;
 			stmt->binary.right_expr = init_expr;
 			stmt->location = location;
@@ -4353,8 +4478,8 @@ HccASTExpr* hcc_astgen_generate_variable_decl_stmt(HccWorker* w, HccDataType dat
 			if (prev_expr) {
 				HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 				expr->binary.op = HCC_AST_BINARY_OP_COMMA;
-				expr->binary.is_assign = false;
 				expr->binary.is_bitfield = false;
+				expr->binary.is_swizzle = false;
 				expr->binary.left_expr = prev_expr;
 				expr->binary.right_expr = stmt;
 				expr->location = hcc_ata_iter_location(w->astgen.token_iter);

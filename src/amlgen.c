@@ -1,3 +1,4 @@
+#include "hcc_internal.h"
 
 // ===========================================
 //
@@ -155,7 +156,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				HccDataType data_type = variable_data_type;
 				HccAMLInstr* access_chain_instr = &w->amlgen.function->words[w->amlgen.function->words_count];
 				uint32_t elmts_count = initializer_expr->designated_initializer.elmts_count;
-				if (initializer_expr->designated_initializer.is_bitfield) {
+				if (initializer_expr->designated_initializer.is_bitfield | initializer_expr->designated_initializer.is_swizzle) {
 					elmts_count -= 1;
 				}
 				HccAMLOperand dst_elmt_operand = hcc_amlgen_generate_instr_access_chain_start(w, initializer_expr->location, HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS, variable_operand, elmts_count);
@@ -227,14 +228,20 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					uint32_t field_idx = elmt_indices[initializer_expr->designated_initializer.elmts_count - 1];
 
 					HccAMLOperand old_assignee_operand = w->amlgen.assignee_operand;
-					HccASTBinaryOp old_assignee_binary_op = w->amlgen.assignee_binary_op;
 					w->amlgen.assignee_operand = value_operand;
-					w->amlgen.assignee_binary_op = HCC_AST_BINARY_OP_ASSIGN;
 
-					hcc_amlgen_generate_bitfield_store(w, expr, dt, &dt->fields[field_idx], dst_elmt_operand, 0);
+					hcc_amlgen_generate_bitfield_store(w, expr, dt, &dt->fields[field_idx], dst_elmt_operand);
 
 					w->amlgen.assignee_operand = old_assignee_operand;
-					w->amlgen.assignee_binary_op = old_assignee_binary_op;
+				} else if (initializer_expr->designated_initializer.is_swizzle) {
+					HccSwizzle swizzle = elmt_indices[initializer_expr->designated_initializer.elmts_count - 1] - 4;
+
+					HccAMLOperand old_assignee_operand = w->amlgen.assignee_operand;
+					w->amlgen.assignee_operand = value_operand;
+
+					hcc_amlgen_generate_swizzle_store(w, expr->location, swizzle, data_type, dst_elmt_operand);
+
+					w->amlgen.assignee_operand = old_assignee_operand;
 				} else {
 					hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STORE, dst_elmt_operand, value_operand);
 				}
@@ -287,40 +294,34 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				//
 				// generate the (left or left_ref) and right operand
 				HccAMLOperand right_operand = hcc_amlgen_generate_instrs(w, expr->binary.right_expr, false);
-				bool left_is_bitfield = expr->binary.left_expr->type == HCC_AST_EXPR_TYPE_BINARY_OP && expr->binary.left_expr->binary.is_bitfield;
+				bool left_is_bitfield_or_swizzle = expr->binary.left_expr->type == HCC_AST_EXPR_TYPE_BINARY_OP && (expr->binary.left_expr->binary.is_bitfield | expr->binary.left_expr->binary.is_swizzle);
 
 				HccAMLOperand old_assignee_operand;
 				HccASTBinaryOp old_assignee_binary_op;
-				if (expr->binary.is_assign && left_is_bitfield) {
+				if (expr->binary.op == HCC_AST_BINARY_OP_ASSIGN && left_is_bitfield_or_swizzle) {
 					old_assignee_operand = w->amlgen.assignee_operand;
-					old_assignee_binary_op = w->amlgen.assignee_binary_op;
 					w->amlgen.assignee_operand = right_operand;
-					w->amlgen.assignee_binary_op = expr->binary.op;
 				}
 
-				HccAMLOperand left_ref_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, expr->binary.is_assign && !left_is_bitfield);
+				HccAMLOperand left_ref_operand = hcc_amlgen_generate_instrs(w, expr->binary.left_expr, expr->binary.op == HCC_AST_BINARY_OP_ASSIGN && !left_is_bitfield_or_swizzle);
 
-				if (expr->binary.is_assign && left_is_bitfield) {
+				if (expr->binary.op == HCC_AST_BINARY_OP_ASSIGN && left_is_bitfield_or_swizzle) {
 					w->amlgen.assignee_operand = old_assignee_operand;
-					w->amlgen.assignee_binary_op = old_assignee_binary_op;
 					// hcc_amlgen_generate_bitfield_store returns the truncated version of right_operand
 					return left_ref_operand;
 				}
 
 				if (expr->binary.op == HCC_AST_BINARY_OP_ASSIGN) {
 					//
-					// we are an assign, so just store the right operand in th left ref memory location
+					// we are an assign, so just store the right operand in the left ref memory location
 					hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STORE, left_ref_operand, right_operand);
 					return right_operand;
 				}
 
 				//
-				// work out the left operand, will load from the left_ref if we are an assignment
+				// we requested a value and not a reference since this is not an assignment
 				HccDataType left_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->binary.left_expr->data_type);
 				HccAMLOperand left_operand = left_ref_operand;
-				if (expr->binary.is_assign) {
-					left_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD, hcc_amlgen_value_add(w, left_data_type), left_ref_operand);
-				}
 
 				//
 				// work out the result value register
@@ -350,12 +351,6 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 					default: HCC_ABORT("unhandled binary operator: %u", expr->binary.op);
 				}
 				hcc_amlgen_instr_add_3(w, expr->location, op, result_operand, left_operand, right_operand);
-
-				//
-				// store the result into the left_ref memory location if it is an assignment
-				if (expr->binary.is_assign) {
-					hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_STORE, left_ref_operand, result_operand);
-				}
 
 				return result_operand;
 			} else {
@@ -1066,22 +1061,27 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 				HccCompoundField* field;
 				uint32_t field_idx;
 				bool is_bitfield;
+				bool is_swizzle;
 				if (HCC_DATA_TYPE_IS_COMPOUND(compound_data_type)) {
 					dt = hcc_compound_data_type_get(w->cu, compound_data_type);
 					field = &dt->fields[expr->binary.field_idx];
 					is_bitfield = field->is_bitfield;
 					field_idx = field->storage_field_idx;
-				} else {
+					is_swizzle = false;
+				} else if (HCC_DATA_TYPE_IS_VECTOR(compound_data_type)) {
 					field_idx = expr->binary.field_idx;
 					is_bitfield = false;
+					is_swizzle = field_idx >= 4;
+				} else {
+					HCC_UNREACHABLE();
 				}
 
 				//
 				// if we have '->' operator and/or a union, we want to end the generation of the access chain here
 				// so we can load and/or bitcast the pointer.
-				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type)) {
+				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type) || is_bitfield || is_swizzle) {
 					child_count = 0;
-					child_want_variable_ref = expr->binary.op != HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT;
+					child_want_variable_ref = expr->binary.op != HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT && !is_bitfield && !is_swizzle;
 				} else {
 					child_count = count + 1;
 				}
@@ -1090,21 +1090,41 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 				// recursive down the left expression tree and generate the access chain
 				result_operand = hcc_amlgen_generate_instr_access_chain(w, left_expr, child_count, child_want_variable_ref);
 
-				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type) || is_bitfield) {
+				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type) || is_bitfield || is_swizzle) {
 					hcc_amlgen_generate_instr_access_chain_end(w, left_data_type);
 
-					if (is_bitfield) {
+					if (is_swizzle) {
+						HccSwizzle swizzle = field_idx - 4;
+						if (w->amlgen.assignee_operand) {
+							return hcc_amlgen_generate_swizzle_store(w, expr->location, swizzle, left_data_type, result_operand);
+						} else {
+							uint32_t dst_elmts_count = hcc_swizzle_num_elmts_dst(swizzle);
+							HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
+							HccAMLOperand dst_operand = hcc_amlgen_value_add(w, dst_data_type);
+
+							uint32_t indices[4];
+							hcc_swizzle_extract_indices(swizzle, indices);
+
+							result_operand = hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_PTR_LOAD, hcc_amlgen_value_add(w, left_data_type), result_operand);
+							HccAMLOperand* operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_SHUFFLE, 3 + dst_elmts_count);
+							operands[0] = dst_operand;
+							operands[1] = result_operand;
+							operands[2] = result_operand;
+							for (uint32_t idx = 0; idx < dst_elmts_count; idx += 1) {
+								operands[3 + idx] = indices[idx];
+							}
+							return dst_operand;
+						}
+					} else if (is_bitfield) {
 						HCC_DEBUG_ASSERT(count == 0, "expected bitfield to be the last in the access chain");
 						HCC_DEBUG_ASSERT(!want_variable_ref, "expected bitfield not the be wanted as a reference");
 
 						HccAMLOperand base_ptr_operand = result_operand;
 						result_operand = 0;
-						if (!w->amlgen.assignee_operand || w->amlgen.assignee_binary_op != HCC_AST_BINARY_OP_ASSIGN) {
-							result_operand = hcc_amlgen_generate_bitfield_load(w, expr, dt, field, base_ptr_operand);
-						}
-
 						if (w->amlgen.assignee_operand) {
-							return hcc_amlgen_generate_bitfield_store(w, expr, dt, field, base_ptr_operand, result_operand);
+							return hcc_amlgen_generate_bitfield_store(w, expr, dt, field, base_ptr_operand);
+						} else {
+							result_operand = hcc_amlgen_generate_bitfield_load(w, expr, dt, field, base_ptr_operand);
 						}
 						return result_operand;
 					} else {
@@ -1249,6 +1269,48 @@ void hcc_amlgen_generate_instr_access_chain_end(HccWorker* w, HccDataType dst_da
 	}
 }
 
+HccAMLOperand hcc_amlgen_generate_swizzle_store(HccWorker* w, HccLocation* location, HccSwizzle swizzle, HccDataType dst_data_type, HccAMLOperand dst_ptr_operand) {
+	uint32_t dst_elmts_count = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(dst_data_type));
+	HccAMLOperand dst_operand = hcc_amlgen_value_add(w, dst_data_type);
+
+	uint32_t indices[4];
+	indices[0] = 0;
+	indices[1] = 1;
+	indices[2] = 2;
+	indices[3] = 3;
+	if (swizzle <= HCC_SWIZZLE_WW) {
+		swizzle -= HCC_SWIZZLE_XX;
+		indices[swizzle % 4] = dst_elmts_count + 1;
+		indices[swizzle / 4] = dst_elmts_count + 0;
+	} else if (swizzle <= HCC_SWIZZLE_WWW) {
+		swizzle -= HCC_SWIZZLE_XXX;
+		int shifted = swizzle / 4;
+		indices[swizzle % 4] = dst_elmts_count + 2;
+		indices[shifted % 4] = dst_elmts_count + 1;
+		indices[shifted / 4] = dst_elmts_count + 0;
+	} else {
+		swizzle -= HCC_SWIZZLE_XXXX;
+		int shifted = swizzle / 4;
+		int shifted_shifted = shifted / 4;
+		indices[swizzle % 4] = dst_elmts_count + 3;
+		indices[shifted % 4] = dst_elmts_count + 2;
+		indices[shifted_shifted % 4] = dst_elmts_count + 1;
+		indices[shifted_shifted / 4] = dst_elmts_count + 0;
+	}
+
+	HccAMLOperand loaded_operand = hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_PTR_LOAD, hcc_amlgen_value_add(w, dst_data_type), dst_ptr_operand);
+	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, HCC_AML_OP_SHUFFLE, 3 + dst_elmts_count);
+	operands[0] = dst_operand;
+	operands[1] = loaded_operand;
+	operands[2] = w->amlgen.assignee_operand;
+	for (uint32_t idx = 0; idx < dst_elmts_count; idx += 1) {
+		operands[3 + idx] = indices[idx];
+	}
+
+	hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_PTR_STORE, dst_ptr_operand, dst_operand);
+	return dst_operand;
+}
+
 HccAMLOperand hcc_amlgen_generate_bitfield_load(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand) {
 	HccDataType result_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
 	HccAMLOperand result_operand = 0;
@@ -1343,35 +1405,12 @@ HccAMLOperand hcc_amlgen_generate_bitfield_load(HccWorker* w, HccASTExpr* expr, 
 	return result_operand;
 }
 
-HccAMLOperand hcc_amlgen_generate_bitfield_store(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand, HccAMLOperand old_dst_operand) {
+HccAMLOperand hcc_amlgen_generate_bitfield_store(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand) {
 	HccDataType result_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
 	HccAMLOperand result_operand = 0;
 	HccDataType field_data_type = hcc_data_type_lower_ast_to_aml(w->cu, field->data_type);
 
 	HccAMLOperand src_operand = w->amlgen.assignee_operand;
-	if (w->amlgen.assignee_binary_op != HCC_AST_BINARY_OP_ASSIGN) {
-		HccAMLOp op = HCC_AML_OP_NO_OP;
-		switch (w->amlgen.assignee_binary_op) {
-			case HCC_AST_BINARY_OP_ADD: op = HCC_AML_OP_ADD; break;
-			case HCC_AST_BINARY_OP_SUBTRACT: op = HCC_AML_OP_SUBTRACT; break;
-			case HCC_AST_BINARY_OP_MULTIPLY: op = HCC_AML_OP_MULTIPLY; break;
-			case HCC_AST_BINARY_OP_DIVIDE: op = HCC_AML_OP_DIVIDE; break;
-			case HCC_AST_BINARY_OP_MODULO: op = HCC_AML_OP_MODULO; break;
-			case HCC_AST_BINARY_OP_BIT_AND: op = HCC_AML_OP_BIT_AND; break;
-			case HCC_AST_BINARY_OP_BIT_OR: op = HCC_AML_OP_BIT_OR; break;
-			case HCC_AST_BINARY_OP_BIT_XOR: op = HCC_AML_OP_BIT_XOR; break;
-			case HCC_AST_BINARY_OP_BIT_SHIFT_LEFT: op = HCC_AML_OP_BIT_SHIFT_LEFT; break;
-			case HCC_AST_BINARY_OP_BIT_SHIFT_RIGHT: op = HCC_AML_OP_BIT_SHIFT_RIGHT; break;
-		}
-		HCC_DEBUG_ASSERT(op != HCC_AML_OP_NO_OP, "unhandled binary op %u", w->amlgen.assignee_binary_op);
-
-		HccAMLOperand op_result_operand = hcc_amlgen_value_add(w, field_data_type);
-		hcc_amlgen_instr_add_3(w, expr->location, op,
-			op_result_operand, old_dst_operand, src_operand);
-
-		src_operand = op_result_operand;
-	}
-
 	uint32_t storage_field_end_idx = field->storage_field_idx + field->storage_fields_count;
 	uint32_t bit_offset = field->bit_offset;
 	uint32_t bits_count = field->bits_count;

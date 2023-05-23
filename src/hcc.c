@@ -111,6 +111,7 @@ HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
 	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX] = { .string = hcc_string_lit("HCC_RESOURCE_STRUCT_") },
 	[HCC_OPTION_KEY_SPIRV_OPT] =                    { .bool_ = false },
 	[HCC_OPTION_KEY_HLSL_PACKING] =                 { .bool_ = false },
+	[HCC_OPTION_KEY_UNORDERED_SWIZZLING_ENABLED] =  { .bool_ = false },
 };
 
 HccResult hcc_options_init(HccOptionsSetup* setup, HccOptions** o_out) {
@@ -1211,6 +1212,80 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 		const char* string = hcc_pp_predefined_macro_identifier_strings[m];
 		uint32_t expected_string_id = HCC_STRING_ID_PREDEFINED_MACROS_START + m;
 		hcc_string_table_intrinsic_add(expected_string_id, string);
+	}
+
+	for (HccPPPredefinedMacro m = 0; m < HCC_PP_PREDEFINED_MACRO_COUNT; m += 1) {
+		const char* string = hcc_pp_predefined_macro_identifier_strings[m];
+		uint32_t expected_string_id = HCC_STRING_ID_PREDEFINED_MACROS_START + m;
+		hcc_string_table_intrinsic_add(expected_string_id, string);
+	}
+
+	{
+		static const char* comps = "xyzw";
+		char buf[8];
+		uint32_t expected_string_id = HCC_STRING_ID_SWIZZLE_XYZW_START;
+		for (int c = 0; c < 4; c += 1) {
+			for (int cc = 0; cc < 4; cc += 1) {
+				snprintf(buf, sizeof(buf), "%c%c", comps[c], comps[cc]);
+				hcc_string_table_intrinsic_add(expected_string_id, buf);
+				expected_string_id += 1;
+			}
+		}
+		for (int c = 0; c < 4; c += 1) {
+			for (int cc = 0; cc < 4; cc += 1) {
+				for (int ccc = 0; ccc < 4; ccc += 1) {
+					snprintf(buf, sizeof(buf), "%c%c%c", comps[c], comps[cc], comps[ccc]);
+					hcc_string_table_intrinsic_add(expected_string_id, buf);
+					expected_string_id += 1;
+				}
+			}
+		}
+		for (int c = 0; c < 4; c += 1) {
+			for (int cc = 0; cc < 4; cc += 1) {
+				for (int ccc = 0; ccc < 4; ccc += 1) {
+					for (int cccc = 0; cccc < 4; cccc += 1) {
+						snprintf(buf, sizeof(buf), "%c%c%c%c", comps[c], comps[cc], comps[ccc], comps[cccc]);
+						hcc_string_table_intrinsic_add(expected_string_id, buf);
+						expected_string_id += 1;
+					}
+				}
+			}
+		}
+		HCC_DEBUG_ASSERT(expected_string_id == HCC_STRING_ID_SWIZZLE_XYZW_END, "did not fill in all the swizzle string ids");
+	}
+
+	{
+		static const char* comps = "rgba";
+		char buf[8];
+		uint32_t expected_string_id = HCC_STRING_ID_SWIZZLE_RGBA_START;
+		for (int c = 0; c < 4; c += 1) {
+			for (int cc = 0; cc < 4; cc += 1) {
+				snprintf(buf, sizeof(buf), "%c%c", comps[c], comps[cc]);
+				hcc_string_table_intrinsic_add(expected_string_id, buf);
+				expected_string_id += 1;
+			}
+		}
+		for (int c = 0; c < 4; c += 1) {
+			for (int cc = 0; cc < 4; cc += 1) {
+				for (int ccc = 0; ccc < 4; ccc += 1) {
+					snprintf(buf, sizeof(buf), "%c%c%c", comps[c], comps[cc], comps[ccc]);
+					hcc_string_table_intrinsic_add(expected_string_id, buf);
+					expected_string_id += 1;
+				}
+			}
+		}
+		for (int c = 0; c < 4; c += 1) {
+			for (int cc = 0; cc < 4; cc += 1) {
+				for (int ccc = 0; ccc < 4; ccc += 1) {
+					for (int cccc = 0; cccc < 4; cccc += 1) {
+						snprintf(buf, sizeof(buf), "%c%c%c%c", comps[c], comps[cc], comps[ccc], comps[cccc]);
+						hcc_string_table_intrinsic_add(expected_string_id, buf);
+						expected_string_id += 1;
+					}
+				}
+			}
+		}
+		HCC_DEBUG_ASSERT(expected_string_id == HCC_STRING_ID_SWIZZLE_RGBA_END, "did not fill in all the swizzle string ids");
 	}
 
 	hcc_string_table_intrinsic_add(HCC_STRING_ID_ONCE, "once");

@@ -16,6 +16,7 @@ The **hcc** compiler has a very simple command line interface (CLI) and behaves 
 - [--enable-int64](#--enable-int64)
 - [--enable-float16](#--enable-float16)
 - [--enable-float64](#--enable-float64)
+- [--enable-unordered-swizzling](#--enable-unordered-swizzling)
 - [--debug-time](#--debug-time)
 - [--debug-ata](#--debug-ata)
 - [--debug-ast](#--debug-ast)
@@ -115,6 +116,9 @@ Adds support for 16bit float type `__hcc_half_t` that can be used fully througho
 
 ## --enable-float64
 Adds support for 64bit float type `double` that can be used fully throughout your code and will place the necessary SPIR-V capability feature flags in the final binary.
+
+## --enable-unordered-swizzling
+allows for vector swizzling x, y, z, w, r, g, b, a out of order or repeat eg. .zyx or .xx or .bga or .yyzz, warning: this is not compatible with standard C
 
 ## --debug-time
 Use this flag to show a detailed view of how long each stage of the compiler took to compile your shaders. This will be useful information to help see where the problems are in compilation for developers of HCC but also in your build pipeline.

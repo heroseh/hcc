@@ -3098,6 +3098,11 @@ uint64_t hcc_data_type_composite_scalar_start_idx_recursive_(HccCU* cu, HccDataT
 			scalars_start_idx += hcc_data_type_composite_scalar_start_idx_recursive_(cu, field_data_type, elmt_indices, elmt_indices_count, elmt_indices_idx + 1, final_composite_data_type_out);
 			return scalars_start_idx;
 		};
+		case HCC_DATA_TYPE_AML_INTRINSIC:
+			if (elmt_idx >= 4) { // is_swizzle
+				return 0;
+			}
+			hcc_fallthrough;
 		default:
 			return elmt_idx;
 	}
@@ -5236,6 +5241,9 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_BITFIELD] = "expected an unsigned integer constant that is greater than 0 for the number of bits in this bit-field",
 		[HCC_ERROR_CODE_BITFIELD_EXCEEDS_MAX_BITS_FOR_DATA_TYPE] = "the number of bits of '%u' has exceeded for this data type",
 		[HCC_ERROR_CODE_BITFIELD_IS_NOT_SUPPORTED_RASTERIZER_PIXEL_STATE] = "bit-fields cannot be used for struct declared with HCC_RASTERIZER_STATE or HCC_PIXEL_STATE",
+		[HCC_ERROR_CODE_UNORDERED_SWIZZLING_IS_NOT_ENABLED] = "found unordered swizzling, swizzling must be ordered eg. xyz, yz, zw. you can enable unordered swizzling via the --enable-unordered-swizzling compiler argument",
+		[HCC_ERROR_CODE_TOO_MANY_SWIZZLE_COMPONENTS] = "too many swizzle components of '%u' used for this vector type that only has '%u' components",
+		[HCC_ERROR_CODE_CANNOT_ASSIGN_TO_SWIZZLE_WITH_REPEATED_COMPONENTS] = "vector swizzle assignment cannot have any repeated components",
 
 		//
 		// ASTLINK

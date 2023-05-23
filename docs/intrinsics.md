@@ -12,6 +12,7 @@
 - [Pixel](#pixel)
 - [Textures](#textures)
 - [Quad & Wave](#quad--wave)
+- [Swizzling](#swizzling)
 - [Libc](#libc)
 
 ## Bindless Resources
@@ -290,6 +291,42 @@ A `Quad` is a 2x2 block of 4 threads that are executing in lockstep and are part
 A `Wave` is a group of threads executing in lockstep. This varies across hardware but is typically 32 or 64 threads.
 
 You can find the functions and their documentation in [hcc_wave_intrinsics.h](../libhccintrinsics/hcc_wave_intrinsics.h)
+
+## Swizzling
+
+Like other shading languages, HCC supports swizzling even though it is not a feature in C.
+
+eg:
+```c
+u32x4 vec = u32x4(1, 2, 3, 4);
+u32x3 xyz = vec.xyz;
+u32x3 rgb = vec.rgb;
+u32x2 xx = vec.xx;
+u32x2 zy = vec.zy;
+vec.zy = u32x2(5, 6);
+```
+
+By default, HCC exposed ordered types of swizzling so it can be compatible with vectors declared in C and work with other C compilers.
+
+like so:
+```c
+struct f32x4 {
+	union {
+		struct { float x; float y; float z; float w; };
+		struct { float r; float g; float b; float a; };
+		struct { f32x2 xy; f32x2 zw; };
+		struct { f32x2 rg; f32x2 ba; };
+		f32x3 xyz;
+		struct { float _0; f32x3 yzw; };
+		f32x3 rgb;
+		struct { float _1; f32x3 gba; };
+		struct { float _2; f32x2 yz; float _3; };
+		struct { float _4; f32x2 gb; float _5; };
+	};
+};
+```
+
+You can also have the more powerful version of swizzling where the components can be unorderd and repeating. To do so use the [--enable-unordered-swizzling](command_line.md#--enable-unordered-swizzling) command line argument.
 
 ## Libc
 

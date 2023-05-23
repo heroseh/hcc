@@ -262,6 +262,140 @@ const char* hcc_ast_function_callstack_string(HccCU* cu, HccDecl* function_decls
 	return callstack;
 }
 
+bool hcc_swizzle_is_ordered(HccSwizzle swizzle) {
+	switch (swizzle) {
+		case HCC_SWIZZLE_XY:
+		case HCC_SWIZZLE_YZ:
+		case HCC_SWIZZLE_ZW:
+		case HCC_SWIZZLE_XYZ:
+		case HCC_SWIZZLE_YZW:
+		case HCC_SWIZZLE_XYZW:
+		return true;
+	}
+
+	return false;
+}
+
+uint32_t hcc_swizzle_num_elmts_dst(HccSwizzle swizzle) {
+	if (swizzle <= HCC_SWIZZLE_WW) {
+		return 2;
+	} else if (swizzle <= HCC_SWIZZLE_WWW) {
+		return 3;
+	} else {
+		return 4;
+	}
+}
+
+uint32_t hcc_swizzle_max_elmt(HccSwizzle swizzle) {
+	if (swizzle <= HCC_SWIZZLE_WW) {
+		swizzle -= HCC_SWIZZLE_XX;
+		return HCC_MAX(swizzle % 4, swizzle / 4);
+	} else if (swizzle <= HCC_SWIZZLE_WWW) {
+		swizzle -= HCC_SWIZZLE_XXX;
+		int shifted = swizzle / 4;
+		return HCC_MAX(shifted % 4, HCC_MAX(swizzle % 4, shifted / 4));
+	} else {
+		swizzle -= HCC_SWIZZLE_XXXX;
+		int shifted = swizzle / 4;
+		int shifted_shifted = shifted / 4;
+		return HCC_MAX(shifted_shifted % 4, HCC_MAX(shifted % 4, HCC_MAX(swizzle % 4, shifted_shifted / 4)));
+	}
+}
+
+bool hcc_swizzle_has_repeated_elmt(HccSwizzle swizzle) {
+	switch (swizzle) {
+		case HCC_SWIZZLE_XY:
+		case HCC_SWIZZLE_XZ:
+		case HCC_SWIZZLE_XW:
+		case HCC_SWIZZLE_YX:
+		case HCC_SWIZZLE_YZ:
+		case HCC_SWIZZLE_YW:
+		case HCC_SWIZZLE_ZX:
+		case HCC_SWIZZLE_ZY:
+		case HCC_SWIZZLE_ZW:
+		case HCC_SWIZZLE_WX:
+		case HCC_SWIZZLE_WY:
+		case HCC_SWIZZLE_WZ:
+		case HCC_SWIZZLE_XYZ:
+		case HCC_SWIZZLE_XYW:
+		case HCC_SWIZZLE_XZY:
+		case HCC_SWIZZLE_XZW:
+		case HCC_SWIZZLE_XWY:
+		case HCC_SWIZZLE_XWZ:
+		case HCC_SWIZZLE_YXZ:
+		case HCC_SWIZZLE_YXW:
+		case HCC_SWIZZLE_YZX:
+		case HCC_SWIZZLE_YZW:
+		case HCC_SWIZZLE_YWX:
+		case HCC_SWIZZLE_YWZ:
+		case HCC_SWIZZLE_ZXY:
+		case HCC_SWIZZLE_ZXW:
+		case HCC_SWIZZLE_ZYX:
+		case HCC_SWIZZLE_ZYW:
+		case HCC_SWIZZLE_ZWX:
+		case HCC_SWIZZLE_ZWY:
+		case HCC_SWIZZLE_WXY:
+		case HCC_SWIZZLE_WXZ:
+		case HCC_SWIZZLE_WYX:
+		case HCC_SWIZZLE_WYZ:
+		case HCC_SWIZZLE_WZX:
+		case HCC_SWIZZLE_WZY:
+		case HCC_SWIZZLE_XYZW:
+		case HCC_SWIZZLE_XYWZ:
+		case HCC_SWIZZLE_XZYW:
+		case HCC_SWIZZLE_XZWY:
+		case HCC_SWIZZLE_XWYZ:
+		case HCC_SWIZZLE_XWZY:
+		case HCC_SWIZZLE_YXZW:
+		case HCC_SWIZZLE_YXWZ:
+		case HCC_SWIZZLE_YZXW:
+		case HCC_SWIZZLE_YZWX:
+		case HCC_SWIZZLE_YWXZ:
+		case HCC_SWIZZLE_YWZX:
+		case HCC_SWIZZLE_ZXYW:
+		case HCC_SWIZZLE_ZXWY:
+		case HCC_SWIZZLE_ZYXW:
+		case HCC_SWIZZLE_ZYWY:
+		case HCC_SWIZZLE_ZWXY:
+		case HCC_SWIZZLE_ZWYX:
+		case HCC_SWIZZLE_WXYZ:
+		case HCC_SWIZZLE_WXZY:
+		case HCC_SWIZZLE_WYXZ:
+		case HCC_SWIZZLE_WYZY:
+		case HCC_SWIZZLE_WZXY:
+		case HCC_SWIZZLE_WZYX:
+
+		return false;
+	}
+
+	return true;
+}
+
+void hcc_swizzle_extract_indices(HccSwizzle swizzle, uint32_t* indices) {
+	if (swizzle <= HCC_SWIZZLE_WW) {
+		swizzle -= HCC_SWIZZLE_XX;
+		indices[3] = 0;
+		indices[2] = 0;
+		indices[1] = swizzle % 4;
+		indices[0] = swizzle / 4;
+	} else if (swizzle <= HCC_SWIZZLE_WWW) {
+		swizzle -= HCC_SWIZZLE_XXX;
+		int shifted = swizzle / 4;
+		indices[3] = 0;
+		indices[2] = swizzle % 4;
+		indices[1] = shifted % 4;
+		indices[0] = shifted / 4;
+	} else {
+		swizzle -= HCC_SWIZZLE_XXXX;
+		int shifted = swizzle / 4;
+		int shifted_shifted = shifted / 4;
+		indices[3] = swizzle % 4;
+		indices[2] = shifted % 4;
+		indices[1] = shifted_shifted % 4;
+		indices[0] = shifted_shifted / 4;
+	}
+}
+
 // ===========================================
 //
 //
@@ -662,8 +796,7 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 
 				hcc_iio_write_fmt(iio, "%.*s}", indent, indent_chars);
 			} else {
-				char* prefix = expr->binary.is_assign && expr->binary.op != HCC_AST_BINARY_OP_ASSIGN ? "EXPR_ASSIGN_" : "EXPR_";
-				hcc_iio_write_fmt(iio, "%s%s: {\n", prefix, expr_name);
+				hcc_iio_write_fmt(iio, "EXPR_%s: {\n", expr_name);
 				HccASTExpr* left_expr = expr->binary.left_expr;
 				HccASTExpr* right_expr = expr->binary.right_expr;
 				hcc_ast_print_expr(cu, function, left_expr, indent + 1, iio);

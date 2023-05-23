@@ -700,6 +700,9 @@ enum {
 	HCC_ERROR_CODE_EXPECTED_INTEGER_CONSTANT_BITFIELD,
 	HCC_ERROR_CODE_BITFIELD_EXCEEDS_MAX_BITS_FOR_DATA_TYPE,
 	HCC_ERROR_CODE_BITFIELD_IS_NOT_SUPPORTED_RASTERIZER_PIXEL_STATE,
+	HCC_ERROR_CODE_UNORDERED_SWIZZLING_IS_NOT_ENABLED,
+	HCC_ERROR_CODE_TOO_MANY_SWIZZLE_COMPONENTS,
+	HCC_ERROR_CODE_CANNOT_ASSIGN_TO_SWIZZLE_WITH_REPEATED_COMPONENTS,
 
 	//
 	// ASTLINK
@@ -1802,8 +1805,8 @@ struct HccASTExpr {
 			HccASTExprType  type: 7;
 			uint8_t         is_stmt: 1;
 			HccASTBinaryOp  op;
-			bool            is_assign; // add/sub/mul/div assignment
 			bool            is_bitfield;
+			bool            is_swizzle;
 			HccASTExpr*     left_expr;
 			union {
 				HccASTExpr* right_expr;
@@ -1842,6 +1845,7 @@ struct HccASTExpr {
 			HccASTExpr*     value_expr;
 			uint32_t        elmt_indices_start_idx; // index into HccAST.designated_initializer_elmt_indices
 			uint32_t        elmts_count;
+			bool            is_swizzle;
 			bool            is_bitfield;
 		} designated_initializer;
 		struct {
@@ -2414,6 +2418,7 @@ enum {
 	HCC_AML_OP_NORM,
 	HCC_AML_OP_REFLECT,
 	HCC_AML_OP_REFRACT,
+	HCC_AML_OP_SHUFFLE,
 
 	//
 	// vector un/packing ops
@@ -2775,6 +2780,7 @@ enum HccOptionKey {
 	HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX,// string
 	HCC_OPTION_KEY_SPIRV_OPT,                   // bool
 	HCC_OPTION_KEY_HLSL_PACKING,                // bool
+	HCC_OPTION_KEY_UNORDERED_SWIZZLING_ENABLED, // bool
 
 	HCC_OPTION_KEY_COUNT,
 };

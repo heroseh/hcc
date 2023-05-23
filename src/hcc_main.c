@@ -210,6 +210,8 @@ int main(int argc, char** argv) {
 			hcc_options_set_bool(options, HCC_OPTION_KEY_FLOAT16_ENABLED, true);
 		} else if (strcmp(argv[arg_idx], "--enable-float64") == 0) {
 			hcc_options_set_bool(options, HCC_OPTION_KEY_FLOAT64_ENABLED, true);
+		} else if (strcmp(argv[arg_idx], "--enable-unordered-swizzling") == 0) {
+			hcc_options_set_bool(options, HCC_OPTION_KEY_UNORDERED_SWIZZLING_ENABLED, true);
 		} else if (strcmp(argv[arg_idx], "--debug-time") == 0) {
 			debug_time = true;
 		} else if (strcmp(argv[arg_idx], "--debug-ata") == 0) {
@@ -238,26 +240,27 @@ int main(int argc, char** argv) {
 				"hcc version 0.0.3 help:\n"
 				"%s OPTIONS\n"
 				"OPTIONS:\n"
-				"\t-fi   <path>.c          | <path>.c to a C file to compile\n"
-				"\t-fo   <path>.spirv      | <path>.spirv to where you want the output file to go\n"
-				"\t-fomc <path>.h          | <path>.h to where you want the output metadata file to go\n"
-				"\t-I    <path>            | add an include search directory path for #include <...>\n"
-				"\t-O                      | turn on optimizations, currently using spirv-opt\n"
-				"\t--hlsl-packing          | errors on bundled constants if they do not follow the HLSL packing rules for cbuffers. --hlsl also enables this\n"
-				"\t--hlsl <path>           | path to a directory where the HLSL files will go. requires spirv-cross to be installed\n"
-				"\t--msl  <path>           | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
-				"\t--max-descriptors <int> | sets the size of the resource descriptors arrays\n"
-				"\t--disable-color         | disables color output when printing to stdout\n"
-				"\t--enable-int8           | enables 8bit integer support\n"
-				"\t--enable-int16          | enables 16bit integer support\n"
-				"\t--enable-int64          | enables 64bit integer support\n"
-				"\t--enable-float16        | enables 16bit float support\n"
-				"\t--enable-float64        | enables 64bit float support\n"
-				"\t--help                  | displays this prompt and then exits\n"
-				"\t--debug-time            | prints the duration of each compiliation stage of the compiler\n"
-				"\t--debug-ata             | prints the Abstract Token Array made by the compiler, it will stop after ATAGEN stage\n"
-				"\t--debug-ast             | prints the Abstract Syntax Tree made by the compiler, it will stop after ASTGEN stage\n"
-				"\t--debug-aml             | prints the Abstract Machine Language made by the compiler, it will stop after AMLGEN stage\n"
+				"\t-fi   <path>.c               | <path>.c to a C file to compile\n"
+				"\t-fo   <path>.spirv           | <path>.spirv to where you want the output file to go\n"
+				"\t-fomc <path>.h               | <path>.h to where you want the output metadata file to go\n"
+				"\t-I    <path>                 | add an include search directory path for #include <...>\n"
+				"\t-O                           | turn on optimizations, currently using spirv-opt\n"
+				"\t--hlsl-packing               | errors on bundled constants if they do not follow the HLSL packing rules for cbuffers. --hlsl also enables this\n"
+				"\t--hlsl <path>                | path to a directory where the HLSL files will go. requires spirv-cross to be installed\n"
+				"\t--msl  <path>                | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
+				"\t--max-descriptors <int>      | sets the size of the resource descriptors arrays\n"
+				"\t--disable-color              | disables color output when printing to stdout\n"
+				"\t--enable-int8                | enables 8bit integer support\n"
+				"\t--enable-int16               | enables 16bit integer support\n"
+				"\t--enable-int64               | enables 64bit integer support\n"
+				"\t--enable-float16             | enables 16bit float support\n"
+				"\t--enable-float64             | enables 64bit float support\n"
+				"\t--enable-unordered-swizzling | allows for vector swizzling x, y, z, w out of order eg. .zyx or .xx or .yyzz \n"
+				"\t--help                       | displays this prompt and then exits\n"
+				"\t--debug-time                 | prints the duration of each compiliation stage of the compiler\n"
+				"\t--debug-ata                  | prints the Abstract Token Array made by the compiler, it will stop after ATAGEN stage\n"
+				"\t--debug-ast                  | prints the Abstract Syntax Tree made by the compiler, it will stop after ASTGEN stage\n"
+				"\t--debug-aml                  | prints the Abstract Machine Language made by the compiler, it will stop after AMLGEN stage\n"
 				, argv[0]
 			);
 			exit(0);

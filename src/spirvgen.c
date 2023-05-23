@@ -949,6 +949,19 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				break;
 			};
 
+			case HCC_AML_OP_SHUFFLE: {
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_VECTOR_SHUFFLE, aml_operands_count + 1);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+				for (uint32_t operand_idx = 3; operand_idx < aml_operands_count; operand_idx += 1) {
+					operands[1 + operand_idx] = aml_operands[operand_idx];
+				}
+				break;
+			};
+
 			case HCC_AML_OP_BITLSB:
 			case HCC_AML_OP_BITMSB:
 			{
