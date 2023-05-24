@@ -1002,13 +1002,6 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[3] = op;
 				operands[4] = src_spirv_id;
 
-				if (scalar_data_type != HCC_AML_INTRINSIC_DATA_TYPE_U32) {
-					HccSPIRVId result_id0 = hcc_spirv_next_id(cu);
-					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_U_CONVERT, 3);
-					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE(AML_INTRINSIC, scalar_data_type | column_bits));
-					operands[1] = other_dst_spirv_id;
-					operands[2] = dst_spirv_id;
-				}
 				break;
 			};
 

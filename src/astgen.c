@@ -386,6 +386,12 @@ void hcc_astgen_vector_field_access(HccWorker* w, HccDataType vector_data_type, 
 			};
 		}
 
+		if (field_idx >= HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(vector_data_type))) {
+			HccString data_type_name = hcc_data_type_string(w->cu, vector_data_type);
+			HccString identifier_string = hcc_string_table_get(identifier_string_id);
+			hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_CANNOT_FIND_FIELD, (int)identifier_string.size, identifier_string.data, (int)data_type_name.size, data_type_name.data);
+		}
+
 		*field_data_type_out = hcc_data_type_higher_aml_to_ast(w->cu, HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(vector_data_type))));
 		*field_idx_out = field_idx;
 	}

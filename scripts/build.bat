@@ -14,7 +14,7 @@ IF NOT EXIST "libhccintrinsics" mklink /d libhccintrinsics ..\libhccintrinsics
 cd ..
 
 clang %FLAGS% -Wimplicit-fallthrough -o build\hcc.exe src\hcc_main.c && ^
-build\hcc.exe -O -fi samples/shaders.c -fo samples/shaders.spirv -fomc samples/shaders-metadata.h && ^
+build\hcc.exe -O -fi samples/shaders.c -fo samples/shaders.spirv -fomc samples/shaders-metadata.h --enable-unordered-swizzling && ^
 clang %FLAGS% -Ilibhmaths -Ilibhccintrinsics -Iinterop -I%VULKAN_SDK%/Include/ -L%VULKAN_SDK%/Lib/ -lvulkan-1 -o samples\samples.exe samples\app\main.c && ^
 clang %FLAGS% -Ilibhmaths -Ilibhccintrinsics -Iinterop -I%VULKAN_SDK%/Include/ -L%VULKAN_SDK%/Lib/ -lvulkan-1 -o playground\playground.exe playground\app\main.c
 
