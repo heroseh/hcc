@@ -514,6 +514,7 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 	if (insert.is_new) {
 		HccSPIRVId spirv_id = hcc_spirv_next_id(cu);
 		HccConstant c = hcc_constant_table_get(cu, constant_id);
+		HccDataType final_data_type = c.data_type;
 
 		HccSPIRVOp op;
 		HccSPIRVOperand* operands;
@@ -529,12 +530,52 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 		} else if (HCC_DATA_TYPE_IS_COMPOSITE(c.data_type)) {
 			HccConstantId* src_constant_ids = c.data;
 
-			uint32_t fields_count = hcc_data_type_composite_storage_fields_count(cu, c.data_type);
-			operands_count = 2 + fields_count;
-			op = HCC_SPIRV_OP_CONSTANT_COMPOSITE;
-			operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
-			for (uint32_t field_idx = 0; field_idx < fields_count; field_idx += 1) {
-				operands[2 + field_idx] = hcc_spirv_constant_deduplicate(cu, src_constant_ids[field_idx]);
+			if (HCC_DATA_TYPE_IS_ARRAY(c.data_type) && hcc_array_data_type_get(cu, c.data_type)->element_data_type == HCC_DATA_TYPE_AST_BASIC_CHAR) {
+				char* string = c.data;
+				uint32_t string_size = c.size;
+
+				HccBasic size_basic = { .u32 = hcc_spirv_string_words_count(string_size) };
+				HccConstantId size_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &size_basic);
+				final_data_type = hcc_array_data_type_deduplicate(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, size_constant_id);
+
+				operands_count = 2 + hcc_spirv_string_words_count(string_size);
+				op = HCC_SPIRV_OP_CONSTANT_COMPOSITE;
+				operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
+
+				uint32_t word_idx = 0;
+				uint32_t idx = 0;
+				for (; string_size - idx >= 4; idx += 4) {
+					HccSPIRVWord word = 0;
+					word |= string[idx + 0] << 0;
+					word |= string[idx + 1] << 8;
+					word |= string[idx + 2] << 16;
+					word |= string[idx + 3] << 24;
+
+					HccBasic basic = { .u32 = word };
+					HccConstantId word_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic);
+					operands[2 + word_idx] = hcc_spirv_constant_deduplicate(cu, word_constant_id);
+					word_idx += 1;
+				}
+
+				if (idx <= string_size) {
+					HccSPIRVWord word = 0;
+					if (idx + 0 < string_size) word |= string[idx + 0] << 0;
+					if (idx + 1 < string_size) word |= string[idx + 1] << 8;
+					if (idx + 2 < string_size) word |= string[idx + 2] << 16;
+					if (idx + 3 < string_size) word |= string[idx + 3] << 24;
+
+					HccBasic basic = { .u32 = word };
+					HccConstantId word_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic);
+					operands[2 + word_idx] = hcc_spirv_constant_deduplicate(cu, word_constant_id);
+				}
+			} else {
+				uint32_t fields_count = hcc_data_type_composite_storage_fields_count(cu, c.data_type);
+				operands_count = 2 + fields_count;
+				op = HCC_SPIRV_OP_CONSTANT_COMPOSITE;
+				operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
+				for (uint32_t field_idx = 0; field_idx < fields_count; field_idx += 1) {
+					operands[2 + field_idx] = hcc_spirv_constant_deduplicate(cu, src_constant_ids[field_idx]);
+				}
 			}
 		} else if (HCC_DATA_TYPE_TYPE(c.data_type) == HCC_DATA_TYPE_AML_INTRINSIC) {
 			HccAMLIntrinsicDataType intrin = HCC_DATA_TYPE_AUX(c.data_type);
@@ -580,7 +621,7 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 			HCC_ABORT("unhandled constant data type %u", c.data_type);
 		}
 
-		operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, c.data_type);
+		operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, final_data_type);
 		operands[1] = spirv_id;
 
 		HccSPIRVTypeOrConstant* constant = hcc_stack_push(cu->spirv.types_and_constants);

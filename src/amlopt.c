@@ -1,4 +1,6 @@
 
+#include "hcc_internal.h"
+
 HccAMLOptFn hcc_aml_opts_phase_0_level_0[] = {
 	hcc_amlopt_make_call_graph,
 };

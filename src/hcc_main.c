@@ -15,6 +15,7 @@
 #include "metadatagen.c"
 #include "../interop/hcc_interop.c"
 #include "hcc.c"
+#include <hmaths.c>
 
 void print_duration(const char* what, HccDuration d) {
 	printf("%s took: %.2fms\n", what, hcc_duration_to_f32_millisecs(d));

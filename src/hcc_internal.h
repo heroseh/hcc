@@ -17,6 +17,9 @@
 #include <windows.h>
 #endif
 
+#include <hmaths.h>
+#include <hcc_shader.h>
+
 typedef struct HccWorker HccWorker;
 
 // ===========================================
@@ -70,8 +73,6 @@ typedef struct HccWorker HccWorker;
 #endif
 
 #define HCC_STRINGIFY(v) #v
-#define HCC_CONCAT_0(a, b) a##b
-#define HCC_CONCAT(a, b) HCC_CONCAT_0(a, b)
 
 #ifdef __GNUC__
 #define HCC_LIKELY(expr) __builtin_expect((expr), 1)
@@ -273,12 +274,6 @@ uint64_t hcc_uint64_round_down_to_multiple(uint64_t v, uint64_t multiple);
 float hcc_float_round_to_multiple(float v, float multiple);
 float hcc_float_round_up_to_multiple(float v, float multiple);
 float hcc_float_round_down_to_multiple(float v, float multiple);
-
-typedef struct half half;
-struct half { uint16_t _bits; };
-
-float f16tof32(half v);
-half f32tof16(float v);
 
 static inline bool hcc_u64_checked_add(uint64_t a, uint64_t b, uint64_t* out) {
 	if (b > (UINT64_MAX - a)) { return false; }

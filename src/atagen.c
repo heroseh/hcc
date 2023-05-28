@@ -332,7 +332,7 @@ HccPPEval hcc_ppgen_eval_expr(HccWorker* w, uint32_t min_precedence, uint32_t* t
 		} else {
 			HccPPEval right_eval = hcc_ppgen_eval_expr(w, precedence, token_idx_mut, token_value_idx_mut);
 			eval.data_type = left_eval.data_type;
-			eval.basic = hcc_basic_eval(w->cu, binary_op, left_eval.data_type, left_eval.basic, right_eval.basic);
+			eval.basic = hcc_basic_eval_binary(w->cu, binary_op, left_eval.data_type, left_eval.basic, right_eval.basic);
 		}
 
 		left_eval = eval;
@@ -1749,7 +1749,7 @@ BREAK: {}
 		HccPPMacroArg* args = hcc_stack_push_many(w->atagen.ppgen.macro_args_stack, missing_count);
 		HCC_ZERO_ELMT_MANY(args, missing_count);
 	} else if (args_count > macro->params_count) {
-		hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_TOO_MANY_MACRO_ARGUMENTS, macro->params_count, args_count);
+		hcc_atagen_bail_error_2(w, HCC_ERROR_CODE_TOO_MANY_MACRO_ARGUMENTS, parent_location, macro->location, macro->params_count, args_count);
 	}
 	return args_start_idx;
 }
@@ -2425,14 +2425,6 @@ void hcc_atagen_parse_string(HccWorker* w, char terminator_byte, bool ignore_esc
 			if (byte == '\\') {
 				byte = w->atagen.code[w->atagen.location.code_end_idx];
 				switch (byte) {
-					case '\r':
-						w->atagen.location.column_end += 2;
-						w->atagen.location.code_end_idx += 2;
-						break;
-					case '\n':
-						w->atagen.location.column_end += 1;
-						w->atagen.location.code_end_idx += 1;
-						break;
 					case '\"':
 						if (ignore_escape_sequences_except_double_quotes) {
 							hcc_stack_push_char(w->string_buffer, '\\');
@@ -2478,14 +2470,22 @@ void hcc_atagen_parse_string(HccWorker* w, char terminator_byte, bool ignore_esc
 			if (byte == '\\') {
 				byte = w->atagen.code[w->atagen.location.code_end_idx];
 				switch (byte) {
+					case 'r':
+						hcc_stack_push_char(w->string_buffer, '\r');
+						w->atagen.location.column_end += 1;
+						w->atagen.location.code_end_idx += 1;
+						break;
+					case 'n':
+						hcc_stack_push_char(w->string_buffer, '\n');
+						w->atagen.location.column_end += 1;
+						w->atagen.location.code_end_idx += 1;
+						break;
 					case '\\':
-					case '\r':
-					case '\n':
-					case '\"':
+					case '"':
 					case '\'':
 						hcc_stack_push_char(w->string_buffer, byte);
-						w->atagen.location.column_end += 2;
-						w->atagen.location.code_end_idx += 2;
+						w->atagen.location.column_end += 1;
+						w->atagen.location.code_end_idx += 1;
 						break;
 					default:
 						break;

@@ -34,7 +34,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	{
 		/* .name = */                   "triangle_vs",
 		/* .stage = */                  HCC_SHADER_STAGE_VERTEX,
-		/* .bundled_constants_size = */ 20,
+		/* .bundled_constants_size = */ 24,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,
 		/* .dispatch_group_size_z = */  0,
@@ -42,7 +42,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	{
 		/* .name = */                   "triangle_ps",
 		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
-		/* .bundled_constants_size = */ 20,
+		/* .bundled_constants_size = */ 24,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,
 		/* .dispatch_group_size_z = */  0,
@@ -131,8 +131,14 @@ HccShaderInfo hcc_shader_infos[] = {
 
 HccResourceInfo TriangleBC_resources[] = {
 	{
-		/* .name = */        "vertices",
+		/* .name = */        "hprintf_buffer",
 		/* .offset = */      16,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
+		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
+	},
+	{
+		/* .name = */        "vertices",
+		/* .offset = */      20,
 		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
 		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
 	},
@@ -221,8 +227,8 @@ HccResourceStructInfo hcc_resource_structs[] = {
 	{
 		/* .name = */            "TriangleBC",
 		/* .resources = */       TriangleBC_resources,
-		/* .resources_count = */ 1,
-		/* .size = */            20,
+		/* .resources_count = */ 2,
+		/* .size = */            24,
 		/* .align = */           4,
 	},
 	{

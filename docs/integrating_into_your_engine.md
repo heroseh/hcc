@@ -1,11 +1,17 @@
 # Integrating Into Your Engine Docs
 
+- [Interop](#interop)
+- [Bindless Resources](#bindless-resources)
+- [Vulkan](#vulkan)
+- [hprintf](#hprintf)
+
 ## Interop
 
 HCC comes with an interop layer that helps integrate HCC into your engine. Please find this in the `interop` folder of the release package.
 
 Currently the interop layer helps:
 - define metadata structures and enums that are output by the compiler via the [-fomc](command_line.md#--fomc-pathh) argument
+- parse/print the hprintf buffer
 - Vulkan
 	- setup VkDescriptorSetLayout
 	- setup VkDescriptorPool
@@ -135,3 +141,20 @@ void gpu_render() { // renders scene
 	gpu_vk_draw(pipeline, 3, &bc, sizeof(bc));
 }
 ```
+
+## hprintf
+
+The hprintf buffer has two special `uint32_t` words at 0 and 1 indices of the buffer:
+- `hprintf_buffer[HPRINTF_BUFFER_CURSOR_IDX]` is used to atomically increment to get the next insert index
+- `hprintf_buffer[HPRINTF_BUFFER_CAPACITY_IDX]` is used to prevent overflowing the buffer
+
+The hprintf buffer needs to be setup at the start of a frame such that:
+- `hprintf_buffer[HPRINTF_BUFFER_CURSOR_IDX] = HPRINTF_BUFFER_CURSOR_START_IDX;`
+- `hprintf_buffer[HPRINTF_BUFFER_CAPACITY_IDX] = <capacity of your hprintf buffer>;`
+
+At the end of a frame, you can use 'hcc_print_hprintf_buffer' in [hcc_interop.h](../interop/hcc_interop.h) on the contents of the buffer to print to stdout.
+
+Warning: Make sure the contents of the buffer is not being used by and CPU & GPU at the same time. Either double buffer or make a copy of it.
+
+You can look at the [samples codebase](../samples/app/main.c) to see how the hprintf buffer is set up there.
+

@@ -3,6 +3,9 @@
 #include "gpu_backend_api.h"
 #include "platform_backend_api.h"
 
+#include <hmaths.c>
+#include <hcc_interop.c>
+
 #ifdef __linux__
 #include "platform_linux.c"
 #include "dm_x11.c"
@@ -40,7 +43,16 @@ int main(int argc, char** argv) {
 	GpuResourceId logo_voxel_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_3D, APP_LOGO_VOXEL_WIDTH, APP_LOGO_VOXEL_HEIGHT, APP_LOGO_VOXEL_DEPTH, 1, 1);
 	GpuResourceId shapes_buffer_id = gpu_create_buffer(1 * sizeof(SDFShape));
 	GpuResourceId voxel_model_buffer_id = gpu_create_buffer(1 * sizeof(VoxelModel));
+	GpuResourceId hprintf_buffer_id0 = gpu_create_buffer(1024 * sizeof(uint32_t));
+	GpuResourceId hprintf_buffer_id1 = gpu_create_buffer(1024 * sizeof(uint32_t));
 	GpuResourceId clamp_linear_sampler_id = gpu_create_sampler();
+
+	uint32_t* hprintf_buffer0 = gpu_map_resource(hprintf_buffer_id0);
+	uint32_t* hprintf_buffer1 = gpu_map_resource(hprintf_buffer_id1);
+	hprintf_buffer0[HPRINTF_BUFFER_CURSOR_IDX] = HPRINTF_BUFFER_CURSOR_START_IDX; // here is where the cursor is stored that the gpu will atomically increment
+	hprintf_buffer0[HPRINTF_BUFFER_CAPACITY_IDX] = 1024; // store the maximum of words for the print buffer here for the shaders
+	hprintf_buffer1[HPRINTF_BUFFER_CURSOR_IDX] = HPRINTF_BUFFER_CURSOR_START_IDX; // here is where the cursor is stored that the gpu will atomically increment
+	hprintf_buffer1[HPRINTF_BUFFER_CAPACITY_IDX] = 1024; // store the maximum of words for the print buffer here for the shaders
 
 	//
 	// put logo and all of it's mip levels into the logo texture
@@ -120,6 +132,8 @@ int main(int argc, char** argv) {
 	float time_ = 0.f;
 	bool init_sample = true;
 	while (1) {
+		uint32_t active_frame_idx = gpu.frame_idx % APP_FRAMES_IN_FLIGHT;
+
 		if (next_sample_enum_to_init < APP_SAMPLE_COUNT) {
 			gpu_init_sample(next_sample_enum_to_init);
 			next_sample_enum_to_init += 1;
@@ -169,6 +183,7 @@ int main(int argc, char** argv) {
 				TriangleBC* bc = bundled_constants_ptr;
 				if (init_sample) {
 					bc->vertices = triangle_vertex_buffer_id;
+					bc->hprintf_buffer = active_frame_idx ? hprintf_buffer_id0 : hprintf_buffer_id1;
 					bc->tint = f32x4(1.f, 1.f, 1.f, 1.f);
 				} else {
 					switch (rand() % 6) {
@@ -252,6 +267,13 @@ int main(int argc, char** argv) {
 		}
 
 		gpu_render_frame(sample_enum, bc_data, window_width, window_height);
+
+		uint32_t* hprintf_buffer = active_frame_idx ? hprintf_buffer1 : hprintf_buffer0;
+		hcc_print_hprintf_buffer(hprintf_buffer);
+
+		// reset for next time it is used
+		hprintf_buffer[HPRINTF_BUFFER_CURSOR_IDX] = HPRINTF_BUFFER_CURSOR_START_IDX; // here is where the cursor is stored that the gpu will atomically increment
+
 		init_sample = false;
 		time_ += 0.01f;
 	}

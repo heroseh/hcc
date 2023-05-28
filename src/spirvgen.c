@@ -1238,6 +1238,49 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				break;
 			};
 
+			case HCC_AML_OP_HPRINT_STRING: {
+				HccSPIRVId buffer_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				HccSPIRVId u32_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32);
+				HccSPIRVId u32_ptr_buffer_type_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				HccSPIRVId base_idx_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				HCC_DEBUG_ASSERT(HCC_AML_OPERAND_IS_CONSTANT(aml_operands[2]), "expected a string constant");
+				HccSPIRVId string_spirv_id = hcc_spirv_constant_deduplicate(cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operands[2])));
+
+				uint32_t string_words_count = hcc_spirv_string_words_count(hcc_constant_table_get(cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operands[2]))).size);
+				for (uint32_t idx = 0; idx < string_words_count; idx += 1) {
+					HccBasic src_idx_basic = { .u32 = idx };
+					HccConstantId src_idx_constant_id = hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &src_idx_basic);
+					HccSPIRVId src_idx_spirv_id = hcc_spirv_constant_deduplicate(cu, src_idx_constant_id);
+
+					HccSPIRVId dst_idx_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_I_ADD, 4);
+					operands[0] = u32_type_spirv_id;
+					operands[1] = dst_idx_spirv_id;
+					operands[2] = base_idx_spirv_id;
+					operands[3] = src_idx_spirv_id;
+
+					HccSPIRVId dst_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 4);
+					operands[0] = u32_ptr_buffer_type_spirv_id;
+					operands[1] = dst_spirv_id;
+					operands[2] = buffer_spirv_id;
+					operands[3] = dst_idx_spirv_id;
+
+					HccSPIRVId src_spirv_id = hcc_spirv_next_id(cu);
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_COMPOSITE_EXTRACT, 4);
+					operands[0] = u32_type_spirv_id;
+					operands[1] = src_spirv_id;
+					operands[2] = string_spirv_id;
+					operands[3] = idx;
+
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_STORE, 2);
+					operands[0] = dst_spirv_id;
+					operands[1] = src_spirv_id;
+				}
+
+				break;
+			};
+
 			case HCC_AML_OP_ATOMIC_STORE: {
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_ATOMIC_STORE, 4);
 				operands[0] = hcc_spirvgen_convert_operand(w, aml_operands[0]);

@@ -97,5 +97,7 @@ extern const char* hcc_resource_access_mode_strings[HCC_RESOURCE_ACCESS_MODE_COU
 extern const char* hcc_shader_stage_strings[HCC_SHADER_STAGE_COUNT];
 extern const char* hcc_resource_type_strings[HCC_RESOURCE_TYPE_COUNT];
 
+void hcc_print_hprintf_buffer(const uint32_t* print_buffer);
+
 #endif
 

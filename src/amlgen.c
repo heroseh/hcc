@@ -567,6 +567,10 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE: op = HCC_AML_OP_CONTROL_BARRIER_RESOURCE; break;
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH_GROUP: op = HCC_AML_OP_CONTROL_BARRIER_DISPATCH_GROUP; break;
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL: op = HCC_AML_OP_CONTROL_BARRIER_ALL; break;
+								case HCC_FUNCTION_IDX_HPRINT_STRING:
+									op = HCC_AML_OP_HPRINT_STRING;
+									w->amlgen.temp_operands[temp_operands_start_idx + 0] = hcc_amlgen_generate_resource_descriptor_load(w, expr->location, w->amlgen.temp_operands[temp_operands_start_idx + 0]);
+									break;
 								default: {
 									HCC_DEBUG_ASSERT(HCC_FUNCTION_IDX_MANY_START <= function_idx && function_idx < HCC_FUNCTION_IDX_MANY_END, "unhandled intrinsic function");
 									uint32_t many = (function_idx - HCC_FUNCTION_IDX_MANY_START) / HCC_AML_INTRINSIC_DATA_TYPE_COUNT;

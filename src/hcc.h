@@ -1074,6 +1074,8 @@ enum {
 	HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH_GROUP,
 	HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL,
 
+	HCC_FUNCTION_IDX_HPRINT_STRING,
+
 #define HCC_FUNCTION_IDX_STRINGS_COUNT HCC_FUNCTION_IDX_MANY_START
 
 	HCC_FUNCTION_IDX_MANY_START,
@@ -1643,7 +1645,8 @@ HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccData
 uint64_t hcc_data_type_scalars_count_recursive(HccCU* cu, HccDataType data_type);
 
 HccBasicTypeClass hcc_basic_type_class(HccCU* cu, HccDataType data_type);
-HccBasic hcc_basic_eval(HccCU* cu, HccASTBinaryOp binary_op, HccDataType data_type, HccBasic left_eval, HccBasic right_eval);
+HccBasic hcc_basic_eval_unary(HccCU* cu, HccASTUnaryOp unary_op, HccDataType data_type, HccBasic eval);
+HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType data_type, HccBasic left_eval, HccBasic right_eval);
 bool hcc_basic_as_bool(HccCU* cu, HccDataType data_type, HccBasic basic);
 HccBasic hcc_basic_from_sint(HccCU* cu, HccDataType data_type, int64_t value);
 HccBasic hcc_basic_from_uint(HccCU* cu, HccDataType data_type, uint64_t value);
@@ -1736,6 +1739,7 @@ bool hcc_constant_is_zero(HccCU* cu, HccConstantId constant_id);
 
 HccConstantId hcc_constant_table_deduplicate_basic(HccCU* cu, HccDataType data_type, HccBasic* basic);
 HccConstantId hcc_constant_table_deduplicate_composite(HccCU* cu, HccDataType data_type, HccConstantId* fields, uint32_t fields_count);
+HccConstantId hcc_constant_table_deduplicate_bytes(HccCU* cu, HccDataType data_type, uint8_t* data, uint32_t size);
 HccConstantId hcc_constant_table_deduplicate_composite_recursive(HccCU* cu, HccDataType data_type, HccConstantId* flat_scalar_constant_ids);
 HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_type);
 HccConstantId hcc_constant_table_deduplicate_one(HccCU* cu, HccDataType data_type);
@@ -2476,6 +2480,8 @@ enum {
 	HCC_AML_OP_CONTROL_BARRIER_RESOURCE,
 	HCC_AML_OP_CONTROL_BARRIER_DISPATCH_GROUP,
 	HCC_AML_OP_CONTROL_BARRIER_ALL,
+
+	HCC_AML_OP_HPRINT_STRING,
 
 	HCC_AML_OP_ATOMIC_LOAD,
 	HCC_AML_OP_ATOMIC_STORE,

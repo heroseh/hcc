@@ -12,6 +12,7 @@ struct TriangleVertex {
 typedef struct TriangleBC TriangleBC;
 struct TriangleBC {
 	f32x4 tint;
+	HccRwByteBuffer hprintf_buffer;
 	HccRoBuffer(TriangleVertex) vertices;
 };
 
@@ -96,6 +97,8 @@ HCC_PIXEL void triangle_ps(
 	};
 
 	success &= test.vec.x == 3 && test.vec.y == 1 && test.vec.z == 2 && test.vec.w == 0;
+
+	hprintf(bc->hprintf_buffer, "pixel_coord: %f, %f and test: %u, %u, %u, %u\n", splat2(sv->pixel_coord), splat4(test.vec));
 
 	f32x4 color = f32x4(1.f, 0.f, 0.f, 1.f);
 	color.b = success ? 1.f : 0.f;

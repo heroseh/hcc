@@ -625,60 +625,6 @@ float hcc_float_round_down_to_multiple(float v, float multiple) {
 	}
 }
 
-float f16tof32(half v) {
-	if ((v._bits & 0x7c00) == 0x7c00) { // inf, -inf or nan
-		if (v._bits & 0x03ff) return NAN;
-		else if (v._bits & 0x8000) return -INFINITY;
-		else return INFINITY;
-	}
-
-	union { float f; uint32_t u; } t1;
-	uint32_t t2;
-	uint32_t t3;
-
-	t1.u = v._bits & 0x7fff;      // non-sign bits
-	t2 = v._bits & 0x8000;        // sign bit
-	t3 = v._bits & 0x7c00;        // exponent
-
-	t1.u <<= 13;                 // align mantissa on MSB
-	t2 <<= 16;                   // shift sign bit into position
-
-	t1.u += 0x38000000;          // adjust bias
-
-	t1.u = (t3 == 0 ? 0 : t1.u); // denormals-as-zero
-
-	t1.u |= t2;                  // re-insert sign bit
-
-	return t1.f;
-}
-
-half f32tof16(float v) {
-	if (isinf(v)) return (half){ ._bits = v < 0.0 ? 0xfc00 : 0x7c00 };
-	if (isnan(v)) return (half){ ._bits = 0xffff };
-
-	union { float f; uint32_t u; } vu = { .f = v };
-	uint32_t t1;
-	uint32_t t2;
-	uint32_t t3;
-
-	t1 = vu.u & 0x7fffffff;                // non-sign bits
-	t2 = vu.u & 0x80000000;                // sign bit
-	t3 = vu.u & 0x7f800000;                // exponent
-
-	t1 >>= 13;                             // align mantissa on MSB
-	t2 >>= 16;                             // shift sign bit into position
-
-	t1 -= 0x1c000;                         // adjust bias
-
-	t1 = (t3 < 0x38800000) ? 0 : t1;       // flush-to-zero
-	t1 = (t3 > 0x8e000000) ? 0x7bff : t1;  // clamp-to-max
-	t1 = (t3 == 0 ? 0 : t1);               // denormals-as-zero
-
-	t1 |= t2;                              // re-insert sign bit
-
-	return (half){ ._bits = t1 };
-}
-
 // ===========================================
 //
 //
@@ -3491,6 +3437,9 @@ HccAMLScalarDataTypeMask hcc_data_type_scalar_data_types_mask(HccCU* cu, HccData
 
 		case HCC_DATA_TYPE_ARRAY: {
 			HccArrayDataType* array_data_type = hcc_array_data_type_get(cu, data_type);
+			if ((array_data_type->element_data_type & ~HCC_DATA_TYPE_QUALIFIERS_MASK) == HCC_DATA_TYPE_AST_BASIC_CHAR) {
+				return 0;
+			}
 			return hcc_data_type_scalar_data_types_mask(cu, array_data_type->element_data_type);
 		};
 
@@ -3572,7 +3521,66 @@ ERR:{}
 	}
 }
 
-HccBasic hcc_basic_eval(HccCU* cu, HccASTBinaryOp binary_op, HccDataType data_type, HccBasic left_eval, HccBasic right_eval) {
+HccBasic hcc_basic_eval_unary(HccCU* cu, HccASTUnaryOp unary_op, HccDataType data_type, HccBasic eval) {
+	data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
+	HCC_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type), "data type must be convertable to an AML intrinsic type");
+	HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(data_type);
+	HCC_ASSERT(HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(intrinsic_data_type), "basic eval only work on basic types, not vectors");
+
+	switch (unary_op) {
+		case HCC_AST_UNARY_OP_LOGICAL_NOT:
+			switch (intrinsic_data_type) {
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = !eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = !eval.s8; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = !eval.s16; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = !eval.s32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S64: eval.s64 = !eval.s64; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U8: eval.u8 = !eval.u8; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U16: eval.u16 = !eval.u16; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U32: eval.u32 = !eval.u32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U64: eval.u64 = !eval.u64; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_F32: eval.f32 = !(bool)eval.f32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_F64: eval.f64 = !(bool)eval.f64; break;
+			}
+			break;
+		case HCC_AST_UNARY_OP_BIT_NOT:
+			switch (intrinsic_data_type) {
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = ~eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = ~eval.s8; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = ~eval.s16; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = ~eval.s32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S64: eval.s64 = ~eval.s64; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U8: eval.u8 = ~eval.u8; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U16: eval.u16 = ~eval.u16; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U32: eval.u32 = ~eval.u32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U64: eval.u64 = ~eval.u64; break;
+			}
+			break;
+		case HCC_AST_UNARY_OP_PLUS:
+			break;
+		case HCC_AST_UNARY_OP_NEGATE:
+			switch (intrinsic_data_type) {
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = -eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = -eval.s8; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = -eval.s16; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = -eval.s32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_S64: eval.s64 = -eval.s64; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U8: eval.u8 = -eval.u8; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U16: eval.u16 = -eval.u16; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U32: eval.u32 = -eval.u32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_U64: eval.u64 = -eval.u64; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_F32: eval.f32 = -eval.f32; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_F64: eval.f64 = -eval.f64; break;
+			}
+			break;
+		default:
+			HCC_ABORT("unsupport binary op eval : %u", unary_op);
+	}
+
+	return eval;
+}
+
+HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType data_type, HccBasic left_eval, HccBasic right_eval) {
 	HccBasic eval;
 	data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
 	HCC_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type), "data type must be convertable to an AML intrinsic type");
@@ -3822,6 +3830,8 @@ HccBasic hcc_basic_eval(HccCU* cu, HccASTBinaryOp binary_op, HccDataType data_ty
 				case HCC_AML_INTRINSIC_DATA_TYPE_U64: eval.u64 = left_eval.u64 || right_eval.u64; break;
 			}
 			break;
+		default:
+			HCC_ABORT("unsupport binary op eval : %u", binary_op);
 	}
 
 	return eval;
@@ -4423,6 +4433,11 @@ void hcc_constant_print(HccCU* cu, HccConstantId constant_id, HccIIO* iio) {
 	}
 
 	if (HCC_DATA_TYPE_IS_COMPOSITE(constant.data_type)) {
+		if (HCC_DATA_TYPE_IS_ARRAY(constant.data_type) && hcc_array_data_type_get(cu, constant.data_type)->element_data_type == HCC_DATA_TYPE_AST_BASIC_CHAR) {
+			hcc_iio_write_fmt(iio, "\"%.*s\"", (int)constant.size, (char*)constant.data);
+			return;
+		}
+
 		uint32_t fields_count = hcc_data_type_composite_fields_count(cu, constant.data_type);
 		HccConstantId* src_constant_ids = constant.data;
 		HccString data_type_name = hcc_data_type_string(cu, constant.data_type);
@@ -4613,6 +4628,10 @@ HccConstantId hcc_constant_table_deduplicate_composite(HccCU* cu, HccDataType da
 	HCC_ASSERT(fields_count == expected_fields_count, "expected fields count to be '%u' but got '%u'", expected_fields_count, fields_count);
 	HccConstantId constant_id = _hcc_constant_table_deduplicate_end(cu, data_type, fields, fields_count * sizeof(HccConstantId), alignof(HccConstantId), false);
 	return constant_id;
+}
+
+HccConstantId hcc_constant_table_deduplicate_bytes(HccCU* cu, HccDataType data_type, uint8_t* data, uint32_t size) {
+	return _hcc_constant_table_deduplicate_end(cu, data_type, data, size, alignof(void*), !data || !size);
 }
 
 HccConstantId hcc_constant_table_deduplicate_composite_recursive_(HccCU* cu, HccDataType data_type, HccConstantId* flat_scalar_constant_ids) {
@@ -5584,6 +5603,7 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE] = "control_barrier_resource",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH_GROUP] = "control_barrier_dispatch_group",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL] = "control_barrier_all",
+	[HCC_FUNCTION_IDX_HPRINT_STRING] = "hprint_string",
 };
 
 const char* hcc_intrinisic_function_many_strings[HCC_FUNCTION_MANY_COUNT] = {

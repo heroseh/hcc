@@ -13,6 +13,7 @@
 - [Textures](#textures)
 - [Quad & Wave](#quad--wave)
 - [Swizzling](#swizzling)
+- [hprintf](#hprintf)
 - [Libc](#libc)
 
 ## Bindless Resources
@@ -327,6 +328,21 @@ struct f32x4 {
 ```
 
 You can also have the more powerful version of swizzling where the components can be unorderd and repeating. To do so use the [--enable-unordered-swizzling](command_line.md#--enable-unordered-swizzling) command line argument.
+
+## hprintf
+
+HCC comes with a way to print from a shader into a `HccWoBuffer(uint32_t)` in a very similar way to how `sprintf` works. Later this buffer can be read from the CPU side and displayed in a terminal.
+
+Example of calling `hprintf` from a pixel shader:
+```c
+hprintf(bc->hprintf_buffer, "pixel_coord: %f, %f and test: %u, %u, %u, %u\n", splat2(sv->pixel_coord), splat4(test.vec));
+```
+
+Printing from a shader will copy the format string and the `uint32_t` words of the variable length arguments into the buffer at an insert index that is atomically calculated. So it will not overlap with any other shader invocations.
+
+This can be used in any shader, across all threads. just be aware that with millions of threads, its easy to fill up a buffer. So use if statements to help minimize the amount of data you are outputting when you don't need it.
+
+Please refer to the [engine integration docs](integrating_into_your_engine.md#hprintf) to learn how hprintf hooks up CPU side.
 
 ## Libc
 

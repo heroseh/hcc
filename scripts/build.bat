@@ -1,6 +1,6 @@
 @echo off
 
-SET FLAGS=-pedantic -std=c11 -Werror -Wfloat-conversion -Wextra -g -Wl,-nodefaultlib:libcmt -ldbghelp -lonecore -lsynchronization -lmsvcrt -luser32
+SET FLAGS=-pedantic -Ilibhmaths -Ilibhccintrinsics -Iinterop -std=c11 -Werror -Wfloat-conversion -Wextra -g -Wl,-nodefaultlib:libcmt -ldbghelp -lonecore -lsynchronization -lmsvcrt -luser32
 IF "%~1" == "release" (
   SET FLAGS=%FLAGS% -O2
 )
