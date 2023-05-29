@@ -279,7 +279,27 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			break;
 		};
 		case HCC_SHADER_STAGE_COMPUTE:
+
+#if 0
 			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV);
+#else
+			//
+			// TODO: AMD RNDA2 on Windows appears to not fully support structs that are marked as Input or Output. it does in some cases but not others! very buggy :(
+			// the two examples i have found are:
+			// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
+			// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
+			// 
+			// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
+			// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
+			// 
+			// if AMD is not going to fix it, long term all SPIR-V Input & Output variables should not be in structures and be individual global varibles instead.
+			// this will make the codebase a little more manual but it will solve the problem.
+			//
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_IDX);
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_GROUP_IDX);
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_IDX);
+			hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_FLAT_IDX);
+#endif
 			break;
 		case HCC_SHADER_STAGE_MESH_TASK:
 		case HCC_SHADER_STAGE_MESH:
@@ -358,17 +378,46 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			};
 			case HCC_AML_OP_PTR_ACCESS_CHAIN:
 			case HCC_AML_OP_PTR_ACCESS_CHAIN_IN_BOUNDS: {
-				uint32_t memory_operands = HCC_SPIRV_MEMORY_OPERANDS_NONE;
-				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HccDataType return_data_type = HCC_DATA_TYPE_STRIP_QUALIFIERS(hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]));
 
-				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
-
-				operands = hcc_spirv_function_add_instr(function, aml_op == HCC_AML_OP_PTR_ACCESS_CHAIN ? HCC_SPIRV_OP_ACCESS_CHAIN : HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, aml_operands_count + 1);
-				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
-				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
-				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
-				for (uint32_t operand_idx = 2; operand_idx < aml_operands_count; operand_idx += 1) {
-					operands[operand_idx + 1] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+				if (HCC_AML_OPERAND_TYPE(aml_operands[1]) == HCC_AML_OPERAND_VALUE && w->spirvgen.aml_function->shader_stage == HCC_SHADER_STAGE_COMPUTE && HCC_AML_OPERAND_AUX(aml_operands[1]) == HCC_COMPUTE_SHADER_PARAM_COMPUTE_SV) {
+					//
+					// TODO: AMD RNDA2 on Windows appears to not fully support structs that are marked as Input or Output. it does in some cases but not others! very buggy :(
+					// the two examples i have found are:
+					// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
+					// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
+					// 
+					// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
+					// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
+					// 
+					// if AMD is not going to fix it, long term all SPIR-V Input & Output variables should not be in structures and be individual global varibles instead.
+					// this will make the codebase a little more manual but it will solve the problem.
+					//
+					HccConstant constant = hcc_constant_table_get(cu, HccConstantId(HCC_AML_OPERAND_AUX(aml_operands[2])));
+					HccSPIRVId ptr_spirv_id = HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_IDX + hcc_constant_read_32(constant);
+					if (aml_operands_count == 3) {
+						operands = hcc_spirv_function_add_instr(function, 83, 3);
+						operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INPUT, return_data_type);
+						operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+						operands[2] = ptr_spirv_id;
+					} else {
+						operands = hcc_spirv_function_add_instr(function, aml_op == HCC_AML_OP_PTR_ACCESS_CHAIN ? HCC_SPIRV_OP_ACCESS_CHAIN : HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, aml_operands_count);
+						operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INPUT, return_data_type);
+						operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+						operands[2] = ptr_spirv_id;
+						for (uint32_t operand_idx = 3; operand_idx < aml_operands_count; operand_idx += 1) {
+							operands[operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+						}
+					}
+				} else {
+					HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
+					operands = hcc_spirv_function_add_instr(function, aml_op == HCC_AML_OP_PTR_ACCESS_CHAIN ? HCC_SPIRV_OP_ACCESS_CHAIN : HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, aml_operands_count + 1);
+					operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
+					operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+					operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+					for (uint32_t operand_idx = 2; operand_idx < aml_operands_count; operand_idx += 1) {
+						operands[operand_idx + 1] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+					}
 				}
 				break;
 			};

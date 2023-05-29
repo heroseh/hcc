@@ -87,6 +87,7 @@ int main(int argc, char** argv) {
 	//
 	// load the 256 logo as a 3d voxel texture
 	{
+		stbi_set_flip_vertically_on_load(false);
 		int x, y, comp;
 		uint8_t* src_pixels = stbi_load(APP_LOGO_VOXEL_PATH, &x, &y, &comp, 4);
 		APP_ASSERT(src_pixels, "failed to load logo voxel data at %s", APP_LOGO_VOXEL_PATH);
@@ -183,7 +184,6 @@ int main(int argc, char** argv) {
 				TriangleBC* bc = bundled_constants_ptr;
 				if (init_sample) {
 					bc->vertices = triangle_vertex_buffer_id;
-					bc->hprintf_buffer = active_frame_idx ? hprintf_buffer_id0 : hprintf_buffer_id1;
 					bc->tint = f32x4(1.f, 1.f, 1.f, 1.f);
 				} else {
 					switch (rand() % 6) {
@@ -200,6 +200,7 @@ int main(int argc, char** argv) {
 				vertices[0].pos = f32x2(-0.5f, -0.5f);
 				vertices[1].pos = f32x2(0.f, 0.5f);
 				vertices[2].pos = f32x2(0.5f, -0.5f);
+				bc->hprintf_buffer = active_frame_idx ? hprintf_buffer_id0 : hprintf_buffer_id1;
 				break;
 			};
 			case APP_SAMPLE_COMPUTE_SQUARE: {
@@ -254,6 +255,7 @@ int main(int argc, char** argv) {
 				bc->time_ = time_;
 				bc->screen_width = window_width;
 				bc->screen_height = window_height;
+				bc->hprintf_buffer = active_frame_idx ? hprintf_buffer_id0 : hprintf_buffer_id1;
 				break;
 			};
 			case APP_SAMPLE_SDF_2D: {
@@ -269,6 +271,7 @@ int main(int argc, char** argv) {
 		gpu_render_frame(sample_enum, bc_data, window_width, window_height);
 
 		uint32_t* hprintf_buffer = active_frame_idx ? hprintf_buffer1 : hprintf_buffer0;
+		printf("hprintf_buffer contains %u words with a capacity of %u\n", hprintf_buffer[0], hprintf_buffer[1]);
 		hcc_print_hprintf_buffer(hprintf_buffer);
 
 		// reset for next time it is used

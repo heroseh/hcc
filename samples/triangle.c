@@ -12,7 +12,7 @@ struct TriangleVertex {
 typedef struct TriangleBC TriangleBC;
 struct TriangleBC {
 	f32x4 tint;
-	HccRwByteBuffer hprintf_buffer;
+	HccWoBuffer(uint32_t) hprintf_buffer;
 	HccRoBuffer(TriangleVertex) vertices;
 };
 

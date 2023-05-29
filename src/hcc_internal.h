@@ -3007,7 +3007,7 @@ enum {
 	HCC_SPIRV_DECORATION_BUILTIN = 11,
 	HCC_SPIRV_DECORATION_FLAT = 14,
 	HCC_SPIRV_DECORATION_NON_WRITABLE = 24,
-	HCC_SPIRV_DECORATION_NON_READABLE = 24,
+	HCC_SPIRV_DECORATION_NON_READABLE = 25,
 	HCC_SPIRV_DECORATION_LOCATION = 30,
 	HCC_SPIRV_DECORATION_BINDING = 33,
 	HCC_SPIRV_DECORATION_DESCRIPTOR_SET = 34,
@@ -3078,6 +3078,29 @@ enum { // some hardcoded SPIR-V ids
 	HCC_SPIRV_ID_VARIABLE_INPUT_PIXEL_SV,
 	HCC_SPIRV_ID_VARIABLE_OUTPUT_PIXEL_SV_OUT,
 	HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV,
+
+
+
+	//
+	// TODO: AMD RNDA2 on Windows appears to not fully support structs that are marked as Input or Output. it does in some cases but not others! very buggy :(
+	// the two examples i have found are:
+	// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
+	// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
+	// 
+	// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
+	// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
+	// 
+	// if AMD is not going to fix it, long term all SPIR-V Input & Output variables should not be in structures and be individual global varibles instead.
+	// this will make the codebase a little more manual but it will solve the problem.
+	//
+	HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_IDX,
+	HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_GROUP_IDX,
+	HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_IDX,
+	HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_FLAT_IDX,
+	
+	
+	
+	
 	HCC_SPIRV_ID_USER_START,
 };
 

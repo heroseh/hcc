@@ -106,7 +106,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	{
 		/* .name = */                   "voxel_raytracer_cs",
 		/* .stage = */                  HCC_SHADER_STAGE_COMPUTE,
-		/* .bundled_constants_size = */ 20,
+		/* .bundled_constants_size = */ 24,
 		/* .dispatch_group_size_x = */  8,
 		/* .dispatch_group_size_y = */  8,
 		/* .dispatch_group_size_z = */  1,
@@ -133,7 +133,7 @@ HccResourceInfo TriangleBC_resources[] = {
 	{
 		/* .name = */        "hprintf_buffer",
 		/* .offset = */      16,
-		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY,
 		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
 	},
 	{
@@ -193,8 +193,14 @@ HccResourceInfo VoxelRaytracerBC_resources[] = {
 	{
 		/* .name = */        "output",
 		/* .offset = */      4,
-		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY,
 		/* .type = */        HCC_RESOURCE_TYPE_TEXTURE_2D,
+	},
+	{
+		/* .name = */        "hprintf_buffer",
+		/* .offset = */      8,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY,
+		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
 	},
 };
 
@@ -255,8 +261,8 @@ HccResourceStructInfo hcc_resource_structs[] = {
 	{
 		/* .name = */            "VoxelRaytracerBC",
 		/* .resources = */       VoxelRaytracerBC_resources,
-		/* .resources_count = */ 2,
-		/* .size = */            20,
+		/* .resources_count = */ 3,
+		/* .size = */            24,
 		/* .align = */           4,
 	},
 	{

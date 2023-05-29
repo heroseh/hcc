@@ -16,7 +16,8 @@ struct VoxelModel {
 typedef struct VoxelRaytracerBC VoxelRaytracerBC;
 struct VoxelRaytracerBC {
 	HccRoBuffer(VoxelModel) models;
-	HccRwTexture2D(f32x4)   output;
+	HccWoTexture2D(f32x4)   output;
+	HccWoBuffer(uint32_t)   hprintf_buffer;
 	float                   time_;
 	uint32_t                screen_width;
 	uint32_t                screen_height;
@@ -65,7 +66,7 @@ AabbVsRayHit aabb_vs_ray3d(f32x3 aabb_min, f32x3 aabb_max, f32x3 ray_origin, f32
 f32x3 voxel_ray_direction_for_uv(float fov, f32x2 size, f32x2 uv) {
 	f32x2 xy = subG(uv, divsG(size, 2.f));
 	float z = size.y / tanG(radiansG(fov) / 2.f);
-	return normG(f32x3(xy.x, -xy.y, z));
+	return normG(f32x3(xy.x, xy.y, z));
 }
 
 f32x2x2 voxel_mat2_identity_rotation(float angle) {
@@ -81,8 +82,9 @@ f32x2x2 voxel_mat2_identity_rotation(float angle) {
 
 HCC_COMPUTE(8, 8, 1)
 void voxel_raytracer_cs(HccComputeSV const* const sv, VoxelRaytracerBC const* const bc) {
+	u32x3 dispatch_idx = sv->dispatch_idx;
 	f32x2 screen_size = f32x2(bc->screen_width, bc->screen_height);
-	f32x2 coord = f32x2(sv->dispatch_idx.x, sv->dispatch_idx.y);
+	f32x2 coord = f32x2(dispatch_idx.x, dispatch_idx.y);
 	f32x3 ray_dir = voxel_ray_direction_for_uv(45.f, screen_size, coord);
 	f32x3 ray_origin = f32x3(0.f, 10.f, 0.f);
 	ray_origin.x += cosG(bc->time_) * 100.f;

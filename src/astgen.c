@@ -4594,6 +4594,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			while (token != HCC_ATA_TOKEN_CURLY_CLOSE) {
 				HccASTExpr* stmt = hcc_astgen_generate_stmt(w);
 				if (stmt == NULL) {
+					token = hcc_ata_iter_peek(w->astgen.token_iter);
 					continue;
 				}
 				stmt->is_stmt = true;
