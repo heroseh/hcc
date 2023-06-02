@@ -5406,8 +5406,8 @@ void hcc_message_print_file_line(HccIIO* iio, HccLocation* location) {
 	uint32_t display_line = location->display_line ? location->display_line : location->line_start;
 
 	const char* error_fmt = hcc_iio_get_ascii_colors_enabled(iio)
-		? "\x1b[1;95mfile\x1b[97m: %s:%u:%u\n\x1b[0m"
-		: "file: %s:%u:%u\n";
+		? "%s:%u:%u\n\x1b[0m"
+		: "%s:%u:%u\n";
 	printf(error_fmt, file_path, display_line, location->column_start);
 }
 

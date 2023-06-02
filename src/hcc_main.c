@@ -48,6 +48,9 @@ int main(int argc, char** argv) {
 	const char* hlsl_dir = NULL;
 	const char* msl_dir = NULL;
 	bool enable_stdout_color = true;
+#ifdef HCC_OS_LINUX
+	enable_stdout_color &= isatty(fileno(stdout)) && strcmp(getenv("TERM"), "xterm-256color") == 0;
+#endif
 	while (arg_idx < argc) {
 		if (strcmp(argv[arg_idx], "-I") == 0) {
 			arg_idx += 1;

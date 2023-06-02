@@ -14,7 +14,7 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - Vulkan 1.3+
 - Aims for C11 support
 - Vertex, Pixel & Compute shader support
-- Included Maths library for GPU programming (will be available to also be used CPU very soon!) [More Info](https://github.com/heroseh/hmaths/)
+- Included Maths library for CPU & GPU programming [More Info](https://github.com/heroseh/hmaths/)
 - Textures, Atomics, Quad & Wave Intrinsics [More Info](docs/intrinsics.md)
 - \_Generic support for Maths & Intrinsics functions for C compliant overloads
 - Vulkan interop code to help setup with your engine [More Info](docs/integrating_into_your_engine.md)
@@ -22,16 +22,16 @@ The project is currently in alpha, so expect bugs and please help by filing bugs
 - live playground application to have a play by writing shader code! [More Info](docs/release_package.md#playground-application)
 - multiple shaders in a single file
 - Compiler only depends on libc, optionally uses the SPIR-V tools for validation and optimization
+- Swizzling
+- Printing from any shader with hprintf
 
 ## Limitations
-- No pointer support outside compiler intrinsics (planned soon after release)
-- No union support (planned soon after release)
-- No debug info (planned soon after release)
-- No string support (planned soon after release)
-- No structure bitfields (planned soon after release)
-- No static_assert (planned soon after release)
-- No function scope struct, enum declarations (planned soon after release)
-- No vector operator or swizzling (planned soon after release)
+- No pointer support outside compiler intrinsics (possible but needs work)
+- No union support (possible with pointer support)
+- Limited string support (works with hprintf, full support possible with pointer support)
+- Limited structure bitfields (works on Linux, the rest of the platform need work)
+- No function scope struct, enum declarations (needs work)
+- No vector operator (planned soon after release)
 - No function pointers
 - Minimal libc bundled with the compiler
 - Vulkan 1.3+ with the following features:
