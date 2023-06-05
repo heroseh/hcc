@@ -65,6 +65,7 @@ HCC_PIXEL void triangle_ps(
 	u32x3 xyz = vec.xyz;
 	u32x2 xy = vec.xy;
 	uint32_t x = vec.x;
+	f32x2 xyf = sv->pixel_coord.xy;
 
 	bool success = true;
 	success &= xyz.x == 1 && xyz.y == 2 && xyz.z == 3 && xy.x == 1 && xy.y == 2 && x == 1;

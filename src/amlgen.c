@@ -1085,7 +1085,7 @@ HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* e
 				// so we can load and/or bitcast the pointer.
 				if (expr->binary.op == HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT || HCC_DATA_TYPE_IS_UNION(left_data_type) || is_bitfield || is_swizzle) {
 					child_count = 0;
-					child_want_variable_ref = expr->binary.op != HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT && !is_bitfield && !is_swizzle;
+					child_want_variable_ref = expr->binary.op != HCC_AST_BINARY_OP_FIELD_ACCESS_INDIRECT;
 				} else {
 					child_count = count + 1;
 				}
