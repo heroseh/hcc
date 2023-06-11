@@ -44,7 +44,7 @@ void hcc_interop_vulkan_init(HccInteropVulkan* interop, HccInteropVulkanSetup co
 			.pBindings = bindings,
 		};
 
-		HCC_INTEROP_VK_ASSERT(vkCreateDescriptorSetLayout(interop->device, &create_info, NULL, &interop->descriptor_set_layout));
+		HCC_INTEROP_VK_ASSERT(setup->vkCreateDescriptorSetLayout(interop->device, &create_info, NULL, &interop->descriptor_set_layout));
 	}
 
 	{
@@ -64,7 +64,7 @@ void hcc_interop_vulkan_init(HccInteropVulkan* interop, HccInteropVulkanSetup co
 			.pPoolSizes = pool_sizes,
 		};
 
-		HCC_INTEROP_VK_ASSERT(vkCreateDescriptorPool(interop->device, &create_info, NULL, &interop->descriptor_pool));
+		HCC_INTEROP_VK_ASSERT(setup->vkCreateDescriptorPool(interop->device, &create_info, NULL, &interop->descriptor_pool));
 	}
 
 	for (uint32_t idx = 0; idx < interop->descriptor_sets_count; idx += 1) {
@@ -76,7 +76,7 @@ void hcc_interop_vulkan_init(HccInteropVulkan* interop, HccInteropVulkanSetup co
 			.pSetLayouts = &interop->descriptor_set_layout
 		};
 
-		HCC_INTEROP_VK_ASSERT(vkAllocateDescriptorSets(interop->device, &alloc_info, &interop->descriptor_sets[idx]));
+		HCC_INTEROP_VK_ASSERT(setup->vkAllocateDescriptorSets(interop->device, &alloc_info, &interop->descriptor_sets[idx]));
 	}
 
 	{
@@ -95,7 +95,7 @@ void hcc_interop_vulkan_init(HccInteropVulkan* interop, HccInteropVulkanSetup co
 			.pPushConstantRanges = &push_constant_range,
 		};
 
-		HCC_INTEROP_VK_ASSERT(vkCreatePipelineLayout(interop->device, &create_info, NULL, &interop->pipeline_layout));
+		HCC_INTEROP_VK_ASSERT(setup->vkCreatePipelineLayout(interop->device, &create_info, NULL, &interop->pipeline_layout));
 	}
 }
 

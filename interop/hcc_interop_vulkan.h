@@ -20,12 +20,16 @@ enum HccInteropVulkanDescriptorBinding {
 
 typedef struct HccInteropVulkanSetup HccInteropVulkanSetup;
 struct HccInteropVulkanSetup {
-	VkDevice           device;
-	VkDescriptorSet*   descriptor_sets;
-	uint32_t           descriptor_sets_count;
-	uint32_t           resource_descriptors_max;
-	uint32_t           bundled_constants_size_max;
-	VkShaderStageFlags shader_stages;
+	VkDevice                        device;
+	VkDescriptorSet*                descriptor_sets;
+	uint32_t                        descriptor_sets_count;
+	uint32_t                        resource_descriptors_max;
+	uint32_t                        bundled_constants_size_max;
+	VkShaderStageFlags              shader_stages;
+	PFN_vkCreateDescriptorSetLayout vkCreateDescriptorSetLayout;
+	PFN_vkCreateDescriptorPool      vkCreateDescriptorPool;
+	PFN_vkAllocateDescriptorSets    vkAllocateDescriptorSets;
+	PFN_vkCreatePipelineLayout      vkCreatePipelineLayout;
 };
 
 typedef struct HccInteropVulkan HccInteropVulkan;

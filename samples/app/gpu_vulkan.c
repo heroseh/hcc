@@ -647,6 +647,10 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		.shader_stages = gpu.push_constants_stage_flags,
 		.resource_descriptors_max = hcc_metadata.resource_descriptors_max,
 		.bundled_constants_size_max = hcc_metadata.bundled_constants_size_max,
+		.vkCreateDescriptorSetLayout = vkCreateDescriptorSetLayout,
+		.vkCreateDescriptorPool = vkCreateDescriptorPool,
+		.vkAllocateDescriptorSets = vkAllocateDescriptorSets,
+		.vkCreatePipelineLayout = vkCreatePipelineLayout,
 	};
 	hcc_interop_vulkan_init(&gpu.interop, &interop_setup);
 

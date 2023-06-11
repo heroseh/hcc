@@ -6,6 +6,7 @@ typedef uint16_t HccShader;
 enum HccShader {
 	HCC_SHADER_vertex,
 	HCC_SHADER_pixel,
+	HCC_SHADER_COUNT,
 };
 
 typedef uint16_t HccResourceStruct;
