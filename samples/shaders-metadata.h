@@ -16,6 +16,7 @@ enum HccShader {
 	HCC_SHADER_voxel_raytracer_cs,
 	HCC_SHADER_sdf2d_vs,
 	HCC_SHADER_sdf2d_ps,
+	HCC_SHADER_COUNT,
 };
 
 typedef uint16_t HccResourceStruct;

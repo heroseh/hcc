@@ -73,6 +73,7 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 
 		hcc_iio_write_fmt(iio, "\t%.*s%.*s,\n", (int)shader_enum_prefix.size, shader_enum_prefix.data, (int)function_name.size, function_name.data);
 	}
+	hcc_iio_write_fmt(iio, "\t%.*sCOUNT,\n", (int)shader_enum_prefix.size, shader_enum_prefix.data);
 	hcc_iio_write_fmt(iio, "};\n\n");
 
 	hcc_iio_write_fmt(iio, "typedef uint16_t %.*s;\n", (int)resource_structs_enum_name.size, resource_structs_enum_name.data);
