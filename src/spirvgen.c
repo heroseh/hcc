@@ -288,10 +288,10 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			// the two examples i have found are:
 			// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
 			// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
-			// 
+			//
 			// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
 			// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
-			// 
+			//
 			// if AMD is not going to fix it, long term all SPIR-V Input & Output variables should not be in structures and be individual global varibles instead.
 			// this will make the codebase a little more manual but it will solve the problem.
 			//
@@ -386,10 +386,10 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					// the two examples i have found are:
 					// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
 					// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
-					// 
+					//
 					// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
 					// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
-					// 
+					//
 					// if AMD is not going to fix it, long term all SPIR-V Input & Output variables should not be in structures and be individual global varibles instead.
 					// this will make the codebase a little more manual but it will solve the problem.
 					//
@@ -582,6 +582,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 						break;
 					case HCC_AML_OP_NEGATE:
 						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_S_NEGATE; break;
 							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_S_NEGATE; break;
 							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_F_NEGATE; break;
 						}
@@ -679,7 +680,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 								break;
 							case HCC_BASIC_TYPE_CLASS_SINT: {
 								HccDataType signed_dst_data_type = hcc_data_type_unsigned_to_signed(cu, dst_data_type);
-								if (signed_dst_data_type != src_data_type) {
+								if ((signed_dst_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK) != (src_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK)) {
 									HccSPIRVId dst_operand = hcc_spirv_next_id(cu);
 
 									operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_S_CONVERT, 3);
@@ -704,7 +705,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 								break;
 							case HCC_BASIC_TYPE_CLASS_UINT: {
 								HccDataType unsigned_dst_data_type = hcc_data_type_signed_to_unsigned(cu, dst_data_type);
-								if (unsigned_dst_data_type != src_data_type) {
+								if ((unsigned_dst_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK) != (src_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK)) {
 									HccSPIRVId dst_operand = hcc_spirv_next_id(cu);
 
 									operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_U_CONVERT, 3);
