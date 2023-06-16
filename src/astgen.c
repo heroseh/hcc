@@ -5264,7 +5264,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 		uint32_t max_size = hcc_options_get_u32(w->cu->options, HCC_OPTION_KEY_BUNDLED_CONSTANTS_MAX_SIZE);
 		if (d->size > max_size) {
 			HccString data_type_name = hcc_data_type_string(w->cu, bundled_constants_data_type);
-			hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_BUNDLED_CONSTANTS_MAX_SIZE_EXCEEDED, function.identifier_location, d->identifier_location, (uint32_t)d->size, (int)data_type_name.size, data_type_name.data, max_size);
+			hcc_astgen_bail_error_2_manual(w, HCC_ERROR_CODE_BUNDLED_CONSTANTS_MAX_SIZE_EXCEEDED, function.identifier_location, d->identifier_location, max_size, (int)data_type_name.size, data_type_name.data, (uint32_t)d->size);
 		}
 	}
 

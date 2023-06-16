@@ -5242,7 +5242,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_DISPATCH_GROUP_CANNOT_HAVE_INITIALIZER] = "'__hcc_dispatch_group' global variables cannot have initializers and must be uninitialized memory",
 		[HCC_ERROR_CODE_STATIC_UNSUPPORTED_ON_SPIRV] = "mutable 'static' variables are unsupported by SPIR-V, used _Thread_local or HCC_DISPATCH_GROUP instead or make your 'static' variable 'const'",
 		[HCC_ERROR_CODE_NOT_ALL_PATHS_RETURN_A_VALUE] = "not all control flow paths return a value, please place a return statement here",
-		[HCC_ERROR_CODE_BUNDLED_CONSTANTS_MAX_SIZE_EXCEEDED] = "the maximum bundled constants size of '%u' has been exceed with '%s' with a size of '%u'",
+		[HCC_ERROR_CODE_BUNDLED_CONSTANTS_MAX_SIZE_EXCEEDED] = "the maximum bundled constants size of '%u' has been exceed with '%.*s' with a size of '%u'",
 		[HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_COMPUTE] = "expected '(' to begin specifing the dispatch group size eg. HCC_COMPUTE(8, 8, 1)",
 		[HCC_ERROR_CODE_EXPECTED_NON_ZERO_UINT_COMPUTE] = "expected an non-zero positive integer for the dispatch group size",
 		[HCC_ERROR_CODE_EXPECTED_COMMA_COMPUTE] = "expected ',' to define the next dimension of the dispatch group size",
