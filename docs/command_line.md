@@ -11,6 +11,7 @@ The **hcc** compiler has a very simple command line interface (CLI) and behaves 
 - [--hlsl \<path\>](#--hlsl-path)
 - [--msl \<path\>](#--msl-path)
 - [--max-descriptors](#--max-descriptors-num)
+- [--max-bc-size](#--max-bc-size-num)
 - [--enable-int8](#--enable-int8)
 - [--enable-int16](#--enable-int16)
 - [--enable-int64](#--enable-int64)
@@ -100,7 +101,10 @@ hcc -fi game_shaders.c -fo game_shaders.spirv --msl game_shaders_msl
 ```
 
 ## --max-descriptors \<num\>
-Use this flags to specify the maximum number of resource descriptor that can be used across all shaders. this must be compiled into your shaders & must match the CPU side when you setup your graphics API. see the [integrating in your engine docs]()
+Use this flags to specify the maximum number of resource descriptor that can be used across all shaders. this must be compiled into your shaders & must match the CPU side when you setup your graphics API. see the [engine integration docs](integrating_into_your_engine.md#bindless-resources)
+
+## --max-bc-size \<num\>
+Use this flags to specify the maximum size of bundled constants that are passed into every shader. this must match the CPU side when you setup your graphics API. see the [engine integration docs](integrating_into_your_engine.md#bundled-constants)
 
 ## --enable-int8
 Adds support for 8bit integer types that can be used fully throughout your code and will place the necessary SPIR-V capability feature flags in the final binary.

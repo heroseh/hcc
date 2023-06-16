@@ -202,6 +202,24 @@ int main(int argc, char** argv) {
 			}
 
 			hcc_options_set_u32(options, HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX, num);
+		} else if (strcmp(argv[arg_idx], "--max-bc-size") == 0) {
+			arg_idx += 1;
+			if (arg_idx == argc) {
+				fprintf(stderr, "'--max-bc-size' is missing a following integer for the maximum number of descriptors\n");
+				exit(1);
+			}
+
+			const char* a = argv[arg_idx];
+			uint32_t size = strlen(a);
+
+			char* end_ptr;
+			long num = strtoul(a, &end_ptr, 10);
+			if (a + size != end_ptr) {
+				fprintf(stderr, "'--max-bc-size %s' argument is not an unsigned integer\n", a);
+				exit(1);
+			}
+
+			hcc_options_set_u32(options, HCC_OPTION_KEY_BUNDLED_CONSTANTS_MAX_SIZE, num);
 		} else if (strcmp(argv[arg_idx], "--disable-color") == 0) {
 			enable_stdout_color = false;
 		} else if (strcmp(argv[arg_idx], "--enable-int8") == 0) {
@@ -253,6 +271,7 @@ int main(int argc, char** argv) {
 				"\t--hlsl <path>                | path to a directory where the HLSL files will go. requires spirv-cross to be installed\n"
 				"\t--msl  <path>                | path to a directory where the MSL files will go. requires spirv-cross to be installed\n"
 				"\t--max-descriptors <int>      | sets the size of the resource descriptors arrays\n"
+				"\t--max-bc-size <int>          | sets the maximum size of the bundled constants passed into every shader\n"
 				"\t--disable-color              | disables color output when printing to stdout\n"
 				"\t--enable-int8                | enables 8bit integer support\n"
 				"\t--enable-int16               | enables 16bit integer support\n"
