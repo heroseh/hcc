@@ -5197,7 +5197,7 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 			// param[HCC_PIXEL_SHADER_PARAM_PIXEL_STATE]: HCC_DEFINE_PIXEL_STATE
 			param = hcc_stack_get(w->astgen.function_params_and_variables, HCC_PIXEL_SHADER_PARAM_PIXEL_STATE);
 			param_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, param->data_type);
-			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || !hcc_data_type_is_pixel_state(w->cu, param_data_type)) {
+			if (!HCC_DATA_TYPE_IS_CONST(param_data_type) || !HCC_DATA_TYPE_IS_POINTER(param_data_type) || HCC_DATA_TYPE_IS_CONST((param_data_type = hcc_data_type_strip_pointer(w->cu, param_data_type))) || (param_data_type != 0 && !hcc_data_type_is_pixel_state(w->cu, param_data_type))) {
 				hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_SHADER_PROTOTYPE_INVALID_PIXEL, param->identifier_location);
 			}
 

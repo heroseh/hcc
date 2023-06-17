@@ -245,79 +245,38 @@ void hcc_spirvlink_link(HccWorker* w) {
 		HCC_COPY_ELMT_MANY(words, cu->spirv.name_words, hcc_stack_count(cu->spirv.name_words));
 	}
 
-	HccSPIRVId vertex_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_VERTEX_SV);
-	HccSPIRVId vertex_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_VERTEX_SV_OUT);
-	HccSPIRVId pixel_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_PIXEL_SV);
-	HccSPIRVId pixel_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_PIXEL_SV_OUT);
-	HccSPIRVId compute_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_HCC_COMPUTE_SV);
-
-	HccSPIRVId variable_input_vertex_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_VERTEX_SV));
-	HccSPIRVId variable_output_vertex_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_VERTEX_SV_OUT));
-	HccSPIRVId variable_input_pixel_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_PIXEL_SV));
-	HccSPIRVId variable_output_pixel_sv_out_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_PIXEL_SV_OUT));
-	HccSPIRVId variable_input_compute_sv_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_HCC_COMPUTE_SV));
-
+	HccSPIRVId variable_input_f32x4_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_CONST(HCC_DATA_TYPE_AML_INTRINSIC_F32X4)));
 	HccSPIRVId variable_input_u32x3_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_CONST(HCC_DATA_TYPE_AML_INTRINSIC_U32X3)));
 	HccSPIRVId variable_input_u32_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_INPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_CONST(HCC_DATA_TYPE_AML_INTRINSIC_U32)));
+	HccSPIRVId variable_output_f32x4_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_AML_INTRINSIC_F32X4));
+	HccSPIRVId variable_output_f32_type_id = hcc_spirv_type_deduplicate(w->cu, HCC_SPIRV_STORAGE_CLASS_OUTPUT, hcc_pointer_data_type_deduplicate(cu, HCC_DATA_TYPE_AML_INTRINSIC_F32));
 
-	{ // HccVertexSV
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = vertex_sv_type_id;
-		operands[1] = HCC_VERTEX_SV_VERTEX_IDX;
-		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
-		operands[3] = HCC_SPIRV_BUILTIN_VERTEX_INDEX;
+	{
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 3);
+		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_VERTEX_IDX;
+		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[2] = HCC_SPIRV_BUILTIN_VERTEX_INDEX;
 
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = vertex_sv_type_id;
-		operands[1] = HCC_VERTEX_SV_INSTANCE_IDX;
-		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
-		operands[3] = HCC_SPIRV_BUILTIN_INSTANCE_INDEX;
-	}
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 3);
+		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_INSTANCE_IDX;
+		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[2] = HCC_SPIRV_BUILTIN_INSTANCE_INDEX;
 
-	{ // HccVertexSVOut
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = vertex_sv_out_type_id;
-		operands[1] = HCC_VERTEX_SV_OUT_POSITION;
-		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
-		operands[3] = HCC_SPIRV_BUILTIN_POSITION;
-	}
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 3);
+		operands[0] = HCC_SPIRV_ID_VARIABLE_OUTPUT_POSITION;
+		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[2] = HCC_SPIRV_BUILTIN_POSITION;
 
-	{ // HccPixelSV
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = pixel_sv_type_id;
-		operands[1] = HCC_PIXEL_SV_PIXEL_COORD;
-		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
-		operands[3] = HCC_SPIRV_BUILTIN_FRAG_COORD;
-	}
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 3);
+		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_FRAG_COORD;
+		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[2] = HCC_SPIRV_BUILTIN_FRAG_COORD;
 
-	{ // HccPixelSVOut
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = pixel_sv_out_type_id;
-		operands[1] = HCC_PIXEL_SV_OUT_DEPTH;
-		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
-		operands[3] = HCC_SPIRV_BUILTIN_FRAG_DEPTH;
-	}
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 3);
+		operands[0] = HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAG_DEPTH;
+		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[2] = HCC_SPIRV_BUILTIN_FRAG_DEPTH;
 
-	{ // HccComputeSV
-#if 0
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_MEMBER_DECORATE, 4);
-		operands[0] = compute_sv_type_id;
-		operands[1] = HCC_COMPUTE_SV_DISPATCH_IDX;
-		operands[2] = HCC_SPIRV_DECORATION_BUILTIN;
-		operands[3] = HCC_SPIRV_BUILTIN_GLOBAL_INVOCATION_ID;
-#else
-		//
-		// TODO: AMD RNDA2 on Windows appears to not fully support structs that are marked as Input or Output. it does in some cases but not others! very buggy :(
-		// the two examples i have found are:
-		// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
-		// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
-		// 
-		// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
-		// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
-		// 
-		// if AMD is not going to fix it, long term all SPIR-V Input & Output variables should not be in structures and be individual global varibles instead.
-		// this will make the codebase a little more manual but it will solve the problem.
-		//
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 3);
 		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_IDX;
 		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
@@ -337,7 +296,6 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_FLAT_IDX;
 		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
 		operands[2] = HCC_SPIRV_BUILTIN_LOCAL_INVOCATION_INDEX;
-#endif
 	}
 
 	HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.decorate_words));
@@ -353,43 +311,30 @@ void hcc_spirvlink_link(HccWorker* w) {
 
 	{
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
-		operands[0] = variable_input_vertex_sv_type_id;
-		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_VERTEX_SV;
+		operands[0] = variable_input_u32_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_VERTEX_IDX;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
 
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
-		operands[0] = variable_output_vertex_sv_out_type_id;
-		operands[1] = HCC_SPIRV_ID_VARIABLE_OUTPUT_VERTEX_SV_OUT;
+		operands[0] = variable_input_u32_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_INSTANCE_IDX;
+		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
+		operands[0] = variable_output_f32x4_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_OUTPUT_POSITION;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
 
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
-		operands[0] = variable_input_pixel_sv_type_id;
-		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_PIXEL_SV;
+		operands[0] = variable_input_f32x4_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_FRAG_COORD;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
 
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
-		operands[0] = variable_output_pixel_sv_out_type_id;
-		operands[1] = HCC_SPIRV_ID_VARIABLE_OUTPUT_PIXEL_SV_OUT;
+		operands[0] = variable_output_f32_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAG_DEPTH;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_OUTPUT;
 
-#if 0
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
-		operands[0] = variable_input_compute_sv_type_id;
-		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_COMPUTE_SV;
-		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
-#else
-		//
-		// TODO: AMD RNDA2 on Windows appears to not fully support structs that are marked as Input or Output. it does in some cases but not others! very buggy :(
-		// the two examples i have found are:
-		// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
-		// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
-		// 
-		// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
-		// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
-		// 
-		// if AMD is not going to fix it, long term all SPIR-V Input & Output variables should not be in structures and be individual global varibles instead.
-		// this will make the codebase a little more manual but it will solve the problem.
-		//
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
 		operands[0] = variable_input_u32x3_type_id;
 		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_IDX;
@@ -409,7 +354,6 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[0] = variable_input_u32_type_id;
 		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_FLAT_IDX;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
-#endif
 
 		HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.global_variable_words));
 		HCC_COPY_ELMT_MANY(words, cu->spirv.global_variable_words, hcc_stack_count(cu->spirv.global_variable_words));

@@ -541,6 +541,7 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		VkPhysicalDeviceFeatures2 features = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
 			.pNext = &features_1_1,
+			.features.fragmentStoresAndAtomics = VK_TRUE,
 		};
 
 		static const char* extensions[] = {
