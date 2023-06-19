@@ -708,7 +708,7 @@ CALL_END:{}
 			HccDataType src_data_type = hcc_data_type_lower_ast_to_aml(w->cu, src_expr->data_type);
 			switch (expr->unary.op) {
 				case HCC_AST_UNARY_OP_LOGICAL_NOT: {
-					if (src_data_type != HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
+					if (src_data_type == HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
 						return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, true);
 					}
 
