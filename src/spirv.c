@@ -577,6 +577,11 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 					operands[2 + field_idx] = hcc_spirv_constant_deduplicate(cu, src_constant_ids[field_idx]);
 				}
 			}
+		} else if (HCC_DATA_TYPE_TYPE(c.data_type) == HCC_DATA_TYPE_RESOURCE) {
+			operands_count = 3;
+			op = HCC_SPIRV_OP_CONSTANT;
+			operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
+			operands[2] = *(uint32_t*)c.data;
 		} else if (HCC_DATA_TYPE_TYPE(c.data_type) == HCC_DATA_TYPE_AML_INTRINSIC) {
 			HccAMLIntrinsicDataType intrin = HCC_DATA_TYPE_AUX(c.data_type);
 			if (HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(intrin)) {

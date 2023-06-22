@@ -281,15 +281,16 @@ void hprint_string(HccWoBuffer(uint32_t) buffer, uint32_t idx, const char* strin
 //
 #define hprintf(buffer, fmt, ...) \
 	{ \
-		uint32_t _hprintf_buffer_capacity = buffer[HPRINTF_BUFFER_CAPACITY_IDX]; \
-		uint32_t _hprintf_words_count = HPRINT_INTERNAL_SUM(buffer, __VA_ARGS__) + HPRINT_STRING_SIZE(fmt); \
-		uint32_t _hprintf_idx = atomic_add_u32(&buffer[HPRINTF_BUFFER_CURSOR_IDX], _hprintf_words_count); \
-		if (_hprintf_idx + _hprintf_words_count < _hprintf_buffer_capacity) { \
-			hprint_string(buffer, _hprintf_idx, fmt); \
+		HccWoBuffer(uint32_t) _b = buffer; \
+		uint32_t _hprintf_buffer_capacity = _b[HPRINTF_BUFFER_CAPACITY_IDX]; \
+		uint32_t _hprintf_words_count = HPRINT_INTERNAL_SUM(_b, __VA_ARGS__) + HPRINT_STRING_SIZE(fmt); \
+		uint32_t _hprintf_idx = atomic_add_u32(&_b[HPRINTF_BUFFER_CURSOR_IDX], _hprintf_words_count); \
+		if (_hprintf_idx + _hprintf_words_count <= _hprintf_buffer_capacity) { \
+			hprint_string(_b, _hprintf_idx, fmt); \
 			_hprintf_idx += HPRINT_STRING_SIZE(fmt); \
-			HPRINT_INTERNAL_PRINT(buffer, __VA_ARGS__) \
+			HPRINT_INTERNAL_PRINT(_b, __VA_ARGS__) \
 		} else { \
-			atomic_sub_u32(&buffer[HPRINTF_BUFFER_CURSOR_IDX], _hprintf_words_count); \
+			atomic_sub_u32(&_b[HPRINTF_BUFFER_CURSOR_IDX], _hprintf_words_count); \
 		} \
 	}
 
