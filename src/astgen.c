@@ -3857,7 +3857,12 @@ HccASTExpr* hcc_astgen_generate_call_expr(HccWorker* w, HccASTExpr* function_exp
 	hcc_astgen_ensure_function_args_count(w, function_decl, args_count);
 
 	if (w->astgen.function) {
-		w->astgen.function->max_instrs_count += 1; // HCC_AML_OP_CALL
+		if (function_expr->type != HCC_AST_EXPR_TYPE_FUNCTION || HCC_AML_OPERAND_AUX(function_decl) >= HCC_FUNCTION_IDX_USER_START) {
+			w->astgen.function->max_instrs_count += 1; // HCC_AML_OP_CALL
+		} else {
+			// intrinsic so can be multiple instructions
+			w->astgen.function->max_instrs_count += 8;
+		}
 	}
 	HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_BINARY_OP);
 	expr->binary.op = HCC_AST_BINARY_OP_CALL;
