@@ -2947,6 +2947,8 @@ enum {
 	HCC_SPIRV_CAPABILITY_INT8 = 39,
 	HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_READ_WITHOUT_FORMAT = 55,
 	HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT = 56,
+	HCC_SPIRV_CAPABILITY_GROUP_ARITHMETIC = 63,
+	HCC_SPIRV_CAPABILITY_GROUP_NON_UNIFORM_SHUFFLE = 65,
 	HCC_SPIRV_CAPABILITY_VULKAN_MEMORY_MODEL = 5345,
 	HCC_SPIRV_CAPABILITY_VULKAN_MEMORY_MODEL_DEVICE_SCOPE = 5346,
 	HCC_SPIRV_CAPABILITY_PHYSICAL_STORAGE_BUFFER = 5347,
@@ -3079,13 +3081,13 @@ enum { // some hardcoded SPIR-V ids
 	// the two examples i have found are:
 	// 1. pixel shader Output variables as a struct crash VkCreateShaderModule
 	// 2. compute shader Input SV as a structure does not give back correct values in shaders but they do as individual global variables.
-	// 
+	//
 	// 1. is currently filed as a bug report at AMD but they haven't fixed it yet and i am doubting they will for a while or maybe if not ever...
 	//     a. https://community.amd.com/t5/opengl-vulkan/vkcreateshadermodule-crashes-in-amdvlk64-dll/td-p/595903
 	//     b. if you see the AMD forum person is clearly lying and not putting in the effort to understand and ghosting me :/ even though i provide a simple explanation & sample program & problematic hardware
 	//     c. sucks because i really like AMD as a company
 	// 2. i have just found and fixing it with this special code as i wanna use compute only for my next project.
-	// 
+	//
 	// so we have just settled on making our SPIR-V Input & Output variables not be in structures and be individual global varibles instead.
 	// this will make the codebase a little more manual but it will solve the problem.
 	//
@@ -3098,7 +3100,7 @@ enum { // some hardcoded SPIR-V ids
 	HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_FLAT_IDX,
 	HCC_SPIRV_ID_VARIABLE_OUTPUT_POSITION,
 	HCC_SPIRV_ID_VARIABLE_OUTPUT_FRAG_DEPTH,
-	
+
 	HCC_SPIRV_ID_USER_START,
 };
 

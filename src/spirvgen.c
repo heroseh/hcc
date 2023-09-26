@@ -1234,16 +1234,20 @@ void hcc_spirvgen_generate(HccWorker* w) {
 							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_F_MAX; break;
 						}
 						break;
-					case HCC_AML_OP_WAVE_ACTIVE_SUM:
 					case HCC_AML_OP_WAVE_ACTIVE_PREFIX_SUM:
+						group_op = HCC_SPIRV_GROUP_OPERATION_EXCLUSIVE_SCAN;
+						hcc_fallthrough;
+					case HCC_AML_OP_WAVE_ACTIVE_SUM:
 						switch (type_class) {
 							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_ADD; break;
 							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_ADD; break;
 							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_F_ADD; break;
 						}
 						break;
-					case HCC_AML_OP_WAVE_ACTIVE_PRODUCT:
 					case HCC_AML_OP_WAVE_ACTIVE_PREFIX_PRODUCT:
+						group_op = HCC_SPIRV_GROUP_OPERATION_EXCLUSIVE_SCAN;
+						hcc_fallthrough;
+					case HCC_AML_OP_WAVE_ACTIVE_PRODUCT:
 						switch (type_class) {
 							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_MUL; break;
 							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_I_MUL; break;
