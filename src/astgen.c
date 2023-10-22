@@ -2770,6 +2770,7 @@ NON_NUM_TYPE: {}
 		return data_type;
 	}
 
+	w->astgen.prev_pointer_data_type_location = NULL;
 	return hcc_astgen_generate_pointer_data_type_if_exists(w, data_type);
 }
 
@@ -2780,7 +2781,9 @@ HccDataType hcc_astgen_generate_pointer_data_type_if_exists(HccWorker* w, HccDat
 	}
 	hcc_ata_iter_next(w->astgen.token_iter);
 
-	if (!w->astgen.allow_pointer) {
+	if (w->astgen.allow_pointer) {
+		w->astgen.prev_pointer_data_type_location = hcc_ata_iter_location(w->astgen.token_iter);
+	} else {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_POINTERS_NOT_SUPPORTED);
 	}
 
@@ -5031,6 +5034,10 @@ void hcc_astgen_generate_function(HccWorker* w, HccDataType return_data_type, Hc
 		HCC_STRING_ID_INTRINSIC_FUNCTIONS_START <= identifier_string_id.idx_plus_one &&
 		identifier_string_id.idx_plus_one < HCC_STRING_ID_INTRINSIC_FUNCTIONS_END;
 
+	if (!is_intrinsic && HCC_DATA_TYPE_IS_POINTER(return_data_type)) {
+		hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_POINTERS_NOT_SUPPORTED, w->astgen.prev_pointer_data_type_location);
+	}
+
 	w->astgen.allow_pointer = is_intrinsic || shader_stage != HCC_SHADER_STAGE_NONE;
 
 	hcc_astgen_variable_stack_open(w);
@@ -5469,7 +5476,9 @@ void hcc_astgen_generate(HccWorker* w) {
 				hcc_astgen_ensure_static_assert(w);
 				break;
 			default: {
+				w->astgen.allow_pointer = true;
 				HccDataType data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_UNEXPECTED_TOKEN, true);
+				w->astgen.allow_pointer = false;
 				HccLocation* data_type_location = hcc_ata_iter_location(w->astgen.token_iter);
 				token = hcc_astgen_generate_specifiers(w);
 				bool ensure_semi_colon = true;
@@ -5478,6 +5487,9 @@ void hcc_astgen_generate(HccWorker* w) {
 						hcc_astgen_generate_function(w, data_type, data_type_location);
 						ensure_semi_colon = false;
 					} else {
+						if (HCC_DATA_TYPE_IS_POINTER(data_type)) {
+							hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_POINTERS_NOT_SUPPORTED, w->astgen.prev_pointer_data_type_location);
+						}
 						HccDataType element_data_type = hcc_data_type_strip_all_pointers(w->cu, data_type);
 						while (1) {
 							hcc_astgen_generate_variable_decl(w, true, element_data_type, &data_type, NULL);

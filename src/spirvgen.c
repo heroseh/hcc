@@ -860,7 +860,8 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[2] = HCC_SPIRV_LOOP_CONTROL_NONE;
 				break;
 
-			case HCC_AML_OP_RESOURCE_DESCRIPTOR_LOAD: {
+			case HCC_AML_OP_RESOURCE_DESCRIPTOR_LOAD:
+			case HCC_AML_OP_RESOURCE_DESCRIPTOR_ADDR: {
 				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
 				HccSPIRVDescriptorBindingInfo info;
 				hcc_spirv_resource_descriptor_binding_deduplicate(w->cu, data_type, &info);
@@ -869,7 +870,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 
 				bool is_buffer = HCC_DATA_TYPE_IS_BUFFER(data_type);
 				HccSPIRVId result_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
-				HccSPIRVId intermediate_result_id = is_buffer ? result_id : hcc_spirv_next_id(cu);
+				HccSPIRVId intermediate_result_id = is_buffer || aml_op == HCC_AML_OP_RESOURCE_DESCRIPTOR_ADDR ? result_id : hcc_spirv_next_id(cu);
 
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_IN_BOUNDS_ACCESS_CHAIN, 4 + is_buffer);
 				operands[0] = info.data_type_ptr_spirv_id;
@@ -880,7 +881,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					// because of GLSL and it's terrible design, storage buffers need to be a structure and we only have a single element which is a runtime array
 					// this final operand will access that runtime array.
 					operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
-				} else {
+				} else if (aml_op == HCC_AML_OP_RESOURCE_DESCRIPTOR_LOAD) {
 					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3);
 					operands[0] = info.data_type_spirv_id;
 					operands[1] = result_id;
@@ -1469,6 +1470,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 
 			case HCC_AML_OP_LOAD_TEXTURE:
 			case HCC_AML_OP_FETCH_TEXTURE:
+			case HCC_AML_OP_ADDR_TEXTURE:
 			{
 				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
 				HccDataType texture_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
@@ -1478,11 +1480,11 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				uint32_t num_components = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(sample_data_type);
 				sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(sample_data_type);
 				sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE(sample_data_type, 4, 1);
-				HccDataType intermediate_return_data_type = HCC_DATA_TYPE(AML_INTRINSIC, sample_data_type);
+				HccDataType intermediate_return_data_type = aml_op == HCC_AML_OP_ADDR_TEXTURE ? return_data_type : HCC_DATA_TYPE(AML_INTRINSIC, sample_data_type);
 
 				HccSPIRVId index_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[2]);
 				HccSPIRVId ms_sample_spirv_id;
-				if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) { // extract the u32x2 if Texture2D and u32x3 if Texture2DArray
+				if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) { // extract the u32x2 if Texture2D and u32x3 if Texture2DMS
 					HccSPIRVId new_index_spirv_id = hcc_spirv_next_id(cu);
 					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_VECTOR_SHUFFLE, 6);
 					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_U32X2);
@@ -1506,13 +1508,25 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				HccSPIRVId result_id = hcc_spirvgen_convert_operand(w, aml_operands[0]);
 				HccSPIRVId intermediate_result_id = needs_intermediate_value ? hcc_spirv_next_id(cu) : result_id;
 
-				HccSPIRVOp op = aml_op == HCC_AML_OP_FETCH_TEXTURE ? HCC_SPIRV_OP_IMAGE_FETCH : HCC_SPIRV_OP_IMAGE_READ;
-				operands = hcc_spirv_function_add_instr(function, op, 4 + HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type) * 2);
-				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, intermediate_return_data_type);
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				uint32_t extra_operands_count = HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type) * 2;
+				switch (aml_op) {
+					case HCC_AML_OP_LOAD_TEXTURE:  op = HCC_SPIRV_OP_IMAGE_READ; break;
+					case HCC_AML_OP_FETCH_TEXTURE: op = HCC_SPIRV_OP_IMAGE_FETCH; break;
+					case HCC_AML_OP_ADDR_TEXTURE:  op = HCC_SPIRV_OP_TEXEL_POINTER; extra_operands_count = 1; break;
+				}
+				operands = hcc_spirv_function_add_instr(function, op, 4 + extra_operands_count);
+				operands[0] = hcc_spirv_type_deduplicate(cu, aml_op == HCC_AML_OP_ADDR_TEXTURE ? HCC_SPIRV_STORAGE_CLASS_IMAGE : HCC_SPIRV_STORAGE_CLASS_INVALID, intermediate_return_data_type);
 				operands[1] = intermediate_result_id;
 				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				operands[3] = index_spirv_id;
-				if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) {
+				if (aml_op == HCC_AML_OP_ADDR_TEXTURE) {
+					operands[4]
+						= HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)
+						? ms_sample_spirv_id
+						: hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32))
+						;
+				} else if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) {
 					operands[4] = HCC_SPIRV_IMAGE_OPERAND_SAMPLE;
 					operands[5] = ms_sample_spirv_id;
 				}

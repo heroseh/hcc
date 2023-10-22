@@ -1571,5 +1571,432 @@ void store_texture_3d_u32x4(HccWoTexture3D(u32x4) texture, u32x3 idx, u32x4 valu
 	)(texture, idx, value)
 #endif // HCC_HAS_C_GENERIC_SUPPORT
 
+//
+// get an address of a texel from 'texture' at 'idx'
+const float* addr_ro_texture_1d_f32(HccRoTexture1D(float) texture, uint32_t idx);
+const int32_t* addr_ro_texture_1d_s32(HccRoTexture1D(int32_t) texture, uint32_t idx);
+const uint32_t* addr_ro_texture_1d_u32(HccRoTexture1D(uint32_t) texture, uint32_t idx);
+const f32x2* addr_ro_texture_1d_f32x2(HccRoTexture1D(f32x2) texture, uint32_t idx);
+const s32x2* addr_ro_texture_1d_s32x2(HccRoTexture1D(s32x2) texture, uint32_t idx);
+const u32x2* addr_ro_texture_1d_u32x2(HccRoTexture1D(u32x2) texture, uint32_t idx);
+const f32x3* addr_ro_texture_1d_f32x3(HccRoTexture1D(f32x3) texture, uint32_t idx);
+const s32x3* addr_ro_texture_1d_s32x3(HccRoTexture1D(s32x3) texture, uint32_t idx);
+const u32x3* addr_ro_texture_1d_u32x3(HccRoTexture1D(u32x3) texture, uint32_t idx);
+const f32x4* addr_ro_texture_1d_f32x4(HccRoTexture1D(f32x4) texture, uint32_t idx);
+const s32x4* addr_ro_texture_1d_s32x4(HccRoTexture1D(s32x4) texture, uint32_t idx);
+const u32x4* addr_ro_texture_1d_u32x4(HccRoTexture1D(u32x4) texture, uint32_t idx);
+const float* addr_ro_texture_1d_array_f32(HccRoTexture1DArray(float) texture, u32x2 idx);
+const int32_t* addr_ro_texture_1d_array_s32(HccRoTexture1DArray(int32_t) texture, u32x2 idx);
+const uint32_t* addr_ro_texture_1d_array_u32(HccRoTexture1DArray(uint32_t) texture, u32x2 idx);
+const f32x2* addr_ro_texture_1d_array_f32x2(HccRoTexture1DArray(f32x2) texture, u32x2 idx);
+const s32x2* addr_ro_texture_1d_array_s32x2(HccRoTexture1DArray(s32x2) texture, u32x2 idx);
+const u32x2* addr_ro_texture_1d_array_u32x2(HccRoTexture1DArray(u32x2) texture, u32x2 idx);
+const f32x3* addr_ro_texture_1d_array_f32x3(HccRoTexture1DArray(f32x3) texture, u32x2 idx);
+const s32x3* addr_ro_texture_1d_array_s32x3(HccRoTexture1DArray(s32x3) texture, u32x2 idx);
+const u32x3* addr_ro_texture_1d_array_u32x3(HccRoTexture1DArray(u32x3) texture, u32x2 idx);
+const f32x4* addr_ro_texture_1d_array_f32x4(HccRoTexture1DArray(f32x4) texture, u32x2 idx);
+const s32x4* addr_ro_texture_1d_array_s32x4(HccRoTexture1DArray(s32x4) texture, u32x2 idx);
+const u32x4* addr_ro_texture_1d_array_u32x4(HccRoTexture1DArray(u32x4) texture, u32x2 idx);
+const float* addr_ro_texture_2d_f32(HccRoTexture2D(float) texture, u32x2 idx);
+const int32_t* addr_ro_texture_2d_s32(HccRoTexture2D(int32_t) texture, u32x2 idx);
+const uint32_t* addr_ro_texture_2d_u32(HccRoTexture2D(uint32_t) texture, u32x2 idx);
+const f32x2* addr_ro_texture_2d_f32x2(HccRoTexture2D(f32x2) texture, u32x2 idx);
+const s32x2* addr_ro_texture_2d_s32x2(HccRoTexture2D(s32x2) texture, u32x2 idx);
+const u32x2* addr_ro_texture_2d_u32x2(HccRoTexture2D(u32x2) texture, u32x2 idx);
+const f32x3* addr_ro_texture_2d_f32x3(HccRoTexture2D(f32x3) texture, u32x2 idx);
+const s32x3* addr_ro_texture_2d_s32x3(HccRoTexture2D(s32x3) texture, u32x2 idx);
+const u32x3* addr_ro_texture_2d_u32x3(HccRoTexture2D(u32x3) texture, u32x2 idx);
+const f32x4* addr_ro_texture_2d_f32x4(HccRoTexture2D(f32x4) texture, u32x2 idx);
+const s32x4* addr_ro_texture_2d_s32x4(HccRoTexture2D(s32x4) texture, u32x2 idx);
+const u32x4* addr_ro_texture_2d_u32x4(HccRoTexture2D(u32x4) texture, u32x2 idx);
+const float* addr_ro_texture_2d_array_f32(HccRoTexture2DArray(float) texture, u32x3 idx);
+const int32_t* addr_ro_texture_2d_array_s32(HccRoTexture2DArray(int32_t) texture, u32x3 idx);
+const uint32_t* addr_ro_texture_2d_array_u32(HccRoTexture2DArray(uint32_t) texture, u32x3 idx);
+const f32x2* addr_ro_texture_2d_array_f32x2(HccRoTexture2DArray(f32x2) texture, u32x3 idx);
+const s32x2* addr_ro_texture_2d_array_s32x2(HccRoTexture2DArray(s32x2) texture, u32x3 idx);
+const u32x2* addr_ro_texture_2d_array_u32x2(HccRoTexture2DArray(u32x2) texture, u32x3 idx);
+const f32x3* addr_ro_texture_2d_array_f32x3(HccRoTexture2DArray(f32x3) texture, u32x3 idx);
+const s32x3* addr_ro_texture_2d_array_s32x3(HccRoTexture2DArray(s32x3) texture, u32x3 idx);
+const u32x3* addr_ro_texture_2d_array_u32x3(HccRoTexture2DArray(u32x3) texture, u32x3 idx);
+const f32x4* addr_ro_texture_2d_array_f32x4(HccRoTexture2DArray(f32x4) texture, u32x3 idx);
+const s32x4* addr_ro_texture_2d_array_s32x4(HccRoTexture2DArray(s32x4) texture, u32x3 idx);
+const u32x4* addr_ro_texture_2d_array_u32x4(HccRoTexture2DArray(u32x4) texture, u32x3 idx);
+const float* addr_ro_texture_2d_ms_f32(HccRoTexture2DMS(float) texture, u32x3 idx);
+const int32_t* addr_ro_texture_2d_ms_s32(HccRoTexture2DMS(int32_t) texture, u32x3 idx);
+const uint32_t* addr_ro_texture_2d_ms_u32(HccRoTexture2DMS(uint32_t) texture, u32x3 idx);
+const f32x2* addr_ro_texture_2d_ms_f32x2(HccRoTexture2DMS(f32x2) texture, u32x3 idx);
+const s32x2* addr_ro_texture_2d_ms_s32x2(HccRoTexture2DMS(s32x2) texture, u32x3 idx);
+const u32x2* addr_ro_texture_2d_ms_u32x2(HccRoTexture2DMS(u32x2) texture, u32x3 idx);
+const f32x3* addr_ro_texture_2d_ms_f32x3(HccRoTexture2DMS(f32x3) texture, u32x3 idx);
+const s32x3* addr_ro_texture_2d_ms_s32x3(HccRoTexture2DMS(s32x3) texture, u32x3 idx);
+const u32x3* addr_ro_texture_2d_ms_u32x3(HccRoTexture2DMS(u32x3) texture, u32x3 idx);
+const f32x4* addr_ro_texture_2d_ms_f32x4(HccRoTexture2DMS(f32x4) texture, u32x3 idx);
+const s32x4* addr_ro_texture_2d_ms_s32x4(HccRoTexture2DMS(s32x4) texture, u32x3 idx);
+const u32x4* addr_ro_texture_2d_ms_u32x4(HccRoTexture2DMS(u32x4) texture, u32x3 idx);
+const float* addr_ro_texture_2d_ms_array_f32(HccRoTexture2DMSArray(float) texture, u32x4 idx);
+const int32_t* addr_ro_texture_2d_ms_array_s32(HccRoTexture2DMSArray(int32_t) texture, u32x4 idx);
+const uint32_t* addr_ro_texture_2d_ms_array_u32(HccRoTexture2DMSArray(uint32_t) texture, u32x4 idx);
+const f32x2* addr_ro_texture_2d_ms_array_f32x2(HccRoTexture2DMSArray(f32x2) texture, u32x4 idx);
+const s32x2* addr_ro_texture_2d_ms_array_s32x2(HccRoTexture2DMSArray(s32x2) texture, u32x4 idx);
+const u32x2* addr_ro_texture_2d_ms_array_u32x2(HccRoTexture2DMSArray(u32x2) texture, u32x4 idx);
+const f32x3* addr_ro_texture_2d_ms_array_f32x3(HccRoTexture2DMSArray(f32x3) texture, u32x4 idx);
+const s32x3* addr_ro_texture_2d_ms_array_s32x3(HccRoTexture2DMSArray(s32x3) texture, u32x4 idx);
+const u32x3* addr_ro_texture_2d_ms_array_u32x3(HccRoTexture2DMSArray(u32x3) texture, u32x4 idx);
+const f32x4* addr_ro_texture_2d_ms_array_f32x4(HccRoTexture2DMSArray(f32x4) texture, u32x4 idx);
+const s32x4* addr_ro_texture_2d_ms_array_s32x4(HccRoTexture2DMSArray(s32x4) texture, u32x4 idx);
+const u32x4* addr_ro_texture_2d_ms_array_u32x4(HccRoTexture2DMSArray(u32x4) texture, u32x4 idx);
+const float* addr_ro_texture_3d_f32(HccRoTexture3D(float) texture, u32x3 idx);
+const int32_t* addr_ro_texture_3d_s32(HccRoTexture3D(int32_t) texture, u32x3 idx);
+const uint32_t* addr_ro_texture_3d_u32(HccRoTexture3D(uint32_t) texture, u32x3 idx);
+const f32x2* addr_ro_texture_3d_f32x2(HccRoTexture3D(f32x2) texture, u32x3 idx);
+const s32x2* addr_ro_texture_3d_s32x2(HccRoTexture3D(s32x2) texture, u32x3 idx);
+const u32x2* addr_ro_texture_3d_u32x2(HccRoTexture3D(u32x2) texture, u32x3 idx);
+const f32x3* addr_ro_texture_3d_f32x3(HccRoTexture3D(f32x3) texture, u32x3 idx);
+const s32x3* addr_ro_texture_3d_s32x3(HccRoTexture3D(s32x3) texture, u32x3 idx);
+const u32x3* addr_ro_texture_3d_u32x3(HccRoTexture3D(u32x3) texture, u32x3 idx);
+const f32x4* addr_ro_texture_3d_f32x4(HccRoTexture3D(f32x4) texture, u32x3 idx);
+const s32x4* addr_ro_texture_3d_s32x4(HccRoTexture3D(s32x4) texture, u32x3 idx);
+const u32x4* addr_ro_texture_3d_u32x4(HccRoTexture3D(u32x4) texture, u32x3 idx);
+float* addr_rw_texture_1d_f32(HccWoTexture1D(float) texture, uint32_t idx);
+int32_t* addr_rw_texture_1d_s32(HccWoTexture1D(int32_t) texture, uint32_t idx);
+uint32_t* addr_rw_texture_1d_u32(HccWoTexture1D(uint32_t) texture, uint32_t idx);
+f32x2* addr_rw_texture_1d_f32x2(HccWoTexture1D(f32x2) texture, uint32_t idx);
+s32x2* addr_rw_texture_1d_s32x2(HccWoTexture1D(s32x2) texture, uint32_t idx);
+u32x2* addr_rw_texture_1d_u32x2(HccWoTexture1D(u32x2) texture, uint32_t idx);
+f32x3* addr_rw_texture_1d_f32x3(HccWoTexture1D(f32x3) texture, uint32_t idx);
+s32x3* addr_rw_texture_1d_s32x3(HccWoTexture1D(s32x3) texture, uint32_t idx);
+u32x3* addr_rw_texture_1d_u32x3(HccWoTexture1D(u32x3) texture, uint32_t idx);
+f32x4* addr_rw_texture_1d_f32x4(HccWoTexture1D(f32x4) texture, uint32_t idx);
+s32x4* addr_rw_texture_1d_s32x4(HccWoTexture1D(s32x4) texture, uint32_t idx);
+u32x4* addr_rw_texture_1d_u32x4(HccWoTexture1D(u32x4) texture, uint32_t idx);
+float* addr_rw_texture_1d_array_f32(HccWoTexture1DArray(float) texture, u32x2 idx);
+int32_t* addr_rw_texture_1d_array_s32(HccWoTexture1DArray(int32_t) texture, u32x2 idx);
+uint32_t* addr_rw_texture_1d_array_u32(HccWoTexture1DArray(uint32_t) texture, u32x2 idx);
+f32x2* addr_rw_texture_1d_array_f32x2(HccWoTexture1DArray(f32x2) texture, u32x2 idx);
+s32x2* addr_rw_texture_1d_array_s32x2(HccWoTexture1DArray(s32x2) texture, u32x2 idx);
+u32x2* addr_rw_texture_1d_array_u32x2(HccWoTexture1DArray(u32x2) texture, u32x2 idx);
+f32x3* addr_rw_texture_1d_array_f32x3(HccWoTexture1DArray(f32x3) texture, u32x2 idx);
+s32x3* addr_rw_texture_1d_array_s32x3(HccWoTexture1DArray(s32x3) texture, u32x2 idx);
+u32x3* addr_rw_texture_1d_array_u32x3(HccWoTexture1DArray(u32x3) texture, u32x2 idx);
+f32x4* addr_rw_texture_1d_array_f32x4(HccWoTexture1DArray(f32x4) texture, u32x2 idx);
+s32x4* addr_rw_texture_1d_array_s32x4(HccWoTexture1DArray(s32x4) texture, u32x2 idx);
+u32x4* addr_rw_texture_1d_array_u32x4(HccWoTexture1DArray(u32x4) texture, u32x2 idx);
+float* addr_rw_texture_2d_f32(HccWoTexture2D(float) texture, u32x2 idx);
+int32_t* addr_rw_texture_2d_s32(HccWoTexture2D(int32_t) texture, u32x2 idx);
+uint32_t* addr_rw_texture_2d_u32(HccWoTexture2D(uint32_t) texture, u32x2 idx);
+f32x2* addr_rw_texture_2d_f32x2(HccWoTexture2D(f32x2) texture, u32x2 idx);
+s32x2* addr_rw_texture_2d_s32x2(HccWoTexture2D(s32x2) texture, u32x2 idx);
+u32x2* addr_rw_texture_2d_u32x2(HccWoTexture2D(u32x2) texture, u32x2 idx);
+f32x3* addr_rw_texture_2d_f32x3(HccWoTexture2D(f32x3) texture, u32x2 idx);
+s32x3* addr_rw_texture_2d_s32x3(HccWoTexture2D(s32x3) texture, u32x2 idx);
+u32x3* addr_rw_texture_2d_u32x3(HccWoTexture2D(u32x3) texture, u32x2 idx);
+f32x4* addr_rw_texture_2d_f32x4(HccWoTexture2D(f32x4) texture, u32x2 idx);
+s32x4* addr_rw_texture_2d_s32x4(HccWoTexture2D(s32x4) texture, u32x2 idx);
+u32x4* addr_rw_texture_2d_u32x4(HccWoTexture2D(u32x4) texture, u32x2 idx);
+float* addr_rw_texture_2d_array_f32(HccWoTexture2DArray(float) texture, u32x3 idx);
+int32_t* addr_rw_texture_2d_array_s32(HccWoTexture2DArray(int32_t) texture, u32x3 idx);
+uint32_t* addr_rw_texture_2d_array_u32(HccWoTexture2DArray(uint32_t) texture, u32x3 idx);
+f32x2* addr_rw_texture_2d_array_f32x2(HccWoTexture2DArray(f32x2) texture, u32x3 idx);
+s32x2* addr_rw_texture_2d_array_s32x2(HccWoTexture2DArray(s32x2) texture, u32x3 idx);
+u32x2* addr_rw_texture_2d_array_u32x2(HccWoTexture2DArray(u32x2) texture, u32x3 idx);
+f32x3* addr_rw_texture_2d_array_f32x3(HccWoTexture2DArray(f32x3) texture, u32x3 idx);
+s32x3* addr_rw_texture_2d_array_s32x3(HccWoTexture2DArray(s32x3) texture, u32x3 idx);
+u32x3* addr_rw_texture_2d_array_u32x3(HccWoTexture2DArray(u32x3) texture, u32x3 idx);
+f32x4* addr_rw_texture_2d_array_f32x4(HccWoTexture2DArray(f32x4) texture, u32x3 idx);
+s32x4* addr_rw_texture_2d_array_s32x4(HccWoTexture2DArray(s32x4) texture, u32x3 idx);
+u32x4* addr_rw_texture_2d_array_u32x4(HccWoTexture2DArray(u32x4) texture, u32x3 idx);
+float* addr_rw_texture_2d_ms_f32(HccWoTexture2DMS(float) texture, u32x3 idx);
+int32_t* addr_rw_texture_2d_ms_s32(HccWoTexture2DMS(int32_t) texture, u32x3 idx);
+uint32_t* addr_rw_texture_2d_ms_u32(HccWoTexture2DMS(uint32_t) texture, u32x3 idx);
+f32x2* addr_rw_texture_2d_ms_f32x2(HccWoTexture2DMS(f32x2) texture, u32x3 idx);
+s32x2* addr_rw_texture_2d_ms_s32x2(HccWoTexture2DMS(s32x2) texture, u32x3 idx);
+u32x2* addr_rw_texture_2d_ms_u32x2(HccWoTexture2DMS(u32x2) texture, u32x3 idx);
+f32x3* addr_rw_texture_2d_ms_f32x3(HccWoTexture2DMS(f32x3) texture, u32x3 idx);
+s32x3* addr_rw_texture_2d_ms_s32x3(HccWoTexture2DMS(s32x3) texture, u32x3 idx);
+u32x3* addr_rw_texture_2d_ms_u32x3(HccWoTexture2DMS(u32x3) texture, u32x3 idx);
+f32x4* addr_rw_texture_2d_ms_f32x4(HccWoTexture2DMS(f32x4) texture, u32x3 idx);
+s32x4* addr_rw_texture_2d_ms_s32x4(HccWoTexture2DMS(s32x4) texture, u32x3 idx);
+u32x4* addr_rw_texture_2d_ms_u32x4(HccWoTexture2DMS(u32x4) texture, u32x3 idx);
+float* addr_rw_texture_2d_ms_array_f32(HccWoTexture2DMSArray(float) texture, u32x4 idx);
+int32_t* addr_rw_texture_2d_ms_array_s32(HccWoTexture2DMSArray(int32_t) texture, u32x4 idx);
+uint32_t* addr_rw_texture_2d_ms_array_u32(HccWoTexture2DMSArray(uint32_t) texture, u32x4 idx);
+f32x2* addr_rw_texture_2d_ms_array_f32x2(HccWoTexture2DMSArray(f32x2) texture, u32x4 idx);
+s32x2* addr_rw_texture_2d_ms_array_s32x2(HccWoTexture2DMSArray(s32x2) texture, u32x4 idx);
+u32x2* addr_rw_texture_2d_ms_array_u32x2(HccWoTexture2DMSArray(u32x2) texture, u32x4 idx);
+f32x3* addr_rw_texture_2d_ms_array_f32x3(HccWoTexture2DMSArray(f32x3) texture, u32x4 idx);
+s32x3* addr_rw_texture_2d_ms_array_s32x3(HccWoTexture2DMSArray(s32x3) texture, u32x4 idx);
+u32x3* addr_rw_texture_2d_ms_array_u32x3(HccWoTexture2DMSArray(u32x3) texture, u32x4 idx);
+f32x4* addr_rw_texture_2d_ms_array_f32x4(HccWoTexture2DMSArray(f32x4) texture, u32x4 idx);
+s32x4* addr_rw_texture_2d_ms_array_s32x4(HccWoTexture2DMSArray(s32x4) texture, u32x4 idx);
+u32x4* addr_rw_texture_2d_ms_array_u32x4(HccWoTexture2DMSArray(u32x4) texture, u32x4 idx);
+float* addr_rw_texture_3d_f32(HccWoTexture3D(float) texture, u32x3 idx);
+int32_t* addr_rw_texture_3d_s32(HccWoTexture3D(int32_t) texture, u32x3 idx);
+uint32_t* addr_rw_texture_3d_u32(HccWoTexture3D(uint32_t) texture, u32x3 idx);
+f32x2* addr_rw_texture_3d_f32x2(HccWoTexture3D(f32x2) texture, u32x3 idx);
+s32x2* addr_rw_texture_3d_s32x2(HccWoTexture3D(s32x2) texture, u32x3 idx);
+u32x2* addr_rw_texture_3d_u32x2(HccWoTexture3D(u32x2) texture, u32x3 idx);
+f32x3* addr_rw_texture_3d_f32x3(HccWoTexture3D(f32x3) texture, u32x3 idx);
+s32x3* addr_rw_texture_3d_s32x3(HccWoTexture3D(s32x3) texture, u32x3 idx);
+u32x3* addr_rw_texture_3d_u32x3(HccWoTexture3D(u32x3) texture, u32x3 idx);
+f32x4* addr_rw_texture_3d_f32x4(HccWoTexture3D(f32x4) texture, u32x3 idx);
+s32x4* addr_rw_texture_3d_s32x4(HccWoTexture3D(s32x4) texture, u32x3 idx);
+u32x4* addr_rw_texture_3d_u32x4(HccWoTexture3D(u32x4) texture, u32x3 idx);
+#ifdef HCC_HAS_C_GENERIC_SUPPORT
+#define addr_textureG(texture, idx) \
+	_Generic((texture), \
+		HccRoTexture1D(float): addr_ro_texture_1d_f32, \
+		HccRoTexture1D(int32_t): addr_ro_texture_1d_s32, \
+		HccRoTexture1D(uint32_t): addr_ro_texture_1d_u32, \
+		HccRoTexture1D(f32x2): addr_ro_texture_1d_f32x2, \
+		HccRoTexture1D(s32x2): addr_ro_texture_1d_s32x2, \
+		HccRoTexture1D(u32x2): addr_ro_texture_1d_u32x2, \
+		HccRoTexture1D(f32x3): addr_ro_texture_1d_f32x3, \
+		HccRoTexture1D(s32x3): addr_ro_texture_1d_s32x3, \
+		HccRoTexture1D(u32x3): addr_ro_texture_1d_u32x3, \
+		HccRoTexture1D(f32x4): addr_ro_texture_1d_f32x4, \
+		HccRoTexture1D(s32x4): addr_ro_texture_1d_s32x4, \
+		HccRoTexture1D(u32x4): addr_ro_texture_1d_u32x4, \
+		HccRoTexture1DArray(float): addr_ro_texture_1d_array_f32, \
+		HccRoTexture1DArray(int32_t): addr_ro_texture_1d_array_s32, \
+		HccRoTexture1DArray(uint32_t): addr_ro_texture_1d_array_u32, \
+		HccRoTexture1DArray(f32x2): addr_ro_texture_1d_array_f32x2, \
+		HccRoTexture1DArray(s32x2): addr_ro_texture_1d_array_s32x2, \
+		HccRoTexture1DArray(u32x2): addr_ro_texture_1d_array_u32x2, \
+		HccRoTexture1DArray(f32x3): addr_ro_texture_1d_array_f32x3, \
+		HccRoTexture1DArray(s32x3): addr_ro_texture_1d_array_s32x3, \
+		HccRoTexture1DArray(u32x3): addr_ro_texture_1d_array_u32x3, \
+		HccRoTexture1DArray(f32x4): addr_ro_texture_1d_array_f32x4, \
+		HccRoTexture1DArray(s32x4): addr_ro_texture_1d_array_s32x4, \
+		HccRoTexture1DArray(u32x4): addr_ro_texture_1d_array_u32x4, \
+		HccRoTexture2D(float): addr_ro_texture_2d_f32, \
+		HccRoTexture2D(int32_t): addr_ro_texture_2d_s32, \
+		HccRoTexture2D(uint32_t): addr_ro_texture_2d_u32, \
+		HccRoTexture2D(f32x2): addr_ro_texture_2d_f32x2, \
+		HccRoTexture2D(s32x2): addr_ro_texture_2d_s32x2, \
+		HccRoTexture2D(u32x2): addr_ro_texture_2d_u32x2, \
+		HccRoTexture2D(f32x3): addr_ro_texture_2d_f32x3, \
+		HccRoTexture2D(s32x3): addr_ro_texture_2d_s32x3, \
+		HccRoTexture2D(u32x3): addr_ro_texture_2d_u32x3, \
+		HccRoTexture2D(f32x4): addr_ro_texture_2d_f32x4, \
+		HccRoTexture2D(s32x4): addr_ro_texture_2d_s32x4, \
+		HccRoTexture2D(u32x4): addr_ro_texture_2d_u32x4, \
+		HccRoTexture2DArray(float): addr_ro_texture_2d_array_f32, \
+		HccRoTexture2DArray(int32_t): addr_ro_texture_2d_array_s32, \
+		HccRoTexture2DArray(uint32_t): addr_ro_texture_2d_array_u32, \
+		HccRoTexture2DArray(f32x2): addr_ro_texture_2d_array_f32x2, \
+		HccRoTexture2DArray(s32x2): addr_ro_texture_2d_array_s32x2, \
+		HccRoTexture2DArray(u32x2): addr_ro_texture_2d_array_u32x2, \
+		HccRoTexture2DArray(f32x3): addr_ro_texture_2d_array_f32x3, \
+		HccRoTexture2DArray(s32x3): addr_ro_texture_2d_array_s32x3, \
+		HccRoTexture2DArray(u32x3): addr_ro_texture_2d_array_u32x3, \
+		HccRoTexture2DArray(f32x4): addr_ro_texture_2d_array_f32x4, \
+		HccRoTexture2DArray(s32x4): addr_ro_texture_2d_array_s32x4, \
+		HccRoTexture2DArray(u32x4): addr_ro_texture_2d_array_u32x4, \
+		HccRoTexture2DMS(float): addr_ro_texture_2d_ms_f32, \
+		HccRoTexture2DMS(int32_t): addr_ro_texture_2d_ms_s32, \
+		HccRoTexture2DMS(uint32_t): addr_ro_texture_2d_ms_u32, \
+		HccRoTexture2DMS(f32x2): addr_ro_texture_2d_ms_f32x2, \
+		HccRoTexture2DMS(s32x2): addr_ro_texture_2d_ms_s32x2, \
+		HccRoTexture2DMS(u32x2): addr_ro_texture_2d_ms_u32x2, \
+		HccRoTexture2DMS(f32x3): addr_ro_texture_2d_ms_f32x3, \
+		HccRoTexture2DMS(s32x3): addr_ro_texture_2d_ms_s32x3, \
+		HccRoTexture2DMS(u32x3): addr_ro_texture_2d_ms_u32x3, \
+		HccRoTexture2DMS(f32x4): addr_ro_texture_2d_ms_f32x4, \
+		HccRoTexture2DMS(s32x4): addr_ro_texture_2d_ms_s32x4, \
+		HccRoTexture2DMS(u32x4): addr_ro_texture_2d_ms_u32x4, \
+		HccRoTexture2DMSArray(float): addr_ro_texture_2d_ms_array_f32, \
+		HccRoTexture2DMSArray(int32_t): addr_ro_texture_2d_ms_array_s32, \
+		HccRoTexture2DMSArray(uint32_t): addr_ro_texture_2d_ms_array_u32, \
+		HccRoTexture2DMSArray(f32x2): addr_ro_texture_2d_ms_array_f32x2, \
+		HccRoTexture2DMSArray(s32x2): addr_ro_texture_2d_ms_array_s32x2, \
+		HccRoTexture2DMSArray(u32x2): addr_ro_texture_2d_ms_array_u32x2, \
+		HccRoTexture2DMSArray(f32x3): addr_ro_texture_2d_ms_array_f32x3, \
+		HccRoTexture2DMSArray(s32x3): addr_ro_texture_2d_ms_array_s32x3, \
+		HccRoTexture2DMSArray(u32x3): addr_ro_texture_2d_ms_array_u32x3, \
+		HccRoTexture2DMSArray(f32x4): addr_ro_texture_2d_ms_array_f32x4, \
+		HccRoTexture2DMSArray(s32x4): addr_ro_texture_2d_ms_array_s32x4, \
+		HccRoTexture2DMSArray(u32x4): addr_ro_texture_2d_ms_array_u32x4, \
+		HccRoTexture3D(float): addr_ro_texture_3d_f32, \
+		HccRoTexture3D(int32_t): addr_ro_texture_3d_s32, \
+		HccRoTexture3D(uint32_t): addr_ro_texture_3d_u32, \
+		HccRoTexture3D(f32x2): addr_ro_texture_3d_f32x2, \
+		HccRoTexture3D(s32x2): addr_ro_texture_3d_s32x2, \
+		HccRoTexture3D(u32x2): addr_ro_texture_3d_u32x2, \
+		HccRoTexture3D(f32x3): addr_ro_texture_3d_f32x3, \
+		HccRoTexture3D(s32x3): addr_ro_texture_3d_s32x3, \
+		HccRoTexture3D(u32x3): addr_ro_texture_3d_u32x3, \
+		HccRoTexture3D(f32x4): addr_ro_texture_3d_f32x4, \
+		HccRoTexture3D(s32x4): addr_ro_texture_3d_s32x4, \
+		HccRoTexture3D(u32x4): addr_ro_texture_3d_u32x4, \
+		HccWoTexture1D(float): addr_rw_texture_1d_f32, \
+		HccWoTexture1D(int32_t): addr_rw_texture_1d_s32, \
+		HccWoTexture1D(uint32_t): addr_rw_texture_1d_u32, \
+		HccWoTexture1D(f32x2): addr_rw_texture_1d_f32x2, \
+		HccWoTexture1D(s32x2): addr_rw_texture_1d_s32x2, \
+		HccWoTexture1D(u32x2): addr_rw_texture_1d_u32x2, \
+		HccWoTexture1D(f32x3): addr_rw_texture_1d_f32x3, \
+		HccWoTexture1D(s32x3): addr_rw_texture_1d_s32x3, \
+		HccWoTexture1D(u32x3): addr_rw_texture_1d_u32x3, \
+		HccWoTexture1D(f32x4): addr_rw_texture_1d_f32x4, \
+		HccWoTexture1D(s32x4): addr_rw_texture_1d_s32x4, \
+		HccWoTexture1D(u32x4): addr_rw_texture_1d_u32x4, \
+		HccWoTexture1DArray(float): addr_rw_texture_1d_array_f32, \
+		HccWoTexture1DArray(int32_t): addr_rw_texture_1d_array_s32, \
+		HccWoTexture1DArray(uint32_t): addr_rw_texture_1d_array_u32, \
+		HccWoTexture1DArray(f32x2): addr_rw_texture_1d_array_f32x2, \
+		HccWoTexture1DArray(s32x2): addr_rw_texture_1d_array_s32x2, \
+		HccWoTexture1DArray(u32x2): addr_rw_texture_1d_array_u32x2, \
+		HccWoTexture1DArray(f32x3): addr_rw_texture_1d_array_f32x3, \
+		HccWoTexture1DArray(s32x3): addr_rw_texture_1d_array_s32x3, \
+		HccWoTexture1DArray(u32x3): addr_rw_texture_1d_array_u32x3, \
+		HccWoTexture1DArray(f32x4): addr_rw_texture_1d_array_f32x4, \
+		HccWoTexture1DArray(s32x4): addr_rw_texture_1d_array_s32x4, \
+		HccWoTexture1DArray(u32x4): addr_rw_texture_1d_array_u32x4, \
+		HccWoTexture2D(float): addr_rw_texture_2d_f32, \
+		HccWoTexture2D(int32_t): addr_rw_texture_2d_s32, \
+		HccWoTexture2D(uint32_t): addr_rw_texture_2d_u32, \
+		HccWoTexture2D(f32x2): addr_rw_texture_2d_f32x2, \
+		HccWoTexture2D(s32x2): addr_rw_texture_2d_s32x2, \
+		HccWoTexture2D(u32x2): addr_rw_texture_2d_u32x2, \
+		HccWoTexture2D(f32x3): addr_rw_texture_2d_f32x3, \
+		HccWoTexture2D(s32x3): addr_rw_texture_2d_s32x3, \
+		HccWoTexture2D(u32x3): addr_rw_texture_2d_u32x3, \
+		HccWoTexture2D(f32x4): addr_rw_texture_2d_f32x4, \
+		HccWoTexture2D(s32x4): addr_rw_texture_2d_s32x4, \
+		HccWoTexture2D(u32x4): addr_rw_texture_2d_u32x4, \
+		HccWoTexture2DArray(float): addr_rw_texture_2d_array_f32, \
+		HccWoTexture2DArray(int32_t): addr_rw_texture_2d_array_s32, \
+		HccWoTexture2DArray(uint32_t): addr_rw_texture_2d_array_u32, \
+		HccWoTexture2DArray(f32x2): addr_rw_texture_2d_array_f32x2, \
+		HccWoTexture2DArray(s32x2): addr_rw_texture_2d_array_s32x2, \
+		HccWoTexture2DArray(u32x2): addr_rw_texture_2d_array_u32x2, \
+		HccWoTexture2DArray(f32x3): addr_rw_texture_2d_array_f32x3, \
+		HccWoTexture2DArray(s32x3): addr_rw_texture_2d_array_s32x3, \
+		HccWoTexture2DArray(u32x3): addr_rw_texture_2d_array_u32x3, \
+		HccWoTexture2DArray(f32x4): addr_rw_texture_2d_array_f32x4, \
+		HccWoTexture2DArray(s32x4): addr_rw_texture_2d_array_s32x4, \
+		HccWoTexture2DArray(u32x4): addr_rw_texture_2d_array_u32x4, \
+		HccWoTexture2DMS(float): addr_rw_texture_2d_ms_f32, \
+		HccWoTexture2DMS(int32_t): addr_rw_texture_2d_ms_s32, \
+		HccWoTexture2DMS(uint32_t): addr_rw_texture_2d_ms_u32, \
+		HccWoTexture2DMS(f32x2): addr_rw_texture_2d_ms_f32x2, \
+		HccWoTexture2DMS(s32x2): addr_rw_texture_2d_ms_s32x2, \
+		HccWoTexture2DMS(u32x2): addr_rw_texture_2d_ms_u32x2, \
+		HccWoTexture2DMS(f32x3): addr_rw_texture_2d_ms_f32x3, \
+		HccWoTexture2DMS(s32x3): addr_rw_texture_2d_ms_s32x3, \
+		HccWoTexture2DMS(u32x3): addr_rw_texture_2d_ms_u32x3, \
+		HccWoTexture2DMS(f32x4): addr_rw_texture_2d_ms_f32x4, \
+		HccWoTexture2DMS(s32x4): addr_rw_texture_2d_ms_s32x4, \
+		HccWoTexture2DMS(u32x4): addr_rw_texture_2d_ms_u32x4, \
+		HccWoTexture2DMSArray(float): addr_rw_texture_2d_ms_array_f32, \
+		HccWoTexture2DMSArray(int32_t): addr_rw_texture_2d_ms_array_s32, \
+		HccWoTexture2DMSArray(uint32_t): addr_rw_texture_2d_ms_array_u32, \
+		HccWoTexture2DMSArray(f32x2): addr_rw_texture_2d_ms_array_f32x2, \
+		HccWoTexture2DMSArray(s32x2): addr_rw_texture_2d_ms_array_s32x2, \
+		HccWoTexture2DMSArray(u32x2): addr_rw_texture_2d_ms_array_u32x2, \
+		HccWoTexture2DMSArray(f32x3): addr_rw_texture_2d_ms_array_f32x3, \
+		HccWoTexture2DMSArray(s32x3): addr_rw_texture_2d_ms_array_s32x3, \
+		HccWoTexture2DMSArray(u32x3): addr_rw_texture_2d_ms_array_u32x3, \
+		HccWoTexture2DMSArray(f32x4): addr_rw_texture_2d_ms_array_f32x4, \
+		HccWoTexture2DMSArray(s32x4): addr_rw_texture_2d_ms_array_s32x4, \
+		HccWoTexture2DMSArray(u32x4): addr_rw_texture_2d_ms_array_u32x4, \
+		HccWoTexture3D(float): addr_rw_texture_3d_f32, \
+		HccWoTexture3D(int32_t): addr_rw_texture_3d_s32, \
+		HccWoTexture3D(uint32_t): addr_rw_texture_3d_u32, \
+		HccWoTexture3D(f32x2): addr_rw_texture_3d_f32x2, \
+		HccWoTexture3D(s32x2): addr_rw_texture_3d_s32x2, \
+		HccWoTexture3D(u32x2): addr_rw_texture_3d_u32x2, \
+		HccWoTexture3D(f32x3): addr_rw_texture_3d_f32x3, \
+		HccWoTexture3D(s32x3): addr_rw_texture_3d_s32x3, \
+		HccWoTexture3D(u32x3): addr_rw_texture_3d_u32x3, \
+		HccWoTexture3D(f32x4): addr_rw_texture_3d_f32x4, \
+		HccWoTexture3D(s32x4): addr_rw_texture_3d_s32x4, \
+		HccWoTexture3D(u32x4): addr_rw_texture_3d_u32x4, \
+		HccRwTexture1D(float): addr_rw_texture_1d_f32, \
+		HccRwTexture1D(int32_t): addr_rw_texture_1d_s32, \
+		HccRwTexture1D(uint32_t): addr_rw_texture_1d_u32, \
+		HccRwTexture1D(f32x2): addr_rw_texture_1d_f32x2, \
+		HccRwTexture1D(s32x2): addr_rw_texture_1d_s32x2, \
+		HccRwTexture1D(u32x2): addr_rw_texture_1d_u32x2, \
+		HccRwTexture1D(f32x3): addr_rw_texture_1d_f32x3, \
+		HccRwTexture1D(s32x3): addr_rw_texture_1d_s32x3, \
+		HccRwTexture1D(u32x3): addr_rw_texture_1d_u32x3, \
+		HccRwTexture1D(f32x4): addr_rw_texture_1d_f32x4, \
+		HccRwTexture1D(s32x4): addr_rw_texture_1d_s32x4, \
+		HccRwTexture1D(u32x4): addr_rw_texture_1d_u32x4, \
+		HccRwTexture1DArray(float): addr_rw_texture_1d_array_f32, \
+		HccRwTexture1DArray(int32_t): addr_rw_texture_1d_array_s32, \
+		HccRwTexture1DArray(uint32_t): addr_rw_texture_1d_array_u32, \
+		HccRwTexture1DArray(f32x2): addr_rw_texture_1d_array_f32x2, \
+		HccRwTexture1DArray(s32x2): addr_rw_texture_1d_array_s32x2, \
+		HccRwTexture1DArray(u32x2): addr_rw_texture_1d_array_u32x2, \
+		HccRwTexture1DArray(f32x3): addr_rw_texture_1d_array_f32x3, \
+		HccRwTexture1DArray(s32x3): addr_rw_texture_1d_array_s32x3, \
+		HccRwTexture1DArray(u32x3): addr_rw_texture_1d_array_u32x3, \
+		HccRwTexture1DArray(f32x4): addr_rw_texture_1d_array_f32x4, \
+		HccRwTexture1DArray(s32x4): addr_rw_texture_1d_array_s32x4, \
+		HccRwTexture1DArray(u32x4): addr_rw_texture_1d_array_u32x4, \
+		HccRwTexture2D(float): addr_rw_texture_2d_f32, \
+		HccRwTexture2D(int32_t): addr_rw_texture_2d_s32, \
+		HccRwTexture2D(uint32_t): addr_rw_texture_2d_u32, \
+		HccRwTexture2D(f32x2): addr_rw_texture_2d_f32x2, \
+		HccRwTexture2D(s32x2): addr_rw_texture_2d_s32x2, \
+		HccRwTexture2D(u32x2): addr_rw_texture_2d_u32x2, \
+		HccRwTexture2D(f32x3): addr_rw_texture_2d_f32x3, \
+		HccRwTexture2D(s32x3): addr_rw_texture_2d_s32x3, \
+		HccRwTexture2D(u32x3): addr_rw_texture_2d_u32x3, \
+		HccRwTexture2D(f32x4): addr_rw_texture_2d_f32x4, \
+		HccRwTexture2D(s32x4): addr_rw_texture_2d_s32x4, \
+		HccRwTexture2D(u32x4): addr_rw_texture_2d_u32x4, \
+		HccRwTexture2DArray(float): addr_rw_texture_2d_array_f32, \
+		HccRwTexture2DArray(int32_t): addr_rw_texture_2d_array_s32, \
+		HccRwTexture2DArray(uint32_t): addr_rw_texture_2d_array_u32, \
+		HccRwTexture2DArray(f32x2): addr_rw_texture_2d_array_f32x2, \
+		HccRwTexture2DArray(s32x2): addr_rw_texture_2d_array_s32x2, \
+		HccRwTexture2DArray(u32x2): addr_rw_texture_2d_array_u32x2, \
+		HccRwTexture2DArray(f32x3): addr_rw_texture_2d_array_f32x3, \
+		HccRwTexture2DArray(s32x3): addr_rw_texture_2d_array_s32x3, \
+		HccRwTexture2DArray(u32x3): addr_rw_texture_2d_array_u32x3, \
+		HccRwTexture2DArray(f32x4): addr_rw_texture_2d_array_f32x4, \
+		HccRwTexture2DArray(s32x4): addr_rw_texture_2d_array_s32x4, \
+		HccRwTexture2DArray(u32x4): addr_rw_texture_2d_array_u32x4, \
+		HccRwTexture2DMS(float): addr_rw_texture_2d_ms_f32, \
+		HccRwTexture2DMS(int32_t): addr_rw_texture_2d_ms_s32, \
+		HccRwTexture2DMS(uint32_t): addr_rw_texture_2d_ms_u32, \
+		HccRwTexture2DMS(f32x2): addr_rw_texture_2d_ms_f32x2, \
+		HccRwTexture2DMS(s32x2): addr_rw_texture_2d_ms_s32x2, \
+		HccRwTexture2DMS(u32x2): addr_rw_texture_2d_ms_u32x2, \
+		HccRwTexture2DMS(f32x3): addr_rw_texture_2d_ms_f32x3, \
+		HccRwTexture2DMS(s32x3): addr_rw_texture_2d_ms_s32x3, \
+		HccRwTexture2DMS(u32x3): addr_rw_texture_2d_ms_u32x3, \
+		HccRwTexture2DMS(f32x4): addr_rw_texture_2d_ms_f32x4, \
+		HccRwTexture2DMS(s32x4): addr_rw_texture_2d_ms_s32x4, \
+		HccRwTexture2DMS(u32x4): addr_rw_texture_2d_ms_u32x4, \
+		HccRwTexture2DMSArray(float): addr_rw_texture_2d_ms_array_f32, \
+		HccRwTexture2DMSArray(int32_t): addr_rw_texture_2d_ms_array_s32, \
+		HccRwTexture2DMSArray(uint32_t): addr_rw_texture_2d_ms_array_u32, \
+		HccRwTexture2DMSArray(f32x2): addr_rw_texture_2d_ms_array_f32x2, \
+		HccRwTexture2DMSArray(s32x2): addr_rw_texture_2d_ms_array_s32x2, \
+		HccRwTexture2DMSArray(u32x2): addr_rw_texture_2d_ms_array_u32x2, \
+		HccRwTexture2DMSArray(f32x3): addr_rw_texture_2d_ms_array_f32x3, \
+		HccRwTexture2DMSArray(s32x3): addr_rw_texture_2d_ms_array_s32x3, \
+		HccRwTexture2DMSArray(u32x3): addr_rw_texture_2d_ms_array_u32x3, \
+		HccRwTexture2DMSArray(f32x4): addr_rw_texture_2d_ms_array_f32x4, \
+		HccRwTexture2DMSArray(s32x4): addr_rw_texture_2d_ms_array_s32x4, \
+		HccRwTexture2DMSArray(u32x4): addr_rw_texture_2d_ms_array_u32x4, \
+		HccRwTexture3D(float): addr_rw_texture_3d_f32, \
+		HccRwTexture3D(int32_t): addr_rw_texture_3d_s32, \
+		HccRwTexture3D(uint32_t): addr_rw_texture_3d_u32, \
+		HccRwTexture3D(f32x2): addr_rw_texture_3d_f32x2, \
+		HccRwTexture3D(s32x2): addr_rw_texture_3d_s32x2, \
+		HccRwTexture3D(u32x2): addr_rw_texture_3d_u32x2, \
+		HccRwTexture3D(f32x3): addr_rw_texture_3d_f32x3, \
+		HccRwTexture3D(s32x3): addr_rw_texture_3d_s32x3, \
+		HccRwTexture3D(u32x3): addr_rw_texture_3d_u32x3, \
+		HccRwTexture3D(f32x4): addr_rw_texture_3d_f32x4, \
+		HccRwTexture3D(s32x4): addr_rw_texture_3d_s32x4, \
+		HccRwTexture3D(u32x4): addr_rw_texture_3d_u32x4 \
+	)(texture, idx)
+#endif // HCC_HAS_C_GENERIC_SUPPORT
 
 #endif // _HCC_TEXTURE_INTRINSICS_H_

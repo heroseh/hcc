@@ -656,6 +656,14 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 											break;
 										};
 
+										case HCC_FUNCTION_MANY_ADDR_RO_TEXTURE:
+										case HCC_FUNCTION_MANY_ADDR_RW_TEXTURE:
+										{
+											w->amlgen.temp_operands[temp_operands_start_idx + 0] = hcc_amlgen_generate_resource_descriptor_addr(w, expr->location, w->amlgen.temp_operands[temp_operands_start_idx + 0]);
+											op = hcc_intrinisic_function_many_aml_ops[many];
+											break;
+										};
+
 										default:
 											op = hcc_intrinisic_function_many_aml_ops[many];
 											break;
@@ -1530,6 +1538,17 @@ HccAMLOperand hcc_amlgen_generate_resource_descriptor_load(HccWorker* w, HccLoca
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_RESOURCE(resource_data_type), "expected data type to be a resource data type but got %u", resource_data_type);
 	HccDataType descriptor_data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, HCC_DATA_TYPE_AUX(resource_data_type));
 	return hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_RESOURCE_DESCRIPTOR_LOAD, hcc_amlgen_value_add(w, descriptor_data_type), operand);
+}
+
+HccAMLOperand hcc_amlgen_generate_resource_descriptor_addr(HccWorker* w, HccLocation* location, HccAMLOperand operand) {
+	HccDataType resource_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, operand);
+	if (HCC_DATA_TYPE_IS_POINTER(resource_data_type)) {
+		resource_data_type = hcc_data_type_strip_pointer(w->cu, resource_data_type);
+		operand = hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_PTR_LOAD, hcc_amlgen_value_add(w, resource_data_type), operand);
+	}
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_RESOURCE(resource_data_type), "expected data type to be a resource data type but got %u", resource_data_type);
+	HccDataType descriptor_data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, HCC_DATA_TYPE_AUX(resource_data_type));
+	return hcc_amlgen_instr_add_2(w, location, HCC_AML_OP_RESOURCE_DESCRIPTOR_ADDR, hcc_amlgen_value_add(w, descriptor_data_type), operand);
 }
 
 void hcc_amlgen_generate(HccWorker* w) {

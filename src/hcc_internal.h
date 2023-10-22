@@ -2270,6 +2270,7 @@ struct HccASTGen {
 	uint32_t compute_dispatch_group_size_x;
 	uint32_t compute_dispatch_group_size_y;
 	uint32_t compute_dispatch_group_size_z;
+	HccLocation* prev_pointer_data_type_location;
 
 	HccStack(HccCompoundField) compound_fields;
 	HccStack(HccEnumValue)     enum_values;
@@ -2600,6 +2601,7 @@ HccAMLOperand hcc_amlgen_generate_bitfield_load(HccWorker* w, HccASTExpr* expr, 
 HccAMLOperand hcc_amlgen_generate_bitfield_store(HccWorker* w, HccASTExpr* expr, HccCompoundDataType* dt, HccCompoundField* field, HccAMLOperand base_ptr_operand);
 HccAMLOperand hcc_amlgen_generate_bitcast_union_field(HccWorker* w, HccLocation* location, HccDataType union_data_type, uint32_t storage_field_idx, HccAMLOperand union_ptr_operand);
 HccAMLOperand hcc_amlgen_generate_resource_descriptor_load(HccWorker* w, HccLocation* location, HccAMLOperand operand);
+HccAMLOperand hcc_amlgen_generate_resource_descriptor_addr(HccWorker* w, HccLocation* location, HccAMLOperand operand);
 void hcc_amlgen_generate(HccWorker* w);
 
 // ===========================================
@@ -2706,6 +2708,7 @@ enum {
 	HCC_SPIRV_OP_FUNCTION_END = 56,
 	HCC_SPIRV_OP_FUNCTION_CALL = 57,
 	HCC_SPIRV_OP_VARIABLE = 59,
+	HCC_SPIRV_OP_TEXEL_POINTER = 60,
 	HCC_SPIRV_OP_LOAD = 61,
 	HCC_SPIRV_OP_STORE = 62,
 	HCC_SPIRV_OP_ACCESS_CHAIN = 65,
