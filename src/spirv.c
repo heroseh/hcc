@@ -246,8 +246,8 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 					};
 					case HCC_RESOURCE_DATA_TYPE_TEXTURE:
 						op = HCC_SPIRV_OP_TYPE_IMAGE;
-						HccAMLIntrinsicDataType sample_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(resource_data_type);
-						sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(sample_data_type);
+						HccAMLIntrinsicDataType intrinsic_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(resource_data_type);
+						HccAMLIntrinsicDataType sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(intrinsic_data_type);
 						operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 8);
 						operands_count = 8;
 						operands[1] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE(AML_INTRINSIC, sample_data_type));
@@ -261,7 +261,11 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 						operands[4] = HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_ARRAY(resource_data_type);
 						operands[5] = HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type);
 						operands[6] = HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) == HCC_RESOURCE_ACCESS_MODE_SAMPLE ? 1 : 2;
-						operands[7] = 0; // unknown format
+						uint32_t image_format = HCC_SPIRV_IMAGE_FORMAT_UNKNOWN;
+						if (HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) != HCC_RESOURCE_ACCESS_MODE_SAMPLE) {
+							image_format = hcc_spirv_image_format(intrinsic_data_type);
+						}
+						operands[7] = image_format;
 						num_ids = HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) == HCC_RESOURCE_ACCESS_MODE_SAMPLE ? 2 : 1;
 						break;
 					case HCC_RESOURCE_DATA_TYPE_SAMPLER:
@@ -813,5 +817,41 @@ bool hcc_spirv_descriptor_binding_key_cmp(void* a, void* b, uintptr_t size) {
 HccHash hcc_spirv_descriptor_binding_key_hash(void* key, uintptr_t size) {
 	HCC_UNUSED(size);
 	return hcc_hash_fnv(key, sizeof(HccSPIRVDescriptorBindingKey), HCC_HASH_FNV_INIT);
+}
+
+uint32_t hcc_spirv_image_format(HccAMLIntrinsicDataType data_type) {
+	switch (data_type) {
+		case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: return HCC_SPIRV_IMAGE_FORMAT_R8UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S8: return HCC_SPIRV_IMAGE_FORMAT_R8I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S16: return HCC_SPIRV_IMAGE_FORMAT_R16I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S32: return HCC_SPIRV_IMAGE_FORMAT_R32I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S64: return HCC_SPIRV_IMAGE_FORMAT_R64I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U8: return HCC_SPIRV_IMAGE_FORMAT_R8UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U16: return HCC_SPIRV_IMAGE_FORMAT_R16UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U32: return HCC_SPIRV_IMAGE_FORMAT_R32UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U64: return HCC_SPIRV_IMAGE_FORMAT_R64UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_F16: return HCC_SPIRV_IMAGE_FORMAT_R16F; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_F32: return HCC_SPIRV_IMAGE_FORMAT_R32F; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_F64: return HCC_SPIRV_IMAGE_FORMAT_R64I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX2: return HCC_SPIRV_IMAGE_FORMAT_RG8UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S8X2: return HCC_SPIRV_IMAGE_FORMAT_RG8I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S16X2: return HCC_SPIRV_IMAGE_FORMAT_RG16I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S32X2: return HCC_SPIRV_IMAGE_FORMAT_RG32I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U8X2: return HCC_SPIRV_IMAGE_FORMAT_RG8UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U16X2: return HCC_SPIRV_IMAGE_FORMAT_RG16UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U32X2: return HCC_SPIRV_IMAGE_FORMAT_RG32UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_F16X2: return HCC_SPIRV_IMAGE_FORMAT_RG16F; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_F32X2: return HCC_SPIRV_IMAGE_FORMAT_RG32F; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX4: return HCC_SPIRV_IMAGE_FORMAT_RGBA8UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S8X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA8I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S16X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA16I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_S32X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA32I; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U8X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA8UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U16X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA16UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_U32X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA32UI; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_F16X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA16F; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_F32X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA32F; break;
+	}
+	return HCC_SPIRV_IMAGE_FORMAT_UNKNOWN;
 }
 

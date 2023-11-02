@@ -1,3 +1,4 @@
+#include "hcc.h"
 #include "hcc_internal.h"
 
 HccATAToken hcc_astgen_specifier_tokens[HCC_ASTGEN_SPECIFIER_COUNT] = {
@@ -2568,6 +2569,46 @@ TEXTURE:{}
 
 				if (generic_data_type & HCC_DATA_TYPE_QUALIFIERS_MASK) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE, hcc_ata_token_strings[token]);
+				}
+
+				bool is_supported = access_mode == HCC_RESOURCE_ACCESS_MODE_SAMPLE;
+				switch (HCC_DATA_TYPE_AUX(lowered_data_type)) {
+					case HCC_AML_INTRINSIC_DATA_TYPE_BOOL:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S8:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S16:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S32:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S64:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U8:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U16:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U32:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U64:
+					case HCC_AML_INTRINSIC_DATA_TYPE_F16:
+					case HCC_AML_INTRINSIC_DATA_TYPE_F32:
+					case HCC_AML_INTRINSIC_DATA_TYPE_F64:
+					case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S8X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S16X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S32X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U8X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U16X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U32X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_F16X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_F32X2:
+					case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S8X4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S16X4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_S32X4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U8X4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U16X4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_U32X4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_F16X4:
+					case HCC_AML_INTRINSIC_DATA_TYPE_F32X4:
+						is_supported = true;
+						break;
+				}
+				if (!is_supported) {
+					HccString data_type_name = hcc_data_type_string(w->cu, lowered_data_type);
+					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNSUPPORTED_TEXTURE_ELEMENT_TYPE, (int)data_type_name.size, data_type_name.data);
 				}
 
 				HccAMLIntrinsicDataType intrinsic_type = HCC_DATA_TYPE_AUX(lowered_data_type);

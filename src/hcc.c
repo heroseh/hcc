@@ -1390,6 +1390,16 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 								snprintf(buf + insert_idx, sizeof(buf) - insert_idx, fmt, hcc_texture_dim_strings_lower[dim], ms, array, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_U32], vector_suffix);
 								hcc_string_table_intrinsic_add(expected_string_id, buf);
 								expected_string_id += 1;
+
+								if (vector == 1) {
+									snprintf(buf + insert_idx, sizeof(buf) - insert_idx, fmt, hcc_texture_dim_strings_lower[dim], ms, array, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_S64], vector_suffix);
+									hcc_string_table_intrinsic_add(expected_string_id, buf);
+									expected_string_id += 1;
+
+									snprintf(buf + insert_idx, sizeof(buf) - insert_idx, fmt, hcc_texture_dim_strings_lower[dim], ms, array, hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TYPE_U64], vector_suffix);
+									hcc_string_table_intrinsic_add(expected_string_id, buf);
+									expected_string_id += 1;
+								}
 							}
 						}
 					}

@@ -5187,6 +5187,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_ARRAY_SIZE_CANNOT_BE_ZERO] = "the array size cannot be zero",
 		[HCC_ERROR_CODE_ARRAY_DECL_EXPECTED_SQUARE_BRACE_CLOSE] = "expected a ']' after the array size expression",
 		[HCC_ERROR_CODE_UNSUPPORTED_SPECIFIER] = "'%s' is currently unsupported",
+		[HCC_ERROR_CODE_UNSUPPORTED_TEXTURE_ELEMENT_TYPE] = "HccRo/Wo/RwTexture do not support a '%.*s' element data type, if you are looking to only sample and have automatic type decoding please try HccSampleTexture instead",
 		[HCC_ERROR_CODE_SPECIFIER_ALREADY_BEEN_USED] = "'%s' has already been used for this declaration",
 		[HCC_ERROR_CODE_UNUSED_SPECIFIER] = "the '%s' keyword was used, so we are expecting %s for a declaration but got '%s'",
 		[HCC_ERROR_CODE_INVALID_SPECIFIER_VARIABLE_DECL] = "the '%s' keyword cannot be used on variable declarations",

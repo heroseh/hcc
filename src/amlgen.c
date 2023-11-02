@@ -259,7 +259,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 			HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
 			HccDataType src_data_type = hcc_data_type_lower_ast_to_aml(w->cu, src_expr->data_type);
-			if (dst_data_type == src_data_type || HCC_DATA_TYPE_IS_RESOURCE(dst_data_type) || HCC_DATA_TYPE_IS_RESOURCE(src_data_type)) {
+			if (dst_data_type == src_data_type) {
 				return src_operand;
 			}
 

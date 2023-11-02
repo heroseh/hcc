@@ -6,7 +6,7 @@
 
 typedef struct TextureBC TextureBC;
 struct TextureBC {
-	HccRoTexture2D(f32x4)     texture;
+	HccRoTexture2D(uint32_t)  texture;
 	HccSampleTexture2D(f32x4) sample_texture;
 	HccRoSampler              sampler;
 	float                     time_;
@@ -52,7 +52,7 @@ HCC_PIXEL void texture_ps(
 	uint32_t mode = floorG(bc->time_) % 10;
 	switch (mode) {
 		case 0:
-			pixel_out->color = load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023));
+			pixel_out->color = unpack_u8x4_f32x4(load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023)));
 			break;
 		case 1:
 			pixel_out->color = fetch_textureG(bc->sample_texture, u32x2(uv.x * 1023, uv.y * 1023));

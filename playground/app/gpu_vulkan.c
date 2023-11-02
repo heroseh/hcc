@@ -22,7 +22,7 @@
 #error "unsupported platform"
 #endif
 
-#define GPU_VK_DEBUG 0
+#define GPU_VK_DEBUG 1
 
 typedef struct GpuVkResource GpuVkResource;
 struct GpuVkResource {
@@ -356,27 +356,6 @@ void gpu_init(DmWindow window, uint32_t window_width, uint32_t window_height) {
 		gpu.physical_device = physical_devices[0];
 
 		vkGetPhysicalDeviceMemoryProperties(gpu.physical_device, &gpu.memory_properties);
-
-		VkFormatProperties3 format_props3 = {
-			.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3,
-			.pNext = NULL,
-		};
-
-		VkFormatProperties2 format_props2 = {
-			.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
-			.pNext = &format_props3,
-		};
-		vkGetPhysicalDeviceFormatProperties2(gpu.physical_device, VK_FORMAT_R8G8B8A8_UNORM, &format_props2);
-
-		APP_ASSERT(
-			format_props3.optimalTilingFeatures & VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT,
-			"our shaders READ from a storage image in the VK_FORMAT_R8G8B8A8_UNORM format and this device does not support it"
-		);
-
-		APP_ASSERT(
-			format_props3.optimalTilingFeatures & VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT,
-			"our shaders WRITE from a storage image in the VK_FORMAT_R8G8B8A8_UNORM format and this device does not support it"
-		);
 	}
 
 	{
