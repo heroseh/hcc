@@ -716,16 +716,9 @@ CALL_END:{}
 			HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);
 			HccDataType src_data_type = hcc_data_type_lower_ast_to_aml(w->cu, src_expr->data_type);
 			switch (expr->unary.op) {
-				case HCC_AST_UNARY_OP_LOGICAL_NOT: {
-					if (src_data_type != HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
-						return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, true);
-					}
+				case HCC_AST_UNARY_OP_LOGICAL_NOT:
+					return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, true);
 
-					return hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_XOR,
-						hcc_amlgen_value_add(w, dst_data_type),
-						src_operand,
-						HCC_AML_OPERAND(CONSTANT, hcc_constant_table_deduplicate_one(w->cu, src_data_type).idx_plus_one));
-				};
 				case HCC_AST_UNARY_OP_BIT_NOT:
 					return hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_XOR,
 						hcc_amlgen_value_add(w, dst_data_type),
