@@ -38,6 +38,7 @@ HccAMLOperand hcc_amlgen_basic_block_add(HccWorker* w, HccLocation* location) {
 	*dst_location = location;
 	w->amlgen.last_op = HCC_AML_OP_BASIC_BLOCK;
 	w->amlgen.last_location = location;
+	w->amlgen.is_inside_basic_block = true;
 	uint32_t location_idx = dst_location - w->cu->aml.locations;
 	return hcc_aml_function_basic_block_add(w->amlgen.function, location_idx);
 }
@@ -716,7 +717,7 @@ CALL_END:{}
 			HccDataType src_data_type = hcc_data_type_lower_ast_to_aml(w->cu, src_expr->data_type);
 			switch (expr->unary.op) {
 				case HCC_AST_UNARY_OP_LOGICAL_NOT: {
-					if (src_data_type == HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
+					if (src_data_type != HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
 						return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, true);
 					}
 
@@ -904,13 +905,13 @@ CALL_END:{}
 			HccAMLOperand loop_header_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 
 			HccAMLOperand cond_operand;
-			if (!is_do_while_loop) {
+			if (!is_do_while_loop && cond_expr) {
 				cond_operand = hcc_amlgen_generate_instrs_condition(w, cond_expr);
 			}
 
 			HccAMLOperand* cond_branch_operands;
 			HccAMLOperand* loop_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_LOOP_MERGE, 2);
-			if (is_do_while_loop) {
+			if (is_do_while_loop || cond_expr == NULL) {
 				cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
 			} else {
 				cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH_CONDITIONAL, 3);
@@ -919,7 +920,7 @@ CALL_END:{}
 
 			HccAMLOperand loop_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 			hcc_amlgen_generate_instrs(w, loop_stmt, false);
-			cond_branch_operands[is_do_while_loop ? 0 : 1] = loop_basic_block;
+			cond_branch_operands[is_do_while_loop || cond_expr == NULL ? 0 : 1] = loop_basic_block;
 
 			// make a continue block here as SPIR-V wants a single branch instruction that
 			// restarts the loop. this can be optimized out on other platform in the AMLOPT anyway.
@@ -930,7 +931,6 @@ CALL_END:{}
 				cond_branch_operands[0] = cond_operand;
 				cond_branch_operands[1] = loop_header_basic_block;
 			} else {
-
 				if (inc_stmt) {
 					hcc_amlgen_generate_instrs(w, inc_stmt, false);
 				}

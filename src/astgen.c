@@ -4858,13 +4858,10 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 				token = hcc_ata_iter_next(w->astgen.token_iter);
 			}
 
-			HccASTExpr* inc_stmt;
-			if (token != HCC_ATA_TOKEN_SEMICOLON) {
+			HccASTExpr* inc_stmt = NULL;
+			if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
 				inc_stmt = hcc_astgen_generate_expr(w, 0);
 				token = hcc_ata_iter_peek(w->astgen.token_iter);
-			} else {
-				inc_stmt = NULL;
-				token = hcc_ata_iter_next(w->astgen.token_iter);
 			}
 
 			if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
