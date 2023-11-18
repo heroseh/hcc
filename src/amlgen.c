@@ -895,15 +895,22 @@ CALL_END:{}
 				hcc_amlgen_generate_instrs(w, init_stmt, false);
 			}
 
+			//
+			// create a block that literally just contains the loop merge and a branch to the next
+			// block where the conditional branch will be, this is because the cond_expr could
+			// contain a complex expression that generates more branches
 			HccAMLOperand loop_header_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
+			HccAMLOperand* cond_branch_operands;
+			HccAMLOperand* loop_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_LOOP_MERGE, 2);
+			cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
+
+			cond_branch_operands[0] = hcc_amlgen_basic_block_add(w, expr->location);
 
 			HccAMLOperand cond_operand;
 			if (!is_do_while_loop && cond_expr) {
 				cond_operand = hcc_amlgen_generate_instrs_condition(w, cond_expr);
 			}
 
-			HccAMLOperand* cond_branch_operands;
-			HccAMLOperand* loop_merge_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_LOOP_MERGE, 2);
 			if (is_do_while_loop || cond_expr == NULL) {
 				cond_branch_operands = hcc_amlgen_instr_add(w, expr->location, HCC_AML_OP_BRANCH, 1);
 			} else {
