@@ -3063,6 +3063,8 @@ enum {
 };
 
 enum {
+	HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE =           0x002,
+	HCC_SPIRV_MEMORY_SEMANTICS_RELEASE =           0x004,
 	HCC_SPIRV_MEMORY_SEMANTICS_ACQUIRE_RELEASE =   0x008,
 	HCC_SPIRV_MEMORY_SEMANTICS_UNIFORM_MEMORY =    0x040,
 	HCC_SPIRV_MEMORY_SEMANTICS_WORK_GROUP_MEMORY = 0x100,
@@ -3245,6 +3247,8 @@ struct HccSPIRV {
 	HccSPIRVId                                   memory_semantics_dispatch_spirv_id;
 	HccSPIRVId                                   memory_semantics_resource_spirv_id;
 	HccSPIRVId                                   memory_semantics_all_spirv_id;
+	HccSPIRVId                                   memory_semantics_all_load_spirv_id;
+	HccSPIRVId                                   memory_semantics_all_store_spirv_id;
 	HccSPIRVId                                   quad_swap_x_spirv_id;
 	HccSPIRVId                                   quad_swap_y_spirv_id;
 	HccSPIRVId                                   quad_swap_diagonal_spirv_id;

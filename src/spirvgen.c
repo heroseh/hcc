@@ -1400,11 +1400,22 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				break;
 			};
 
+			case HCC_AML_OP_ATOMIC_LOAD: {
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_ATOMIC_LOAD, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[3] = cu->spirv.scope_device_spirv_id;
+				operands[4] = cu->spirv.memory_semantics_all_load_spirv_id;
+				break;
+			};
+
 			case HCC_AML_OP_ATOMIC_STORE: {
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_ATOMIC_STORE, 4);
 				operands[0] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
 				operands[1] = cu->spirv.scope_device_spirv_id;
-				operands[2] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				operands[2] = cu->spirv.memory_semantics_all_store_spirv_id;
 				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				break;
 			};
@@ -1416,14 +1427,13 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
 				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				operands[3] = cu->spirv.scope_device_spirv_id;
-				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				operands[4] = cu->spirv.memory_semantics_all_spirv_id;
 				operands[5] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
 				operands[6] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
 				operands[7] = hcc_spirvgen_convert_operand(w, aml_operands[3]);
 				break;
 			};
 
-			case HCC_AML_OP_ATOMIC_LOAD:
 			case HCC_AML_OP_ATOMIC_EXCHANGE:
 			case HCC_AML_OP_ATOMIC_ADD:
 			case HCC_AML_OP_ATOMIC_SUB:
@@ -1437,7 +1447,6 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				HccBasicTypeClass type_class = hcc_basic_type_class(cu, data_type);
 
 				switch (aml_op) {
-					case HCC_AML_OP_ATOMIC_LOAD: op = HCC_SPIRV_OP_ATOMIC_LOAD; break;
 					case HCC_AML_OP_ATOMIC_EXCHANGE: op = HCC_SPIRV_OP_ATOMIC_EXCHANGE; break;
 					case HCC_AML_OP_ATOMIC_ADD: op = HCC_SPIRV_OP_ATOMIC_I_ADD; break;
 					case HCC_AML_OP_ATOMIC_SUB: op = HCC_SPIRV_OP_ATOMIC_I_SUB; break;
@@ -1465,7 +1474,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
 				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				operands[3] = cu->spirv.scope_device_spirv_id;
-				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
+				operands[4] = cu->spirv.memory_semantics_all_spirv_id;
 				for (uint32_t operand_idx = 2; operand_idx < aml_operands_count; operand_idx += 1) {
 					operands[3 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
 				}
