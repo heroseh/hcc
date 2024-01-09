@@ -4144,11 +4144,20 @@ HccDataType hcc_function_data_type_deduplicate(HccCU* cu, HccDataType return_dat
 		params_stride = sizeof(HccDataType);
 	}
 
-	return_data_type = hcc_decl_resolve_and_keep_qualifiers(cu, return_data_type);
+	return_data_type = hcc_data_type_lower_ast_to_aml(cu, return_data_type);
+	if (HCC_DATA_TYPE_TYPE(return_data_type) == HCC_DATA_TYPE_RESOURCE) {
+		return_data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
+	}
+
 	uint64_t key = HCC_HASH_FNV_64_INIT;
 	key = hcc_hash_fnv_64(&return_data_type, sizeof(HccDataType), key);
 	for (uint32_t param_idx = 0; param_idx < params_count; param_idx += 1) {
-		key = hcc_hash_fnv_64(HCC_PTR_ADD(params, param_idx * params_stride), sizeof(HccDataType), key);
+		HccDataType* param_data_type_ptr = HCC_PTR_ADD(params, param_idx * params_stride);
+		HccDataType param_data_type = hcc_data_type_lower_ast_to_aml(cu, *param_data_type_ptr);
+		if (HCC_DATA_TYPE_TYPE(param_data_type) == HCC_DATA_TYPE_RESOURCE) {
+			param_data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
+		}
+		key = hcc_hash_fnv_64(&param_data_type, sizeof(HccDataType), key);
 	}
 
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.functions_dedup_hash_table, &key);
@@ -4164,7 +4173,12 @@ HccDataType hcc_function_data_type_deduplicate(HccCU* cu, HccDataType return_dat
 
 	HccDataType* dst_params = hcc_stack_push_many_thread_safe(cu->dtt.function_params, params_count);
 	for (uint32_t param_idx = 0; param_idx < params_count; param_idx += 1) {
-		dst_params[param_idx] = *(HccDataType*)HCC_PTR_ADD(params, param_idx * params_stride);
+		HccDataType* param_data_type_ptr = HCC_PTR_ADD(params, param_idx * params_stride);
+		HccDataType param_data_type = hcc_data_type_lower_ast_to_aml(cu, *param_data_type_ptr);
+		if (HCC_DATA_TYPE_TYPE(param_data_type) == HCC_DATA_TYPE_RESOURCE) {
+			param_data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
+		}
+		dst_params[param_idx] = param_data_type;
 	}
 
 	HccFunctionDataType* d = hcc_stack_push_thread_safe(cu->dtt.functions);
