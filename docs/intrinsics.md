@@ -6,6 +6,7 @@
 - [Rasterizer State](#rasterizer-state)
 - [Pixel State](#pixel-state)
 - [Global Variables](#global-variables)
+- [bool](#bool)
 - [8bit, 16bit, 64bit integer & float support](#8bit-16bit-64bit-integer--float-support)
 - [Vector & Matrix Maths](#vector--matrix-maths)
 - [Atomics](#atomics)
@@ -243,6 +244,10 @@ Instead HCC supports the following:
 
 ### `HCC_DISPATCH_GROUP`
 `HCC_DISPATCH_GROUP` has the lifetime and scope of your dispatch group and shared between all waves executing the dispatch group. However it cannot be initialized and memory is uninitialized, so careful!
+
+## bool
+
+C's builtin `bool` data type aka `_Bool` is implemented as an `int` by default since byte sized type support is optional. To have compatibility with CPU code, avoid putting `bool`s in `struct`s and just use them within as function return, parameters and variables.
 
 ## 8bit, 16bit, 64bit integer & float support
 
