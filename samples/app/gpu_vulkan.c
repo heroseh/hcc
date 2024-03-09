@@ -84,7 +84,7 @@ struct GpuVk {
 	VkCommandPool         command_pool;
 	VkCommandBuffer       command_buffers[APP_FRAMES_IN_FLIGHT];
 	VkFence               fences[APP_FRAMES_IN_FLIGHT];
-	VkSemaphore           swapchain_image_ready_semaphore;
+	VkSemaphore           swapchain_image_ready_semaphores[APP_FRAMES_IN_FLIGHT];
 	VkSemaphore           swapchain_present_ready_semaphore;
 	uint32_t              frame_idx;
 
@@ -347,8 +347,10 @@ bool gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t windo
 	}
 
 	{
-		if (gpu.swapchain_image_ready_semaphore) {
-			vkDestroySemaphore(gpu.device, gpu.swapchain_image_ready_semaphore, NULL);
+		if (gpu.swapchain_image_ready_semaphores[0]) {
+			for_range(idx, 0, APP_FRAMES_IN_FLIGHT) {
+				vkDestroySemaphore(gpu.device, gpu.swapchain_image_ready_semaphores[idx], NULL);
+			}
 			vkDestroySemaphore(gpu.device, gpu.swapchain_present_ready_semaphore, NULL);
 		}
 
@@ -357,7 +359,9 @@ bool gpu_vk_recreate_swapchain_and_friends(uint32_t window_width, uint32_t windo
 			.pNext = NULL,
 			.flags = 0,
 		};
-		APP_VK_ASSERT(vkCreateSemaphore(gpu.device, &create_info, NULL, &gpu.swapchain_image_ready_semaphore));
+		for_range(idx, 0, APP_FRAMES_IN_FLIGHT) {
+			APP_VK_ASSERT(vkCreateSemaphore(gpu.device, &create_info, NULL, &gpu.swapchain_image_ready_semaphores[idx]));
+		}
 		APP_VK_ASSERT(vkCreateSemaphore(gpu.device, &create_info, NULL, &gpu.swapchain_present_ready_semaphore));
 	}
 
@@ -917,7 +921,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t window_width
 
 	uint32_t swapchain_image_idx;
 	while (1) {
-		vk_result = vkAcquireNextImageKHR(gpu.device, gpu.swapchain, UINT64_MAX, gpu.swapchain_image_ready_semaphore, VK_NULL_HANDLE, &swapchain_image_idx);
+		vk_result = vkAcquireNextImageKHR(gpu.device, gpu.swapchain, UINT64_MAX, gpu.swapchain_image_ready_semaphores[active_frame_idx], VK_NULL_HANDLE, &swapchain_image_idx);
 		bool yes = false;
 		switch (vk_result) {
 			case VK_ERROR_OUT_OF_DATE_KHR:
@@ -1406,7 +1410,7 @@ void gpu_render_frame(AppSampleEnum sample_enum, void* bc, uint32_t window_width
 		VkSemaphoreSubmitInfo wait_semaphore_info = {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			.pNext = NULL,
-			.semaphore = gpu.swapchain_image_ready_semaphore,
+			.semaphore = gpu.swapchain_image_ready_semaphores[active_frame_idx],
 			.value = 0,
 			.stageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
 			.deviceIndex = 0,

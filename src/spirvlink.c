@@ -304,6 +304,26 @@ void hcc_spirvlink_link(HccWorker* w) {
 	HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.decorate_words));
 	HCC_COPY_ELMT_MANY(words, cu->spirv.decorate_words, hcc_stack_count(cu->spirv.decorate_words));
 
+	{
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_TYPE_BOOL, 1);
+		operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_TYPE_VECTOR, 3);
+		operands[0] = HCC_SPIRV_ID_TYPE_BOOLX2;
+		operands[1] = HCC_SPIRV_ID_TYPE_BOOL;
+		operands[2] = 2;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_TYPE_VECTOR, 3);
+		operands[0] = HCC_SPIRV_ID_TYPE_BOOLX3;
+		operands[1] = HCC_SPIRV_ID_TYPE_BOOL;
+		operands[2] = 3;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_TYPE_VECTOR, 3);
+		operands[0] = HCC_SPIRV_ID_TYPE_BOOLX4;
+		operands[1] = HCC_SPIRV_ID_TYPE_BOOL;
+		operands[2] = 4;
+	}
+
 	for (uint32_t type_idx = 0; type_idx < hcc_stack_count(cu->spirv.types_and_constants); type_idx += 1) {
 		HccSPIRVTypeOrConstant* type_or_constant = &cu->spirv.types_and_constants[type_idx];
 		operands = hcc_spirvlink_add_instr(w, type_or_constant->op, type_or_constant->operands_count);

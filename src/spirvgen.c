@@ -96,6 +96,18 @@ HccSPIRVId hcc_spirvgen_convert_operand(HccWorker* w, HccAMLOperand aml_operand)
 	return spirv_id;
 }
 
+HccSPIRVId hcc_spirvgen_convert_to_spirv_bool(HccWorker* w, HccSPIRVFunction* function, HccSPIRVId src_operand, HccDataType src_data_type) {
+	uint32_t columns = HCC_DATA_TYPE_IS_AML_INTRINSIC(src_data_type) ? HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(src_data_type)) : 1;
+	HccSPIRVId dst_operand = hcc_spirv_next_id(w->cu);
+	HccSPIRVOp op = hcc_basic_type_class(w->cu, src_data_type) == HCC_BASIC_TYPE_CLASS_FLOAT ? HCC_SPIRV_OP_F_UNORD_NOT_EQUAL : HCC_SPIRV_OP_I_NOT_EQUAL;
+	HccSPIRVOperand* operands = hcc_spirv_function_add_instr(function, op, 4);
+	operands[0] = HCC_SPIRV_ID_TYPE_BOOL + columns - 1;
+	operands[1] = dst_operand;
+	operands[2] = src_operand;
+	operands[3] = hcc_spirv_constant_deduplicate(w->cu, hcc_constant_table_deduplicate_zero(w->cu, src_data_type));
+	return dst_operand;
+}
+
 void hcc_spirvgen_found_global(HccWorker* w, HccSPIRVId spirv_id) {
 	for (uint32_t idx = 0; idx < w->spirvgen.function_unique_globals_count; idx += 1) {
 		if (w->spirvgen.function_unique_globals[idx] == spirv_id) {
@@ -125,6 +137,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 	function->words = hcc_stack_push_many(cu->spirv.function_words, function->words_cap);
 
 	HccSPIRVId function_spirv_id = hcc_spirv_decl_deduplicate(cu, function_decl);
+	hcc_spirv_add_name(cu, function_spirv_id, hcc_string_table_get(hcc_decl_identifier_string_id(cu, function_decl)));
 
 	HccDataType function_data_type = aml_function->function_data_type;
 	w->spirvgen.bc_spirv_id = HCC_SPIRV_ID_INVALID;
@@ -515,8 +528,12 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				break;
 			};
 			case HCC_AML_OP_BRANCH_CONDITIONAL: {
+				HccSPIRVOperand src_operand = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HccSPIRVId cond_operand = hcc_spirvgen_convert_to_spirv_bool(w, function, src_operand, src_data_type);
+
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_BRANCH_CONDITIONAL, 3);
-				operands[0] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[0] = cond_operand;
 				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
 				break;
@@ -539,12 +556,6 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			case HCC_AML_OP_DIVIDE:
 			case HCC_AML_OP_MODULO:
 			case HCC_AML_OP_BIT_SHIFT_RIGHT:
-			case HCC_AML_OP_EQUAL:
-			case HCC_AML_OP_NOT_EQUAL:
-			case HCC_AML_OP_LESS_THAN:
-			case HCC_AML_OP_LESS_THAN_OR_EQUAL:
-			case HCC_AML_OP_GREATER_THAN:
-			case HCC_AML_OP_GREATER_THAN_OR_EQUAL:
 			case HCC_AML_OP_NEGATE:
 			{
 				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
@@ -596,9 +607,42 @@ void hcc_spirvgen_generate(HccWorker* w) {
 							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_BITWISE_SHIFT_RIGHT_ARITHMETIC; break;
 						}
 						break;
+					case HCC_AML_OP_NEGATE:
+						switch (type_class) {
+							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_S_NEGATE; break;
+							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_S_NEGATE; break;
+							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_F_NEGATE; break;
+						}
+						break;
+				}
+				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u' with type_class '%u'", aml_op, type_class);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 1);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				for (uint32_t operand_idx = 0; operand_idx < aml_operands_count; operand_idx += 1) {
+					operands[1 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+				}
+				break;
+			};
+			case HCC_AML_OP_EQUAL:
+			case HCC_AML_OP_NOT_EQUAL:
+			case HCC_AML_OP_LESS_THAN:
+			case HCC_AML_OP_LESS_THAN_OR_EQUAL:
+			case HCC_AML_OP_GREATER_THAN:
+			case HCC_AML_OP_GREATER_THAN_OR_EQUAL:
+			{
+				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+				if (HCC_DATA_TYPE_IS_RESOURCE(data_type)) {
+					data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
+				}
+				HccBasicTypeClass type_class = hcc_basic_type_class(cu, data_type);
+
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				switch (aml_op) {
 					case HCC_AML_OP_EQUAL:
 						switch (type_class) {
-							case HCC_BASIC_TYPE_CLASS_BOOL: op = HCC_SPIRV_OP_LOGICAL_EQUAL; break;
+							case HCC_BASIC_TYPE_CLASS_BOOL: op = HCC_SPIRV_OP_I_EQUAL; break;
 							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_I_EQUAL; break;
 							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_I_EQUAL; break;
 							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_F_UNORD_EQUAL; break;
@@ -606,7 +650,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 						break;
 					case HCC_AML_OP_NOT_EQUAL:
 						switch (type_class) {
-							case HCC_BASIC_TYPE_CLASS_BOOL: op = HCC_SPIRV_OP_LOGICAL_NOT_EQUAL; break;
+							case HCC_BASIC_TYPE_CLASS_BOOL: op = HCC_SPIRV_OP_I_NOT_EQUAL; break;
 							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_I_NOT_EQUAL; break;
 							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_I_NOT_EQUAL; break;
 							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_F_UNORD_NOT_EQUAL; break;
@@ -640,33 +684,108 @@ void hcc_spirvgen_generate(HccWorker* w) {
 							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_F_UNORD_GREATER_THAN_EQUAL; break;
 						}
 						break;
-					case HCC_AML_OP_NEGATE:
-						switch (type_class) {
-							case HCC_BASIC_TYPE_CLASS_UINT: op = HCC_SPIRV_OP_S_NEGATE; break;
-							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_OP_S_NEGATE; break;
-							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_OP_F_NEGATE; break;
-						}
-						break;
 				}
 				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u' with type_class '%u'", aml_op, type_class);
 
+				HccSPIRVId result_operand = hcc_spirv_next_id(cu);
+
 				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				uint32_t columns = HCC_DATA_TYPE_IS_AML_INTRINSIC(return_data_type) ? HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(return_data_type)) : 1;
 				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 1);
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL + columns - 1;
+				operands[1] = result_operand;
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, 5);
 				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
-				for (uint32_t operand_idx = 0; operand_idx < aml_operands_count; operand_idx += 1) {
-					operands[1 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = result_operand;
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_one(w->cu, return_data_type));
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, return_data_type));
+				break;
+			};
+			case HCC_AML_OP_SELECT:
+			{
+				HccSPIRVOperand src_operand = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+				HccSPIRVId cond_operand = hcc_spirvgen_convert_to_spirv_bool(w, function, src_operand, src_data_type);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, aml_operands_count + 1);
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
+				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = cond_operand;
+				operands[3] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
+				operands[4] = hcc_spirvgen_convert_operand(w, aml_operands[3]);
+				break;
+			};
+			case HCC_AML_OP_ANY:
+			case HCC_AML_OP_ALL:
+			{
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				switch (aml_op) {
+					case HCC_AML_OP_ANY: op = HCC_SPIRV_OP_ANY; break;
+					case HCC_AML_OP_ALL: op = HCC_SPIRV_OP_ALL; break;
 				}
+				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+
+				HccSPIRVOperand src_operand = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				HccSPIRVId converted_operand = hcc_spirvgen_convert_to_spirv_bool(w, function, src_operand, src_data_type);
+
+				uint32_t columns = HCC_DATA_TYPE_IS_AML_INTRINSIC(return_data_type) ? HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(return_data_type)) : 1;
+				HccSPIRVId result_operand = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 1);
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL + columns - 1;
+				operands[1] = result_operand;
+				operands[2] = converted_operand;
+
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = result_operand;
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_one(w->cu, return_data_type));
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, return_data_type));
+				break;
+			};
+			case HCC_AML_OP_ISINF:
+			case HCC_AML_OP_ISNAN:
+			{
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				switch (aml_op) {
+					case HCC_AML_OP_ISINF: op = HCC_SPIRV_OP_ISINF; break;
+					case HCC_AML_OP_ISNAN: op = HCC_SPIRV_OP_ISNAN; break;
+				}
+				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+
+				uint32_t columns = HCC_DATA_TYPE_IS_AML_INTRINSIC(return_data_type) ? HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(return_data_type)) : 1;
+				HccSPIRVId result_operand = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 1);
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL + columns - 1;
+				operands[1] = result_operand;
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = result_operand;
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_one(w->cu, return_data_type));
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, return_data_type));
 				break;
 			};
 			case HCC_AML_OP_BIT_AND:
 			case HCC_AML_OP_BIT_OR:
 			case HCC_AML_OP_BIT_XOR:
 			case HCC_AML_OP_BIT_SHIFT_LEFT:
-			case HCC_AML_OP_SELECT:
-			case HCC_AML_OP_ANY:
-			case HCC_AML_OP_ALL:
-			case HCC_AML_OP_ISINF:
-			case HCC_AML_OP_ISNAN:
 			case HCC_AML_OP_DOT:
 			case HCC_AML_OP_BITCAST:
 			case HCC_AML_OP_DDX:
@@ -678,6 +797,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			case HCC_AML_OP_DDX_COARSE:
 			case HCC_AML_OP_DDY_COARSE:
 			case HCC_AML_OP_FWIDTH_COARSE:
+			case HCC_AML_OP_BITCOUNT:
 			{
 				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
 				switch (aml_op) {
@@ -685,11 +805,6 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					case HCC_AML_OP_BIT_OR: op = HCC_SPIRV_OP_BITWISE_OR; break;
 					case HCC_AML_OP_BIT_XOR: op = HCC_SPIRV_OP_BITWISE_XOR; break;
 					case HCC_AML_OP_BIT_SHIFT_LEFT: op = HCC_SPIRV_OP_BITWISE_SHIFT_LEFT_LOGICAL; break;
-					case HCC_AML_OP_SELECT: op = HCC_SPIRV_OP_SELECT; break;
-					case HCC_AML_OP_ANY: op = HCC_SPIRV_OP_ANY; break;
-					case HCC_AML_OP_ALL: op = HCC_SPIRV_OP_ALL; break;
-					case HCC_AML_OP_ISINF: op = HCC_SPIRV_OP_ISINF; break;
-					case HCC_AML_OP_ISNAN: op = HCC_SPIRV_OP_ISNAN; break;
 					case HCC_AML_OP_DOT: op = HCC_SPIRV_OP_DOT; break;
 					case HCC_AML_OP_BITCAST: op = HCC_SPIRV_OP_BITCAST; break;
 					case HCC_AML_OP_DDX: op = HCC_SPIRV_OP_DPDX; break;
@@ -701,6 +816,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					case HCC_AML_OP_DDX_COARSE: op = HCC_SPIRV_OP_DPDX_COARSE; break;
 					case HCC_AML_OP_DDY_COARSE: op = HCC_SPIRV_OP_DPDY_COARSE; break;
 					case HCC_AML_OP_FWIDTH_COARSE: op = HCC_SPIRV_OP_FWIDTH_COARSE; break;
+					case HCC_AML_OP_BITCOUNT: op = HCC_SPIRV_OP_BIT_COUNT; break;
 				}
 				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
 
@@ -728,22 +844,47 @@ void hcc_spirvgen_generate(HccWorker* w) {
 					HccBasicTypeClass dst_type_class = hcc_basic_type_class(cu, dst_data_type);
 					HccBasicTypeClass src_type_class = hcc_basic_type_class(cu, src_data_type);
 					switch (dst_type_class) {
-						///////////////////////////////////////
-						// case HCC_BASIC_TYPE_CLASS_BOOL:
-						// ^^ this is handled in the HccAMLGen, see calls to hcc_amlgen_generate_convert_to_bool
-						///////////////////////////////////////
-
-						case HCC_BASIC_TYPE_CLASS_UINT:
+						case HCC_BASIC_TYPE_CLASS_BOOL:
 							switch (src_type_class) {
 								case HCC_BASIC_TYPE_CLASS_BOOL:
+									HCC_ABORT("unhandled conversion to from bool to bool, this should not happen");
+									break;
+								case HCC_BASIC_TYPE_CLASS_UINT:
+								case HCC_BASIC_TYPE_CLASS_SINT: {
+									HccSPIRVId dst_operand = hcc_spirvgen_convert_to_spirv_bool(w, function, src_operand, src_data_type);
+									src_operand = dst_operand;
 									op = HCC_SPIRV_OP_SELECT;
 									break;
+								};
+								case HCC_BASIC_TYPE_CLASS_FLOAT: {
+									HccSPIRVId dst_operand = hcc_spirv_next_id(cu);
+									operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_F_UNORD_NOT_EQUAL, 4);
+									operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
+									operands[1] = dst_operand;
+									operands[2] = src_operand;
+									operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, src_data_type));
+
+									src_operand = dst_operand;
+									op = HCC_SPIRV_OP_SELECT;
+									break;
+									break;
+								};
+							}
+							break;
+						case HCC_BASIC_TYPE_CLASS_UINT:
+							switch (src_type_class) {
 								case HCC_BASIC_TYPE_CLASS_UINT:
 									op = HCC_SPIRV_OP_U_CONVERT;
 									break;
+								case HCC_BASIC_TYPE_CLASS_BOOL:
+									if (HCC_DATA_TYPE_STRIP_QUALIFIERS(dst_data_type) == HCC_DATA_TYPE_AML_INTRINSIC_U32) {
+										op = HCC_SPIRV_OP_BITCAST;
+										break;
+									}
+									hcc_fallthrough;
 								case HCC_BASIC_TYPE_CLASS_SINT: {
 									HccDataType signed_dst_data_type = hcc_data_type_unsigned_to_signed(cu, dst_data_type);
-									if ((signed_dst_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK) != (src_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK)) {
+									if (HCC_DATA_TYPE_STRIP_QUALIFIERS(signed_dst_data_type) != HCC_DATA_TYPE_STRIP_QUALIFIERS(src_data_type)) {
 										HccSPIRVId dst_operand = hcc_spirv_next_id(cu);
 
 										operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_S_CONVERT, 3);
@@ -763,12 +904,9 @@ void hcc_spirvgen_generate(HccWorker* w) {
 							break;
 						case HCC_BASIC_TYPE_CLASS_SINT:
 							switch (src_type_class) {
-								case HCC_BASIC_TYPE_CLASS_BOOL:
-									op = HCC_SPIRV_OP_SELECT;
-									break;
 								case HCC_BASIC_TYPE_CLASS_UINT: {
 									HccDataType unsigned_dst_data_type = hcc_data_type_signed_to_unsigned(cu, dst_data_type);
-									if ((unsigned_dst_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK) != (src_data_type & ~HCC_DATA_TYPE_CONST_QUALIFIER_MASK)) {
+									if (HCC_DATA_TYPE_STRIP_QUALIFIERS(unsigned_dst_data_type) != HCC_DATA_TYPE_STRIP_QUALIFIERS(src_data_type)) {
 										HccSPIRVId dst_operand = hcc_spirv_next_id(cu);
 
 										operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_U_CONVERT, 3);
@@ -781,6 +919,12 @@ void hcc_spirvgen_generate(HccWorker* w) {
 									op = HCC_SPIRV_OP_BITCAST;
 									break;
 								};
+								case HCC_BASIC_TYPE_CLASS_BOOL:
+									if (HCC_DATA_TYPE_STRIP_QUALIFIERS(dst_data_type) == HCC_DATA_TYPE_AML_INTRINSIC_S32) {
+										op = HCC_SPIRV_OP_COPY_OBJECT;
+										break;
+									}
+									hcc_fallthrough;
 								case HCC_BASIC_TYPE_CLASS_SINT:
 									op = HCC_SPIRV_OP_S_CONVERT;
 									break;
@@ -791,12 +935,10 @@ void hcc_spirvgen_generate(HccWorker* w) {
 							break;
 						case HCC_BASIC_TYPE_CLASS_FLOAT:
 							switch (src_type_class) {
-								case HCC_BASIC_TYPE_CLASS_BOOL:
-									op = HCC_SPIRV_OP_SELECT;
-									break;
 								case HCC_BASIC_TYPE_CLASS_UINT:
 									op = HCC_SPIRV_OP_CONVERT_U_TO_F;
 									break;
+								case HCC_BASIC_TYPE_CLASS_BOOL:
 								case HCC_BASIC_TYPE_CLASS_SINT:
 									op = HCC_SPIRV_OP_CONVERT_S_TO_F;
 									break;
@@ -851,11 +993,33 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_UNREACHABLE, 0);
 				break;
 
-			case HCC_AML_OP_SELECTION_MERGE:
+			case HCC_AML_OP_SELECTION_MERGE: {
+				HccAMLInstr* next_aml_instr = &aml_function->words[aml_word_idx + HCC_AML_INSTR_WORDS_COUNT(aml_instr)];
+				HccAMLOperand* next_aml_operands = HCC_AML_INSTR_OPERANDS(next_aml_instr);
+				HccAMLOp next_aml_op = HCC_AML_INSTR_OP(next_aml_instr);
+				HccSPIRVId cond_operand;
+				if (next_aml_op == HCC_AML_OP_BRANCH_CONDITIONAL) {
+					cond_operand = hcc_spirv_next_id(cu);
+					HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, next_aml_operands[0]);
+					HccSPIRVOperand src_operand = hcc_spirvgen_convert_operand(w, next_aml_operands[0]);
+					cond_operand = hcc_spirvgen_convert_to_spirv_bool(w, function, src_operand, src_data_type);
+				}
+
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECTION_MERGE, 2);
 				operands[0] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
 				operands[1] = HCC_SPIRV_SELECTION_CONTROL_NONE;
+
+				if (next_aml_op == HCC_AML_OP_BRANCH_CONDITIONAL) {
+					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_BRANCH_CONDITIONAL, 3);
+					operands[0] = cond_operand;
+					operands[1] = hcc_spirvgen_convert_operand(w, next_aml_operands[1]);
+					operands[2] = hcc_spirvgen_convert_operand(w, next_aml_operands[2]);
+
+					aml_word_idx += HCC_AML_INSTR_WORDS_COUNT(aml_instr) + HCC_AML_INSTR_WORDS_COUNT(next_aml_instr);
+					continue;
+				}
 				break;
+			};
 
 			case HCC_AML_OP_LOOP_MERGE:
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOOP_MERGE, 3);

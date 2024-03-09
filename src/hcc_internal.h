@@ -2590,6 +2590,7 @@ HccAMLOperand hcc_amlgen_local_variable_operand(HccWorker* w, uint32_t local_var
 HccAMLOperand hcc_amlgen_current_basic_block(HccWorker* w);
 
 HccAMLOperand hcc_amlgen_generate_convert_to_bool(HccWorker* w, HccLocation* location, HccAMLOperand src_operand, HccDataType src_data_type, bool flip_bool_result);
+HccAMLOperand hcc_amlgen_generate_convert_to_bool_int(HccWorker* w, HccLocation* location, HccAMLOperand src_operand, HccDataType src_data_type, bool flip_bool_result);
 HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool want_variable_ref);
 HccAMLOperand hcc_amlgen_generate_instrs_condition(HccWorker* w, HccASTExpr* cond_expr);
 HccAMLOperand hcc_amlgen_generate_instr_access_chain(HccWorker* w, HccASTExpr* expr, uint32_t count, bool want_variable_ref);
@@ -2789,6 +2790,7 @@ enum {
 	HCC_SPIRV_OP_BITWISE_XOR = 198,
 	HCC_SPIRV_OP_BITWISE_AND = 199,
 	HCC_SPIRV_OP_BITWISE_NOT = 200,
+	HCC_SPIRV_OP_BIT_COUNT = 205,
 	HCC_SPIRV_OP_DPDX = 207,
 	HCC_SPIRV_OP_DPDY = 208,
 	HCC_SPIRV_OP_FWIDTH = 209,
@@ -2810,9 +2812,9 @@ enum {
 	HCC_SPIRV_OP_ATOMIC_U_MIN = 237,
 	HCC_SPIRV_OP_ATOMIC_S_MAX = 238,
 	HCC_SPIRV_OP_ATOMIC_U_MAX = 239,
-	HCC_SPIRV_OP_ATOMIC_AND = 238,
-	HCC_SPIRV_OP_ATOMIC_OR = 239,
-	HCC_SPIRV_OP_ATOMIC_XOR = 240,
+	HCC_SPIRV_OP_ATOMIC_AND = 240,
+	HCC_SPIRV_OP_ATOMIC_OR = 241,
+	HCC_SPIRV_OP_ATOMIC_XOR = 242,
 	HCC_SPIRV_OP_PHI = 245,
 	HCC_SPIRV_OP_LOOP_MERGE = 246,
 	HCC_SPIRV_OP_SELECTION_MERGE = 247,
@@ -3126,6 +3128,10 @@ enum { // some hardcoded SPIR-V ids
 	HCC_SPIRV_ID_INVALID,
 
 	HCC_SPIRV_ID_GLSL_STD_450,
+	HCC_SPIRV_ID_TYPE_BOOL,
+	HCC_SPIRV_ID_TYPE_BOOLX2,
+	HCC_SPIRV_ID_TYPE_BOOLX3,
+	HCC_SPIRV_ID_TYPE_BOOLX4,
 
 	//
 	// TODO: AMD RDNA2 on Windows appears to not fully support structs that are marked as Input or Output. it does in some cases but not others! very buggy :(
@@ -3317,6 +3323,7 @@ void hcc_spirvgen_deinit(HccWorker* w);
 void hcc_spirvgen_reset(HccWorker* w);
 
 HccSPIRVId hcc_spirvgen_convert_operand(HccWorker* w, HccAMLOperand aml_operand);
+HccSPIRVId hcc_spirvgen_convert_to_spirv_bool(HccWorker* w, HccSPIRVFunction* function, HccSPIRVId src_operand, HccDataType src_data_type);
 void hcc_spirvgen_found_global(HccWorker* w, HccSPIRVId spirv_id);
 
 void hcc_spirvgen_generate(HccWorker* w);

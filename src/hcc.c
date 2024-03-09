@@ -1313,7 +1313,7 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 		//
 		// generate the packed vector names
 		for (uint32_t c = 2; c <= 4; c += 1) {
-			for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_BOOL; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
+			for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_S8; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
 				snprintf(buf, sizeof(buf), "p%sx%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c);
 				uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START + HCC_AML_INTRINSIC_DATA_TYPE(intrinsic, c, 1);
 				hcc_string_table_intrinsic_add(expected_string_id, buf);
@@ -1324,7 +1324,7 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 		// generate the packed matrix names
 		for (uint32_t r = 2; r <= 4; r += 1) {
 			for (uint32_t c = 2; c <= 4; c += 1) {
-				for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_BOOL; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
+				for (HccAMLIntrinsicDataType intrinsic = HCC_AML_INTRINSIC_DATA_TYPE_S8; intrinsic <= HCC_AML_INTRINSIC_DATA_TYPE_F64; intrinsic += 1) {
 					snprintf(buf, sizeof(buf), "p%sx%ux%u", hcc_aml_intrinsic_data_type_scalar_strings[intrinsic], c, r);
 					uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_COMPOUND_DATA_TYPES_START + HCC_COMPOUND_DATA_TYPE_IDX_PACKED_AML_START + HCC_AML_INTRINSIC_DATA_TYPE(intrinsic, c, r);
 					hcc_string_table_intrinsic_add(expected_string_id, buf);

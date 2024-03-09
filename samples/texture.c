@@ -8,6 +8,7 @@ typedef struct TextureBC TextureBC;
 struct TextureBC {
 	HccRoTexture2D(uint32_t)  texture;
 	HccSampleTexture2D(f32x4) sample_texture;
+	HccWoBuffer(uint32_t) hprintf_buffer;
 	HccRoSampler              sampler;
 	float                     time_;
 	f32x2                     offset;
@@ -105,6 +106,7 @@ HCC_PIXEL void texture_ps(
 		num_pos.x < uv_unorm.x && uv_unorm.x < num_pos.x + num_size.x &&
 		num_pos.y < uv_unorm.y && uv_unorm.y < num_pos.y + num_size.y
 	) {
+	hprintf(bc->hprintf_buffer, "uv_unorm = %f, %f, %u\n", splat2(uv_unorm), num_pos.x < uv_unorm.x);
 		uv = remapG(uv_unorm, num_pos, addG(num_pos, num_size), f32x2s(0.f), f32x2s(1.f));
 		uv.x *= 8;
 		uv.y *= 8;

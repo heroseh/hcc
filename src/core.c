@@ -2369,7 +2369,7 @@ const char* hcc_aml_intrinsic_data_type_scalar_strings[HCC_AML_INTRINSIC_DATA_TY
 
 uint8_t hcc_aml_intrinsic_data_type_scalar_size_aligns[HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_COUNT] = {
 	[HCC_AML_INTRINSIC_DATA_TYPE_VOID] = 0,
-	[HCC_AML_INTRINSIC_DATA_TYPE_BOOL] = 1,
+	[HCC_AML_INTRINSIC_DATA_TYPE_BOOL] = 4,
 	[HCC_AML_INTRINSIC_DATA_TYPE_S8] = 1,
 	[HCC_AML_INTRINSIC_DATA_TYPE_S16] = 2,
 	[HCC_AML_INTRINSIC_DATA_TYPE_S32] = 4,
@@ -3530,7 +3530,7 @@ HccBasic hcc_basic_eval_unary(HccCU* cu, HccASTUnaryOp unary_op, HccDataType dat
 	switch (unary_op) {
 		case HCC_AST_UNARY_OP_LOGICAL_NOT:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = !eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = !eval.s32; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = !eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = !eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = !eval.s32; break;
@@ -3545,7 +3545,7 @@ HccBasic hcc_basic_eval_unary(HccCU* cu, HccASTUnaryOp unary_op, HccDataType dat
 			break;
 		case HCC_AST_UNARY_OP_BIT_NOT:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = ~eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = ~eval.s32; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = ~eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = ~eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = ~eval.s32; break;
@@ -3560,7 +3560,7 @@ HccBasic hcc_basic_eval_unary(HccCU* cu, HccASTUnaryOp unary_op, HccDataType dat
 			break;
 		case HCC_AST_UNARY_OP_NEGATE:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = -eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = -eval.s32; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = -eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = -eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = -eval.s32; break;
@@ -3590,7 +3590,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 	switch (binary_op) {
 		case HCC_AST_BINARY_OP_ADD:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ + right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 + right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 + right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 + right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 + right_eval.s32; break;
@@ -3605,7 +3605,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_SUBTRACT:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ - right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 - right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 - right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 - right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 - right_eval.s32; break;
@@ -3620,7 +3620,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_MULTIPLY:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ * right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 * right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 * right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 * right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 * right_eval.s32; break;
@@ -3635,7 +3635,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_DIVIDE:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ / right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 / right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 / right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 / right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 / right_eval.s32; break;
@@ -3650,7 +3650,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_MODULO:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ % right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 % right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 % right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 % right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 % right_eval.s32; break;
@@ -3663,7 +3663,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_BIT_AND:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ & right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 & right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 & right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 & right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 & right_eval.s32; break;
@@ -3676,7 +3676,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_BIT_OR:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ | right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 | right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 | right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 | right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 | right_eval.s32; break;
@@ -3689,7 +3689,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_BIT_XOR:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ ^ right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 ^ right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 ^ right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 ^ right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 ^ right_eval.s32; break;
@@ -3702,7 +3702,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_BIT_SHIFT_LEFT:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ << right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 << right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 << right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 << right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 << right_eval.s32; break;
@@ -3715,7 +3715,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_BIT_SHIFT_RIGHT:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ >> right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 >> right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 >> right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 >> right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 >> right_eval.s32; break;
@@ -3728,7 +3728,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_EQUAL:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ == right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 == right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 == right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 == right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 == right_eval.s32; break;
@@ -3741,7 +3741,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_NOT_EQUAL:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ != right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 != right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 != right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 != right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 != right_eval.s32; break;
@@ -3754,7 +3754,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_LESS_THAN:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ < right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 < right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 < right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 < right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 < right_eval.s32; break;
@@ -3767,7 +3767,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_LESS_THAN_OR_EQUAL:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ <= right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 <= right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 <= right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 <= right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 <= right_eval.s32; break;
@@ -3780,7 +3780,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_GREATER_THAN:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ > right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 > right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 > right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 > right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 > right_eval.s32; break;
@@ -3793,7 +3793,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_GREATER_THAN_OR_EQUAL:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ >= right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 >= right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 >= right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 >= right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 >= right_eval.s32; break;
@@ -3806,7 +3806,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_LOGICAL_AND:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ && right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 && right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 && right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 && right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 && right_eval.s32; break;
@@ -3819,7 +3819,7 @@ HccBasic hcc_basic_eval_binary(HccCU* cu, HccASTBinaryOp binary_op, HccDataType 
 			break;
 		case HCC_AST_BINARY_OP_LOGICAL_OR:
 			switch (intrinsic_data_type) {
-				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.bool_ = left_eval.bool_ || right_eval.bool_; break;
+				case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: eval.s32 = (bool)(left_eval.s32 || right_eval.s32); break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S8: eval.s8 = left_eval.s8 || right_eval.s8; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S16: eval.s16 = left_eval.s16 || right_eval.s16; break;
 				case HCC_AML_INTRINSIC_DATA_TYPE_S32: eval.s32 = left_eval.s32 || right_eval.s32; break;
@@ -3844,7 +3844,7 @@ bool hcc_basic_as_bool(HccCU* cu, HccDataType data_type, HccBasic basic) {
 	HCC_ASSERT(HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(intrinsic_data_type), "basic eval only work on basic types, not vectors");
 
 	switch (intrinsic_data_type) {
-		case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: return basic.bool_;
+		case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: return basic.s32 != 0;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S8: return basic.s8 != 0;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S16: return basic.s16 != 0;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S32: return basic.s32 != 0;
@@ -3876,7 +3876,7 @@ HccBasic hcc_basic_from_sint(HccCU* cu, HccDataType data_type, int64_t value) {
 				case sizeof(int64_t): basic.s64 = value; break;
 				}
 				break;
-			case HCC_AST_BASIC_DATA_TYPE_BOOL: basic.bool_ = value; break;
+			case HCC_AST_BASIC_DATA_TYPE_BOOL: basic.s32 = value != 0; break;
 			case HCC_AST_BASIC_DATA_TYPE_UCHAR:
 			case HCC_AST_BASIC_DATA_TYPE_USHORT:
 			case HCC_AST_BASIC_DATA_TYPE_UINT:
@@ -3894,7 +3894,7 @@ HccBasic hcc_basic_from_sint(HccCU* cu, HccDataType data_type, int64_t value) {
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 		switch (HCC_DATA_TYPE_AUX(data_type)) {
-			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.bool_ = value; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.s32 = value != 0; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S8: basic.s8 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S16: basic.s16 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S32: basic.s32 = value; break;
@@ -3920,7 +3920,7 @@ HccBasic hcc_basic_from_uint(HccCU* cu, HccDataType data_type, uint64_t value) {
 	HccBasic basic;
 	if (HCC_DATA_TYPE_IS_AST_BASIC(data_type)) {
 		switch (HCC_DATA_TYPE_AUX(data_type)) {
-			case HCC_AST_BASIC_DATA_TYPE_BOOL: basic.bool_ = value; break;
+			case HCC_AST_BASIC_DATA_TYPE_BOOL: basic.s32 = value != 0; break;
 			case HCC_AST_BASIC_DATA_TYPE_CHAR:
 			case HCC_AST_BASIC_DATA_TYPE_SCHAR:
 			case HCC_AST_BASIC_DATA_TYPE_SSHORT:
@@ -3944,7 +3944,7 @@ HccBasic hcc_basic_from_uint(HccCU* cu, HccDataType data_type, uint64_t value) {
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 		switch (HCC_DATA_TYPE_AUX(data_type)) {
-			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.bool_ = value; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.s32 = value != 0; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S8: basic.u8 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S16: basic.u16 = value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S32: basic.u32 = value; break;
@@ -3983,7 +3983,7 @@ HccBasic hcc_basic_from_float(HccCU* cu, HccDataType data_type, double value) {
 				case sizeof(int64_t): basic.s64 = (int64_t)value; break;
 				}
 				break;
-			case HCC_AST_BASIC_DATA_TYPE_BOOL: basic.bool_ = (bool)value; break;
+			case HCC_AST_BASIC_DATA_TYPE_BOOL: basic.s32 = (bool)value; break;
 			case HCC_AST_BASIC_DATA_TYPE_UCHAR:
 			case HCC_AST_BASIC_DATA_TYPE_USHORT:
 			case HCC_AST_BASIC_DATA_TYPE_UINT:
@@ -4001,7 +4001,7 @@ HccBasic hcc_basic_from_float(HccCU* cu, HccDataType data_type, double value) {
 		}
 	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
 		switch (HCC_DATA_TYPE_AUX(data_type)) {
-			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.bool_ = (bool)value; break;
+			case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.s32 = (bool)value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S8: basic.s8 = (int8_t)value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S16: basic.s16 = (int16_t)value; break;
 			case HCC_AML_INTRINSIC_DATA_TYPE_S32: basic.s32 = (int32_t)value; break;
@@ -4772,6 +4772,16 @@ HccConstantId hcc_constant_table_deduplicate_zero(HccCU* cu, HccDataType data_ty
 		// this will allow them to be used as indices in OpAccessChain.
 		HccBasic zero = {0};
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &zero);
+	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(data_type)) == 1) {
+		uint32_t fields_count = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(data_type));
+		HccDataType scalar_data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type)));
+		HccBasic zero = {0};
+		HccConstantId zero_constant_id = hcc_constant_table_deduplicate_basic(cu, scalar_data_type, &zero);
+		HccConstantId fields[4];
+		for (uint32_t idx = 0; idx < fields_count; idx += 1) {
+			fields[idx] = zero_constant_id;
+		}
+		return hcc_constant_table_deduplicate_composite(cu, data_type, fields, fields_count);
 	} else {
 		return _hcc_constant_table_deduplicate_end(cu, data_type, NULL, 0, 0, true);
 	}
@@ -4783,6 +4793,16 @@ HccConstantId hcc_constant_table_deduplicate_one(HccCU* cu, HccDataType data_typ
 	if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
 		HccBasic one = hcc_basic_from_uint(cu, data_type, 1);
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &one);
+	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(data_type)) == 1) {
+		uint32_t fields_count = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(data_type));
+		HccDataType scalar_data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type)));
+		HccBasic one = hcc_basic_from_uint(cu, scalar_data_type, 1);
+		HccConstantId one_constant_id = hcc_constant_table_deduplicate_basic(cu, scalar_data_type, &one);
+		HccConstantId fields[4];
+		for (uint32_t idx = 0; idx < fields_count; idx += 1) {
+			fields[idx] = one_constant_id;
+		}
+		return hcc_constant_table_deduplicate_composite(cu, data_type, fields, fields_count);
 	} else {
 		HCC_ABORT("TODO");
 	}
@@ -4824,7 +4844,7 @@ HccBasic hcc_constant_table_get_basic(HccCU* cu, HccConstantId id) {
 	HccBasic basic;
 	basic.u64 = 0;
 	switch (intrinsic_data_type) {
-		case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.bool_ = *(bool*)entry->data; break;
+		case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: basic.s32 = *(int32_t*)entry->data; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S8: basic.s8 = *(int8_t*)entry->data; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S16: basic.s16 = *(int16_t*)entry->data; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S32: basic.s32 = *(int32_t*)entry->data; break;
@@ -5650,6 +5670,7 @@ const char* hcc_intrinisic_function_many_strings[HCC_FUNCTION_MANY_COUNT] = {
 	[HCC_FUNCTION_MANY_BITSHR] = "bitshr",
 	[HCC_FUNCTION_MANY_BITLSB] = "bitlsb",
 	[HCC_FUNCTION_MANY_BITMSB] = "bitmsb",
+	[HCC_FUNCTION_MANY_BITCOUNT] = "bitcount",
 	[HCC_FUNCTION_MANY_FMA] = "fma",
 	[HCC_FUNCTION_MANY_FLOOR] = "floor",
 	[HCC_FUNCTION_MANY_CEIL] = "ceil",
@@ -5778,6 +5799,7 @@ HccManyTypeClass hcc_intrinisic_function_many_support[HCC_FUNCTION_MANY_COUNT] =
 	[HCC_FUNCTION_MANY_BITSHR] = HCC_MANY_TYPE_CLASS_INTS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_BITLSB] = HCC_MANY_TYPE_CLASS_UINT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_BITMSB] = HCC_MANY_TYPE_CLASS_UINT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_BITCOUNT] = HCC_MANY_TYPE_CLASS_UINT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_FMA] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_FLOOR] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_CEIL] = HCC_MANY_TYPE_CLASS_FLOAT | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
@@ -5906,6 +5928,7 @@ HccAMLOp hcc_intrinisic_function_many_aml_ops[HCC_FUNCTION_MANY_COUNT] = {
 	[HCC_FUNCTION_MANY_BITSHR] = HCC_AML_OP_BIT_SHIFT_RIGHT,
 	[HCC_FUNCTION_MANY_BITLSB] = HCC_AML_OP_BITLSB,
 	[HCC_FUNCTION_MANY_BITMSB] = HCC_AML_OP_BITMSB,
+	[HCC_FUNCTION_MANY_BITCOUNT] = HCC_AML_OP_BITCOUNT,
 	[HCC_FUNCTION_MANY_FMA] = HCC_AML_OP_FMA,
 	[HCC_FUNCTION_MANY_FLOOR] = HCC_AML_OP_FLOOR,
 	[HCC_FUNCTION_MANY_CEIL] = HCC_AML_OP_CEIL,

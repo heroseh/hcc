@@ -219,6 +219,7 @@ int main(int argc, char** argv) {
 					bc->sampler = clamp_linear_sampler_id;
 				}
 
+				bc->hprintf_buffer = active_frame_idx ? hprintf_buffer_id0 : hprintf_buffer_id1;
 				bc->offset.x = sinf(time_ * 4.12f) * 0.1f;
 				bc->offset.y = sinf(time_ * 3.33f) * 0.1f;
 				bc->scale.x = (cosf(time_ * 2.f) * 0.5f + 0.5f) * 0.25f + 1.5f;

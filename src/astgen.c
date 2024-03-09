@@ -549,13 +549,6 @@ bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType 
 		}
 	}
 
-	if (
-		HCC_DATA_TYPE_IS_POINTER(target_data_type) && HCC_DATA_TYPE_IS_AST_BASIC(source_data_type) && HCC_AST_BASIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(source_data_type))
-	) {
-		hcc_astgen_generate_implicit_cast(w, target_data_type, source_expr_mut);
-		return true;
-	}
-
 	// HACK for string to const char*
 	if (
 		HCC_DATA_TYPE_IS_POINTER(target_data_type) && HCC_DATA_TYPE_IS_ARRAY(source_data_type)
@@ -2573,7 +2566,6 @@ TEXTURE:{}
 
 				bool is_supported = access_mode == HCC_RESOURCE_ACCESS_MODE_SAMPLE;
 				switch (HCC_DATA_TYPE_AUX(lowered_data_type)) {
-					case HCC_AML_INTRINSIC_DATA_TYPE_BOOL:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S8:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S16:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S32:
@@ -2585,7 +2577,6 @@ TEXTURE:{}
 					case HCC_AML_INTRINSIC_DATA_TYPE_F16:
 					case HCC_AML_INTRINSIC_DATA_TYPE_F32:
 					case HCC_AML_INTRINSIC_DATA_TYPE_F64:
-					case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX2:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S8X2:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S16X2:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S32X2:
@@ -2594,7 +2585,6 @@ TEXTURE:{}
 					case HCC_AML_INTRINSIC_DATA_TYPE_U32X2:
 					case HCC_AML_INTRINSIC_DATA_TYPE_F16X2:
 					case HCC_AML_INTRINSIC_DATA_TYPE_F32X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX4:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S8X4:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S16X4:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S32X4:
@@ -3039,7 +3029,7 @@ HccASTExpr* hcc_astgen_generate_unary_op(HccWorker* w, HccASTExpr* inner_expr, H
 		}
 	} else if (HCC_DATA_TYPE_IS_AST_BASIC(resolved_data_type)) {
 		if (unary_op == HCC_AST_UNARY_OP_LOGICAL_NOT) {
-			unary_expr_data_type = HCC_DATA_TYPE_AST_BASIC_BOOL;
+			unary_expr_data_type = HCC_DATA_TYPE_AST_BASIC_SINT;
 		} else {
 			HccASTBasicDataType resolved_basic_data_type = HCC_DATA_TYPE_AUX(resolved_data_type);
 			if (HCC_AST_BASIC_DATA_TYPE_IS_INT(resolved_basic_data_type)) {
@@ -4160,7 +4150,7 @@ FIELD_ACCESS: {}
 
 			HccDataType data_type;
 			if (HCC_AST_BINARY_OP_EQUAL <= binary_op && binary_op <= HCC_AST_BINARY_OP_LOGICAL_OR) {
-				data_type = HCC_DATA_TYPE_AST_BASIC_BOOL;
+				data_type = HCC_DATA_TYPE_AST_BASIC_SINT;
 			} else if (binary_op == HCC_AST_BINARY_OP_ASSIGN && left_expr->type == HCC_AST_EXPR_TYPE_BINARY_OP && left_expr->binary.is_swizzle) {
 				if (hcc_swizzle_has_repeated_elmt(left_expr->binary.field_idx - 4)) {
 					hcc_astgen_bail_error_1_manual(w, HCC_ERROR_CODE_CANNOT_ASSIGN_TO_SWIZZLE_WITH_REPEATED_COMPONENTS, left_expr->location);
@@ -4185,28 +4175,6 @@ FIELD_ACCESS: {}
 
 				HccBasic eval = hcc_basic_eval_binary(w->cu, binary_op, left_expr->data_type, left_basic, right_basic);
 				left_expr->constant.id = hcc_constant_table_deduplicate_basic(w->cu, data_type, &eval);
-			} else if (left_expr->type == HCC_AST_EXPR_TYPE_CONSTANT && (binary_op == HCC_AST_BINARY_OP_LOGICAL_AND || binary_op == HCC_AST_BINARY_OP_LOGICAL_OR)) {
-				//
-				// the left expression is a constant for a short-circuit operator, lets evalutate these at compile time
-				//
-
-				HccBasic left_basic = hcc_constant_table_get_basic(w->cu, left_expr->constant.id);
-
-				if (hcc_basic_as_bool(w->cu, left_expr->data_type, left_basic) == (binary_op == HCC_AST_BINARY_OP_LOGICAL_AND)) {
-					//
-					// short-circuit has failed so it's just the result of the right expression we need casted into a boolean
-					HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_CAST);
-					expr->cast_.expr = right_expr;
-					expr->data_type = HCC_DATA_TYPE_AST_BASIC_BOOL;
-					expr->location = location;
-					left_expr = expr;
-				} else {
-					//
-					// short-circuit has passed so we just reuse the left expr constant node
-					// and change the constant to (true for ||) and (false for &&)
-					HccBasic basic = { .u8 = binary_op == HCC_AST_BINARY_OP_LOGICAL_OR };
-					left_expr->constant.id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AST_BASIC_BOOL, &basic);
-				}
 			} else {
 				if (is_assign && HCC_DATA_TYPE_IS_CONST(data_type)) {
 					HccString left_data_type_name = hcc_data_type_string(w->cu, data_type);

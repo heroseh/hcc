@@ -120,10 +120,10 @@ HccAMLOperand hcc_amlgen_current_basic_block(HccWorker* w) {
 	return HCC_AML_OPERAND(BASIC_BLOCK, w->amlgen.function->basic_blocks_count - 1);
 }
 
-HccAMLOperand hcc_amlgen_generate_convert_to_bool(HccWorker* w, HccLocation* location, HccAMLOperand src_operand, HccDataType src_data_type, bool flip_bool_result) {
-	HCC_DEBUG_ASSERT((HCC_DATA_TYPE_IS_AML_INTRINSIC(src_data_type) && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(src_data_type)) == 1) || HCC_DATA_TYPE_IS_RESOURCE(src_data_type), "only intrinsic scalar and vector data types are convertable to bool");
+HccAMLOperand hcc_amlgen_generate_convert_to_bool_int(HccWorker* w, HccLocation* location, HccAMLOperand src_operand, HccDataType src_data_type, bool flip_bool_result) {
+	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_AML_INTRINSIC(src_data_type) && HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(HCC_DATA_TYPE_AUX(src_data_type)), "only intrinsic scalar are convertable to bool");
 
-	HccDataType return_data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_BOOL | (HCC_DATA_TYPE_AUX(src_data_type) & HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK));
+	HccDataType return_data_type = hcc_data_type_lower_ast_to_aml(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT);
 	HccAMLOperand* operands = hcc_amlgen_instr_add(w, location, flip_bool_result ? HCC_AML_OP_EQUAL : HCC_AML_OP_NOT_EQUAL, 3);
 	operands[0] = hcc_amlgen_value_add(w, return_data_type);
 	operands[1] = src_operand;
@@ -264,11 +264,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 				return src_operand;
 			}
 
-			if (dst_data_type == HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
-				return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, false);
-			} else {
-				return hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_CONVERT, hcc_amlgen_value_add(w, dst_data_type), src_operand);
-			}
+			return hcc_amlgen_instr_add_2(w, expr->location, HCC_AML_OP_CONVERT, hcc_amlgen_value_add(w, dst_data_type), src_operand);
 		};
 		case HCC_AST_EXPR_TYPE_LOCAL_VARIABLE: {
 			HccAMLOperand value_operand = hcc_amlgen_local_variable_operand(w, HCC_DECL_AUX(expr->variable.decl));
@@ -326,7 +322,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 				//
 				// work out the result value register
-				HccDataType result_data_type = expr->binary.op < HCC_AST_BINARY_OP_EQUAL ? left_data_type : HCC_DATA_TYPE_AML_INTRINSIC_BOOL;
+				HccDataType result_data_type = expr->binary.op < HCC_AST_BINARY_OP_EQUAL ? left_data_type : hcc_data_type_lower_ast_to_aml(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT);
 				HccAMLOperand result_operand = hcc_amlgen_value_add(w, result_data_type);
 
 				//
@@ -380,8 +376,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 						HccAMLOperand converging_basic_block = hcc_amlgen_basic_block_add(w, expr->location);
 						selection_merge_operands[0] = converging_basic_block;
 
-						HccBasic basic = { .u8 = expr->binary.op == HCC_AST_BINARY_OP_LOGICAL_OR };
-						HccConstantId converging_arg_constant_id = hcc_constant_table_deduplicate_basic(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_BOOL, &basic);
+						HccBasic basic = { .s32 = expr->binary.op == HCC_AST_BINARY_OP_LOGICAL_OR };
+						HccConstantId converging_arg_constant_id = hcc_constant_table_deduplicate_basic(w->cu, hcc_data_type_lower_ast_to_aml(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT), &basic);
 						cond_branch_operands[0] = left_operand;
 						cond_branch_operands[success_idx] = success_basic_block;
 						cond_branch_operands[converging_idx] = converging_basic_block;
@@ -392,7 +388,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 
 						//
 						// add the result basic block parameter and return that operand
-						HccAMLOperand operand = hcc_amlgen_basic_block_param_add(w, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
+						HccAMLOperand operand = hcc_amlgen_basic_block_param_add(w, hcc_data_type_lower_ast_to_aml(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT));
 						hcc_amlgen_basic_block_param_src_add(w, branch_conditional_basic_block_operand, cond_branch_operands[3]);
 						hcc_amlgen_basic_block_param_src_add(w, final_success_basic_block, success_converging_branch_operands[1]);
 						return operand;
@@ -579,16 +575,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 										case HCC_FUNCTION_MANY_NOT: {
 											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);
 											HccDataType src_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand);
-
-											if (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(src_data_type)) != HCC_AML_INTRINSIC_DATA_TYPE_BOOL) {
-												return_operand = hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, true);
-												goto CALL_END;
-											}
-
-											return_operand = hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_XOR,
-												hcc_amlgen_value_add(w, return_data_type),
-												src_operand,
-												HCC_AML_OPERAND(CONSTANT, hcc_constant_table_deduplicate_one(w->cu, src_data_type).idx_plus_one));
+											return_operand = hcc_amlgen_generate_convert_to_bool_int(w, expr->location, src_operand, src_data_type, true);
 											goto CALL_END;
 										};
 										case HCC_FUNCTION_MANY_BITNOT: {
@@ -621,10 +608,6 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 										{
 											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);
 											HccDataType src_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, src_operand);
-
-											if (HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(src_data_type)) != HCC_AML_INTRINSIC_DATA_TYPE_BOOL) {
-												return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, false);
-											}
 
 											return_operand = hcc_amlgen_instr_add_2(w, expr->location, hcc_intrinisic_function_many_aml_ops[many],
 												hcc_amlgen_value_add(w, return_data_type),
@@ -717,7 +700,7 @@ CALL_END:{}
 			HccDataType src_data_type = hcc_data_type_lower_ast_to_aml(w->cu, src_expr->data_type);
 			switch (expr->unary.op) {
 				case HCC_AST_UNARY_OP_LOGICAL_NOT:
-					return hcc_amlgen_generate_convert_to_bool(w, expr->location, src_operand, src_data_type, true);
+					return hcc_amlgen_generate_convert_to_bool_int(w, expr->location, src_operand, src_data_type, true);
 
 				case HCC_AST_UNARY_OP_BIT_NOT:
 					return hcc_amlgen_instr_add_3(w, expr->location, HCC_AML_OP_BIT_XOR,
@@ -1047,8 +1030,8 @@ CALL_END:{}
 HccAMLOperand hcc_amlgen_generate_instrs_condition(HccWorker* w, HccASTExpr* cond_expr) {
 	HccAMLOperand cond_operand = hcc_amlgen_generate_instrs(w, cond_expr, false);
 	HccDataType cond_data_type = hcc_aml_operand_data_type(w->cu, w->amlgen.function, cond_operand);
-	if (cond_data_type != HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
-		return hcc_amlgen_generate_convert_to_bool(w, cond_expr->location, cond_operand, cond_data_type, false);
+	if (cond_data_type != hcc_data_type_lower_ast_to_aml(w->cu, HCC_DATA_TYPE_AST_BASIC_SINT)) {
+		return hcc_amlgen_generate_convert_to_bool_int(w, cond_expr->location, cond_operand, cond_data_type, false);
 	}
 
 	return cond_operand;

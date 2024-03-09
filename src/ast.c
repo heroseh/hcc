@@ -648,6 +648,8 @@ void hcc_ast_print_expr(HccCU* cu, HccASTFunction* function, HccASTExpr* expr, u
 				case HCC_AST_UNARY_OP_PRE_DECREMENT: expr_name = "EXPR_PRE_DECREMENT"; break;
 				case HCC_AST_UNARY_OP_POST_INCREMENT: expr_name = "EXPR_POST_INCREMENT"; break;
 				case HCC_AST_UNARY_OP_POST_DECREMENT: expr_name = "EXPR_POST_DECREMENT"; break;
+				case HCC_AST_UNARY_OP_DEREF: expr_name = "HCC_AST_UNARY_OP_DEREF"; break;
+				case HCC_AST_UNARY_OP_ADDRESS_OF: expr_name = "HCC_AST_UNARY_OP_ADDRESS_OF"; break;
 			}
 
 			hcc_iio_write_fmt(iio, "%s: {\n", expr_name);

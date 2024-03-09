@@ -181,11 +181,11 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 							operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 1);
 							operands_count = 1;
 							break;
-						case HCC_AML_INTRINSIC_DATA_TYPE_BOOL:
-							op = HCC_SPIRV_OP_TYPE_BOOL;
-							operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 1);
-							operands_count = 1;
-							break;
+						case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: {
+							HccSPIRVId spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_S32);
+							atomic_store(&entry->spirv_id, spirv_id);
+							return spirv_id;
+						};
 						case HCC_AML_INTRINSIC_DATA_TYPE_S8:
 						case HCC_AML_INTRINSIC_DATA_TYPE_S16:
 						case HCC_AML_INTRINSIC_DATA_TYPE_S32:
@@ -398,6 +398,7 @@ HccSPIRVId hcc_spirv_decl_deduplicate(HccCU* cu, HccDecl decl) {
 						break;
 				}
 				HccSPIRVOperand* operands = hcc_spirv_add_global_variable(cu, 3 + has_initializer);
+				hcc_spirv_add_name(cu, spirv_id, hcc_string_table_get(hcc_decl_identifier_string_id(cu, decl)));
 				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, hcc_pointer_data_type_deduplicate(cu, ast_global_variable->data_type));
 				operands[1] = spirv_id;
 				operands[2] = storage_class;
@@ -531,10 +532,6 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 			operands_count = 2;
 			op = HCC_SPIRV_OP_CONSTANT_NULL;
 			operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
-		} else if (c.data_type == HCC_DATA_TYPE_AML_INTRINSIC_BOOL) {
-			operands_count = 2;
-			op = *(bool*)c.data ? HCC_SPIRV_OP_CONSTANT_TRUE : HCC_SPIRV_OP_CONSTANT_FALSE;
-			operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, operands_count);
 		} else if (HCC_DATA_TYPE_IS_COMPOSITE(c.data_type)) {
 			HccConstantId* src_constant_ids = c.data;
 
@@ -605,6 +602,7 @@ HccSPIRVId hcc_spirv_constant_deduplicate(HccCU* cu, HccConstantId constant_id) 
 					case HCC_AML_INTRINSIC_DATA_TYPE_F16:
 						words[0] = *(uint16_t*)c.data;
 						break;
+					case HCC_AML_INTRINSIC_DATA_TYPE_BOOL:
 					case HCC_AML_INTRINSIC_DATA_TYPE_S32:
 					case HCC_AML_INTRINSIC_DATA_TYPE_U32:
 					case HCC_AML_INTRINSIC_DATA_TYPE_F32:
@@ -825,7 +823,6 @@ HccHash hcc_spirv_descriptor_binding_key_hash(void* key, uintptr_t size) {
 
 uint32_t hcc_spirv_image_format(HccAMLIntrinsicDataType data_type) {
 	switch (data_type) {
-		case HCC_AML_INTRINSIC_DATA_TYPE_BOOL: return HCC_SPIRV_IMAGE_FORMAT_R8UI; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S8: return HCC_SPIRV_IMAGE_FORMAT_R8I; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S16: return HCC_SPIRV_IMAGE_FORMAT_R16I; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S32: return HCC_SPIRV_IMAGE_FORMAT_R32I; break;
@@ -837,7 +834,6 @@ uint32_t hcc_spirv_image_format(HccAMLIntrinsicDataType data_type) {
 		case HCC_AML_INTRINSIC_DATA_TYPE_F16: return HCC_SPIRV_IMAGE_FORMAT_R16F; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_F32: return HCC_SPIRV_IMAGE_FORMAT_R32F; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_F64: return HCC_SPIRV_IMAGE_FORMAT_R64I; break;
-		case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX2: return HCC_SPIRV_IMAGE_FORMAT_RG8UI; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S8X2: return HCC_SPIRV_IMAGE_FORMAT_RG8I; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S16X2: return HCC_SPIRV_IMAGE_FORMAT_RG16I; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S32X2: return HCC_SPIRV_IMAGE_FORMAT_RG32I; break;
@@ -846,7 +842,6 @@ uint32_t hcc_spirv_image_format(HccAMLIntrinsicDataType data_type) {
 		case HCC_AML_INTRINSIC_DATA_TYPE_U32X2: return HCC_SPIRV_IMAGE_FORMAT_RG32UI; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_F16X2: return HCC_SPIRV_IMAGE_FORMAT_RG16F; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_F32X2: return HCC_SPIRV_IMAGE_FORMAT_RG32F; break;
-		case HCC_AML_INTRINSIC_DATA_TYPE_BOOLX4: return HCC_SPIRV_IMAGE_FORMAT_RGBA8UI; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S8X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA8I; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S16X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA16I; break;
 		case HCC_AML_INTRINSIC_DATA_TYPE_S32X4: return HCC_SPIRV_IMAGE_FORMAT_RGBA32I; break;
