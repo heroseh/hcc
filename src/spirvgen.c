@@ -1593,8 +1593,8 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[3] = cu->spirv.scope_device_spirv_id;
 				operands[4] = cu->spirv.memory_semantics_all_spirv_id;
 				operands[5] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32));
-				operands[6] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
-				operands[7] = hcc_spirvgen_convert_operand(w, aml_operands[3]);
+				operands[6] = hcc_spirvgen_convert_operand(w, aml_operands[3]);
+				operands[7] = hcc_spirvgen_convert_operand(w, aml_operands[2]);
 				break;
 			};
 
