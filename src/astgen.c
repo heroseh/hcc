@@ -3924,6 +3924,9 @@ HccASTExpr* hcc_astgen_generate_array_subscript_expr(HccWorker* w, HccASTExpr* a
 		HccBufferDataType* d = hcc_buffer_data_type_get(w->cu, resolved_data_type);
 		element_data_type = d->element_data_type;
 		resolved_data_type &= ~HCC_DATA_TYPE_QUALIFIERS_MASK;
+		if (HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(HCC_DATA_TYPE_AUX(resolved_data_type)) == HCC_RESOURCE_ACCESS_MODE_READ_ONLY) {
+			resolved_data_type |= HCC_DATA_TYPE_CONST_QUALIFIER_MASK;
+		}
 	} else {
 		HCC_ABORT("unexpected data type: %u\n", resolved_data_type);
 	}
