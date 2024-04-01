@@ -2799,6 +2799,7 @@ RESOURCE:   {
 
 	if (qualifiers_mask) {
 		const char* const_string = qualifiers_mask & HCC_DATA_TYPE_CONST_QUALIFIER_MASK ? " const" : "";
+		const char* mutonly_string = qualifiers_mask & HCC_DATA_TYPE_MUTONLY_QUALIFIER_MASK ? " mutonly" : "";
 		const char* volatile_string = qualifiers_mask & HCC_DATA_TYPE_VOLATILE_QUALIFIER_MASK ? " volatile" : "";
 		const char* atomic_string = qualifiers_mask & HCC_DATA_TYPE_ATOMIC_QUALIFIER_MASK ? " atomic" : "";
 		uint32_t string_size = snprintf(buf2, sizeof(buf2), "%.*s%s%s%s", (int)string.size, string.data, const_string, volatile_string, atomic_string);
@@ -5094,6 +5095,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_INVALID_FLOAT_LITERALS] = "invalid suffix for float literals",
 		[HCC_ERROR_CODE_NO_BRACKETS_OPEN] = "no brackets are open to close '%s'",
 		[HCC_ERROR_CODE_INVALID_CLOSE_BRACKET_PAIR] = "expected to close bracket pair with '%s' but got '%s'",
+		[HCC_ERROR_CODE_UNCLOSED_BRACKET] = "unclosed '%c'",
 		[HCC_ERROR_CODE_UNCLOSED_STRING_LITERAL] = "unclosed string literal. close with '%c' or strings spanning to the next line must end the line with '\\'",
 		[HCC_ERROR_CODE_MACRO_STARTS_WITH_CONCAT] = "macro cannot start with '##', this operator is used to concatinate two tokens. eg. ident ## ifier and 100. ## f",
 		[HCC_ERROR_CODE_STRINGIFY_MUST_BE_MACRO_PARAM] = "macro stringify '#' operator can only be used on a macro parameter",
@@ -5183,6 +5185,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST_BUT_CAN_EXPLICITLY] = "type mismatch '%.*s' is does not implicitly cast to '%.*s' but it can explicitly eg. (%.*s)expression",
 		[HCC_ERROR_CODE_TYPE_MISMATCH] = "type mismatch '%.*s' and '%.*s'",
 		[HCC_ERROR_CODE_UNSUPPORTED_BINARY_OPERATOR] = "operator '%s' is not supported for data type '%.*s' and '%.*s'",
+		[HCC_ERROR_CODE_ATTEMPTING_TO_READ_FROM_MUTONLY] = "attempting to read from 'mutonly' variable",
 		[HCC_ERROR_CODE_INVALID_CURLY_EXPR] = "'{' can only be used as the assignment of variable declarations or compound literals",
 		[HCC_ERROR_CODE_FIELD_DESIGNATOR_ON_ARRAY_TYPE] = "field designator cannot be used for an the '%.*s' array type, please use '[' instead",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_DESIGNATOR] = "expected an the field identifier that you wish to initialize from '%.*s'",

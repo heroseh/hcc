@@ -1,3 +1,4 @@
+#ifdef __HCC__
 
 //
 // waits for the atomic mutations operations in resource memory for all threads across all waves for this dispatch group to be visible
@@ -56,17 +57,17 @@ uint64_t atomic_load_u64(uint64_t const* ptr);
 
 //
 // atomically store the value 'v' at pointer 'ptr'
-void atomic_store_f16(half* ptr, half v);
-void atomic_store_f32(float* ptr, float v);
-void atomic_store_f64(double* ptr, double v);
-void atomic_store_s8(int8_t* ptr, int8_t v);
-void atomic_store_s16(int16_t* ptr, int16_t v);
-void atomic_store_s32(int32_t* ptr, int32_t v);
-void atomic_store_s64(int64_t* ptr, int64_t v);
-void atomic_store_u8(uint8_t* ptr, uint8_t v);
-void atomic_store_u16(uint16_t* ptr, uint16_t v);
-void atomic_store_u32(uint32_t* ptr, uint32_t v);
-void atomic_store_u64(uint64_t* ptr, uint64_t v);
+void atomic_store_f16(half mutonly* ptr, half v);
+void atomic_store_f32(float mutonly* ptr, float v);
+void atomic_store_f64(double mutonly* ptr, double v);
+void atomic_store_s8(int8_t mutonly* ptr, int8_t v);
+void atomic_store_s16(int16_t mutonly* ptr, int16_t v);
+void atomic_store_s32(int32_t mutonly* ptr, int32_t v);
+void atomic_store_s64(int64_t mutonly* ptr, int64_t v);
+void atomic_store_u8(uint8_t mutonly* ptr, uint8_t v);
+void atomic_store_u16(uint16_t mutonly* ptr, uint16_t v);
+void atomic_store_u32(uint32_t mutonly* ptr, uint32_t v);
+void atomic_store_u64(uint64_t mutonly* ptr, uint64_t v);
 #define atomic_storeG(ptr, v) \
 	_Generic(*(ptr), \
 		half: atomic_store_f16, \
@@ -287,3 +288,4 @@ uint64_t atomic_bit_xor_u64(uint64_t* ptr, uint64_t v);
 		uint64_t: atomic_bit_xor_u64 \
 	)(ptr, v)
 
+#endif

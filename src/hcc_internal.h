@@ -2213,24 +2213,25 @@ enum {
 	HCC_ASTGEN_SPECIFIER_FLAGS_ALL_NON_TYPEDEF_SPECIFIERS =       HCC_ASTGEN_SPECIFIER_FLAGS_ALL & ~HCC_ASTGEN_SPECIFIER_FLAGS_ALL_TYPEDEF_SPECIFIER,
 };
 
-typedef uint16_t HccASTGenTypeSpecifier;
+typedef uint32_t HccASTGenTypeSpecifier;
 enum {
-	HCC_ASTGEN_TYPE_SPECIFIER_VOID =          0x1,
-	HCC_ASTGEN_TYPE_SPECIFIER_BOOL =          0x2,
-	HCC_ASTGEN_TYPE_SPECIFIER_CHAR =          0x4,
-	HCC_ASTGEN_TYPE_SPECIFIER_SHORT =         0x8,
-	HCC_ASTGEN_TYPE_SPECIFIER_INT =           0x10,
-	HCC_ASTGEN_TYPE_SPECIFIER_LONG =          0x20,
-	HCC_ASTGEN_TYPE_SPECIFIER_LONGLONG =      0x40,
-	HCC_ASTGEN_TYPE_SPECIFIER_HALF =          0x80,
-	HCC_ASTGEN_TYPE_SPECIFIER_FLOAT =         0x100,
-	HCC_ASTGEN_TYPE_SPECIFIER_DOUBLE =        0x200,
-	HCC_ASTGEN_TYPE_SPECIFIER_UNSIGNED =      0x400,
-	HCC_ASTGEN_TYPE_SPECIFIER_SIGNED =        0x800,
-	HCC_ASTGEN_TYPE_SPECIFIER_COMPLEX =       0x1000,
-	HCC_ASTGEN_TYPE_SPECIFIER_ATOMIC =        0x2000,
-	HCC_ASTGEN_TYPE_SPECIFIER_CONST =         0x4000,
-	HCC_ASTGEN_TYPE_SPECIFIER_VOLATILE =      0x8000,
+	HCC_ASTGEN_TYPE_SPECIFIER_VOID =      0x00000001,
+	HCC_ASTGEN_TYPE_SPECIFIER_BOOL =      0x00000002,
+	HCC_ASTGEN_TYPE_SPECIFIER_CHAR =      0x00000004,
+	HCC_ASTGEN_TYPE_SPECIFIER_SHORT =     0x00000008,
+	HCC_ASTGEN_TYPE_SPECIFIER_INT =       0x00000010,
+	HCC_ASTGEN_TYPE_SPECIFIER_LONG =      0x00000020,
+	HCC_ASTGEN_TYPE_SPECIFIER_LONGLONG =  0x00000040,
+	HCC_ASTGEN_TYPE_SPECIFIER_HALF =      0x00000080,
+	HCC_ASTGEN_TYPE_SPECIFIER_FLOAT =     0x00000100,
+	HCC_ASTGEN_TYPE_SPECIFIER_DOUBLE =    0x00000200,
+	HCC_ASTGEN_TYPE_SPECIFIER_UNSIGNED =  0x00000400,
+	HCC_ASTGEN_TYPE_SPECIFIER_SIGNED =    0x00000800,
+	HCC_ASTGEN_TYPE_SPECIFIER_COMPLEX =   0x00001000,
+	HCC_ASTGEN_TYPE_SPECIFIER_ATOMIC =    0x00002000,
+	HCC_ASTGEN_TYPE_SPECIFIER_CONST =     0x00004000,
+	HCC_ASTGEN_TYPE_SPECIFIER_MUTONLY =   0x00008000,
+	HCC_ASTGEN_TYPE_SPECIFIER_VOLATILE =  0x00010000,
 
 	HCC_ASTGEN_TYPE_SPECIFIER_TYPES     =
 		HCC_ASTGEN_TYPE_SPECIFIER_VOID  |
@@ -2329,6 +2330,7 @@ bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType 
 void hcc_astgen_data_type_ensure_compatible_assignment(HccWorker* w, HccLocation* other_location, HccDataType target_data_type, HccASTExpr** source_expr_mut);
 bool hcc_astgen_data_type_check_compatible_arithmetic(HccWorker* w, HccASTExpr** left_expr_mut, HccASTExpr** right_expr_mut);
 void hcc_astgen_data_type_ensure_compatible_arithmetic(HccWorker* w, HccLocation* other_location, HccASTExpr** left_expr_mut, HccASTExpr** right_expr_mut, HccATAToken operator_token);
+void hcc_astgen_data_type_ensure_readable(HccWorker* w, HccASTExpr* expr);
 void hcc_astgen_ensure_function_args_count(HccWorker* w, HccDecl function_decl, uint32_t args_count);
 HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType element_data_type, HccResourceAccessMode access_mode);
 void _hcc_astgen_ensure_no_unused_specifiers(HccWorker* w, char* what);

@@ -1281,7 +1281,7 @@ void hcc_ppgen_copy_expand_macro_begin(HccWorker* w, HccPPMacro* macro, HccLocat
 	HccPPExpand args_expand;
 	HccATATokenBag* args_src_bag = &w->atagen.ast_file->macro_token_bag;
 	if (macro->is_function) {
-		HCC_DEBUG_ASSERT(w->atagen.code[w->atagen.location.code_end_idx] == '(', "internal error: expected to be on a '(' but got '%w'", w->atagen.code[w->atagen.location.code_end_idx]);
+		HCC_DEBUG_ASSERT(w->atagen.code[w->atagen.location.code_end_idx] == '(', "internal error: expected to be on a '(' but got '%c'", w->atagen.code[w->atagen.location.code_end_idx]);
 		//
 		// our arguments are currently in string form.
 		// tokenize them before we call into the expand code.
@@ -1686,7 +1686,7 @@ uint32_t hcc_ppgen_process_macro_args(HccWorker* w, HccPPMacro* macro, HccPPExpa
 	HccPPMacroArg* arg = hcc_ppgen_push_macro_arg(w, expand, src_bag, parent_location);
 	uint32_t nested_parenthesis = 0;
 	bool reached_va_args = macro->has_va_args && macro->params_count == 1;
-	while (1) {
+	while (expand->cursor.token_idx < hcc_stack_count(src_bag->tokens)) {
 		HccATAToken token = *hcc_stack_get(src_bag->tokens, expand->cursor.token_idx);
 		HccLocation* location = *hcc_stack_get(src_bag->locations, expand->cursor.token_idx);
 
@@ -1741,9 +1741,9 @@ BREAK: {}
 	}
 
 	if (args_count < macro->params_count) {
-		// this is not a error that breaks a rule in the C spec.
-		// TODO: see if we want ot have a compiler option to enable this.
-		// hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_NOT_ENOUGH_MACRO_ARGUMENTS, macro->params_count, args_count);
+		if (!macro->has_va_args) {
+			hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_NOT_ENOUGH_MACRO_ARGUMENTS, macro->params_count, args_count);
+		}
 
 		uint32_t missing_count = macro->params_count - args_count;
 		HccPPMacroArg* args = hcc_stack_push_many(w->atagen.ppgen.macro_args_stack, missing_count);
@@ -2637,6 +2637,7 @@ void hcc_atagen_run(HccWorker* w, HccATATokenBag* dst_token_bag, HccATAGenRunMod
 	HccATATokenBag* old_dst_token_bag = w->atagen.dst_token_bag;
 	w->atagen.run_mode = run_mode;
 	w->atagen.dst_token_bag = dst_token_bag;
+	HccLocation run_start_location = w->atagen.location;
 
 	uint32_t macro_args_nested_parenthesis_count = 0;
 	while (1) {
@@ -2644,6 +2645,11 @@ void hcc_atagen_run(HccWorker* w, HccATATokenBag* dst_token_bag, HccATAGenRunMod
 		// if we have reached the end of this file, then return
 		// to the parent file or end the token generation.
 		if (w->atagen.location.code_end_idx >= w->atagen.code_size) {
+			if (run_mode == HCC_ATAGEN_RUN_MODE_PP_MACRO_ARGS) {
+				w->atagen.location = run_start_location;
+				hcc_atagen_bail_error_1(w, HCC_ERROR_CODE_UNCLOSED_BRACKET, '(');
+			}
+
 			if (hcc_stack_count(w->atagen.paused_file_stack) == 0) {
 				goto RETURN;
 			}

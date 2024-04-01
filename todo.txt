@@ -1,4 +1,0 @@
-- fix preprocessor crash for unclosed brackets
-- fix write-only resources not producing an error when they are read from, probably need a `mutonly` type qualifier
-- fix ternary operator used in f32x2(...) macro sets an incorrect value! see game-wo-engine codebase for example
-- fix using macro() as macro argument results in error. example f32x4(t, splat3(normal)) or something like this

@@ -42,8 +42,10 @@ int main(int argc, char** argv) {
 	GpuResourceId triangle_vertex_buffer_id = gpu_create_buffer(3 * sizeof(TriangleVertex));
 	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
 	GpuResourceId logo_voxel_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_3D, APP_LOGO_VOXEL_WIDTH, APP_LOGO_VOXEL_HEIGHT, APP_LOGO_VOXEL_DEPTH, 1, 1);
+#if APP_ALL_SAMPLES
 	GpuResourceId shapes_buffer_id = gpu_create_buffer(1 * sizeof(SDFShape));
 	GpuResourceId voxel_model_buffer_id = gpu_create_buffer(1 * sizeof(VoxelModel));
+#endif
 	GpuResourceId hprintf_buffer_id0 = gpu_create_buffer(1024 * sizeof(uint32_t));
 	GpuResourceId hprintf_buffer_id1 = gpu_create_buffer(1024 * sizeof(uint32_t));
 	GpuResourceId clamp_linear_sampler_id = gpu_create_sampler();
@@ -55,6 +57,7 @@ int main(int argc, char** argv) {
 	hprintf_buffer1[HPRINTF_BUFFER_CURSOR_IDX] = HPRINTF_BUFFER_CURSOR_START_IDX; // here is where the cursor is stored that the gpu will atomically increment
 	hprintf_buffer1[HPRINTF_BUFFER_CAPACITY_IDX] = 1024; // store the maximum of words for the print buffer here for the shaders
 
+#if APP_ALL_SAMPLES
 	//
 	// put logo and all of it's mip levels into the logo texture
 	{
@@ -122,6 +125,7 @@ int main(int argc, char** argv) {
 		shape->height = 2;
 		shape->color = 0xff227788;
 	}
+#endif
 
 	gpu_stage_uploads_flush();
 
@@ -204,6 +208,7 @@ int main(int argc, char** argv) {
 				bc->hprintf_buffer = active_frame_idx ? hprintf_buffer_id0 : hprintf_buffer_id1;
 				break;
 			};
+#if APP_ALL_SAMPLES
 			case APP_SAMPLE_COMPUTE_SQUARE: {
 				ComputeSquareBC* bc = bundled_constants_ptr;
 				if (init_sample) {
@@ -268,6 +273,7 @@ int main(int argc, char** argv) {
 				bc->ar = ar;
 				break;
 			};
+#endif
 		}
 
 		gpu_render_frame(sample_enum, bc_data, window_width, window_height);

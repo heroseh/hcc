@@ -204,6 +204,7 @@ const char* hcc_ata_token_strings[HCC_ATA_TOKEN_COUNT] = {
 	[HCC_ATA_TOKEN_KEYWORD_TYPEDEF] = "typedef",
 	[HCC_ATA_TOKEN_KEYWORD_STATIC] = "static",
 	[HCC_ATA_TOKEN_KEYWORD_CONST] = "const",
+	[HCC_ATA_TOKEN_KEYWORD_MUTONLY] = "mutonly",
 	[HCC_ATA_TOKEN_KEYWORD_AUTO] = "auto",
 	[HCC_ATA_TOKEN_KEYWORD_REGISTER] = "register",
 	[HCC_ATA_TOKEN_KEYWORD_VOLATILE] = "volatile",

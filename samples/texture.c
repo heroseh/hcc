@@ -8,7 +8,7 @@ typedef struct TextureBC TextureBC;
 struct TextureBC {
 	HccRoTexture2D(uint32_t)  texture;
 	HccSampleTexture2D(f32x4) sample_texture;
-	HccWoBuffer(uint32_t) hprintf_buffer;
+	HccRwBuffer(uint32_t) hprintf_buffer;
 	HccRoSampler              sampler;
 	float                     time_;
 	f32x2                     offset;

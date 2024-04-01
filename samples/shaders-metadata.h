@@ -134,7 +134,7 @@ HccResourceInfo TriangleBC_resources[] = {
 	{
 		/* .name = */        "hprintf_buffer",
 		/* .offset = */      16,
-		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
 		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
 	},
 	{
@@ -170,7 +170,7 @@ HccResourceInfo TextureBC_resources[] = {
 	{
 		/* .name = */        "hprintf_buffer",
 		/* .offset = */      8,
-		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
 		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
 	},
 	{

@@ -48,12 +48,14 @@
 typedef int AppSampleEnum;
 enum AppSampleEnum {
 	APP_SAMPLE_TRIANGLE,
+#if APP_ALL_SAMPLES
 	APP_SAMPLE_COMPUTE_SQUARE,
 	APP_SAMPLE_TEXTURE,
 	APP_SAMPLE_ALT_2_5_D_RGB_COLOR_PICKER,
 	APP_SAMPLE_BLOB_VACATION,
 	APP_SAMPLE_VOXEL_RAYTRACER,
 	APP_SAMPLE_SDF_2D,
+#endif
 
 	APP_SAMPLE_COUNT,
 };
@@ -102,6 +104,7 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 			.vertices_count = 3,
 		},
 	},
+#if APP_ALL_SAMPLES
 	[APP_SAMPLE_COMPUTE_SQUARE] = {
 		.shader_name = "compute-square",
 		.shader_type = APP_SHADER_TYPE_COMPUTE,
@@ -162,5 +165,6 @@ static AppSample app_samples[APP_SAMPLE_COUNT] = {
 			.vertices_count = 4,
 		},
 	},
+#endif
 };
 

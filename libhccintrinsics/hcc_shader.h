@@ -281,7 +281,7 @@ void hprint_string(HccWoBuffer(uint32_t) buffer, uint32_t idx, const char* strin
 //
 #define hprintf(buffer, fmt, ...) \
 	{ \
-		HccWoBuffer(uint32_t) _b = buffer; \
+		HccRwBuffer(uint32_t) _b = buffer; \
 		uint32_t _hprintf_buffer_capacity = _b[HPRINTF_BUFFER_CAPACITY_IDX]; \
 		uint32_t _hprintf_words_count = HPRINT_INTERNAL_SUM(_b, __VA_ARGS__) + HPRINT_STRING_SIZE(fmt); \
 		uint32_t _hprintf_idx = atomic_add_u32(&_b[HPRINTF_BUFFER_CURSOR_IDX], _hprintf_words_count); \
