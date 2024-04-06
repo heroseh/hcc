@@ -26,6 +26,6 @@ fi
 if [ "${1}" = "release" ]; then
 	echo "=========== Building Release Package ==========="
 	cd build
-	tar -cvzf "hcc-0.2.0-linux.tar.gz" hcc ../libc ../libhmaths ../libhccintrinsics ../interop ../samples ../playground ../docs ../README.md ../LICENSE
+	tar -cvzf "hcc-0.3.0-linux.tar.gz" hcc ../libc ../libhmaths ../libhccintrinsics ../interop ../samples ../playground ../docs ../README.md ../LICENSE
 fi
 
