@@ -22,7 +22,7 @@
 #error "unsupported platform"
 #endif
 
-#define GPU_VK_DEBUG 1
+#define GPU_VK_DEBUG 0
 
 typedef struct GpuVkResource GpuVkResource;
 struct GpuVkResource {
