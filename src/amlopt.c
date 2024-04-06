@@ -190,6 +190,8 @@ bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 	for (uint32_t aml_word_idx = 0; aml_word_idx < aml_function->words_count; ) {
 		HccAMLInstr* aml_instr = &aml_function->words[aml_word_idx];
 		HccAMLOp aml_op = HCC_AML_INSTR_OP(aml_instr);
+		HccAMLOperand* aml_operands = HCC_AML_INSTR_OPERANDS(aml_instr);
+		uint32_t aml_operands_count = HCC_AML_INSTR_OPERANDS_COUNT(aml_instr);
 
 		if (used_in_shader_stage != HCC_SHADER_STAGE_PIXEL) {
 			switch (aml_op) {
@@ -217,6 +219,19 @@ bool hcc_amlopt_check_for_recursion_and_make_ordered_function_list_(HccWorker* w
 					hcc_amlopt_error_1(w, HCC_ERROR_CODE_FUNCTION_CANNOT_BE_USED_OUTSIDE_OF_A_PIXEL_SHADER, hcc_aml_instr_location(cu, aml_instr), (int)identifier_string.size, identifier_string.data, callstack);
 					break;
 				};
+			}
+		}
+
+		if (used_in_shader_stage != HCC_SHADER_STAGE_COMPUTE) {
+			for (uint32_t operand_idx = 0; operand_idx < aml_operands_count; operand_idx += 1) {
+				if (HCC_AML_OPERAND_TYPE(aml_operands[operand_idx]) == HCC_DECL_GLOBAL_VARIABLE){
+					HccASTVariable* variable = hcc_ast_global_variable_get(w->cu, aml_operands[operand_idx]);
+					if (aml_function->shader_stage != HCC_SHADER_STAGE_COMPUTE && variable->storage_duration == HCC_AST_STORAGE_DURATION_DISPATCH_GROUP) {
+						HccLocation* instr_location = hcc_aml_instr_location(cu, aml_instr);
+						const char* callstack = hcc_ast_function_callstack_string(cu, w->amlopt.function_recursion_call_stack, w->amlopt.function_recursion_call_stack_count);
+						hcc_amlopt_error_1(w, HCC_ERROR_CODE_DISPATCH_GROUP_ONLY_FOR_COMPUTE, instr_location, callstack);
+					}
+				}
 			}
 		}
 

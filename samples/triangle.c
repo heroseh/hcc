@@ -19,8 +19,6 @@ struct TriangleBC {
 #ifdef __HCC__
 #include <hmaths.h>
 
-HCC_DISPATCH_GROUP int g_test;
-
 typedef struct TriangleRasterizerState TriangleRasterizerState;
 HCC_RASTERIZER_STATE struct TriangleRasterizerState {
 	HCC_INTERP f32x4 color;
@@ -33,8 +31,6 @@ HCC_VERTEX void triangle_vs(
 	TriangleRasterizerState* const state_out
 ) {
 	HccRoBuffer(TriangleVertex) vertices = bc->vertices;
-
-	atomic_store_s32(&g_test, 1);
 
 	TriangleVertex vertex = bc->vertices[sv->vertex_idx];
 

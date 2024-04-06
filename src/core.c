@@ -5325,6 +5325,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_HLSL_PACKING_SIZE_UNDER_4_BYTE] = "HLSL packing rules do not data types under 4 bytes. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_IMPLICIT_PADDING] = "HLSL packing rules do not allow implicit padding before field. in future will a proper DXIL backend this error could be worked around",
 		[HCC_ERROR_CODE_HLSL_PACKING_OVERFLOW_16_BYTE_BOUNDARY] = "HLSL packing rules do not allow overflowing a 16 byte boundary. in future will a proper DXIL backend this error could be worked around",
+		[HCC_ERROR_CODE_DISPATCH_GROUP_ONLY_FOR_COMPUTE] = "HCC_DISPATCH_GROUP can only be used by compute shader stages. here is callstack to the shader entry point:\n%s",
 	},
 };
 
