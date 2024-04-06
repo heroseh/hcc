@@ -288,6 +288,53 @@ Like other shading languages, HCC has special functions that read/write to/from 
 
 You can find the functions and their documentation in [hcc_texture_intrinsics.h](../libhccintrinsics/hcc_texture_intrinsics.h)
 
+The element type for Storage Textures (`HccRoTexture*`, `HccWoTexture*`, `HccRwTexture*`, but NOT `HccSampleTexture*`) now must reflect the exact element data type the texture was initialized with in your graphics API. Sample textures (`HccSampleTexture*`) can still take advantage of the automatic conversion from the underlying image type to the shader specified one.
+
+Example:
+- `HccRoTexture2D(uint32_t)` must have it's `VkImageViewCreateInfo::format` be `VK_FORMAT_R32_UINT`
+- `HccRoTexture2D(u32x2)` must have it's `VkImageViewCreateInfo::format` be `VK_FORMAT_R32G32_UINT`
+- `HccRoTexture2D(f32x4)` must have it's `VkImageViewCreateInfo::format` be `VK_FORMAT_R32G32B32A32_SFLOAT`
+
+You can still use `VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT` when you create your `VkImage`'s to allow for using the same `VkImage` for sample textures and storage textures.
+
+Example:
+- here our texture is `VK_FORMAT_R8G8B8A8_UNORM`, and we are going to sample into a `f32x4` and manually write back a `uint32_t` pixel to the same texture.
+1. create your `VkImage` with `VkImageCreateInfo::flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT` and `VkImageCreateInfo::format = VK_FORMAT_R8G8B8A8_UNORM`
+2. create your `VkImageView sample_texture` with `VkImageView::format = VK_FORMAT_R8G8B8A8_UNORM`
+3. create your `VkImageView storage_texture` with `VkImageView::format = VK_FORMAT_R32_UINT`
+4. upload your descriptors for the two different `VkImageView`, one for `VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE` and the other for `VK_DESCRIPTOR_TYPE_STORAGE_IMAGE`
+
+This code samples a pixel and writes it back out to the same location.
+```
+HccRoSampler clamp_point_sampler = bc->clamp_point_sampler;
+HccSampleTexture2D(f32x4) sample_texture = bc->sample_texture;
+f32x4 color = sample_textureG(sample_texture, clamp_point_sampler, uv);
+
+HccWoTexture2D(uint32_t) storage_texture = bc->storage_texture;
+uint32_t color_packed = pack_u8x4_f32x4(color); // manually pack the color pixel
+store_textureG(storage_texture, u32x2(uv.x * bc->texture_dims.x, uv.y * bc->texture_dims.y), color_packed);
+```
+
+Unfortunately if you want to read/write to a swapchain image using a storage image, this is not supported well across hardware as not all drivers create the swapchain image with `VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT`.
+
+So instead the following solution must used:
+- we are assuming here that the swapchain image format is `VK_FORMAT_B8G8R8A8_UNORM`
+1. create a `VkImage fake_swapchain_image` with `VkImageCreateInfo::flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT` and `VkImageCreateInfo::format = VK_FORMAT_B8G8R8A8_UNORM`
+2. create your storage texture with `VkImageView fake_swapchain_image_view` with `VkImageView::format = VK_FORMAT_R32_UINT`
+3. do all of your rendering and storage image read/writes to `fake_swapchain_image_view` instead of the swapchain image
+4. copy vkCmdCopyImage from `fake_swapchain_image` to the swapchain image for that frame
+
+And be aware that because the swapchain image is BGRA instead of RGBA, you must manually swizzle this in the shader:
+```
+    HccRwTexture2D(uint32_t) fake_swapchain_image = ...;
+    f32x4 color = ...;  // the color you want to write
+    color.bgra = color; // manually convert to BGRA using swizzling support within HCC compiler --enable-unordered-swizzling
+    uint32_t color_packed = pack_u8x4_f32x4(color); // manually pack the color pixel
+    store_textureG(fake_swapchain_image, u32x2(sv->dispatch_idx.x, sv->dispatch_idx.y), color_packed);
+```
+
+Storage textures work this way in HCC to allow the shaders to work on hardware without any image format associated with the texture type/variable like you see in other shading languages. It also removes another layer of magic conversion that happens thus making it more transparent to the you the developer.
+
 ## Quad & Wave
 
 Like other shading languages, HCC has special functions that communicate and operate on groups of threads that execute in lockstep know as a `Quad` and `Wave`.
