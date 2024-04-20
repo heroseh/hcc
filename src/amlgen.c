@@ -564,6 +564,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE: op = HCC_AML_OP_CONTROL_BARRIER_RESOURCE; break;
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH_GROUP: op = HCC_AML_OP_CONTROL_BARRIER_DISPATCH_GROUP; break;
 								case HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL: op = HCC_AML_OP_CONTROL_BARRIER_ALL; break;
+								case HCC_FUNCTION_IDX_WAVE_IS_FIRST_LANE: op = HCC_AML_OP_WAVE_IS_FIRST_LANE; break;
+								case HCC_FUNCTION_IDX_WAVE_THREAD_IDX: op = HCC_AML_OP_WAVE_THREAD_IDX; break;
 								case HCC_FUNCTION_IDX_HPRINT_STRING:
 									op = HCC_AML_OP_HPRINT_STRING;
 									w->amlgen.temp_operands[temp_operands_start_idx + 0] = hcc_amlgen_generate_resource_descriptor_load(w, expr->location, w->amlgen.temp_operands[temp_operands_start_idx + 0]);
@@ -694,6 +696,11 @@ CALL_END:{}
 					expr->unary.op == HCC_AST_UNARY_OP_PRE_INCREMENT || expr->unary.op == HCC_AST_UNARY_OP_PRE_DECREMENT ||
 					expr->unary.op == HCC_AST_UNARY_OP_POST_INCREMENT || expr->unary.op == HCC_AST_UNARY_OP_POST_DECREMENT ||
 					expr->unary.op == HCC_AST_UNARY_OP_ADDRESS_OF
+
+					// TODO:
+					// this is technically incorrect, we need it here as the bundled constants parameter is a pointer but in AML
+					// it doesn't get the extra pointer added to the type like local variables do...
+					|| expr->unary.op == HCC_AST_UNARY_OP_DEREF
 				);
 
 			HccDataType dst_data_type = hcc_data_type_lower_ast_to_aml(w->cu, expr->data_type);

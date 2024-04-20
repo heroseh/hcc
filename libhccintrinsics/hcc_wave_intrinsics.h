@@ -232,39 +232,6 @@ bool quad_any_u8(uint8_t v);
 bool quad_any_u16(uint16_t v);
 bool quad_any_u32(uint32_t v);
 bool quad_any_u64(uint64_t v);
-bool quad_any_f16x2(f16x2 v);
-bool quad_any_f32x2(f32x2 v);
-bool quad_any_f64x2(f64x2 v);
-bool quad_any_s8x2(s8x2 v);
-bool quad_any_s16x2(s16x2 v);
-bool quad_any_s32x2(s32x2 v);
-bool quad_any_s64x2(s64x2 v);
-bool quad_any_u8x2(u8x2 v);
-bool quad_any_u16x2(u16x2 v);
-bool quad_any_u32x2(u32x2 v);
-bool quad_any_u64x2(u64x2 v);
-bool quad_any_f16x3(f16x3 v);
-bool quad_any_f32x3(f32x3 v);
-bool quad_any_f64x3(f64x3 v);
-bool quad_any_s8x3(s8x3 v);
-bool quad_any_s16x3(s16x3 v);
-bool quad_any_s32x3(s32x3 v);
-bool quad_any_s64x3(s64x3 v);
-bool quad_any_u8x3(u8x3 v);
-bool quad_any_u16x3(u16x3 v);
-bool quad_any_u32x3(u32x3 v);
-bool quad_any_u64x3(u64x3 v);
-bool quad_any_f16x4(f16x4 v);
-bool quad_any_f32x4(f32x4 v);
-bool quad_any_f64x4(f64x4 v);
-bool quad_any_s8x4(s8x4 v);
-bool quad_any_s16x4(s16x4 v);
-bool quad_any_s32x4(s32x4 v);
-bool quad_any_s64x4(s64x4 v);
-bool quad_any_u8x4(u8x4 v);
-bool quad_any_u16x4(u16x4 v);
-bool quad_any_u32x4(u32x4 v);
-bool quad_any_u64x4(u64x4 v);
 
 //
 // returns true when 'v' from ALL threads in the quad are not equal to '0'
@@ -284,39 +251,16 @@ bool quad_all_u8(uint8_t v);
 bool quad_all_u16(uint16_t v);
 bool quad_all_u32(uint32_t v);
 bool quad_all_u64(uint64_t v);
-bool quad_all_f16x2(f16x2 v);
-bool quad_all_f32x2(f32x2 v);
-bool quad_all_f64x2(f64x2 v);
-bool quad_all_s8x2(s8x2 v);
-bool quad_all_s16x2(s16x2 v);
-bool quad_all_s32x2(s32x2 v);
-bool quad_all_s64x2(s64x2 v);
-bool quad_all_u8x2(u8x2 v);
-bool quad_all_u16x2(u16x2 v);
-bool quad_all_u32x2(u32x2 v);
-bool quad_all_u64x2(u64x2 v);
-bool quad_all_f16x3(f16x3 v);
-bool quad_all_f32x3(f32x3 v);
-bool quad_all_f64x3(f64x3 v);
-bool quad_all_s8x3(s8x3 v);
-bool quad_all_s16x3(s16x3 v);
-bool quad_all_s32x3(s32x3 v);
-bool quad_all_s64x3(s64x3 v);
-bool quad_all_u8x3(u8x3 v);
-bool quad_all_u16x3(u16x3 v);
-bool quad_all_u32x3(u32x3 v);
-bool quad_all_u64x3(u64x3 v);
-bool quad_all_f16x4(f16x4 v);
-bool quad_all_f32x4(f32x4 v);
-bool quad_all_f64x4(f64x4 v);
-bool quad_all_s8x4(s8x4 v);
-bool quad_all_s16x4(s16x4 v);
-bool quad_all_s32x4(s32x4 v);
-bool quad_all_s64x4(s64x4 v);
-bool quad_all_u8x4(u8x4 v);
-bool quad_all_u16x4(u16x4 v);
-bool quad_all_u32x4(u32x4 v);
-bool quad_all_u64x4(u64x4 v);
+
+//
+// returns true for the first active lane with the lowest thread index
+//
+bool wave_is_first_lane(void);
+
+//
+// returns the index of the current thread within a wave
+//
+uint32_t wave_thread_idx(void);
 
 //
 // returns true when 'v' from ANY active threads in the wave are not equal to '0'.
@@ -334,39 +278,6 @@ bool wave_active_any_u8(uint8_t v);
 bool wave_active_any_u16(uint16_t v);
 bool wave_active_any_u32(uint32_t v);
 bool wave_active_any_u64(uint64_t v);
-bool wave_active_any_f16x2(f16x2 v);
-bool wave_active_any_f32x2(f32x2 v);
-bool wave_active_any_f64x2(f64x2 v);
-bool wave_active_any_s8x2(s8x2 v);
-bool wave_active_any_s16x2(s16x2 v);
-bool wave_active_any_s32x2(s32x2 v);
-bool wave_active_any_s64x2(s64x2 v);
-bool wave_active_any_u8x2(u8x2 v);
-bool wave_active_any_u16x2(u16x2 v);
-bool wave_active_any_u32x2(u32x2 v);
-bool wave_active_any_u64x2(u64x2 v);
-bool wave_active_any_f16x3(f16x3 v);
-bool wave_active_any_f32x3(f32x3 v);
-bool wave_active_any_f64x3(f64x3 v);
-bool wave_active_any_s8x3(s8x3 v);
-bool wave_active_any_s16x3(s16x3 v);
-bool wave_active_any_s32x3(s32x3 v);
-bool wave_active_any_s64x3(s64x3 v);
-bool wave_active_any_u8x3(u8x3 v);
-bool wave_active_any_u16x3(u16x3 v);
-bool wave_active_any_u32x3(u32x3 v);
-bool wave_active_any_u64x3(u64x3 v);
-bool wave_active_any_f16x4(f16x4 v);
-bool wave_active_any_f32x4(f32x4 v);
-bool wave_active_any_f64x4(f64x4 v);
-bool wave_active_any_s8x4(s8x4 v);
-bool wave_active_any_s16x4(s16x4 v);
-bool wave_active_any_s32x4(s32x4 v);
-bool wave_active_any_s64x4(s64x4 v);
-bool wave_active_any_u8x4(u8x4 v);
-bool wave_active_any_u16x4(u16x4 v);
-bool wave_active_any_u32x4(u32x4 v);
-bool wave_active_any_u64x4(u64x4 v);
 
 //
 // returns true when 'v' from ALL active threads in the wave are not equal to '0'
@@ -384,39 +295,6 @@ bool wave_active_all_u8(uint8_t v);
 bool wave_active_all_u16(uint16_t v);
 bool wave_active_all_u32(uint32_t v);
 bool wave_active_all_u64(uint64_t v);
-bool wave_active_all_f16x2(f16x2 v);
-bool wave_active_all_f32x2(f32x2 v);
-bool wave_active_all_f64x2(f64x2 v);
-bool wave_active_all_s8x2(s8x2 v);
-bool wave_active_all_s16x2(s16x2 v);
-bool wave_active_all_s32x2(s32x2 v);
-bool wave_active_all_s64x2(s64x2 v);
-bool wave_active_all_u8x2(u8x2 v);
-bool wave_active_all_u16x2(u16x2 v);
-bool wave_active_all_u32x2(u32x2 v);
-bool wave_active_all_u64x2(u64x2 v);
-bool wave_active_all_f16x3(f16x3 v);
-bool wave_active_all_f32x3(f32x3 v);
-bool wave_active_all_f64x3(f64x3 v);
-bool wave_active_all_s8x3(s8x3 v);
-bool wave_active_all_s16x3(s16x3 v);
-bool wave_active_all_s32x3(s32x3 v);
-bool wave_active_all_s64x3(s64x3 v);
-bool wave_active_all_u8x3(u8x3 v);
-bool wave_active_all_u16x3(u16x3 v);
-bool wave_active_all_u32x3(u32x3 v);
-bool wave_active_all_u64x3(u64x3 v);
-bool wave_active_all_f16x4(f16x4 v);
-bool wave_active_all_f32x4(f32x4 v);
-bool wave_active_all_f64x4(f64x4 v);
-bool wave_active_all_s8x4(s8x4 v);
-bool wave_active_all_s16x4(s16x4 v);
-bool wave_active_all_s32x4(s32x4 v);
-bool wave_active_all_s64x4(s64x4 v);
-bool wave_active_all_u8x4(u8x4 v);
-bool wave_active_all_u16x4(u16x4 v);
-bool wave_active_all_u32x4(u32x4 v);
-bool wave_active_all_u64x4(u64x4 v);
 
 //
 // read 'v' from a thread at 'thread_idx' in the wave

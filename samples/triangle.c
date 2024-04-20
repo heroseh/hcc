@@ -24,6 +24,10 @@ HCC_RASTERIZER_STATE struct TriangleRasterizerState {
 	HCC_INTERP f32x4 color;
 };
 
+HccRoBuffer(TriangleVertex) get_vertices_buffer(TriangleBC bc) {
+	return bc.vertices;
+}
+
 HCC_VERTEX void triangle_vs(
 	HccVertexSV const* const sv,
 	HccVertexSVOut* const sv_out,
@@ -32,7 +36,8 @@ HCC_VERTEX void triangle_vs(
 ) {
 	HccRoBuffer(TriangleVertex) vertices = bc->vertices;
 
-	TriangleVertex vertex = bc->vertices[sv->vertex_idx];
+	HccRoBuffer(TriangleVertex) b = get_vertices_buffer(*bc);
+	TriangleVertex vertex = b[sv->vertex_idx];
 
 	f32x4 colors[3] = {
 		f32x4(1.f, 0.f, 0.f, 1.f),

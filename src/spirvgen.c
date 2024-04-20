@@ -1348,16 +1348,43 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				break;
 			};
 
-			case HCC_AML_OP_QUAD_READ_THREAD:
 			case HCC_AML_OP_WAVE_ACTIVE_ANY:
-			case HCC_AML_OP_WAVE_ACTIVE_ALL:
+			case HCC_AML_OP_WAVE_ACTIVE_ALL: {
+				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
+				switch (aml_op) {
+					case HCC_AML_OP_WAVE_ACTIVE_ANY: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ANY; break;
+					case HCC_AML_OP_WAVE_ACTIVE_ALL: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ALL; break;
+				}
+				HCC_DEBUG_ASSERT(op != HCC_SPIRV_OP_NO_OP, "unhandled conversion to SPIR-V from AML for aml_op '%u'", aml_op);
+
+				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+				HccSPIRVOperand src_operand = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				HccSPIRVId converted_operand = hcc_spirvgen_convert_to_spirv_bool(w, function, src_operand, src_data_type);
+
+				HccSPIRVId result_operand = hcc_spirv_next_id(cu);
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, op, aml_operands_count + 2);
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
+				operands[1] = result_operand;
+				operands[2] = cu->spirv.scope_subgroup_spirv_id;
+				operands[3] = converted_operand;
+
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = result_operand;
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_one(w->cu, return_data_type));
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, return_data_type));
+				break;
+			};
+
+			case HCC_AML_OP_QUAD_READ_THREAD:
 			case HCC_AML_OP_WAVE_READ_THREAD:
 			case HCC_AML_OP_WAVE_ACTIVE_ALL_EQUAL: {
 				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
 				switch (aml_op) {
 					case HCC_AML_OP_QUAD_READ_THREAD: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_QUAD_BROADCAST; break;
-					case HCC_AML_OP_WAVE_ACTIVE_ANY: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ANY; break;
-					case HCC_AML_OP_WAVE_ACTIVE_ALL: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ALL; break;
 					case HCC_AML_OP_WAVE_READ_THREAD: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_SHUFFLE; break;
 					case HCC_AML_OP_WAVE_ACTIVE_ALL_EQUAL: op = HCC_SPIRV_OP_GROUP_NON_UNIFORM_ALL_EQUAL; break;
 				}
@@ -1490,6 +1517,36 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_MEMORY_BARRIER, 2);
 				operands[0] = memory_scope;
 				operands[1] = memory_semantics;
+				break;
+			};
+
+			case HCC_AML_OP_WAVE_IS_FIRST_LANE: {
+				HccSPIRVId execution_scope = cu->spirv.scope_subgroup_spirv_id;
+				HccSPIRVId result_operand = hcc_spirv_next_id(cu);
+
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_ELECT, 3);
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
+				operands[1] = result_operand;
+				operands[2] = execution_scope;
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = result_operand;
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_one(w->cu, return_data_type));
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, return_data_type));
+				break;
+			};
+
+			case HCC_AML_OP_WAVE_THREAD_IDX: {
+				hcc_spirvgen_found_global(w, HCC_SPIRV_ID_VARIABLE_INPUT_SUBGROUP_LOCAL_INVOCATION_ID);
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_LOAD, 3);
+				operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = HCC_SPIRV_ID_VARIABLE_INPUT_SUBGROUP_LOCAL_INVOCATION_ID;
 				break;
 			};
 
@@ -1690,7 +1747,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				HccSPIRVId intermediate_result_id = needs_intermediate_value ? hcc_spirv_next_id(cu) : result_id;
 
 				HccSPIRVOp op = HCC_SPIRV_OP_NO_OP;
-				uint32_t extra_operands_count = HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type) * 2;
+				uint32_t extra_operands_count = HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type) * 2 + (aml_op == HCC_AML_OP_FETCH_TEXTURE) * 2;
 				switch (aml_op) {
 					case HCC_AML_OP_LOAD_TEXTURE:  op = HCC_SPIRV_OP_IMAGE_READ; break;
 					case HCC_AML_OP_FETCH_TEXTURE: op = HCC_SPIRV_OP_IMAGE_FETCH; break;
@@ -1707,9 +1764,16 @@ void hcc_spirvgen_generate(HccWorker* w) {
 						? ms_sample_spirv_id
 						: hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, HCC_DATA_TYPE_AML_INTRINSIC_U32))
 						;
-				} else if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) {
-					operands[4] = HCC_SPIRV_IMAGE_OPERAND_SAMPLE;
-					operands[5] = ms_sample_spirv_id;
+				} else {
+					if (HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)) {
+						operands[4] = HCC_SPIRV_IMAGE_OPERAND_SAMPLE;
+						operands[5] = ms_sample_spirv_id;
+					}
+					if (aml_op == HCC_AML_OP_FETCH_TEXTURE) {
+						// it is okay to hardcode 4 and 5 since multisampled textures do not have mips
+						operands[4] = HCC_SPIRV_IMAGE_OPERAND_LOD;
+						operands[5] = hcc_spirvgen_convert_operand(w, aml_operands[3]);
+					}
 				}
 
 				if (needs_intermediate_value) {

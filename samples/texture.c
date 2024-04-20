@@ -56,7 +56,7 @@ HCC_PIXEL void texture_ps(
 			pixel_out->color = unpack_u8x4_f32x4(load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023)));
 			break;
 		case 1:
-			pixel_out->color = fetch_textureG(bc->sample_texture, u32x2(uv.x * 1023, uv.y * 1023));
+			pixel_out->color = fetch_textureG(bc->sample_texture, u32x2(uv.x * 1023, uv.y * 1023), 0);
 			break;
 		case 2:
 			pixel_out->color = sample_textureG(bc->sample_texture, bc->sampler, uv);

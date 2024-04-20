@@ -4692,6 +4692,10 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 				expr = NULL;
 				location = hcc_ata_iter_location(w->astgen.token_iter);
 				token = hcc_ata_iter_next(w->astgen.token_iter);
+				if (w->astgen.function->return_data_type != HCC_DATA_TYPE_AST_BASIC_VOID) {
+					HccString return_data_type_name = hcc_data_type_string(w->cu, w->astgen.function->return_data_type);
+					hcc_astgen_bail_error_2(w, HCC_ERROR_CODE_MISSING_RETURN_EXPR, w->astgen.function->identifier_location, (int)return_data_type_name.size, return_data_type_name.data);
+				}
 			} else {
 				location = hcc_ata_iter_location(w->astgen.token_iter);
 				expr = hcc_astgen_generate_expr(w, 0);

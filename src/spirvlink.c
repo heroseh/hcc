@@ -130,10 +130,16 @@ void hcc_spirvlink_link(HccWorker* w) {
 	operands[0] = HCC_SPIRV_CAPABILITY_DEMOTE_HELPER_INVOCATION;
 
 	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
-	operands[0] = HCC_SPIRV_CAPABILITY_GROUP_ARITHMETIC;
+	operands[0] = HCC_SPIRV_CAPABILITY_GROUP_NON_UNIFORM_VOTE;
+
+	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+	operands[0] = HCC_SPIRV_CAPABILITY_GROUP_NON_UNIFORM_ARITHMETIC;
 
 	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 	operands[0] = HCC_SPIRV_CAPABILITY_GROUP_NON_UNIFORM_SHUFFLE;
+
+	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+	operands[0] = HCC_SPIRV_CAPABILITY_GROUP_NON_UNIFORM_QUAD;
 
 	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_INT8_ENABLED)) {
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
@@ -299,6 +305,11 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_FLAT_IDX;
 		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
 		operands[2] = HCC_SPIRV_BUILTIN_LOCAL_INVOCATION_INDEX;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 3);
+		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_SUBGROUP_LOCAL_INVOCATION_ID;
+		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
+		operands[2] = HCC_SPIRV_BUILTIN_SUBGROUP_LOCAL_INVOCATION_ID;
 	}
 
 	HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.decorate_words));
@@ -376,6 +387,11 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
 		operands[0] = variable_input_u32_type_id;
 		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_DISPATCH_LOCAL_FLAT_IDX;
+		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
+
+		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_VARIABLE, 3);
+		operands[0] = variable_input_u32_type_id;
+		operands[1] = HCC_SPIRV_ID_VARIABLE_INPUT_SUBGROUP_LOCAL_INVOCATION_ID;
 		operands[2] = HCC_SPIRV_STORAGE_CLASS_INPUT;
 
 		HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.global_variable_words));

@@ -242,68 +242,68 @@ u32x4 load_texture_3d_u32x4(HccRoTexture3D(u32x4) texture, u32x3 idx);
 
 //
 // fetch a texel from 'texture' at 'idx'
-float fetch_texture_1d_f32(HccSampleTexture1D(float) texture, uint32_t idx);
-int32_t fetch_texture_1d_s32(HccSampleTexture1D(int32_t) texture, uint32_t idx);
-uint32_t fetch_texture_1d_u32(HccSampleTexture1D(uint32_t) texture, uint32_t idx);
-f32x2 fetch_texture_1d_f32x2(HccSampleTexture1D(f32x2) texture, uint32_t idx);
-s32x2 fetch_texture_1d_s32x2(HccSampleTexture1D(s32x2) texture, uint32_t idx);
-u32x2 fetch_texture_1d_u32x2(HccSampleTexture1D(u32x2) texture, uint32_t idx);
-f32x3 fetch_texture_1d_f32x3(HccSampleTexture1D(f32x3) texture, uint32_t idx);
-s32x3 fetch_texture_1d_s32x3(HccSampleTexture1D(s32x3) texture, uint32_t idx);
-u32x3 fetch_texture_1d_u32x3(HccSampleTexture1D(u32x3) texture, uint32_t idx);
-f32x4 fetch_texture_1d_f32x4(HccSampleTexture1D(f32x4) texture, uint32_t idx);
-s32x4 fetch_texture_1d_s32x4(HccSampleTexture1D(s32x4) texture, uint32_t idx);
-u32x4 fetch_texture_1d_u32x4(HccSampleTexture1D(u32x4) texture, uint32_t idx);
-float fetch_texture_1d_array_f32(HccSampleTexture1DArray(float) texture, u32x2 idx);
-int32_t fetch_texture_1d_array_s32(HccSampleTexture1DArray(int32_t) texture, u32x2 idx);
-uint32_t fetch_texture_1d_array_u32(HccSampleTexture1DArray(uint32_t) texture, u32x2 idx);
-f32x2 fetch_texture_1d_array_f32x2(HccSampleTexture1DArray(f32x2) texture, u32x2 idx);
-s32x2 fetch_texture_1d_array_s32x2(HccSampleTexture1DArray(s32x2) texture, u32x2 idx);
-u32x2 fetch_texture_1d_array_u32x2(HccSampleTexture1DArray(u32x2) texture, u32x2 idx);
-f32x3 fetch_texture_1d_array_f32x3(HccSampleTexture1DArray(f32x3) texture, u32x2 idx);
-s32x3 fetch_texture_1d_array_s32x3(HccSampleTexture1DArray(s32x3) texture, u32x2 idx);
-u32x3 fetch_texture_1d_array_u32x3(HccSampleTexture1DArray(u32x3) texture, u32x2 idx);
-f32x4 fetch_texture_1d_array_f32x4(HccSampleTexture1DArray(f32x4) texture, u32x2 idx);
-s32x4 fetch_texture_1d_array_s32x4(HccSampleTexture1DArray(s32x4) texture, u32x2 idx);
-u32x4 fetch_texture_1d_array_u32x4(HccSampleTexture1DArray(u32x4) texture, u32x2 idx);
-float fetch_texture_2d_f32(HccSampleTexture2D(float) texture, u32x2 idx);
-int32_t fetch_texture_2d_s32(HccSampleTexture2D(int32_t) texture, u32x2 idx);
-uint32_t fetch_texture_2d_u32(HccSampleTexture2D(uint32_t) texture, u32x2 idx);
-f32x2 fetch_texture_2d_f32x2(HccSampleTexture2D(f32x2) texture, u32x2 idx);
-s32x2 fetch_texture_2d_s32x2(HccSampleTexture2D(s32x2) texture, u32x2 idx);
-u32x2 fetch_texture_2d_u32x2(HccSampleTexture2D(u32x2) texture, u32x2 idx);
-f32x3 fetch_texture_2d_f32x3(HccSampleTexture2D(f32x3) texture, u32x2 idx);
-s32x3 fetch_texture_2d_s32x3(HccSampleTexture2D(s32x3) texture, u32x2 idx);
-u32x3 fetch_texture_2d_u32x3(HccSampleTexture2D(u32x3) texture, u32x2 idx);
-f32x4 fetch_texture_2d_f32x4(HccSampleTexture2D(f32x4) texture, u32x2 idx);
-s32x4 fetch_texture_2d_s32x4(HccSampleTexture2D(s32x4) texture, u32x2 idx);
-u32x4 fetch_texture_2d_u32x4(HccSampleTexture2D(u32x4) texture, u32x2 idx);
-float fetch_texture_2d_array_f32(HccSampleTexture2DArray(float) texture, u32x3 idx);
-int32_t fetch_texture_2d_array_s32(HccSampleTexture2DArray(int32_t) texture, u32x3 idx);
-uint32_t fetch_texture_2d_array_u32(HccSampleTexture2DArray(uint32_t) texture, u32x3 idx);
-f32x2 fetch_texture_2d_array_f32x2(HccSampleTexture2DArray(f32x2) texture, u32x3 idx);
-s32x2 fetch_texture_2d_array_s32x2(HccSampleTexture2DArray(s32x2) texture, u32x3 idx);
-u32x2 fetch_texture_2d_array_u32x2(HccSampleTexture2DArray(u32x2) texture, u32x3 idx);
-f32x3 fetch_texture_2d_array_f32x3(HccSampleTexture2DArray(f32x3) texture, u32x3 idx);
-s32x3 fetch_texture_2d_array_s32x3(HccSampleTexture2DArray(s32x3) texture, u32x3 idx);
-u32x3 fetch_texture_2d_array_u32x3(HccSampleTexture2DArray(u32x3) texture, u32x3 idx);
-f32x4 fetch_texture_2d_array_f32x4(HccSampleTexture2DArray(f32x4) texture, u32x3 idx);
-s32x4 fetch_texture_2d_array_s32x4(HccSampleTexture2DArray(s32x4) texture, u32x3 idx);
-u32x4 fetch_texture_2d_array_u32x4(HccSampleTexture2DArray(u32x4) texture, u32x3 idx);
-float fetch_texture_3d_f32(HccSampleTexture3D(float) texture, u32x3 idx);
-int32_t fetch_texture_3d_s32(HccSampleTexture3D(int32_t) texture, u32x3 idx);
-uint32_t fetch_texture_3d_u32(HccSampleTexture3D(uint32_t) texture, u32x3 idx);
-f32x2 fetch_texture_3d_f32x2(HccSampleTexture3D(f32x2) texture, u32x3 idx);
-s32x2 fetch_texture_3d_s32x2(HccSampleTexture3D(s32x2) texture, u32x3 idx);
-u32x2 fetch_texture_3d_u32x2(HccSampleTexture3D(u32x2) texture, u32x3 idx);
-f32x3 fetch_texture_3d_f32x3(HccSampleTexture3D(f32x3) texture, u32x3 idx);
-s32x3 fetch_texture_3d_s32x3(HccSampleTexture3D(s32x3) texture, u32x3 idx);
-u32x3 fetch_texture_3d_u32x3(HccSampleTexture3D(u32x3) texture, u32x3 idx);
-f32x4 fetch_texture_3d_f32x4(HccSampleTexture3D(f32x4) texture, u32x3 idx);
-s32x4 fetch_texture_3d_s32x4(HccSampleTexture3D(s32x4) texture, u32x3 idx);
-u32x4 fetch_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, u32x3 idx);
+float fetch_texture_1d_f32(HccSampleTexture1D(float) texture, uint32_t idx, uint32_t mip_level);
+int32_t fetch_texture_1d_s32(HccSampleTexture1D(int32_t) texture, uint32_t idx, uint32_t mip_level);
+uint32_t fetch_texture_1d_u32(HccSampleTexture1D(uint32_t) texture, uint32_t idx, uint32_t mip_level);
+f32x2 fetch_texture_1d_f32x2(HccSampleTexture1D(f32x2) texture, uint32_t idx, uint32_t mip_level);
+s32x2 fetch_texture_1d_s32x2(HccSampleTexture1D(s32x2) texture, uint32_t idx, uint32_t mip_level);
+u32x2 fetch_texture_1d_u32x2(HccSampleTexture1D(u32x2) texture, uint32_t idx, uint32_t mip_level);
+f32x3 fetch_texture_1d_f32x3(HccSampleTexture1D(f32x3) texture, uint32_t idx, uint32_t mip_level);
+s32x3 fetch_texture_1d_s32x3(HccSampleTexture1D(s32x3) texture, uint32_t idx, uint32_t mip_level);
+u32x3 fetch_texture_1d_u32x3(HccSampleTexture1D(u32x3) texture, uint32_t idx, uint32_t mip_level);
+f32x4 fetch_texture_1d_f32x4(HccSampleTexture1D(f32x4) texture, uint32_t idx, uint32_t mip_level);
+s32x4 fetch_texture_1d_s32x4(HccSampleTexture1D(s32x4) texture, uint32_t idx, uint32_t mip_level);
+u32x4 fetch_texture_1d_u32x4(HccSampleTexture1D(u32x4) texture, uint32_t idx, uint32_t mip_level);
+float fetch_texture_1d_array_f32(HccSampleTexture1DArray(float) texture, u32x2 idx, uint32_t mip_level);
+int32_t fetch_texture_1d_array_s32(HccSampleTexture1DArray(int32_t) texture, u32x2 idx, uint32_t mip_level);
+uint32_t fetch_texture_1d_array_u32(HccSampleTexture1DArray(uint32_t) texture, u32x2 idx, uint32_t mip_level);
+f32x2 fetch_texture_1d_array_f32x2(HccSampleTexture1DArray(f32x2) texture, u32x2 idx, uint32_t mip_level);
+s32x2 fetch_texture_1d_array_s32x2(HccSampleTexture1DArray(s32x2) texture, u32x2 idx, uint32_t mip_level);
+u32x2 fetch_texture_1d_array_u32x2(HccSampleTexture1DArray(u32x2) texture, u32x2 idx, uint32_t mip_level);
+f32x3 fetch_texture_1d_array_f32x3(HccSampleTexture1DArray(f32x3) texture, u32x2 idx, uint32_t mip_level);
+s32x3 fetch_texture_1d_array_s32x3(HccSampleTexture1DArray(s32x3) texture, u32x2 idx, uint32_t mip_level);
+u32x3 fetch_texture_1d_array_u32x3(HccSampleTexture1DArray(u32x3) texture, u32x2 idx, uint32_t mip_level);
+f32x4 fetch_texture_1d_array_f32x4(HccSampleTexture1DArray(f32x4) texture, u32x2 idx, uint32_t mip_level);
+s32x4 fetch_texture_1d_array_s32x4(HccSampleTexture1DArray(s32x4) texture, u32x2 idx, uint32_t mip_level);
+u32x4 fetch_texture_1d_array_u32x4(HccSampleTexture1DArray(u32x4) texture, u32x2 idx, uint32_t mip_level);
+float fetch_texture_2d_f32(HccSampleTexture2D(float) texture, u32x2 idx, uint32_t mip_level);
+int32_t fetch_texture_2d_s32(HccSampleTexture2D(int32_t) texture, u32x2 idx, uint32_t mip_level);
+uint32_t fetch_texture_2d_u32(HccSampleTexture2D(uint32_t) texture, u32x2 idx, uint32_t mip_level);
+f32x2 fetch_texture_2d_f32x2(HccSampleTexture2D(f32x2) texture, u32x2 idx, uint32_t mip_level);
+s32x2 fetch_texture_2d_s32x2(HccSampleTexture2D(s32x2) texture, u32x2 idx, uint32_t mip_level);
+u32x2 fetch_texture_2d_u32x2(HccSampleTexture2D(u32x2) texture, u32x2 idx, uint32_t mip_level);
+f32x3 fetch_texture_2d_f32x3(HccSampleTexture2D(f32x3) texture, u32x2 idx, uint32_t mip_level);
+s32x3 fetch_texture_2d_s32x3(HccSampleTexture2D(s32x3) texture, u32x2 idx, uint32_t mip_level);
+u32x3 fetch_texture_2d_u32x3(HccSampleTexture2D(u32x3) texture, u32x2 idx, uint32_t mip_level);
+f32x4 fetch_texture_2d_f32x4(HccSampleTexture2D(f32x4) texture, u32x2 idx, uint32_t mip_level);
+s32x4 fetch_texture_2d_s32x4(HccSampleTexture2D(s32x4) texture, u32x2 idx, uint32_t mip_level);
+u32x4 fetch_texture_2d_u32x4(HccSampleTexture2D(u32x4) texture, u32x2 idx, uint32_t mip_level);
+float fetch_texture_2d_array_f32(HccSampleTexture2DArray(float) texture, u32x3 idx, uint32_t mip_level);
+int32_t fetch_texture_2d_array_s32(HccSampleTexture2DArray(int32_t) texture, u32x3 idx, uint32_t mip_level);
+uint32_t fetch_texture_2d_array_u32(HccSampleTexture2DArray(uint32_t) texture, u32x3 idx, uint32_t mip_level);
+f32x2 fetch_texture_2d_array_f32x2(HccSampleTexture2DArray(f32x2) texture, u32x3 idx, uint32_t mip_level);
+s32x2 fetch_texture_2d_array_s32x2(HccSampleTexture2DArray(s32x2) texture, u32x3 idx, uint32_t mip_level);
+u32x2 fetch_texture_2d_array_u32x2(HccSampleTexture2DArray(u32x2) texture, u32x3 idx, uint32_t mip_level);
+f32x3 fetch_texture_2d_array_f32x3(HccSampleTexture2DArray(f32x3) texture, u32x3 idx, uint32_t mip_level);
+s32x3 fetch_texture_2d_array_s32x3(HccSampleTexture2DArray(s32x3) texture, u32x3 idx, uint32_t mip_level);
+u32x3 fetch_texture_2d_array_u32x3(HccSampleTexture2DArray(u32x3) texture, u32x3 idx, uint32_t mip_level);
+f32x4 fetch_texture_2d_array_f32x4(HccSampleTexture2DArray(f32x4) texture, u32x3 idx, uint32_t mip_level);
+s32x4 fetch_texture_2d_array_s32x4(HccSampleTexture2DArray(s32x4) texture, u32x3 idx, uint32_t mip_level);
+u32x4 fetch_texture_2d_array_u32x4(HccSampleTexture2DArray(u32x4) texture, u32x3 idx, uint32_t mip_level);
+float fetch_texture_3d_f32(HccSampleTexture3D(float) texture, u32x3 idx, uint32_t mip_level);
+int32_t fetch_texture_3d_s32(HccSampleTexture3D(int32_t) texture, u32x3 idx, uint32_t mip_level);
+uint32_t fetch_texture_3d_u32(HccSampleTexture3D(uint32_t) texture, u32x3 idx, uint32_t mip_level);
+f32x2 fetch_texture_3d_f32x2(HccSampleTexture3D(f32x2) texture, u32x3 idx, uint32_t mip_level);
+s32x2 fetch_texture_3d_s32x2(HccSampleTexture3D(s32x2) texture, u32x3 idx, uint32_t mip_level);
+u32x2 fetch_texture_3d_u32x2(HccSampleTexture3D(u32x2) texture, u32x3 idx, uint32_t mip_level);
+f32x3 fetch_texture_3d_f32x3(HccSampleTexture3D(f32x3) texture, u32x3 idx, uint32_t mip_level);
+s32x3 fetch_texture_3d_s32x3(HccSampleTexture3D(s32x3) texture, u32x3 idx, uint32_t mip_level);
+u32x3 fetch_texture_3d_u32x3(HccSampleTexture3D(u32x3) texture, u32x3 idx, uint32_t mip_level);
+f32x4 fetch_texture_3d_f32x4(HccSampleTexture3D(f32x4) texture, u32x3 idx, uint32_t mip_level);
+s32x4 fetch_texture_3d_s32x4(HccSampleTexture3D(s32x4) texture, u32x3 idx, uint32_t mip_level);
+u32x4 fetch_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, u32x3 idx, uint32_t mip_level);
 #ifdef HCC_HAS_C_GENERIC_SUPPORT
-#define fetch_textureG(texture, idx) \
+#define fetch_textureG(texture, idx, mip_level) \
 	_Generic((texture), \
 		HccSampleTexture1D(float): fetch_texture_1d_f32, \
 		HccSampleTexture1D(int32_t): fetch_texture_1d_s32, \
@@ -365,7 +365,7 @@ u32x4 fetch_texture_3d_u32x4(HccSampleTexture3D(u32x4) texture, u32x3 idx);
 		HccSampleTexture3D(f32x4): fetch_texture_3d_f32x4, \
 		HccSampleTexture3D(s32x4): fetch_texture_3d_s32x4, \
 		HccSampleTexture3D(u32x4): fetch_texture_3d_u32x4 \
-	)(texture, idx)
+	)(texture, idx, mip_level)
 #endif // HCC_HAS_C_GENERIC_SUPPORT
 
 //

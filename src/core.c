@@ -4466,6 +4466,9 @@ void hcc_constant_print(HccCU* cu, HccConstantId constant_id, HccIIO* iio) {
 		HccString data_type_name = hcc_data_type_string(cu, constant.data_type);
 		hcc_iio_write_fmt(iio, "%.*s: ", (int)data_type_name.size, data_type_name.data);
 		hcc_data_type_print_basic(cu, constant.data_type, constant.data, iio);
+	} else if (HCC_DATA_TYPE_IS_RESOURCE(constant.data_type)) {
+		HccString data_type_name = hcc_data_type_string(cu, constant.data_type);
+		hcc_iio_write_fmt(iio, "%.*s: %u", (int)data_type_name.size, data_type_name.data, *(uint32_t*)constant.data);
 	} else {
 		HCC_ABORT("unhandled type '%u'", constant.data_type);
 	}
@@ -5184,6 +5187,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST] = "type mismatch '%.*s' is does not implicitly cast to '%.*s'",
 		[HCC_ERROR_CODE_TYPE_MISMATCH_IMPLICIT_CAST_BUT_CAN_EXPLICITLY] = "type mismatch '%.*s' is does not implicitly cast to '%.*s' but it can explicitly eg. (%.*s)expression",
 		[HCC_ERROR_CODE_TYPE_MISMATCH] = "type mismatch '%.*s' and '%.*s'",
+		[HCC_ERROR_CODE_MISSING_RETURN_EXPR] = "missing return expression on a function that expects '%.*s' to be returned",
 		[HCC_ERROR_CODE_UNSUPPORTED_BINARY_OPERATOR] = "operator '%s' is not supported for data type '%.*s' and '%.*s'",
 		[HCC_ERROR_CODE_ATTEMPTING_TO_READ_FROM_MUTONLY] = "attempting to read from 'mutonly' variable",
 		[HCC_ERROR_CODE_INVALID_CURLY_EXPR] = "'{' can only be used as the assignment of variable declarations or compound literals",
@@ -5642,6 +5646,8 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE] = "control_barrier_resource",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH_GROUP] = "control_barrier_dispatch_group",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL] = "control_barrier_all",
+	[HCC_FUNCTION_IDX_WAVE_IS_FIRST_LANE] = "wave_is_first_lane",
+	[HCC_FUNCTION_IDX_WAVE_THREAD_IDX] = "wave_thread_idx",
 	[HCC_FUNCTION_IDX_HPRINT_STRING] = "hprint_string",
 };
 
@@ -5858,10 +5864,10 @@ HccManyTypeClass hcc_intrinisic_function_many_support[HCC_FUNCTION_MANY_COUNT] =
 	[HCC_FUNCTION_MANY_QUAD_SWAP_Y] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_QUAD_SWAP_DIAGONAL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_QUAD_READ_THREAD] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_MANY_QUAD_ANY] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_MANY_QUAD_ALL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_MANY_WAVE_ACTIVE_ANY] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
-	[HCC_FUNCTION_MANY_WAVE_ACTIVE_ALL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
+	[HCC_FUNCTION_MANY_QUAD_ANY] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR,
+	[HCC_FUNCTION_MANY_QUAD_ALL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR,
+	[HCC_FUNCTION_MANY_WAVE_ACTIVE_ANY] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR,
+	[HCC_FUNCTION_MANY_WAVE_ACTIVE_ALL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR,
 	[HCC_FUNCTION_MANY_WAVE_READ_THREAD] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_WAVE_ACTIVE_ALL_EQUAL] = HCC_MANY_TYPE_CLASS_SCALARS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,
 	[HCC_FUNCTION_MANY_WAVE_ACTIVE_MIN] = HCC_MANY_TYPE_CLASS_NUMBERS | HCC_MANY_TYPE_CLASS_OPS_SCALAR_VECTOR,

@@ -78,9 +78,9 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 	data_type = HCC_DATA_TYPE_STRIP_QUALIFIERS(data_type);
 	bool needs_block
 		= storage_class == HCC_SPIRV_STORAGE_CLASS_PUSH_CONSTANT
-		|| storage_class == HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER
-		|| storage_class == HCC_SPIRV_STORAGE_CLASS_INPUT
-		|| storage_class == HCC_SPIRV_STORAGE_CLASS_OUTPUT
+		|| (storage_class == HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER && HCC_DATA_TYPE_IS_POINTER(data_type))
+		|| (storage_class == HCC_SPIRV_STORAGE_CLASS_INPUT && HCC_DATA_TYPE_IS_POINTER(data_type))
+		|| (storage_class == HCC_SPIRV_STORAGE_CLASS_OUTPUT && HCC_DATA_TYPE_IS_POINTER(data_type))
 		;
 	if (!HCC_DATA_TYPE_IS_POINTER(data_type)) {
 		storage_class = HCC_SPIRV_STORAGE_CLASS_INVALID;
@@ -110,6 +110,7 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		uint32_t operands_count;
 		HccSPIRVId runtime_array_spirv_id = 0;
 		uint32_t num_ids = 1;
+		entry->has_block_decorate = false;
 		switch (HCC_DATA_TYPE_TYPE(data_type)) {
 			case HCC_DATA_TYPE_STRUCT: {
 				HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
@@ -310,6 +311,7 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 					operands = hcc_spirv_add_decorate(cu, 2);
 					operands[0] = spirv_id;
 					operands[1] = HCC_SPIRV_DECORATION_BLOCK;
+					entry->has_block_decorate = true;
 					break;
 			}
 
@@ -364,6 +366,27 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		// spin if another thread has just inserted the entry but not set the spirv id yet
 		while (atomic_load(&entry->spirv_id) == 0) {
 			HCC_CPU_RELAX();
+		}
+
+		if (HCC_DATA_TYPE_IS_COMPOUND(data_type) && !entry->has_block_decorate) {
+			switch (data_type) {
+				default:
+					if (!needs_block) {
+						break;
+					}
+					hcc_fallthrough;
+				case HCC_DATA_TYPE_HCC_VERTEX_SV:
+				case HCC_DATA_TYPE_HCC_VERTEX_SV_OUT:
+				case HCC_DATA_TYPE_HCC_PIXEL_SV:
+				case HCC_DATA_TYPE_HCC_PIXEL_SV_OUT:
+				case HCC_DATA_TYPE_HCC_COMPUTE_SV: {
+					HccSPIRVOperand* operands = hcc_spirv_add_decorate(cu, 2);
+					operands[0] = atomic_load(&entry->spirv_id);
+					operands[1] = HCC_SPIRV_DECORATION_BLOCK;
+					entry->has_block_decorate = true;
+					break;
+				};
+			}
 		}
 	}
 
