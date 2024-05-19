@@ -50,7 +50,7 @@ HCC_PIXEL void texture_ps(
 	f32x2 uv = addsG(mulsG(addG(mulG(state->uv, bc->scale), bc->offset), 0.5f), 0.5f);
 	uv = clampsG(uv, 0.f, 1.f);
 
-	uint32_t mode = floorG(bc->time_) % 10;
+	const uint32_t mode = floorG(bc->time_) % 10;
 	switch (mode) {
 		case 0:
 			pixel_out->color = unpack_u8x4_f32x4(load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023)));

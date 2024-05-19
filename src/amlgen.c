@@ -416,6 +416,8 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 								hcc_amlgen_value_add(w, result_data_type), cond_operand, result_true_operand, result_false_operand);
 						}
 
+						HccAMLOperand cond_final_basic_block = hcc_amlgen_current_basic_block(w);
+
 						//
 						// for the true & false blocks, if they are constants:
 						//     it's block doesn't exist and it will branch straight from the original conditional branch to the converging block with it's result.
@@ -466,7 +468,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 							HccAMLOperand result_true_operand = HCC_AML_OPERAND(CONSTANT, result_true_expr->constant.id.idx_plus_one);
 							cond_branch_operands[1] = converging_basic_block;
 							cond_branch_operands[3] = result_true_operand;
-							hcc_amlgen_basic_block_param_src_add(w, basic_block_operand, cond_branch_operands[3]);
+							hcc_amlgen_basic_block_param_src_add(w, cond_final_basic_block, cond_branch_operands[3]);
 						} else {
 							true_converging_branch_operands[0] = converging_basic_block;
 							hcc_amlgen_basic_block_param_src_add(w, true_final_basic_block, true_converging_branch_operands[1]);
@@ -475,7 +477,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 							HccAMLOperand result_false_operand = HCC_AML_OPERAND(CONSTANT, result_false_expr->constant.id.idx_plus_one);
 							cond_branch_operands[2] = converging_basic_block;
 							cond_branch_operands[3 + result_true_is_constant] = result_false_operand;
-							hcc_amlgen_basic_block_param_src_add(w, basic_block_operand, cond_branch_operands[3]);
+							hcc_amlgen_basic_block_param_src_add(w, cond_final_basic_block, cond_branch_operands[3]);
 						} else {
 							false_converging_branch_operands[0] = converging_basic_block;
 							hcc_amlgen_basic_block_param_src_add(w, false_final_basic_block, false_converging_branch_operands[1]);

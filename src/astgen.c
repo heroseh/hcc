@@ -4778,7 +4778,7 @@ HccASTExpr* hcc_astgen_generate_stmt(HccWorker* w) {
 			switch_state->first_switch_case = NULL;
 			switch_state->prev_switch_case = NULL;
 			switch_state->default_switch_case = NULL;
-			switch_state->switch_condition_type = cond_expr->data_type;
+			switch_state->switch_condition_type = HCC_DATA_TYPE_STRIP_QUALIFIERS(cond_expr->data_type);
 			switch_state->case_stmts_count = 0;
 
 			HccASTExpr* block_stmt = hcc_astgen_generate_stmt(w);
