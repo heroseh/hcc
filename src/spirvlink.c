@@ -141,6 +141,9 @@ void hcc_spirvlink_link(HccWorker* w) {
 	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 	operands[0] = HCC_SPIRV_CAPABILITY_GROUP_NON_UNIFORM_QUAD;
 
+	operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+	operands[0] = HCC_SPIRV_CAPABILITY_STORAGE_IMAGE_EXTENDED_FORMATS;
+
 	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_INT8_ENABLED)) {
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 		operands[0] = HCC_SPIRV_CAPABILITY_INT8;

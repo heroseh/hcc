@@ -90,14 +90,23 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 
 	if (HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(data_type)) {
 		HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(data_type);
-		if (HCC_RESOURCE_DATA_TYPE_IS_TEXTURE(resource_data_type) && HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) != HCC_RESOURCE_ACCESS_MODE_SAMPLE) {
-			//
-			// SUPER HACK: spir-v only allows unique type declaration for OpTypeImage.
-			// HCC_RESOURCE_ACCESS_MODE_READ_ONLY & HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY & HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
-			// all end up making an identical opTypeImage, so make all of those use the same key for the hash table when deduplicating the type.
-			resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_MASK;
-			resource_data_type |= HCC_RESOURCE_ACCESS_MODE_READ_ONLY << HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_SHIFT;
-			data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, resource_data_type);
+		if (HCC_RESOURCE_DATA_TYPE_IS_TEXTURE(resource_data_type)) {
+			if (HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) == HCC_RESOURCE_ACCESS_MODE_SAMPLE) {
+				//
+				// SUPER HACK: spir-v only allows unique type declaration for OpTypeImage.
+				// all sample texture descriptors do not use the image format field.
+				// so strip out the vectoriness of the intrinsic data type so that the scalar is left to differentiate them
+				resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE_VECTOR_MASK;
+				data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, resource_data_type);
+			} else {
+				//
+				// SUPER HACK: spir-v only allows unique type declaration for OpTypeImage.
+				// HCC_RESOURCE_ACCESS_MODE_READ_ONLY & HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY & HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
+				// all end up making an identical opTypeImage, so make all of those use the same key for the hash table when deduplicating the type.
+				resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_MASK;
+				resource_data_type |= HCC_RESOURCE_ACCESS_MODE_READ_ONLY << HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_SHIFT;
+				data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, resource_data_type);
+			}
 		}
 	}
 
