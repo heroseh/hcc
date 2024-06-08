@@ -5651,7 +5651,7 @@ const char* hcc_intrinisic_function_strings[HCC_FUNCTION_IDX_STRINGS_COUNT] = {
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_RESOURCE] = "control_barrier_resource",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_DISPATCH_GROUP] = "control_barrier_dispatch_group",
 	[HCC_FUNCTION_IDX_CONTROL_BARRIER_ALL] = "control_barrier_all",
-	[HCC_FUNCTION_IDX_WAVE_IS_FIRST_LANE] = "wave_is_first_lane",
+	[HCC_FUNCTION_IDX_WAVE_THREAD_IS_FIRST] = "wave_thread_is_first",
 	[HCC_FUNCTION_IDX_WAVE_THREAD_IDX] = "wave_thread_idx",
 	[HCC_FUNCTION_IDX_HPRINT_STRING] = "hprint_string",
 };

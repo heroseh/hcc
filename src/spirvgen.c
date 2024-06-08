@@ -1522,7 +1522,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				break;
 			};
 
-			case HCC_AML_OP_WAVE_IS_FIRST_LANE: {
+			case HCC_AML_OP_WAVE_THREAD_IS_FIRST: {
 				HccSPIRVId execution_scope = cu->spirv.scope_subgroup_spirv_id;
 				HccSPIRVId result_operand = hcc_spirv_next_id(cu);
 

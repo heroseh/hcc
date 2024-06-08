@@ -253,9 +253,9 @@ bool quad_all_u32(uint32_t v);
 bool quad_all_u64(uint64_t v);
 
 //
-// returns true for the first active lane with the lowest thread index
+// returns true for the first active thread with the lowest thread index
 //
-bool wave_is_first_lane(void);
+bool wave_thread_is_first(void);
 
 //
 // returns the index of the current thread within a wave
