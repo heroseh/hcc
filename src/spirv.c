@@ -37,7 +37,8 @@ void hcc_spirv_init(HccCU* cu, HccCUSetup* setup) {
 	cu->spirv.entry_point_global_variable_ids = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_ENTRY_POINT_GLOBAL_VARIABLE_IDS, setup->ast.global_variables_grow_count, setup->ast.global_variables_reserve_cap);
 	cu->spirv.global_variable_words = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_GLOBAL_VARIABLE_WORDS, setup->ast.global_variables_grow_count * 4, setup->ast.global_variables_reserve_cap * 4);
 	cu->spirv.name_words = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_NAME_WORDS, types_grow_count, types_reserve_cap);
-	cu->spirv.decorate_words = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_DECORATE_WORDS, types_grow_count, types_reserve_cap);
+	cu->spirv.decorate_words = hcc_stack_init(HccSPIRVWord, HCC_ALLOC_TAG_SPIRV_DECORATE_WORDS, types_grow_count, types_reserve_cap);
+	cu->spirv.decorate_blocks = hcc_stack_init(HccSPIRVId, HCC_ALLOC_TAG_SPIRV_DECORATE_BLOCKS, types_grow_count, types_reserve_cap);
 
 	HccBasic basic = { .u32 = hcc_options_get_u32(cu->options, HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX) };
 	cu->spirv.resource_descriptors_max_constant_spirv_id = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_basic(cu, HCC_DATA_TYPE_AML_INTRINSIC_U32, &basic));
@@ -76,12 +77,6 @@ HccSPIRVId hcc_spirv_next_id_many(HccCU* cu, uint32_t amount) {
 HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_class, HccDataType data_type) {
 	data_type = hcc_data_type_lower_ast_to_aml(cu, data_type);
 	data_type = HCC_DATA_TYPE_STRIP_QUALIFIERS(data_type);
-	bool needs_block
-		= storage_class == HCC_SPIRV_STORAGE_CLASS_PUSH_CONSTANT
-		|| (storage_class == HCC_SPIRV_STORAGE_CLASS_STORAGE_BUFFER && HCC_DATA_TYPE_IS_POINTER(data_type))
-		|| (storage_class == HCC_SPIRV_STORAGE_CLASS_INPUT && HCC_DATA_TYPE_IS_POINTER(data_type))
-		|| (storage_class == HCC_SPIRV_STORAGE_CLASS_OUTPUT && HCC_DATA_TYPE_IS_POINTER(data_type))
-		;
 	if (!HCC_DATA_TYPE_IS_POINTER(data_type)) {
 		storage_class = HCC_SPIRV_STORAGE_CLASS_INVALID;
 	} else {
@@ -119,7 +114,6 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		uint32_t operands_count;
 		HccSPIRVId runtime_array_spirv_id = 0;
 		uint32_t num_ids = 1;
-		entry->has_block_decorate = false;
 		switch (HCC_DATA_TYPE_TYPE(data_type)) {
 			case HCC_DATA_TYPE_STRUCT: {
 				HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
@@ -307,11 +301,6 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 
 		if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
 			switch (data_type) {
-				default:
-					if (!needs_block) {
-						break;
-					}
-					hcc_fallthrough;
 				case HCC_DATA_TYPE_HCC_VERTEX_SV:
 				case HCC_DATA_TYPE_HCC_VERTEX_SV_OUT:
 				case HCC_DATA_TYPE_HCC_PIXEL_SV:
@@ -320,7 +309,6 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 					operands = hcc_spirv_add_decorate(cu, 2);
 					operands[0] = spirv_id;
 					operands[1] = HCC_SPIRV_DECORATION_BLOCK;
-					entry->has_block_decorate = true;
 					break;
 			}
 
@@ -375,27 +363,6 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		// spin if another thread has just inserted the entry but not set the spirv id yet
 		while (atomic_load(&entry->spirv_id) == 0) {
 			HCC_CPU_RELAX();
-		}
-
-		if (HCC_DATA_TYPE_IS_COMPOUND(data_type) && !entry->has_block_decorate) {
-			switch (data_type) {
-				default:
-					if (!needs_block) {
-						break;
-					}
-					hcc_fallthrough;
-				case HCC_DATA_TYPE_HCC_VERTEX_SV:
-				case HCC_DATA_TYPE_HCC_VERTEX_SV_OUT:
-				case HCC_DATA_TYPE_HCC_PIXEL_SV:
-				case HCC_DATA_TYPE_HCC_PIXEL_SV_OUT:
-				case HCC_DATA_TYPE_HCC_COMPUTE_SV: {
-					HccSPIRVOperand* operands = hcc_spirv_add_decorate(cu, 2);
-					operands[0] = atomic_load(&entry->spirv_id);
-					operands[1] = HCC_SPIRV_DECORATION_BLOCK;
-					entry->has_block_decorate = true;
-					break;
-				};
-			}
 		}
 	}
 
@@ -803,6 +770,16 @@ void hcc_spirv_add_member_name(HccCU* cu, uint32_t spirv_id, uint32_t member_idx
 	words[1] = spirv_id;
 	words[2] = member_idx;
 	hcc_spirv_encode_string(&words[3], name);
+}
+
+void hcc_spirv_decorate_block_deduplicate(HccCU* cu, HccSPIRVId spirv_id) {
+	for (uint32_t idx = 0; idx < hcc_stack_count(cu->spirv.decorate_blocks); idx += 1) {
+		if (cu->spirv.decorate_blocks[idx] == spirv_id) {
+			return;
+		}
+	}
+
+	*hcc_stack_push(cu->spirv.decorate_blocks) = spirv_id;
 }
 
 HccSPIRVOperand* hcc_spirv_add_decorate(HccCU* cu, uint32_t operands_count) {

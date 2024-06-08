@@ -3196,7 +3196,6 @@ typedef struct HccSPIRVTypeEntry HccSPIRVTypeEntry;
 struct HccSPIRVTypeEntry {
 	HccSPIRVTypeKey       key;
 	HccAtomic(HccSPIRVId) spirv_id;
-	bool                  has_block_decorate;
 };
 
 typedef struct HccSPIRVDescriptorBindingKey HccSPIRVDescriptorBindingKey;
@@ -3255,6 +3254,7 @@ struct HccSPIRV {
 	HccStack(HccSPIRVWord)                       global_variable_words;
 	HccStack(HccSPIRVWord)                       name_words;
 	HccStack(HccSPIRVWord)                       decorate_words;
+	HccStack(HccSPIRVId)                         decorate_blocks;
 	HccSPIRVId                                   resource_descriptors_max_constant_spirv_id;
 	HccSPIRVId                                   scope_device_spirv_id;
 	HccSPIRVId                                   scope_workgroup_spirv_id;
@@ -3292,6 +3292,7 @@ void hcc_spirv_encode_string(HccSPIRVWord* dst_words, HccString string);
 HccSPIRVOperand* hcc_spirv_add_global_variable(HccCU* cu, uint32_t operands_count);
 void hcc_spirv_add_name(HccCU* cu, uint32_t spirv_id, HccString name);
 void hcc_spirv_add_member_name(HccCU* cu, uint32_t spirv_id, uint32_t member_idx, HccString name);
+void hcc_spirv_decorate_block_deduplicate(HccCU* cu, HccSPIRVId spirv_id);
 HccSPIRVOperand* hcc_spirv_add_decorate(HccCU* cu, uint32_t operands_count);
 HccSPIRVOperand* hcc_spirv_add_member_decorate(HccCU* cu, uint32_t operands_count);
 HccSPIRVOperand* hcc_spirv_function_add_instr(HccSPIRVFunction* function, HccSPIRVOp op, uint32_t operands_count);

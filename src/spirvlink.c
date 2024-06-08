@@ -313,6 +313,12 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[0] = HCC_SPIRV_ID_VARIABLE_INPUT_SUBGROUP_LOCAL_INVOCATION_ID;
 		operands[1] = HCC_SPIRV_DECORATION_BUILTIN;
 		operands[2] = HCC_SPIRV_BUILTIN_SUBGROUP_LOCAL_INVOCATION_ID;
+
+		for (uint32_t idx = 0; idx < hcc_stack_count(cu->spirv.decorate_blocks); idx += 1) {
+			operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_DECORATE, 2);
+			operands[0] = cu->spirv.decorate_blocks[idx];
+			operands[1] = HCC_SPIRV_DECORATION_BLOCK;
+		}
 	}
 
 	HccSPIRVWord* words = hcc_spirvlink_add_word_many(w, hcc_stack_count(cu->spirv.decorate_words));

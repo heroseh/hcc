@@ -2810,6 +2810,11 @@ RESOURCE:   {
 	return hcc_string_table_get(string_id);
 }
 
+void hcc_data_type_string_print(HccCU* cu, const char* field_name, HccDataType data_type) {
+	HccString string = hcc_data_type_string(cu, data_type);
+	printf("%s: %.*s 0x%x\n", field_name, (int)string.size, string.data, data_type);
+}
+
 void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_out, uint64_t* align_out) {
 	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
 

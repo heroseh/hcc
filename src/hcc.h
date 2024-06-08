@@ -283,6 +283,7 @@ enum HccAllocTag {
 	HCC_ALLOC_TAG_SPIRV_GLOBAL_VARIABLE_WORDS,
 	HCC_ALLOC_TAG_SPIRV_NAME_WORDS,
 	HCC_ALLOC_TAG_SPIRV_DECORATE_WORDS,
+	HCC_ALLOC_TAG_SPIRV_DECORATE_BLOCKS,
 
 	HCC_ALLOC_TAG_PPGEN_EXPAND_STACK,
 	HCC_ALLOC_TAG_PPGEN_EXPAND_MACRO_IDX_STACK,
@@ -1636,6 +1637,7 @@ enum HccCanCast {
 };
 
 HccString hcc_data_type_string(HccCU* cu, HccDataType data_type);
+void hcc_data_type_string_print(HccCU* cu, const char* field_name, HccDataType data_type);
 void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_out, uint64_t* align_out);
 void hcc_data_type_print_basic(HccCU* cu, HccDataType data_type, void* data, HccIIO* iio);
 bool hcc_data_type_is_condition(HccDataType data_type);

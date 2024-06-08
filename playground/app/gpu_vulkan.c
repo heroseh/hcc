@@ -234,16 +234,18 @@ VkBool32 gpu_vk_handle_validation_error(
 	APP_UNUSED(messageTypes);
 	APP_UNUSED(pUserData);
 
-	char* stacktrace = b_stacktrace_get_string();
 	FILE* f;
 #if defined(_WIN32)
 	fopen_s(&f, "vk_validation_log.txt", "w");
 #else
 	f = fopen("vk_validation_log.txt", "w");
 #endif
-	fprintf(f, "Error Name: %s\n\n%s\n\nStacktrace:\n%s\n\n", pCallbackData->pMessageIdName, pCallbackData->pMessage, stacktrace);
+	fprintf(f, "Error Name: %s\n\n%s\n\n", pCallbackData->pMessageIdName, pCallbackData->pMessage);
 	fflush(f);
 
+	char* stacktrace = b_stacktrace_get_string();
+	fprintf(f, "Stacktrace:\n%s\n\n", stacktrace);
+	fflush(f);
 	platform_message_box("Vulkan Validation Error Detected.\nThe error has been logged to the vk_validation_log.txt file.\nPlease report this error and the log file on the HCC github issue tracker");
 
 #if defined(_WIN32)

@@ -162,8 +162,10 @@ void hcc_spirvgen_generate(HccWorker* w) {
 		// add the bundled constants global variable for this shader
 		w->spirvgen.bc_spirv_id = hcc_spirv_next_id(cu);
 		HccDataType bc_data_type = hcc_decl_resolve_and_strip_qualifiers(cu, aml_function->values[param_idx].data_type);
+		HccDataType bc_elmt_data_type = hcc_data_type_strip_pointer(cu, bc_data_type);
 		HccSPIRVOperand* operands = hcc_spirv_add_global_variable(cu, 3);
 		HccSPIRVStorageClass storage_class = HCC_SPIRV_STORAGE_CLASS_PUSH_CONSTANT;
+		hcc_spirv_decorate_block_deduplicate(cu, hcc_spirv_type_deduplicate(cu, storage_class, hcc_decl_resolve_and_strip_qualifiers(cu, bc_elmt_data_type)));
 		operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, bc_data_type);
 		operands[1] = w->spirvgen.bc_spirv_id;
 		operands[2] = storage_class;
