@@ -1,3 +1,4 @@
+#include "hcc.h"
 #include "hcc_internal.h"
 
 // ===========================================
@@ -1311,42 +1312,53 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			case HCC_AML_OP_QUAD_ANY:
 			case HCC_AML_OP_QUAD_ALL:
 			{
-				HccSPIRVId bool_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, HCC_DATA_TYPE_AML_INTRINSIC_BOOL);
-				HccSPIRVId input_v_spirv_id = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				HccDataType src_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+				HccSPIRVId src_operand = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				HccSPIRVOp combine_op = aml_op == HCC_AML_OP_QUAD_ANY ? HCC_SPIRV_OP_LOGICAL_OR : HCC_SPIRV_OP_LOGICAL_AND;
+				HccSPIRVId converted_operand = hcc_spirvgen_convert_to_spirv_bool(w, function, src_operand, src_data_type);
 
 				// swap x
 				HccSPIRVId result_id0 = hcc_spirv_next_id(cu);
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_QUAD_SWAP, 5);
-				operands[0] = bool_spirv_id;
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
 				operands[1] = result_id0;
 				operands[2] = cu->spirv.scope_subgroup_spirv_id;
-				operands[3] = input_v_spirv_id;
+				operands[3] = converted_operand;
 				operands[4] = cu->spirv.quad_swap_x_spirv_id;
 
 				// bit and/or swap x result
 				HccSPIRVId result_id1 = hcc_spirv_next_id(cu);
 				operands = hcc_spirv_function_add_instr(function, combine_op, 4);
-				operands[0] = bool_spirv_id;
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
 				operands[1] = result_id1;
-				operands[2] = input_v_spirv_id;
+				operands[2] = converted_operand;
 				operands[3] = result_id0;
 
 				// swap y
 				HccSPIRVId result_id2 = hcc_spirv_next_id(cu);
 				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_GROUP_NON_UNIFORM_QUAD_SWAP, 5);
-				operands[0] = bool_spirv_id;
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
 				operands[1] = result_id2;
 				operands[2] = cu->spirv.scope_subgroup_spirv_id;
 				operands[3] = result_id1;
 				operands[4] = cu->spirv.quad_swap_y_spirv_id;
 
 				// bit and/or swap x result
+				HccSPIRVId result_id3 = hcc_spirv_next_id(cu);
 				operands = hcc_spirv_function_add_instr(function, combine_op, 4);
-				operands[0] = bool_spirv_id;
-				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL;
+				operands[1] = result_id3;
 				operands[2] = result_id1;
 				operands[3] = result_id2;
+
+				HccDataType return_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[0]);
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, return_data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = result_id3;
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_one(w->cu, return_data_type));
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, return_data_type));
 				break;
 			};
 
