@@ -59,7 +59,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	{
 		/* .name = */                   "texture_vs",
 		/* .stage = */                  HCC_SHADER_STAGE_VERTEX,
-		/* .bundled_constants_size = */ 40,
+		/* .bundled_constants_size = */ 48,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,
 		/* .dispatch_group_size_z = */  0,
@@ -67,7 +67,7 @@ HccShaderInfo hcc_shader_infos[] = {
 	{
 		/* .name = */                   "texture_ps",
 		/* .stage = */                  HCC_SHADER_STAGE_PIXEL,
-		/* .bundled_constants_size = */ 40,
+		/* .bundled_constants_size = */ 48,
 		/* .dispatch_group_size_x = */  0,
 		/* .dispatch_group_size_y = */  0,
 		/* .dispatch_group_size_z = */  0,
@@ -156,26 +156,38 @@ HccResourceInfo ComputeSquareBC_resources[] = {
 
 HccResourceInfo TextureBC_resources[] = {
 	{
-		/* .name = */        "texture",
+		/* .name = */        "gray_texture",
 		/* .offset = */      0,
 		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
 		/* .type = */        HCC_RESOURCE_TYPE_TEXTURE_2D,
 	},
 	{
-		/* .name = */        "sample_texture",
+		/* .name = */        "red_green_texture",
 		/* .offset = */      4,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
+		/* .type = */        HCC_RESOURCE_TYPE_TEXTURE_2D,
+	},
+	{
+		/* .name = */        "logo_texture",
+		/* .offset = */      8,
+		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
+		/* .type = */        HCC_RESOURCE_TYPE_TEXTURE_2D,
+	},
+	{
+		/* .name = */        "sample_logo_texture",
+		/* .offset = */      12,
 		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_SAMPLE,
 		/* .type = */        HCC_RESOURCE_TYPE_TEXTURE_2D,
 	},
 	{
 		/* .name = */        "hprintf_buffer",
-		/* .offset = */      8,
+		/* .offset = */      16,
 		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
 		/* .type = */        HCC_RESOURCE_TYPE_BUFFER,
 	},
 	{
 		/* .name = */        "sampler",
-		/* .offset = */      12,
+		/* .offset = */      20,
 		/* .access_mode = */ HCC_RESOURCE_ACCESS_MODE_READ_ONLY,
 		/* .type = */        HCC_RESOURCE_TYPE_SAMPLER,
 	},
@@ -254,8 +266,8 @@ HccResourceStructInfo hcc_resource_structs[] = {
 	{
 		/* .name = */            "TextureBC",
 		/* .resources = */       TextureBC_resources,
-		/* .resources_count = */ 4,
-		/* .size = */            40,
+		/* .resources_count = */ 6,
+		/* .size = */            48,
 		/* .align = */           4,
 	},
 	{
@@ -293,7 +305,7 @@ HccMetadata hcc_metadata = {
 	/* .resource_structs = */           hcc_resource_structs,
 	/* .shaders_count = */              12,
 	/* .resource_structs_count = */     7,
-	/* .bundled_constants_size_max = */ 40,
+	/* .bundled_constants_size_max = */ 48,
 	/* .resource_descriptors_max = */   1024,
 };
 

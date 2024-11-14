@@ -39,8 +39,10 @@ int main(int argc, char** argv) {
 	GpuResourceId backbuffer_texture_id = gpu_backbuffer();
 	GpuResourceId staging_buffer = gpu_create_staging_buffer();
 	GpuResourceId triangle_vertex_buffer_id = gpu_create_buffer(3 * sizeof(TriangleVertex));
-	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
-	GpuResourceId logo_voxel_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_3D, APP_LOGO_VOXEL_WIDTH, APP_LOGO_VOXEL_HEIGHT, APP_LOGO_VOXEL_DEPTH, 1, 1);
+	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, GPU_FORMAT_8_8_8_8_UNORM, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
+	GpuResourceId logo_voxel_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_3D, GPU_FORMAT_8_8_8_8_UNORM, APP_LOGO_VOXEL_WIDTH, APP_LOGO_VOXEL_HEIGHT, APP_LOGO_VOXEL_DEPTH, 1, 1);
+	GpuResourceId gray_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, GPU_FORMAT_32_FLOAT, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, 1);
+	GpuResourceId red_green_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, GPU_FORMAT_16_16_UINT, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, 1);
 #if APP_ALL_SAMPLES
 	GpuResourceId shapes_buffer_id = gpu_create_buffer(1 * sizeof(SDFShape));
 	GpuResourceId voxel_model_buffer_id = gpu_create_buffer(1 * sizeof(VoxelModel));
@@ -104,6 +106,25 @@ int main(int argc, char** argv) {
 				memcpy(&dst_pixels[dst_offset], &src_pixels[src_offset], row_size);
 				dst_offset += row_size;
 				src_offset += row_size;
+			}
+		}
+	}
+
+	{
+		float* dst_pixels = gpu_stage_upload(gray_texture_id, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, sizeof(float), 0);
+		for (uint32_t y = 0; y < APP_LOGO_HEIGHT; y += 1) {
+			for (uint32_t x = 0; x < APP_LOGO_WIDTH; x += 1) {
+				dst_pixels[y * APP_LOGO_WIDTH + x] = 0.5f;
+			}
+		}
+	}
+
+	{
+		u16x2* dst_pixels = gpu_stage_upload(red_green_texture_id, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, sizeof(float), 0);
+		for (uint32_t y = 0; y < APP_LOGO_HEIGHT; y += 1) {
+			for (uint32_t x = 0; x < APP_LOGO_WIDTH; x += 1) {
+				dst_pixels[y * APP_LOGO_WIDTH + x].x = (uint16_t)(x * ((float)65536 / APP_LOGO_WIDTH));
+				dst_pixels[y * APP_LOGO_WIDTH + x].y = (uint16_t)(y * ((float)65536 / APP_LOGO_HEIGHT));
 			}
 		}
 	}
@@ -218,8 +239,10 @@ int main(int argc, char** argv) {
 			case APP_SAMPLE_TEXTURE: {
 				TextureBC* bc = bundled_constants_ptr;
 				if (init_sample) {
-					bc->texture = logo_texture_id;
-					bc->sample_texture = logo_texture_id;
+					bc->gray_texture = gray_texture_id;
+					bc->red_green_texture = red_green_texture_id;
+					bc->logo_texture = logo_texture_id;
+					bc->sample_logo_texture = logo_texture_id;
 					bc->sampler = clamp_linear_sampler_id;
 				}
 

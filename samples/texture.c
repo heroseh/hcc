@@ -6,8 +6,10 @@
 
 typedef struct TextureBC TextureBC;
 struct TextureBC {
-	HccRoTexture2D(FMT_8_8_8_8_UNORM) texture;
-	HccSampleTexture2D(f32x4)         sample_texture;
+	HccRoTexture2D(FMT_32_FLOAT)      gray_texture;
+	HccRoTexture2D(FMT_16_16_UINT)    red_green_texture;
+	HccRoTexture2D(FMT_8_8_8_8_UNORM) logo_texture;
+	HccSampleTexture2D(f32x4)         sample_logo_texture;
 	HccRwBuffer(uint32_t)             hprintf_buffer;
 	HccRoSampler                      sampler;
 	float                             time_;
@@ -50,40 +52,47 @@ HCC_PIXEL void texture_ps(
 	f32x2 uv = addsG(mulsG(addG(mulG(state->uv, bc->scale), bc->offset), 0.5f), 0.5f);
 	uv = clampsG(uv, 0.f, 1.f);
 
-	const uint32_t mode = floorG(bc->time_) % 10;
+	const uint32_t mode = floorG(bc->time_) % 12;
 	switch (mode) {
 		case 0:
-			pixel_out->color = load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023));
+			pixel_out->color = f32x4s(load_textureG(bc->gray_texture, u32x2(uv.x * 1023, uv.y * 1023)));
 			break;
 		case 1:
-			pixel_out->color = fetch_textureG(bc->sample_texture, u32x2(uv.x * 1023, uv.y * 1023), 0);
+			u32x2 rg = load_textureG(bc->red_green_texture, u32x2(uv.x * 1023, uv.y * 1023));
+			pixel_out->color = f32x4((float)rg.x / 65535.f, (float)rg.y / 65535.f, 0.f, 1.f);
 			break;
 		case 2:
-			pixel_out->color = sample_textureG(bc->sample_texture, bc->sampler, uv);
+			pixel_out->color = load_textureG(bc->logo_texture, u32x2(uv.x * 1023, uv.y * 1023));
 			break;
 		case 3:
-			pixel_out->color = sample_mip_bias_textureG(bc->sample_texture, bc->sampler, uv, 3.f);
+			pixel_out->color = fetch_textureG(bc->sample_logo_texture, u32x2(uv.x * 1023, uv.y * 1023), 0);
 			break;
-		case 4: {
+		case 4:
+			pixel_out->color = sample_textureG(bc->sample_logo_texture, bc->sampler, uv);
+			break;
+		case 5:
+			pixel_out->color = sample_mip_bias_textureG(bc->sample_logo_texture, bc->sampler, uv, 3.f);
+			break;
+		case 6: {
 			f32x2 ddx = f32x2(5.f / 1024.f, 0.f);
 			f32x2 ddy = f32x2(0.f, 5.f / 1024.f);
-			pixel_out->color = sample_mip_gradient_textureG(bc->sample_texture, bc->sampler, uv, ddx, ddy);
+			pixel_out->color = sample_mip_gradient_textureG(bc->sample_logo_texture, bc->sampler, uv, ddx, ddy);
 			break;
 		};
-		case 5:
-			pixel_out->color = sample_mip_level_textureG(bc->sample_texture, bc->sampler, uv, 5.f);
-			break;
-		case 6:
-			pixel_out->color = gather_red_textureG(bc->sample_texture, bc->sampler, uv);
-			break;
 		case 7:
-			pixel_out->color = gather_green_textureG(bc->sample_texture, bc->sampler, uv);
+			pixel_out->color = sample_mip_level_textureG(bc->sample_logo_texture, bc->sampler, uv, 5.f);
 			break;
 		case 8:
-			pixel_out->color = gather_blue_textureG(bc->sample_texture, bc->sampler, uv);
+			pixel_out->color = gather_red_textureG(bc->sample_logo_texture, bc->sampler, uv);
 			break;
 		case 9:
-			pixel_out->color = gather_alpha_textureG(bc->sample_texture, bc->sampler, uv);
+			pixel_out->color = gather_green_textureG(bc->sample_logo_texture, bc->sampler, uv);
+			break;
+		case 10:
+			pixel_out->color = gather_blue_textureG(bc->sample_logo_texture, bc->sampler, uv);
+			break;
+		case 11:
+			pixel_out->color = gather_alpha_textureG(bc->sample_logo_texture, bc->sampler, uv);
 			break;
 	}
 

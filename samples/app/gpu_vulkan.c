@@ -1440,7 +1440,7 @@ GpuResourceId gpu_create_buffer(uint32_t size) {
 	return res_id;
 }
 
-GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t array_layers, uint32_t mip_levels) {
+GpuResourceId gpu_create_texture(GpuTextureType type, GpuFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t array_layers, uint32_t mip_levels) {
 	VkResult vk_result;
 	GpuResourceId res_id = gpu.next_resource_id;
 	APP_ASSERT(res_id < APP_ARRAY_COUNT(gpu.resources), "resources full");
@@ -1481,12 +1481,19 @@ GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t h
 			break;
 	}
 
+	VkFormat vk_format = VK_FORMAT_UNDEFINED;
+	switch (format) {
+		case GPU_FORMAT_8_8_8_8_UNORM: vk_format = VK_FORMAT_R8G8B8A8_UNORM; break;
+		case GPU_FORMAT_16_16_UINT: vk_format = VK_FORMAT_R16G16_UINT; break;
+		case GPU_FORMAT_32_FLOAT: vk_format = VK_FORMAT_R32_SFLOAT; break;
+	}
+
 	VkImageCreateInfo create_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
 		.imageType = image_type,
-		.format = VK_FORMAT_R8G8B8A8_UNORM,
+		.format = vk_format,
 		.extent.width = width,
 		.extent.height = height,
 		.extent.depth = depth,
@@ -1533,7 +1540,7 @@ GpuResourceId gpu_create_texture(GpuTextureType type, uint32_t width, uint32_t h
 		.flags = 0,
 		.image = res->image,
 		.viewType = image_view_type,
-		.format = VK_FORMAT_R8G8B8A8_UNORM,
+		.format = vk_format,
 		.components.r = VK_COMPONENT_SWIZZLE_R,
 		.components.g = VK_COMPONENT_SWIZZLE_G,
 		.components.b = VK_COMPONENT_SWIZZLE_B,
