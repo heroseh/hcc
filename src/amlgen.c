@@ -574,7 +574,7 @@ HccAMLOperand hcc_amlgen_generate_instrs(HccWorker* w, HccASTExpr* expr, bool wa
 									break;
 								default: {
 									HCC_DEBUG_ASSERT(HCC_FUNCTION_IDX_MANY_START <= function_idx && function_idx < HCC_FUNCTION_IDX_MANY_END, "unhandled intrinsic function");
-									uint32_t many = (function_idx - HCC_FUNCTION_IDX_MANY_START) / HCC_AML_INTRINSIC_DATA_TYPE_COUNT;
+									uint32_t many = (function_idx - HCC_FUNCTION_IDX_MANY_START) / HCC_FUNCTION_MANY_STRIDE;
 									switch (many) {
 										case HCC_FUNCTION_MANY_NOT: {
 											HccAMLOperand src_operand = *hcc_stack_get(w->amlgen.temp_operands, temp_operands_start_idx + 0);

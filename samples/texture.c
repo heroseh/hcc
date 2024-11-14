@@ -6,14 +6,14 @@
 
 typedef struct TextureBC TextureBC;
 struct TextureBC {
-	HccRoTexture2D(uint32_t)  texture;
-	HccSampleTexture2D(f32x4) sample_texture;
-	HccRwBuffer(uint32_t) hprintf_buffer;
-	HccRoSampler              sampler;
-	float                     time_;
-	f32x2                     offset;
-	f32x2                     scale;
-	float                     ar;
+	HccRoTexture2D(FMT_8_8_8_8_UNORM) texture;
+	HccSampleTexture2D(f32x4)         sample_texture;
+	HccRwBuffer(uint32_t)             hprintf_buffer;
+	HccRoSampler                      sampler;
+	float                             time_;
+	f32x2                             offset;
+	f32x2                             scale;
+	float                             ar;
 };
 
 #ifdef __HCC__
@@ -53,7 +53,7 @@ HCC_PIXEL void texture_ps(
 	const uint32_t mode = floorG(bc->time_) % 10;
 	switch (mode) {
 		case 0:
-			pixel_out->color = unpack_u8x4_f32x4(load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023)));
+			pixel_out->color = load_textureG(bc->texture, u32x2(uv.x * 1023, uv.y * 1023));
 			break;
 		case 1:
 			pixel_out->color = fetch_textureG(bc->sample_texture, u32x2(uv.x * 1023, uv.y * 1023), 0);
@@ -106,7 +106,7 @@ HCC_PIXEL void texture_ps(
 		num_pos.x < uv_unorm.x && uv_unorm.x < num_pos.x + num_size.x &&
 		num_pos.y < uv_unorm.y && uv_unorm.y < num_pos.y + num_size.y
 	) {
-	hprintf(bc->hprintf_buffer, "uv_unorm = %f, %f, %u\n", splat2(uv_unorm), num_pos.x < uv_unorm.x);
+		hprintf(bc->hprintf_buffer, "uv_unorm = %f, %f, %u\n", splat2(uv_unorm), num_pos.x < uv_unorm.x);
 		uv = remapG(uv_unorm, num_pos, addG(num_pos, num_size), f32x2s(0.f), f32x2s(1.f));
 		uv.x *= 8;
 		uv.y *= 8;

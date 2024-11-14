@@ -10,13 +10,13 @@ typedef struct VoxelModel VoxelModel;
 struct VoxelModel {
 	f32x3                    position;
 	f32x3                    half_size;
-	HccRoTexture3D(uint32_t) color;
+	HccRoTexture3D(FMT_8_8_8_8_UNORM) color;
 };
 
 typedef struct VoxelRaytracerBC VoxelRaytracerBC;
 struct VoxelRaytracerBC {
 	HccRoBuffer(VoxelModel)  models;
-	HccWoTexture2D(uint32_t)    output;
+	HccWoTexture2D(FMT_8_8_8_8_UNORM)    output;
 	HccWoBuffer(uint32_t)    hprintf_buffer;
 	float                    time_;
 	uint32_t                 screen_width;
@@ -116,7 +116,7 @@ void voxel_raytracer_cs(HccComputeSV const* const sv, VoxelRaytracerBC const* co
 			f32x3 pt_world_space = addG(ray_origin_local_space, mulsG(ray_dir_local_space, t));
 			f32x3 pt_local_space = subG(pt_world_space, aabb_min);
 			pt_local_space = floorG(pt_local_space);
-			f32x4 texel = unpack_u8x4_f32x4(load_textureG(model.color, u32x3(pt_local_space.x, pt_local_space.y, pt_local_space.z)));
+			f32x4 texel = load_textureG(model.color, u32x3(pt_local_space.x, pt_local_space.y, pt_local_space.z));
 			if (texel.a >= VOXEL_EPSILON) {
 				color = texel;
 				break;
@@ -126,9 +126,8 @@ void voxel_raytracer_cs(HccComputeSV const* const sv, VoxelRaytracerBC const* co
 	}
 
 	uint32_t int32_cast_test = (uint32_t)bc->output;
-	HccRwTexture2D(uint32_t) resource_cast_test = (HccRwTexture2D(uint32_t))int32_cast_test;
-	color.bgra = color;
-	store_textureG(resource_cast_test, u32x2(sv->dispatch_idx.x, sv->dispatch_idx.y), pack_u8x4_f32x4(color));
+	HccRwTexture2D(FMT_8_8_8_8_UNORM) resource_cast_test = (HccRwTexture2D(FMT_8_8_8_8_UNORM))int32_cast_test;
+	store_textureG(resource_cast_test, u32x2(sv->dispatch_idx.x, sv->dispatch_idx.y), color);
 }
 
 #endif // __HCC__

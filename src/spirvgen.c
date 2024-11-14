@@ -1726,8 +1726,16 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(texture_data_type);
 				HccDataType intermediate_return_data_type = return_data_type;
 				uint32_t num_components;
+				bool is_sample = HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) == HCC_RESOURCE_ACCESS_MODE_SAMPLE;
+				HccTextureFormat fmt = 0;
+				HccAMLIntrinsicDataType sample_data_type;
+				if (is_sample) {
+					sample_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE_SAMPLE_TYPE(resource_data_type);
+				} else {
+					fmt = HCC_RESOURCE_DATA_TYPE_TEXTURE_STORAGE_FORMAT(resource_data_type);
+					sample_data_type = hcc_texture_format_intrinsic_data_types[fmt];
+				}
 				if (aml_op != HCC_AML_OP_ADDR_TEXTURE) {
-					HccAMLIntrinsicDataType sample_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(resource_data_type);
 					num_components = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(sample_data_type);
 					sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(sample_data_type);
 					sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE(sample_data_type, 4, 1);
@@ -1820,7 +1828,7 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				HccDataType texture_data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
 				HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(texture_data_type), "expected resource descriptor type");
 				HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(texture_data_type);
-				HccAMLIntrinsicDataType sample_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(resource_data_type);
+				HccAMLIntrinsicDataType sample_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE_SAMPLE_TYPE(resource_data_type);
 				uint32_t num_components = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(sample_data_type);
 				sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(sample_data_type);
 				sample_data_type = HCC_AML_INTRINSIC_DATA_TYPE(sample_data_type, 4, 1);

@@ -1,3 +1,4 @@
+#include "hcc.h"
 #include "hcc_internal.h"
 
 // ===========================================
@@ -1340,7 +1341,7 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 
 		for (uint32_t f = 0; f < HCC_FUNCTION_MANY_COUNT; f += 1) {
 			const char* function_prefix = hcc_intrinisic_function_many_strings[f];
-			uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_FUNCTIONS_START + HCC_FUNCTION_IDX_MANY_START + (f * HCC_AML_INTRINSIC_DATA_TYPE_COUNT);
+			uint32_t expected_string_id = HCC_STRING_ID_INTRINSIC_FUNCTIONS_START + HCC_FUNCTION_IDX_MANY_START + (f * HCC_FUNCTION_MANY_STRIDE);
 			uint32_t insert_idx = snprintf(buf, sizeof(buf), "%s_", function_prefix);
 
 			HccManyTypeClass support = hcc_intrinisic_function_many_support[f];
@@ -1363,7 +1364,26 @@ void hcc_string_table_init(HccStringTable* string_table, uint32_t data_grow_coun
 				expected_string_id += 48;
 			}
 
-			if (support & HCC_MANY_TYPE_CLASS_TEXTURE) {
+			if (support & HCC_MANY_TYPE_CLASS_STORAGE_TEXTURE) {
+				const char* fmt = "%s%s%s_%s";
+
+				for (uint32_t dim = 0; dim < HCC_TEXTURE_DIM_COUNT; dim += 1) {
+					for (uint32_t is_ms = 0; is_ms <= 1; is_ms += 1) {
+						const char* ms = is_ms ? "_ms" : "";
+						for (uint32_t is_array = 0; is_array <= 1; is_array += 1) {
+							const char* array = is_array ? "_array" : "";
+							for (uint32_t format = 0; format < HCC_TEXTURE_FORMAT_COUNT; format += 1) {
+								const char* fmt_string = hcc_texture_format_idents_lower[format];
+								snprintf(buf + insert_idx, sizeof(buf) - insert_idx, fmt, hcc_texture_dim_strings_lower[dim], ms, array, fmt_string);
+								hcc_string_table_intrinsic_add(expected_string_id, buf);
+								expected_string_id += 1;
+							}
+						}
+					}
+				}
+			}
+
+			if (support & HCC_MANY_TYPE_CLASS_SAMPLE_TEXTURE) {
 				const char* fmt = "%s%s%s_%s%s";
 
 				for (uint32_t dim = 0; dim < HCC_TEXTURE_DIM_COUNT; dim += 1) {

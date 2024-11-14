@@ -46,6 +46,232 @@ enum Texture {
 	TEXTURE_COUNT,
 };
 
+typedef int TextureFormat;
+enum {
+	TEXTURE_FORMAT_8_8_8_8_UNORM,
+	TEXTURE_FORMAT_8_8_8_8_SNORM,
+	TEXTURE_FORMAT_8_8_8_8_UINT,
+	TEXTURE_FORMAT_8_8_8_8_SINT,
+	TEXTURE_FORMAT_8_8_UNORM,
+	TEXTURE_FORMAT_8_8_SNORM,
+	TEXTURE_FORMAT_8_8_UINT,
+	TEXTURE_FORMAT_8_8_SINT,
+	TEXTURE_FORMAT_8_UNORM,
+	TEXTURE_FORMAT_8_SNORM,
+	TEXTURE_FORMAT_8_UINT,
+	TEXTURE_FORMAT_8_SINT,
+
+	TEXTURE_FORMAT_16_16_16_16_FLOAT,
+	TEXTURE_FORMAT_16_16_16_16_UNORM,
+	TEXTURE_FORMAT_16_16_16_16_SNORM,
+	TEXTURE_FORMAT_16_16_16_16_UINT,
+	TEXTURE_FORMAT_16_16_16_16_SINT,
+	TEXTURE_FORMAT_16_16_FLOAT,
+	TEXTURE_FORMAT_16_16_UNORM,
+	TEXTURE_FORMAT_16_16_SNORM,
+	TEXTURE_FORMAT_16_16_UINT,
+	TEXTURE_FORMAT_16_16_SINT,
+	TEXTURE_FORMAT_16_FLOAT,
+	TEXTURE_FORMAT_16_UNORM,
+	TEXTURE_FORMAT_16_SNORM,
+	TEXTURE_FORMAT_16_UINT,
+	TEXTURE_FORMAT_16_SINT,
+
+	TEXTURE_FORMAT_32_32_32_32_FLOAT,
+	TEXTURE_FORMAT_32_32_32_32_UINT,
+	TEXTURE_FORMAT_32_32_32_32_SINT,
+	TEXTURE_FORMAT_32_32_FLOAT,
+	TEXTURE_FORMAT_32_32_UINT,
+	TEXTURE_FORMAT_32_32_SINT,
+	TEXTURE_FORMAT_32_FLOAT,
+	TEXTURE_FORMAT_32_UINT,
+	TEXTURE_FORMAT_32_SINT,
+
+	TEXTURE_FORMAT_64_UINT,
+	TEXTURE_FORMAT_64_SINT,
+	TEXTURE_FORMAT_11_11_10_FLOAT,
+	TEXTURE_FORMAT_10_10_10_2_UNORM,
+	TEXTURE_FORMAT_10_10_10_2_UINT,
+	
+	TEXTURE_FORMAT_COUNT,
+};
+
+static const char* texture_format_idents[TEXTURE_FORMAT_COUNT] = {
+	[TEXTURE_FORMAT_8_8_8_8_UNORM] = "FMT_8_8_8_8_UNORM",
+	[TEXTURE_FORMAT_8_8_8_8_SNORM] = "FMT_8_8_8_8_SNORM",
+	[TEXTURE_FORMAT_8_8_8_8_UINT] = "FMT_8_8_8_8_UINT",
+	[TEXTURE_FORMAT_8_8_8_8_SINT] = "FMT_8_8_8_8_SINT",
+	[TEXTURE_FORMAT_8_8_UNORM] = "FMT_8_8_UNORM",
+	[TEXTURE_FORMAT_8_8_SNORM] = "FMT_8_8_SNORM",
+	[TEXTURE_FORMAT_8_8_UINT] = "FMT_8_8_UINT",
+	[TEXTURE_FORMAT_8_8_SINT] = "FMT_8_8_SINT",
+	[TEXTURE_FORMAT_8_UNORM] = "FMT_8_UNORM",
+	[TEXTURE_FORMAT_8_SNORM] = "FMT_8_SNORM",
+	[TEXTURE_FORMAT_8_UINT] = "FMT_8_UINT",
+	[TEXTURE_FORMAT_8_SINT] = "FMT_8_SINT",
+	[TEXTURE_FORMAT_16_16_16_16_FLOAT] = "FMT_16_16_16_16_FLOAT",
+	[TEXTURE_FORMAT_16_16_16_16_UNORM] = "FMT_16_16_16_16_UNORM",
+	[TEXTURE_FORMAT_16_16_16_16_SNORM] = "FMT_16_16_16_16_SNORM",
+	[TEXTURE_FORMAT_16_16_16_16_UINT] = "FMT_16_16_16_16_UINT",
+	[TEXTURE_FORMAT_16_16_16_16_SINT] = "FMT_16_16_16_16_SINT",
+	[TEXTURE_FORMAT_16_16_FLOAT] = "FMT_16_16_FLOAT",
+	[TEXTURE_FORMAT_16_16_UNORM] = "FMT_16_16_UNORM",
+	[TEXTURE_FORMAT_16_16_SNORM] = "FMT_16_16_SNORM",
+	[TEXTURE_FORMAT_16_16_UINT] = "FMT_16_16_UINT",
+	[TEXTURE_FORMAT_16_16_SINT] = "FMT_16_16_SINT",
+	[TEXTURE_FORMAT_16_FLOAT] = "FMT_16_FLOAT",
+	[TEXTURE_FORMAT_16_UNORM] = "FMT_16_UNORM",
+	[TEXTURE_FORMAT_16_SNORM] = "FMT_16_SNORM",
+	[TEXTURE_FORMAT_16_UINT] = "FMT_16_UINT",
+	[TEXTURE_FORMAT_16_SINT] = "FMT_16_SINT",
+	[TEXTURE_FORMAT_32_32_32_32_FLOAT] = "FMT_32_32_32_32_FLOAT",
+	[TEXTURE_FORMAT_32_32_32_32_UINT] = "FMT_32_32_32_32_UINT",
+	[TEXTURE_FORMAT_32_32_32_32_SINT] = "FMT_32_32_32_32_SINT",
+	[TEXTURE_FORMAT_32_32_FLOAT] = "FMT_32_32_FLOAT",
+	[TEXTURE_FORMAT_32_32_UINT] = "FMT_32_32_UINT",
+	[TEXTURE_FORMAT_32_32_SINT] = "FMT_32_32_SINT",
+	[TEXTURE_FORMAT_32_FLOAT] = "FMT_32_FLOAT",
+	[TEXTURE_FORMAT_32_UINT] = "FMT_32_UINT",
+	[TEXTURE_FORMAT_32_SINT] = "FMT_32_SINT",
+	[TEXTURE_FORMAT_64_UINT] = "FMT_64_UINT",
+	[TEXTURE_FORMAT_64_SINT] = "FMT_64_SINT",
+	[TEXTURE_FORMAT_11_11_10_FLOAT] = "FMT_11_11_10_FLOAT",
+	[TEXTURE_FORMAT_10_10_10_2_UNORM] = "FMT_10_10_10_2_UNORM",
+	[TEXTURE_FORMAT_10_10_10_2_UINT] = "FMT_10_10_10_2_UINT",
+};
+
+static const char* texture_format_idents_lower[TEXTURE_FORMAT_COUNT] = {
+	[TEXTURE_FORMAT_8_8_8_8_UNORM] = "fmt_8_8_8_8_unorm",
+	[TEXTURE_FORMAT_8_8_8_8_SNORM] = "fmt_8_8_8_8_snorm",
+	[TEXTURE_FORMAT_8_8_8_8_UINT] = "fmt_8_8_8_8_uint",
+	[TEXTURE_FORMAT_8_8_8_8_SINT] = "fmt_8_8_8_8_sint",
+	[TEXTURE_FORMAT_8_8_UNORM] = "fmt_8_8_unorm",
+	[TEXTURE_FORMAT_8_8_SNORM] = "fmt_8_8_snorm",
+	[TEXTURE_FORMAT_8_8_UINT] = "fmt_8_8_uint",
+	[TEXTURE_FORMAT_8_8_SINT] = "fmt_8_8_sint",
+	[TEXTURE_FORMAT_8_UNORM] = "fmt_8_unorm",
+	[TEXTURE_FORMAT_8_SNORM] = "fmt_8_snorm",
+	[TEXTURE_FORMAT_8_UINT] = "fmt_8_uint",
+	[TEXTURE_FORMAT_8_SINT] = "fmt_8_sint",
+	[TEXTURE_FORMAT_16_16_16_16_FLOAT] = "fmt_16_16_16_16_float",
+	[TEXTURE_FORMAT_16_16_16_16_UNORM] = "fmt_16_16_16_16_unorm",
+	[TEXTURE_FORMAT_16_16_16_16_SNORM] = "fmt_16_16_16_16_snorm",
+	[TEXTURE_FORMAT_16_16_16_16_UINT] = "fmt_16_16_16_16_uint",
+	[TEXTURE_FORMAT_16_16_16_16_SINT] = "fmt_16_16_16_16_sint",
+	[TEXTURE_FORMAT_16_16_FLOAT] = "fmt_16_16_float",
+	[TEXTURE_FORMAT_16_16_UNORM] = "fmt_16_16_unorm",
+	[TEXTURE_FORMAT_16_16_SNORM] = "fmt_16_16_snorm",
+	[TEXTURE_FORMAT_16_16_UINT] = "fmt_16_16_uint",
+	[TEXTURE_FORMAT_16_16_SINT] = "fmt_16_16_sint",
+	[TEXTURE_FORMAT_16_FLOAT] = "fmt_16_float",
+	[TEXTURE_FORMAT_16_UNORM] = "fmt_16_unorm",
+	[TEXTURE_FORMAT_16_SNORM] = "fmt_16_snorm",
+	[TEXTURE_FORMAT_16_UINT] = "fmt_16_uint",
+	[TEXTURE_FORMAT_16_SINT] = "fmt_16_sint",
+	[TEXTURE_FORMAT_32_32_32_32_FLOAT] = "fmt_32_32_32_32_float",
+	[TEXTURE_FORMAT_32_32_32_32_UINT] = "fmt_32_32_32_32_uint",
+	[TEXTURE_FORMAT_32_32_32_32_SINT] = "fmt_32_32_32_32_sint",
+	[TEXTURE_FORMAT_32_32_FLOAT] = "fmt_32_32_float",
+	[TEXTURE_FORMAT_32_32_UINT] = "fmt_32_32_uint",
+	[TEXTURE_FORMAT_32_32_SINT] = "fmt_32_32_sint",
+	[TEXTURE_FORMAT_32_FLOAT] = "fmt_32_float",
+	[TEXTURE_FORMAT_32_UINT] = "fmt_32_uint",
+	[TEXTURE_FORMAT_32_SINT] = "fmt_32_sint",
+	[TEXTURE_FORMAT_64_UINT] = "fmt_64_uint",
+	[TEXTURE_FORMAT_64_SINT] = "fmt_64_sint",
+	[TEXTURE_FORMAT_11_11_10_FLOAT] = "fmt_11_11_10_float",
+	[TEXTURE_FORMAT_10_10_10_2_UNORM] = "fmt_10_10_10_2_unorm",
+	[TEXTURE_FORMAT_10_10_10_2_UINT] = "fmt_10_10_10_2_uint",
+};
+
+static bool texture_format_addr_compatible[TEXTURE_FORMAT_COUNT] = {
+	[TEXTURE_FORMAT_8_8_8_8_UNORM] = false,
+	[TEXTURE_FORMAT_8_8_8_8_SNORM] = false,
+	[TEXTURE_FORMAT_8_8_8_8_UINT] = false,
+	[TEXTURE_FORMAT_8_8_8_8_SINT] = false,
+	[TEXTURE_FORMAT_8_8_UNORM] = false,
+	[TEXTURE_FORMAT_8_8_SNORM] = false,
+	[TEXTURE_FORMAT_8_8_UINT] = false,
+	[TEXTURE_FORMAT_8_8_SINT] = false,
+	[TEXTURE_FORMAT_8_UNORM] = false,
+	[TEXTURE_FORMAT_8_SNORM] = false,
+	[TEXTURE_FORMAT_8_UINT] = false,
+	[TEXTURE_FORMAT_8_SINT] = false,
+	[TEXTURE_FORMAT_16_16_16_16_FLOAT] = false,
+	[TEXTURE_FORMAT_16_16_16_16_UNORM] = false,
+	[TEXTURE_FORMAT_16_16_16_16_SNORM] = false,
+	[TEXTURE_FORMAT_16_16_16_16_UINT] = false,
+	[TEXTURE_FORMAT_16_16_16_16_SINT] = false,
+	[TEXTURE_FORMAT_16_16_FLOAT] = false,
+	[TEXTURE_FORMAT_16_16_UNORM] = false,
+	[TEXTURE_FORMAT_16_16_SNORM] = false,
+	[TEXTURE_FORMAT_16_16_UINT] = false,
+	[TEXTURE_FORMAT_16_16_SINT] = false,
+	[TEXTURE_FORMAT_16_FLOAT] = false,
+	[TEXTURE_FORMAT_16_UNORM] = false,
+	[TEXTURE_FORMAT_16_SNORM] = false,
+	[TEXTURE_FORMAT_16_UINT] = false,
+	[TEXTURE_FORMAT_16_SINT] = false,
+	[TEXTURE_FORMAT_32_32_32_32_FLOAT] = false,
+	[TEXTURE_FORMAT_32_32_32_32_UINT] = false,
+	[TEXTURE_FORMAT_32_32_32_32_SINT] = false,
+	[TEXTURE_FORMAT_32_32_FLOAT] = false,
+	[TEXTURE_FORMAT_32_32_UINT] = false,
+	[TEXTURE_FORMAT_32_32_SINT] = false,
+	[TEXTURE_FORMAT_32_FLOAT] = true,
+	[TEXTURE_FORMAT_32_UINT] = true,
+	[TEXTURE_FORMAT_32_SINT] = true,
+	[TEXTURE_FORMAT_64_UINT] = true,
+	[TEXTURE_FORMAT_64_SINT] = true,
+	[TEXTURE_FORMAT_11_11_10_FLOAT] = false,
+	[TEXTURE_FORMAT_10_10_10_2_UNORM] = false,
+	[TEXTURE_FORMAT_10_10_10_2_UINT] = false,
+};
+
+static char* texture_format_data_types[TEXTURE_FORMAT_COUNT] = {
+	[TEXTURE_FORMAT_8_8_8_8_UNORM] = "f32x4",
+	[TEXTURE_FORMAT_8_8_8_8_SNORM] = "f32x4",
+	[TEXTURE_FORMAT_8_8_8_8_UINT] = "u32x4",
+	[TEXTURE_FORMAT_8_8_8_8_SINT] = "s32x4",
+	[TEXTURE_FORMAT_8_8_UNORM] = "f32x2",
+	[TEXTURE_FORMAT_8_8_SNORM] = "f32x2",
+	[TEXTURE_FORMAT_8_8_UINT] = "u32x2",
+	[TEXTURE_FORMAT_8_8_SINT] = "s32x2",
+	[TEXTURE_FORMAT_8_UNORM] = "float",
+	[TEXTURE_FORMAT_8_SNORM] = "float",
+	[TEXTURE_FORMAT_8_UINT] = "uint32_t",
+	[TEXTURE_FORMAT_8_SINT] = "int32_t",
+	[TEXTURE_FORMAT_16_16_16_16_FLOAT] = "f32x4",
+	[TEXTURE_FORMAT_16_16_16_16_UNORM] = "f32x4",
+	[TEXTURE_FORMAT_16_16_16_16_SNORM] = "f32x4",
+	[TEXTURE_FORMAT_16_16_16_16_UINT] = "u32x4",
+	[TEXTURE_FORMAT_16_16_16_16_SINT] = "s32x4",
+	[TEXTURE_FORMAT_16_16_FLOAT] = "f32x2",
+	[TEXTURE_FORMAT_16_16_UNORM] = "f32x2",
+	[TEXTURE_FORMAT_16_16_SNORM] = "f32x2",
+	[TEXTURE_FORMAT_16_16_UINT] = "u32x2",
+	[TEXTURE_FORMAT_16_16_SINT] = "s32x2",
+	[TEXTURE_FORMAT_16_FLOAT] = "float",
+	[TEXTURE_FORMAT_16_UNORM] = "float",
+	[TEXTURE_FORMAT_16_SNORM] = "float",
+	[TEXTURE_FORMAT_16_UINT] = "uint32_t",
+	[TEXTURE_FORMAT_16_SINT] = "int32_t",
+	[TEXTURE_FORMAT_32_32_32_32_FLOAT] = "f32x4",
+	[TEXTURE_FORMAT_32_32_32_32_UINT] = "u32x4",
+	[TEXTURE_FORMAT_32_32_32_32_SINT] = "s32x4",
+	[TEXTURE_FORMAT_32_32_FLOAT] = "f32x2",
+	[TEXTURE_FORMAT_32_32_UINT] = "u32x2",
+	[TEXTURE_FORMAT_32_32_SINT] = "s32x2",
+	[TEXTURE_FORMAT_32_FLOAT] = "float",
+	[TEXTURE_FORMAT_32_UINT] = "uint32_t",
+	[TEXTURE_FORMAT_32_SINT] = "int32_t",
+	[TEXTURE_FORMAT_64_UINT] = "uint64_t",
+	[TEXTURE_FORMAT_64_SINT] = "int64_t",
+	[TEXTURE_FORMAT_11_11_10_FLOAT] = "f32x4",
+	[TEXTURE_FORMAT_10_10_10_2_UNORM] = "f32x4",
+	[TEXTURE_FORMAT_10_10_10_2_UINT] = "u32x4",
+};
+
 static const char* data_type_identifiers[DATA_TYPE_COUNT] = {
 	[DATA_TYPE_BOOL] = "bool",
 	[DATA_TYPE_HALF] = "half",
@@ -209,6 +435,7 @@ static bool texture_can_gather[TEXTURE_COUNT] = {
 typedef struct Ctx Ctx;
 struct Ctx {
 	FILE* f;
+	TextureFormat texture_format;
 	DataType data_type;
 	Vector vector;
 	Texture texture;
@@ -259,21 +486,13 @@ void print_entry(const char* string) {
 					fprintf(ctx.f, "%s", texture_names_snake_case[ctx.texture]);
 					break;
 				case 'R':
-					if (ctx.vector == VECTOR_1) {
-						fprintf(ctx.f, "%s(%s)", (ctx.use_rw ? texture_names_title_case_rw : texture_names_title_case)[ctx.texture], data_type_identifiers[ctx.data_type]);
-					} else {
-						fprintf(ctx.f, "%s(%s%s)", (ctx.use_rw ? texture_names_title_case_rw : texture_names_title_case)[ctx.texture], data_type_suffixes[ctx.data_type], vector_suffixes[ctx.vector]);
-					}
+					fprintf(ctx.f, "%s(%s)", (ctx.use_rw ? texture_names_title_case_rw : texture_names_title_case)[ctx.texture], texture_format_idents[ctx.texture_format]);
 					break;
 				case 'w':
 					fprintf(ctx.f, "%s", texture_names_snake_case[ctx.texture]);
 					break;
 				case 'W':
-					if (ctx.vector == VECTOR_1) {
-						fprintf(ctx.f, "%s(%s)", (ctx.use_rw ? texture_names_title_case_rw : texture_names_title_case_wo)[ctx.texture], data_type_identifiers[ctx.data_type]);
-					} else {
-						fprintf(ctx.f, "%s(%s%s)", (ctx.use_rw ? texture_names_title_case_rw : texture_names_title_case_wo)[ctx.texture], data_type_suffixes[ctx.data_type], vector_suffixes[ctx.vector]);
-					}
+					fprintf(ctx.f, "%s(%s)", (ctx.use_rw ? texture_names_title_case_rw : texture_names_title_case_wo)[ctx.texture], texture_format_idents[ctx.texture_format]);
 					break;
 				case 's':
 					fprintf(ctx.f, "%s", texture_names_snake_case[ctx.texture]);
@@ -291,6 +510,12 @@ void print_entry(const char* string) {
 				case 'c':
 					fprintf(ctx.f, "%s", texture_coord_type[ctx.texture]);
 					break;
+				case 'f':
+					fprintf(ctx.f, "%s", texture_format_idents_lower[ctx.texture_format]);
+					break;
+				case 'F':
+					fprintf(ctx.f, "%s", texture_format_data_types[ctx.texture_format]);
+					break;
 			}
 			break;
 		}
@@ -300,8 +525,8 @@ void print_entry(const char* string) {
 	fprintf(ctx.f, "%s", prev_special);
 }
 
-void print_texture_functions(const char* comment, const char* fmt, const char* generic_ident, const char* generic_args, const char* generic_fmt, bool has_index_type, bool is_sample, bool is_gather, bool want_rw, Vector vector_min) {
-	ctx.use_rw = false;
+void print_texture_functions(const char* comment, const char* fmt, const char* generic_ident, const char* generic_args, const char* generic_fmt, bool has_index_type, bool is_sample, bool is_gather, bool want_rw, bool only_rw, bool is_addr, Vector vector_min) {
+	ctx.use_rw = !only_rw;
 	fprintf(ctx.f, "//\n");
 	fprintf(ctx.f, "// %s\n", comment);
 	for (Texture texture = 0; texture < TEXTURE_COUNT; texture += 1) {
@@ -318,14 +543,25 @@ void print_texture_functions(const char* comment, const char* fmt, const char* g
 			continue;
 		}
 
-		for (Vector vector = vector_min; vector < VECTOR_COUNT; vector += 1) {
-			for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
-				ctx.data_type = data_type;
-				if (!data_type_is_texture_compatible[data_type]) {
+		if (is_sample) {
+			for (Vector vector = vector_min; vector < VECTOR_COUNT; vector += 1) {
+				for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
+					ctx.data_type = data_type;
+					if (!data_type_is_texture_compatible[data_type]) {
+						continue;
+					}
+
+					ctx.vector = vector;
+					print_entry(fmt);
+					fprintf(ctx.f, ";\n");
+				}
+			}
+		} else {
+			for (TextureFormat texture_format = 0; texture_format < TEXTURE_FORMAT_COUNT; texture_format += 1) {
+				if (is_addr && !texture_format_addr_compatible[texture_format]) {
 					continue;
 				}
-
-				ctx.vector = vector;
+				ctx.texture_format = texture_format;
 				print_entry(fmt);
 				fprintf(ctx.f, ";\n");
 			}
@@ -350,20 +586,31 @@ AGAIN: {}
 			continue;
 		}
 
-		for (Vector vector = vector_min; vector < VECTOR_COUNT; vector += 1) {
-			for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
-				ctx.data_type = data_type;
-				if (!data_type_is_texture_compatible[data_type]) {
+		if (is_sample) {
+			for (Vector vector = vector_min; vector < VECTOR_COUNT; vector += 1) {
+				for (DataType data_type = 0; data_type < DATA_TYPE_COUNT; data_type += 1) {
+					ctx.data_type = data_type;
+					if (!data_type_is_texture_compatible[data_type]) {
+						continue;
+					}
+
+					ctx.vector = vector;
+					fprintf(ctx.f, ", \\\n\t\t");
+					print_entry(generic_fmt);
+				}
+			}
+		} else {
+			for (TextureFormat texture_format = 0; texture_format < TEXTURE_FORMAT_COUNT; texture_format += 1) {
+				if (is_addr && !texture_format_addr_compatible[texture_format]) {
 					continue;
 				}
-
-				ctx.vector = vector;
+				ctx.texture_format = texture_format;
 				fprintf(ctx.f, ", \\\n\t\t");
 				print_entry(generic_fmt);
 			}
 		}
 	}
-	if (!has_been_again && want_rw) {
+	if (!has_been_again && want_rw && only_rw) {
 		has_been_again = true;
 		ctx.use_rw = true;
 		goto AGAIN;
@@ -387,7 +634,7 @@ void print_file_header() {
 		"// !?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!\n"
 		"// !?!?!? WARNING CONTRIBUTOR ?!?!?!\n"
 		"// !?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!\n"
-		"// this file is generated by tools/generator.c\n"
+		"// this file is generated by tools/intrinsics_gen.c\n"
 		"// please edit that file and regenerate this one if you want to make edits\n"
 		"\n"
 	);
@@ -412,26 +659,30 @@ void generate_texture_intrinsics_file(void) {
 
 	print_texture_functions(
 		"load a texel from 'texture' at 'idx'",
-		"$vi load_$tr_$vx($tR texture, $ti idx)",
+		"$tF load_$tr_$tf($tR texture, $ti idx)",
 		"load_textureG",
 		"texture, idx",
-		"$tR: load_$tr_$vx",
+		"$tR: load_$tr_$tf",
 		true,
 		false,
 		false,
 		true,
+		true,
+		false,
 		VECTOR_1
 	);
 
 	print_texture_functions(
 		"fetch a texel from 'texture' at 'idx'",
-		"$vi fetch_$tr_$vx($tS texture, $ti idx)",
+		"$vi fetch_$tr_$vx($tS texture, $ti idx, uint32_t mip_level)",
 		"fetch_textureG",
-		"texture, idx",
+		"texture, idx, mip_level",
 		"$tS: fetch_$tr_$vx",
 		true,
 		true,
 		false,
+		false,
+		true,
 		false,
 		VECTOR_1
 	);
@@ -446,6 +697,8 @@ void generate_texture_intrinsics_file(void) {
 		true,
 		false,
 		false,
+		true,
+		false,
 		VECTOR_1
 	);
 
@@ -458,6 +711,8 @@ void generate_texture_intrinsics_file(void) {
 		false,
 		true,
 		false,
+		false,
+		true,
 		false,
 		VECTOR_1
 	);
@@ -472,6 +727,8 @@ void generate_texture_intrinsics_file(void) {
 		true,
 		false,
 		false,
+		true,
+		false,
 		VECTOR_1
 	);
 
@@ -485,6 +742,8 @@ void generate_texture_intrinsics_file(void) {
 		true,
 		false,
 		false,
+		true,
+		false,
 		VECTOR_1
 	);
 
@@ -496,6 +755,8 @@ void generate_texture_intrinsics_file(void) {
 		"$tS: gather_red_$tr_$vx",
 		false,
 		true,
+		true,
+		false,
 		true,
 		false,
 		VECTOR_1
@@ -511,6 +772,8 @@ void generate_texture_intrinsics_file(void) {
 		true,
 		true,
 		false,
+		true,
+		false,
 		VECTOR_2
 	);
 
@@ -522,6 +785,8 @@ void generate_texture_intrinsics_file(void) {
 		"$tS: gather_blue_$tr_$vx",
 		false,
 		true,
+		true,
+		false,
 		true,
 		false,
 		VECTOR_3
@@ -537,17 +802,51 @@ void generate_texture_intrinsics_file(void) {
 		true,
 		true,
 		false,
+		true,
+		false,
 		VECTOR_4
 	);
 
 	print_texture_functions(
 		"store a 'value' in 'texture' at 'idx'",
-		"void store_$tw_$vx($tW texture, $ti idx, $vi value)",
+		"void store_$tw_$tf($tW texture, $ti idx, $tF value)",
 		"store_textureG",
 		"texture, idx, value",
-		"$tW: store_$tw_$vx",
+		"$tW: store_$tw_$tf",
 		true,
 		false,
+		false,
+		true,
+		true,
+		false,
+		VECTOR_1
+	);
+
+	print_texture_functions(
+		"get a readonly address of a texel from 'texture' at 'idx'",
+		"const $tF* addr_ro_$tr_$tf($tR texture, $ti idx)",
+		"addr_ro_textureG",
+		"texture, idx",
+		"$tR: addr_ro_$tr_$tf",
+		true,
+		false,
+		false,
+		true,
+		true,
+		true,
+		VECTOR_1
+	);
+
+	print_texture_functions(
+		"get a read/write address of a texel from 'texture' at 'idx'",
+		"$tF* addr_rw_$tw_$tf($tW texture, $ti idx)",
+		"addr_rw_textureG",
+		"texture, idx",
+		"$tW: addr_rw_$tw_$tf",
+		true,
+		false,
+		false,
+		true,
 		false,
 		true,
 		VECTOR_1

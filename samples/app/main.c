@@ -37,7 +37,6 @@ int main(int argc, char** argv) {
 	gpu_init(window, window_width, window_height);
 
 	GpuResourceId backbuffer_texture_id = gpu_backbuffer();
-	GpuResourceId backbuffer_compute_texture_id = gpu_backbuffer_compute();
 	GpuResourceId staging_buffer = gpu_create_staging_buffer();
 	GpuResourceId triangle_vertex_buffer_id = gpu_create_buffer(3 * sizeof(TriangleVertex));
 	GpuResourceId logo_texture_id = gpu_create_texture(GPU_TEXTURE_TYPE_2D, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, 1, APP_LOGO_MIP_LEVELS);
@@ -212,7 +211,7 @@ int main(int argc, char** argv) {
 			case APP_SAMPLE_COMPUTE_SQUARE: {
 				ComputeSquareBC* bc = bundled_constants_ptr;
 				if (init_sample) {
-					bc->output = backbuffer_compute_texture_id;
+					bc->output = backbuffer_texture_id;
 				}
 				break;
 			};
@@ -255,7 +254,7 @@ int main(int argc, char** argv) {
 				VoxelRaytracerBC* bc = bundled_constants_ptr;
 				if (init_sample) {
 					bc->models = voxel_model_buffer_id;
-					bc->output = backbuffer_compute_texture_id;
+					bc->output = backbuffer_texture_id;
 				}
 				app_samples[sample_enum].compute.dispatch_group_size_x = window_width / 8;
 				app_samples[sample_enum].compute.dispatch_group_size_y = window_height / 8;

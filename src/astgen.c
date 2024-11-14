@@ -529,9 +529,14 @@ bool hcc_astgen_data_type_check_compatible_assignment(HccWorker* w, HccDataType 
 		HccResourceDataType target_resource_data_type = HCC_DATA_TYPE_AUX(target_data_type);
 		HccResourceDataType source_resource_data_type = HCC_DATA_TYPE_AUX(source_data_type);
 		HccResourceAccessMode target_access_mode = HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(target_resource_data_type);
-		if (
-			HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(target_resource_data_type) == HCC_RESOURCE_DATA_TYPE_TEXTURE_INTRINSIC_TYPE(source_resource_data_type) &&
-			HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(source_resource_data_type) == HCC_RESOURCE_ACCESS_MODE_READ_WRITE &&
+		HccResourceAccessMode source_access_mode = HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(source_resource_data_type);
+
+		// remove access mode from locals
+		target_resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_MASK;
+		source_resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_MASK;
+
+		if ( // if everything is the same but the access mode and we are going to READ_ONLY or WRITE_ONLY, implicitly cast
+			target_resource_data_type == source_resource_data_type && 
 			(target_access_mode == HCC_RESOURCE_ACCESS_MODE_READ_ONLY || target_access_mode == HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY)
 		) {
 			hcc_astgen_generate_implicit_cast(w, target_data_type, source_expr_mut);
@@ -745,7 +750,7 @@ HccDataType hcc_astgen_deduplicate_buffer_data_type(HccWorker* w, HccDataType el
 
 	HccCU* cu = w->cu;
 	element_data_type = hcc_decl_resolve_and_keep_qualifiers(w->cu, element_data_type);
-	uint64_t key = ((uint64_t)element_data_type << 2) | access_mode;
+	uint64_t key = element_data_type;
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->dtt.buffers_dedup_hash_table, &key);
 	HccDataTypeDedupEntry* entry = &cu->dtt.buffers_dedup_hash_table[insert.idx];
 	if (!insert.is_new) {
@@ -2561,66 +2566,54 @@ TEXTURE:{}
 				if (hcc_ata_iter_next(w->astgen.token_iter) != HCC_ATA_TOKEN_PARENTHESIS_OPEN) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_OPEN_RESOURCE_TYPE_GENERIC, hcc_ata_token_strings[token]);
 				}
-				hcc_ata_iter_next(w->astgen.token_iter);
+				token = hcc_ata_iter_next(w->astgen.token_iter);
 
-				HccDataType generic_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, false);
-				HccDataType resolved_generic_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, generic_data_type);
-				token = hcc_ata_iter_peek(w->astgen.token_iter);
+				uint32_t aux = 0;
+				if (access_mode == HCC_RESOURCE_ACCESS_MODE_SAMPLE) {
+					HccDataType generic_data_type = hcc_astgen_generate_data_type(w, HCC_ERROR_CODE_EXPECTED_TYPE_NAME, false);
+					HccDataType resolved_generic_data_type = hcc_decl_resolve_and_strip_qualifiers(w->cu, generic_data_type);
+					token = hcc_ata_iter_peek(w->astgen.token_iter);
+
+					HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(w->cu, generic_data_type);
+					if (generic_data_type == 0 || !HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type)) {
+						HccString data_type_name = hcc_data_type_string(w->cu, generic_data_type);
+						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_TEXEL_TYPE, (int)data_type_name.size, data_type_name.data);
+					}
+
+					if (generic_data_type & HCC_DATA_TYPE_QUALIFIERS_MASK) {
+						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE, hcc_ata_token_strings[token]);
+					}
+
+					HccAMLIntrinsicDataType intrinsic_type = HCC_DATA_TYPE_AUX(lowered_data_type);
+					aux = intrinsic_type;
+				} else {
+					if (token != HCC_ATA_TOKEN_IDENT) {
+						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_TEXTURE_FORMAT_RESOURCE_TYPE);
+					}
+					
+					HccATAValue identifier_value = hcc_ata_iter_next_value(w->astgen.token_iter);
+					HccString string = hcc_string_table_get(identifier_value.string_id);
+
+					HccTextureFormat fmt = HCC_TEXTURE_FORMAT_COUNT;
+					for (uint32_t idx = 0; idx < HCC_TEXTURE_FORMAT_COUNT; idx += 1) {
+						if (hcc_string_eq_c(string, hcc_texture_format_idents[idx])) {
+							fmt = idx;
+							break;
+						}
+					}
+
+					if (fmt == HCC_TEXTURE_FORMAT_COUNT) {
+						hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_TEXTURE_FORMAT_RESOURCE_TYPE);
+					}
+					token = hcc_ata_iter_next(w->astgen.token_iter);
+					aux = fmt;
+				}
 
 				if (token != HCC_ATA_TOKEN_PARENTHESIS_CLOSE) {
 					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_PARENTHESIS_CLOSE_RESOURCE_TYPE_GENERIC);
 				}
 				hcc_ata_iter_next(w->astgen.token_iter);
-
-				HccDataType lowered_data_type = hcc_data_type_lower_ast_to_aml(w->cu, generic_data_type);
-				if (generic_data_type == 0 || !HCC_DATA_TYPE_IS_AML_INTRINSIC(lowered_data_type)) {
-					HccString data_type_name = hcc_data_type_string(w->cu, generic_data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_INVALID_TEXEL_TYPE, (int)data_type_name.size, data_type_name.data);
-				}
-
-				if (generic_data_type & HCC_DATA_TYPE_QUALIFIERS_MASK) {
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_EXPECTED_NO_TYPE_QUALIFIERS_FOR_TEXTURE_TYPE, hcc_ata_token_strings[token]);
-				}
-
-				bool is_supported = access_mode == HCC_RESOURCE_ACCESS_MODE_SAMPLE;
-				switch (HCC_DATA_TYPE_AUX(lowered_data_type)) {
-					case HCC_AML_INTRINSIC_DATA_TYPE_S8:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S16:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S32:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S64:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U8:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U16:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U32:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U64:
-					case HCC_AML_INTRINSIC_DATA_TYPE_F16:
-					case HCC_AML_INTRINSIC_DATA_TYPE_F32:
-					case HCC_AML_INTRINSIC_DATA_TYPE_F64:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S8X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S16X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S32X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U8X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U16X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U32X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_F16X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_F32X2:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S8X4:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S16X4:
-					case HCC_AML_INTRINSIC_DATA_TYPE_S32X4:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U8X4:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U16X4:
-					case HCC_AML_INTRINSIC_DATA_TYPE_U32X4:
-					case HCC_AML_INTRINSIC_DATA_TYPE_F16X4:
-					case HCC_AML_INTRINSIC_DATA_TYPE_F32X4:
-						is_supported = true;
-						break;
-				}
-				if (!is_supported) {
-					HccString data_type_name = hcc_data_type_string(w->cu, lowered_data_type);
-					hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_UNSUPPORTED_TEXTURE_ELEMENT_TYPE, (int)data_type_name.size, data_type_name.data);
-				}
-
-				HccAMLIntrinsicDataType intrinsic_type = HCC_DATA_TYPE_AUX(lowered_data_type);
-				HccResourceDataType resource_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE(tex_dim, intrinsic_type, access_mode, is_tex_array, is_tex_ms);
+				HccResourceDataType resource_data_type = HCC_RESOURCE_DATA_TYPE_TEXTURE(tex_dim, aux, access_mode, is_tex_array, is_tex_ms);
 				data_type = HCC_DATA_TYPE(RESOURCE, resource_data_type);
 				break;
 			}

@@ -12,6 +12,7 @@
 - [Atomics](#atomics)
 - [Pixel](#pixel)
 - [Textures](#textures)
+- [Texture Formats](#texture-formats)
 - [Quad & Wave](#quad--wave)
 - [Swizzling](#swizzling)
 - [hprintf](#hprintf)
@@ -51,28 +52,7 @@ Here is a list of all of the Resource Types available in HCC:
 	- HccWoBuffer(T)
 	- HccRwBuffer(T)
 
-- Texture Types: where T is the element type
-	- HccRoTexture1D(T)
-	- HccRoTexture1DArray(T)
-	- HccRoTexture2D(T)
-	- HccRoTexture2DArray(T)
-	- HccRoTexture2DMS(T)
-	- HccRoTexture2DMSArray(T)
-	- HccRoTexture3D(T)
-	- HccWoTexture1D(T)
-	- HccWoTexture1DArray(T)
-	- HccWoTexture2D(T)
-	- HccWoTexture2DArray(T)
-	- HccWoTexture2DMS(T)
-	- HccWoTexture2DMSArray(T)
-	- HccWoTexture3D(T)
-	- HccRwTexture1D(T)
-	- HccRwTexture1DArray(T)
-	- HccRwTexture2D(T)
-	- HccRwTexture2DArray(T)
-	- HccRwTexture2DMS(T)
-	- HccRwTexture2DMSArray(T)
-	- HccRwTexture3D(T)
+- Sample Texture Types: where T is the element type
 	- HccSampleTexture1D(T)
 	- HccSampleTexture1DArray(T)
 	- HccSampleTexture2D(T)
@@ -80,6 +60,29 @@ Here is a list of all of the Resource Types available in HCC:
 	- HccSampleTextureCube(T)
 	- HccSampleTextureCubeArray(T)
 	- HccSampleTexture3D(T)
+
+- Storage Texture Types: where FMT is the [texture format](#texture-formats)
+	- HccRoTexture1D(FMT)
+	- HccRoTexture1DArray(FMT)
+	- HccRoTexture2D(FMT)
+	- HccRoTexture2DArray(FMT)
+	- HccRoTexture2DMS(FMT)
+	- HccRoTexture2DMSArray(FMT)
+	- HccRoTexture3D(FMT)
+	- HccWoTexture1D(FMT)
+	- HccWoTexture1DArray(FMT)
+	- HccWoTexture2D(FMT)
+	- HccWoTexture2DArray(FMT)
+	- HccWoTexture2DMS(FMT)
+	- HccWoTexture2DMSArray(FMT)
+	- HccWoTexture3D(FMT)
+	- HccRwTexture1D(FMT)
+	- HccRwTexture1DArray(FMT)
+	- HccRwTexture2D(FMT)
+	- HccRwTexture2DArray(FMT)
+	- HccRwTexture2DMS(FMT)
+	- HccRwTexture2DMSArray(FMT)
+	- HccRwTexture3D(FMT)
 
 ## Bundled Constants
 
@@ -288,21 +291,12 @@ Like other shading languages, HCC has special functions that read/write to/from 
 
 You can find the functions and their documentation in [hcc_texture_intrinsics.h](../libhccintrinsics/hcc_texture_intrinsics.h)
 
-The element type for Storage Textures (`HccRoTexture*`, `HccWoTexture*`, `HccRwTexture*`, but NOT `HccSampleTexture*`) now must reflect the exact element data type the texture was initialized with in your graphics API. Sample textures (`HccSampleTexture*`) can still take advantage of the automatic conversion from the underlying image type to the shader specified one.
+There are Storage Textures `HccRoTexture*(FMT)`, `HccWoTexture*(FMT)`, `HccRwTexture*(FMT)`. These allow you to load, store and atomic load & store to a texture.
+These take a [texture-format](#texture-formats) as the `FMT` type argument so the load/store data type can be inferred from it and so the shader code will
+be compatible with a wider range of GPUs.
 
-Example:
-- `HccRoTexture2D(uint32_t)` must have it's `VkImageViewCreateInfo::format` be `VK_FORMAT_R32_UINT`
-- `HccRoTexture2D(u32x2)` must have it's `VkImageViewCreateInfo::format` be `VK_FORMAT_R32G32_UINT`
-- `HccRoTexture2D(f32x4)` must have it's `VkImageViewCreateInfo::format` be `VK_FORMAT_R32G32B32A32_SFLOAT`
-
-You can still use `VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT` when you create your `VkImage`'s to allow for using the same `VkImage` for sample textures and storage textures.
-
-Example:
-- here our texture is `VK_FORMAT_R8G8B8A8_UNORM`, and we are going to sample into a `f32x4` and manually write back a `uint32_t` pixel to the same texture.
-1. create your `VkImage` with `VkImageCreateInfo::flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT` and `VkImageCreateInfo::format = VK_FORMAT_R8G8B8A8_UNORM`
-2. create your `VkImageView sample_texture` with `VkImageView::format = VK_FORMAT_R8G8B8A8_UNORM`
-3. create your `VkImageView storage_texture` with `VkImageView::format = VK_FORMAT_R32_UINT`
-4. upload your descriptors for the two different `VkImageView`, one for `VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE` and the other for `VK_DESCRIPTOR_TYPE_STORAGE_IMAGE`
+There are Sample Textures `HccSampleTexture*(T)`. These allow you to do all the usual sample operations and usually require an explicit `HccRoSampler` to be passed in along side.
+These take a sample type as the `T` type argument so you can choose the return type of the sample functions.
 
 This code samples a pixel and writes it back out to the same location.
 ```
@@ -310,30 +304,62 @@ HccRoSampler clamp_point_sampler = bc->clamp_point_sampler;
 HccSampleTexture2D(f32x4) sample_texture = bc->sample_texture;
 f32x4 color = sample_textureG(sample_texture, clamp_point_sampler, uv);
 
-HccWoTexture2D(uint32_t) storage_texture = bc->storage_texture;
-uint32_t color_packed = pack_u8x4_f32x4(color); // manually pack the color pixel
-store_textureG(storage_texture, u32x2(uv.x * bc->texture_dims.x, uv.y * bc->texture_dims.y), color_packed);
+HccWoTexture2D(FMT_8_8_8_8_UNORM) storage_texture = bc->storage_texture;
+u32x2 coord = u32x2(uv.x * bc->texture_dims.x, uv.y * bc->texture_dims.y);
+store_textureG(storage_texture, coord, color);
 ```
 
-Unfortunately if you want to read/write to a swapchain image using a storage image, this is not supported well across hardware as not all drivers create the swapchain image with `VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT`.
+## Texture Formats
 
-So instead the following solution must used:
-- we are assuming here that the swapchain image format is `VK_FORMAT_B8G8R8A8_UNORM`
-1. create a `VkImage fake_swapchain_image` with `VkImageCreateInfo::flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT` and `VkImageCreateInfo::format = VK_FORMAT_B8G8R8A8_UNORM`
-2. create your storage texture with `VkImageView fake_swapchain_image_view` with `VkImageView::format = VK_FORMAT_R32_UINT`
-3. do all of your rendering and storage image read/writes to `fake_swapchain_image_view` instead of the swapchain image
-4. copy vkCmdCopyImage from `fake_swapchain_image` to the swapchain image for that frame
+Texture format are required for Storage Textures as not all GPU's support reading/writing without an explicit format.
 
-And be aware that because the swapchain image is BGRA instead of RGBA, you must manually swizzle this in the shader:
-```
-    HccRwTexture2D(uint32_t) fake_swapchain_image = ...;
-    f32x4 color = ...;  // the color you want to write
-    color.bgra = color; // manually convert to BGRA using swizzling support within HCC compiler --enable-unordered-swizzling
-    uint32_t color_packed = pack_u8x4_f32x4(color); // manually pack the color pixel
-    store_textureG(fake_swapchain_image, u32x2(sv->dispatch_idx.x, sv->dispatch_idx.y), color_packed);
-```
+The [Vulkan Environment for SPIR-V](https://docs.vulkan.org/spec/latest/appendices/spirvenv.html#spirvenv-image-formats) has a compatibility list.
 
-Storage textures work this way in HCC to allow the shaders to work on hardware without any image format associated with the texture type/variable like you see in other shading languages. It also removes another layer of magic conversion that happens thus making it more transparent to the you the developer.
+Here that table adjusted with HCC's identifiers:
+
+| HCC Formats | Vulkan Formats |
+| ----------- | -------------- |
+| FMT_8_8_8_8_UNORM | VK_FORMAT_R8G8B8A8_UNORM |
+| FMT_8_8_8_8_SNORM | VK_FORMAT_R8G8B8A8_SNORM |
+| FMT_8_8_8_8_UINT | VK_FORMAT_R8G8B8A8_UINT |
+| FMT_8_8_8_8_SINT | VK_FORMAT_R8G8B8A8_SINT |
+| FMT_8_8_UNORM | VK_FORMAT_R8G8_UNORM |
+| FMT_8_8_SNORM | VK_FORMAT_R8G8_SNORM |
+| FMT_8_8_UINT | VK_FORMAT_R8G8_UINT |
+| FMT_8_8_SINT | VK_FORMAT_R8G8_SINT |
+| FMT_8_UNORM | VK_FORMAT_R8_UNORM |
+| FMT_8_SNORM | VK_FORMAT_R8_SNORM |
+| FMT_8_UINT | VK_FORMAT_R8_UINT |
+| FMT_8_SINT | VK_FORMAT_R8_SINT |
+| FMT_16_16_16_16_FLOAT | VK_FORMAT_R16G16B16A16_SFLOAT |
+| FMT_16_16_16_16_UNORM | VK_FORMAT_R16G16B16A16_UNORM |
+| FMT_16_16_16_16_SNORM | VK_FORMAT_R16G16B16A16_SNORM |
+| FMT_16_16_16_16_UINT | VK_FORMAT_R16G16B16A16_UINT |
+| FMT_16_16_16_16_SINT | VK_FORMAT_R16G16B16A16_SINT |
+| FMT_16_16_FLOAT | VK_FORMAT_R16G16_SFLOAT |
+| FMT_16_16_UNORM | VK_FORMAT_R16G16_UNORM |
+| FMT_16_16_SNORM | VK_FORMAT_R16G16_SNORM |
+| FMT_16_16_UINT | VK_FORMAT_R16G16_UINT |
+| FMT_16_16_SINT | VK_FORMAT_R16G16_SINT |
+| FMT_16_FLOAT | VK_FORMAT_R16_SFLOAT |
+| FMT_16_UNORM | VK_FORMAT_R16_UNORM |
+| FMT_16_SNORM | VK_FORMAT_R16_SNORM |
+| FMT_16_UINT | VK_FORMAT_R16_UINT |
+| FMT_16_SINT | VK_FORMAT_R16_SINT |
+| FMT_32_32_32_32_FLOAT | VK_FORMAT_R32G32B32A32_SFLOAT |
+| FMT_32_32_32_32_UINT | VK_FORMAT_R32G32B32A32_UINT |
+| FMT_32_32_32_32_SINT | VK_FORMAT_R32G32B32A32_SINT |
+| FMT_32_32_FLOAT | VK_FORMAT_R32G32_SFLOAT |
+| FMT_32_32_UINT | VK_FORMAT_R32G32_UINT |
+| FMT_32_32_SINT | VK_FORMAT_R32G32_SINT |
+| FMT_32_FLOAT | VK_FORMAT_R32_SFLOAT |
+| FMT_32_UINT | VK_FORMAT_R32_UINT |
+| FMT_32_SINT | VK_FORMAT_R32_SINT |
+| FMT_64_UINT | VK_FORMAT_R64_UINT |
+| FMT_64_SINT | VK_FORMAT_R64_SINT |
+| FMT_11_11_10_FLOAT | VK_FORMAT_B10G11R11_UFLOAT_PACK32 |
+| FMT_10_10_10_2_UNORM | VK_FORMAT_A2B10G10R10_UNORM_PACK32 |
+| FMT_10_10_10_2_UINT | VK_FORMAT_A2B10G10R10_UINT_PACK32 |
 
 ## Quad & Wave
 

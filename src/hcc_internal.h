@@ -3279,6 +3279,8 @@ struct HccSPIRVDescriptorBindingInfo {
 	HccSPIRVId data_type_ptr_spirv_id;
 };
 
+extern uint32_t hcc_spirv_image_format[HCC_TEXTURE_FORMAT_COUNT];
+
 void hcc_spirv_init(HccCU* cu, HccCUSetup* setup);
 HccSPIRVId hcc_spirv_next_id(HccCU* cu);
 HccSPIRVId hcc_spirv_next_id_many(HccCU* cu, uint32_t amount);
@@ -3300,7 +3302,6 @@ bool hcc_spirv_type_key_cmp(void* a, void* b, uintptr_t size);
 bool hcc_spirv_descriptor_binding_key_cmp(void* a, void* b, uintptr_t size);
 HccHash hcc_spirv_descriptor_binding_key_hash(void* key, uintptr_t size);
 HccHash hcc_spirv_type_key_hash(void* key, uintptr_t size);
-uint32_t hcc_spirv_image_format(HccAMLIntrinsicDataType data_type);
 
 // ===========================================
 //
