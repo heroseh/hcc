@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
 		float* dst_pixels = gpu_stage_upload(gray_texture_id, APP_LOGO_WIDTH, APP_LOGO_HEIGHT, 1, sizeof(float), 0);
 		for (uint32_t y = 0; y < APP_LOGO_HEIGHT; y += 1) {
 			for (uint32_t x = 0; x < APP_LOGO_WIDTH; x += 1) {
-				dst_pixels[y * APP_LOGO_WIDTH + x] = 0.5f;
+				dst_pixels[y * APP_LOGO_WIDTH + x] = square_f32(max_f32((float)x / APP_LOGO_WIDTH, (float)y / APP_LOGO_HEIGHT));
 			}
 		}
 	}
