@@ -259,7 +259,7 @@ int main(int argc, char** argv) {
 			output_final_file = false;
 		} else if (strcmp(argv[arg_idx], "--help") == 0) {
 			printf(
-				"hcc version 0.3.0 help:\n"
+				"hcc version 0.4.0 help:\n"
 				"%s OPTIONS\n"
 				"OPTIONS:\n"
 				"\t-fi   <path>.c               | <path>.c to a C file to compile\n"
