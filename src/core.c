@@ -4966,6 +4966,16 @@ HccConstantId hcc_constant_table_deduplicate_minus_one(HccCU* cu, HccDataType da
 	if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_IS_SCALAR(HCC_DATA_TYPE_AUX(data_type))) {
 		HccBasic minus_one = hcc_basic_from_sint(cu, data_type, -1);
 		return hcc_constant_table_deduplicate_basic(cu, data_type, &minus_one);
+	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(HCC_DATA_TYPE_AUX(data_type)) == 1) {
+		uint32_t fields_count = HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(data_type));
+		HccDataType scalar_data_type = HCC_DATA_TYPE(AML_INTRINSIC, HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(HCC_DATA_TYPE_AUX(data_type)));
+		HccBasic minus_one = hcc_basic_from_sint(cu, scalar_data_type, -1);
+		HccConstantId minus_one_constant_id = hcc_constant_table_deduplicate_basic(cu, scalar_data_type, &minus_one);
+		HccConstantId fields[4];
+		for (uint32_t idx = 0; idx < fields_count; idx += 1) {
+			fields[idx] = minus_one_constant_id;
+		}
+		return hcc_constant_table_deduplicate_composite(cu, data_type, fields, fields_count);
 	} else {
 		HCC_ABORT("TODO");
 	}

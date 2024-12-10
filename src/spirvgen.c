@@ -1065,7 +1065,6 @@ void hcc_spirvgen_generate(HccWorker* w) {
 			case HCC_AML_OP_MIN:
 			case HCC_AML_OP_MAX:
 			case HCC_AML_OP_CLAMP:
-			case HCC_AML_OP_SIGN:
 			case HCC_AML_OP_ABS:
 			{
 				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
@@ -1094,12 +1093,6 @@ void hcc_spirvgen_generate(HccWorker* w) {
 							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_GLSL_STD_450_OP_F_CLAMP; break;
 						}
 						break;
-					case HCC_AML_OP_SIGN:
-						switch (type_class) {
-							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_GLSL_STD_450_OP_S_SIGN; break;
-							case HCC_BASIC_TYPE_CLASS_FLOAT: op = HCC_SPIRV_GLSL_STD_450_OP_F_SIGN; break;
-						}
-						break;
 					case HCC_AML_OP_ABS:
 						switch (type_class) {
 							case HCC_BASIC_TYPE_CLASS_SINT: op = HCC_SPIRV_GLSL_STD_450_OP_S_ABS; break;
@@ -1118,6 +1111,29 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				for (uint32_t operand_idx = 1; operand_idx < aml_operands_count; operand_idx += 1) {
 					operands[3 + operand_idx] = hcc_spirvgen_convert_operand(w, aml_operands[operand_idx]);
 				}
+				break;
+			};
+
+			case HCC_AML_OP_SIGN: {
+				HccDataType data_type = hcc_aml_operand_data_type(cu, aml_function, aml_operands[1]);
+				HccBasicTypeClass type_class = hcc_basic_type_class(cu, data_type);
+				HccSPIRVOp cmp_op = type_class == HCC_BASIC_TYPE_CLASS_FLOAT ? HCC_SPIRV_OP_F_UNORD_LESS_THAN : HCC_SPIRV_OP_S_LESS_THAN;
+				uint32_t columns = HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type) ? HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(HCC_DATA_TYPE_AUX(data_type)) : 1;
+
+				HccSPIRVId cond_result_id = hcc_spirv_next_id(cu);
+				operands = hcc_spirv_function_add_instr(function, cmp_op, 4);
+				operands[0] = HCC_SPIRV_ID_TYPE_BOOL + columns - 1;
+				operands[1] = cond_result_id;
+				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_zero(w->cu, data_type));
+
+				HccSPIRVStorageClass storage_class = hcc_spirv_storage_class_from_aml_operand(cu, aml_function, aml_operands[1]);
+				operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_SELECT, 5);
+				operands[0] = hcc_spirv_type_deduplicate(cu, storage_class, data_type);
+				operands[1] = hcc_spirvgen_convert_operand(w, aml_operands[0]);
+				operands[2] = cond_result_id;
+				operands[3] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_minus_one(w->cu, data_type));
+				operands[4] = hcc_spirv_constant_deduplicate(cu, hcc_constant_table_deduplicate_one(w->cu, data_type));
 				break;
 			};
 
