@@ -1906,13 +1906,21 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				}
 
 				if (needs_intermediate_value) {
-					operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_VECTOR_SHUFFLE, 4 + num_components);
-					operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
-					operands[1] = result_id;
-					operands[2] = intermediate_result_id;
-					operands[3] = intermediate_result_id;
-					for (uint32_t idx = 0; idx < num_components; idx += 1) {
-						operands[4 + idx] = idx;
+					if (num_components == 1) {
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_COMPOSITE_EXTRACT, 4);
+						operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+						operands[1] = result_id;
+						operands[2] = intermediate_result_id;
+						operands[3] = 0;
+					} else {
+						operands = hcc_spirv_function_add_instr(function, HCC_SPIRV_OP_VECTOR_SHUFFLE, 4 + num_components);
+						operands[0] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, return_data_type);
+						operands[1] = result_id;
+						operands[2] = intermediate_result_id;
+						operands[3] = intermediate_result_id;
+						for (uint32_t idx = 0; idx < num_components; idx += 1) {
+							operands[4 + idx] = idx;
+						}
 					}
 				}
 
