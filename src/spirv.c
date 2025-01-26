@@ -11,6 +11,7 @@
 void hcc_spirv_init(HccCU* cu, HccCUSetup* setup) {
 	HCC_UNUSED(setup);
 	cu->spirv.next_spirv_id = HCC_SPIRV_ID_USER_START;
+	cu->spirv.found_image_int64_atomics = false;
 
 	cu->spirv.functions = hcc_stack_init(HccSPIRVFunction, HCC_ALLOC_TAG_SPIRV_FUNCTIONS, setup->functions_grow_count, setup->functions_reserve_cap);
 	cu->spirv.function_words = hcc_stack_init(HccSPIRVWord, HCC_ALLOC_TAG_SPIRV_FUNCTION_WORDS, (uint32_t)(setup->aml.function_alctor.instrs_grow_count * HCC_AML_INSTR_AVERAGE_WORDS), (uint32_t)(setup->aml.function_alctor.instrs_reserve_cap * HCC_AML_INSTR_AVERAGE_WORDS));

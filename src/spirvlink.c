@@ -162,8 +162,10 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
 		operands[0] = HCC_SPIRV_CAPABILITY_INT64_ATOMICS;
 
-		operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
-		operands[0] = HCC_SPIRV_CAPABILITY_INT64_IMAGE_EXT;
+		if (cu->spirv.found_image_int64_atomics) {
+			operands = hcc_spirvlink_add_instr(w, HCC_SPIRV_OP_CAPABILITY, 1);
+			operands[0] = HCC_SPIRV_CAPABILITY_INT64_IMAGE_EXT;
+		}
 	}
 
 	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_FLOAT16_ENABLED)) {
@@ -187,10 +189,12 @@ void hcc_spirvlink_link(HccWorker* w) {
 		operands[0] = HCC_SPIRV_CAPABILITY_PHYSICAL_STORAGE_BUFFER;
 	}
 
-	if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_INT64_ENABLED)) {
-		hcc_spirvlink_instr_start(w, HCC_SPIRV_OP_EXTENSION);
-		hcc_spirvlink_instr_add_operands_string_lit(w, "SPV_EXT_shader_image_int64");
-		hcc_spirvlink_instr_end(w);
+	if (cu->spirv.found_image_int64_atomics) {
+		if (hcc_options_get_bool(cu->options, HCC_OPTION_KEY_INT64_ENABLED)) {
+			hcc_spirvlink_instr_start(w, HCC_SPIRV_OP_EXTENSION);
+			hcc_spirvlink_instr_add_operands_string_lit(w, "SPV_EXT_shader_image_int64");
+			hcc_spirvlink_instr_end(w);
+		}
 	}
 
 	hcc_spirvlink_instr_start(w, HCC_SPIRV_OP_EXT_INST_IMPORT);

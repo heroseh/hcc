@@ -1797,6 +1797,9 @@ void hcc_spirvgen_generate(HccWorker* w) {
 				operands[2] = hcc_spirvgen_convert_operand(w, aml_operands[1]);
 				operands[3] = index_spirv_id;
 				if (aml_op == HCC_AML_OP_ADDR_TEXTURE) {
+					if (sample_data_type == HCC_AML_INTRINSIC_DATA_TYPE_U64 || sample_data_type == HCC_AML_INTRINSIC_DATA_TYPE_S64) {
+						cu->spirv.found_image_int64_atomics = true;
+					}
 					operands[4]
 						= HCC_RESOURCE_DATA_TYPE_TEXTURE_IS_MS(resource_data_type)
 						? ms_sample_spirv_id

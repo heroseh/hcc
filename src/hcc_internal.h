@@ -3266,6 +3266,7 @@ struct HccSPIRV {
 	HccSPIRVId                                   quad_swap_x_spirv_id;
 	HccSPIRVId                                   quad_swap_y_spirv_id;
 	HccSPIRVId                                   quad_swap_diagonal_spirv_id;
+	bool                                         found_image_int64_atomics;
 
 	HccSPIRVWord*                                final_binary_words;
 	uint32_t                                     final_binary_words_count;
