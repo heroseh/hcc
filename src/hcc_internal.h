@@ -137,8 +137,8 @@ typedef struct HccWorker HccWorker;
 
 #define HCC_DEBUG_ASSERT_NON_ZERO(value) HCC_DEBUG_ASSERT(value, "'%s' must be a non-zero value", #value)
 #define HCC_DEBUG_ASSERT_COMMIT_RESERVE_SIZE(commit_size, reserve_size) HCC_DEBUG_ASSERT((commit_size) <= (reserve_size), #commit_size " '%zu' must be less than or equal to " #reserve_size " '%zu'", (commit_size), (reserve_size))
-#define HCC_DEBUG_ASSERT_ARRAY_BOUNDS(idx, count) (((idx) < (count)) ? (idx) : HCC_ABORT("idx '%zu' is out of bounds for an array of count '%zu'", (idx), (count)))
-#define HCC_DEBUG_ASSERT_ARRAY_RESIZE(count, cap) HCC_DEBUG_ASSERT((count) <= (cap), "cannot resize array to count '%zu' when it has a capacity of '%zu'", (count), (cap))
+#define HCC_DEBUG_ASSERT_ARRAY_BOUNDS(idx, count) (((idx) < (count)) ? (idx) : HCC_ABORT("idx '%zu' is out of bounds for an array of count '%zu'", (uintptr_t)(idx), (uintptr_t)(count)))
+#define HCC_DEBUG_ASSERT_ARRAY_RESIZE(count, cap) HCC_DEBUG_ASSERT((count) <= (cap), "cannot resize array to count '%zu' when it has a capacity of '%zu'", (uintptr_t)(count), (uintptr_t)(cap))
 #define HCC_DEBUG_ASSERT_POWER_OF_TWO(v) HCC_DEBUG_ASSERT(HCC_IS_POWER_OF_TWO(v), #v "must be a power of two but got '%zu'", v)
 
 #if HCC_ENABLE_DEBUG_ASSERTIONS
@@ -2469,7 +2469,7 @@ HccAMLOperand* hcc_aml_function_instr_add(HccAMLFunction* function, uint32_t loc
 //
 // ===========================================
 
-#define HCC_AML_INSTR_AVERAGE_WORDS              4.f
+#define HCC_AML_INSTR_AVERAGE_WORDS              8.f
 #define HCC_AML_INSTR_AVERAGE_VALUES             0.75f
 #define HCC_AML_INSTR_AVERAGE_BASIC_BLOCKS       0.25f
 #define HCC_AML_INSTR_AVERAGE_BASIC_BLOCK_PARAMS 0.25f

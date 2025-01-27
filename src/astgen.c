@@ -3180,6 +3180,7 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 					variable = hcc_ast_global_variable_get(w->cu, existing_variable_decl);
 				}
 
+				w->astgen.function->max_instrs_count += 1; // HCC_AML_OP_LOAD
 				HccASTExpr* expr = hcc_astgen_alloc_expr(w, HCC_AST_EXPR_TYPE_LOCAL_VARIABLE);
 				expr->variable.decl = existing_variable_decl;
 				expr->data_type = variable->data_type;
@@ -3220,6 +3221,7 @@ HccASTExpr* hcc_astgen_generate_unary_expr(HccWorker* w) {
 					expr->variable.decl = decl;
 					expr->data_type = hcc_decl_return_data_type(w->cu, decl);
 					expr->location = location;
+					w->astgen.function->max_instrs_count += 1; // HCC_AML_OP_LOAD
 					if (HCC_DECL_IS_FORWARD_DECL(decl)) {
 						*hcc_stack_push(w->astgen.ast_file->forward_declarations_to_link) = decl;
 					}
