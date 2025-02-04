@@ -57,6 +57,7 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 	HccString shader_enum_name = hcc_options_get_string(cu->options, HCC_OPTION_KEY_SHADER_ENUM_NAME);
 	HccString shader_enum_prefix = hcc_options_get_string(cu->options, HCC_OPTION_KEY_SHADER_ENUM_PREFIX);
 	HccString shader_infos_name = hcc_options_get_string(cu->options, HCC_OPTION_KEY_SHADER_INFOS_NAME);
+	HccString shader_names_name = hcc_options_get_string(cu->options, HCC_OPTION_KEY_SHADER_NAMES_NAME);
 	HccString resource_structs_enum_name = hcc_options_get_string(cu->options, HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME);
 	HccString resource_structs_enum_prefix = hcc_options_get_string(cu->options, HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX);
 	uint32_t resource_descriptors_max = hcc_options_get_u32(cu->options, HCC_OPTION_KEY_RESOURCE_DESCRIPTORS_MAX);
@@ -93,6 +94,17 @@ void hcc_metadatagen_generate_c(HccCU* cu, HccIIO* iio) {
 		}
 
 		hcc_iio_write_fmt(iio, "\t%.*s%.*s,\n", (int)resource_structs_enum_prefix.size, resource_structs_enum_prefix.data, (int)dt_name.size, dt_name.data);
+	}
+	hcc_iio_write_fmt(iio, "};\n\n");
+
+	hcc_iio_write_fmt(iio, "const char* %.*s[] = {\n", (int)shader_names_name.size, shader_names_name.data);
+	for (uint32_t shader_idx = 0; shader_idx < hcc_stack_count(cu->shader_function_decls); shader_idx += 1) {
+		HccDecl decl = cu->shader_function_decls[shader_idx];
+		HccASTFunction* function = hcc_ast_function_get(cu, decl);
+		HccString function_name = hcc_string_table_get(function->identifier_string_id);
+
+
+		hcc_iio_write_fmt(iio, "\t\"%.*s\",\n", (int)function_name.size, function_name.data);
 	}
 	hcc_iio_write_fmt(iio, "};\n\n");
 

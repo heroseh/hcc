@@ -108,6 +108,7 @@ HccOptionValue hcc_option_key_defaults[HCC_OPTION_KEY_COUNT] = {
 	[HCC_OPTION_KEY_SHADER_ENUM_NAME] =             { .string = hcc_string_lit("HccShader") },
 	[HCC_OPTION_KEY_SHADER_ENUM_PREFIX] =           { .string = hcc_string_lit("HCC_SHADER_") },
 	[HCC_OPTION_KEY_SHADER_INFOS_NAME] =            { .string = hcc_string_lit("hcc_shader_infos") },
+	[HCC_OPTION_KEY_SHADER_NAMES_NAME] =            { .string = hcc_string_lit("hcc_shader_names") },
 	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME] =   { .string = hcc_string_lit("HccResourceStruct") },
 	[HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX] = { .string = hcc_string_lit("HCC_RESOURCE_STRUCT_") },
 	[HCC_OPTION_KEY_SPIRV_OPT] =                    { .bool_ = false },

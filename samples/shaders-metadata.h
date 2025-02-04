@@ -31,6 +31,21 @@ enum HccResourceStruct {
 	HCC_RESOURCE_STRUCT_SDF2dBC,
 };
 
+const char* hcc_shader_names[] = {
+	"triangle_vs",
+	"triangle_ps",
+	"compute_square_cs",
+	"texture_vs",
+	"texture_ps",
+	"color_picker_vs",
+	"color_picker_ps",
+	"blob_vacation_vs",
+	"blob_vacation_ps",
+	"voxel_raytracer_cs",
+	"sdf2d_vs",
+	"sdf2d_ps",
+};
+
 HccShaderInfo hcc_shader_infos[] = {
 	{
 		/* .name = */                   "triangle_vs",

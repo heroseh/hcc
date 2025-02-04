@@ -2857,6 +2857,7 @@ enum HccOptionKey {
 	HCC_OPTION_KEY_SHADER_ENUM_NAME,            // string
 	HCC_OPTION_KEY_SHADER_ENUM_PREFIX,          // string
 	HCC_OPTION_KEY_SHADER_INFOS_NAME,           // string
+	HCC_OPTION_KEY_SHADER_NAMES_NAME,           // string
 	HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_NAME,  // string
 	HCC_OPTION_KEY_RESOURCE_STRUCTS_ENUM_PREFIX,// string
 	HCC_OPTION_KEY_SPIRV_OPT,                   // bool
