@@ -3936,6 +3936,11 @@ HccASTExpr* hcc_astgen_generate_call_expr(HccWorker* w, HccASTExpr* function_exp
 HccASTExpr* hcc_astgen_generate_array_subscript_expr(HccWorker* w, HccASTExpr* array_expr) {
 	HccASTExpr* index_expr = hcc_astgen_generate_expr(w, 0);
 	hcc_astgen_data_type_ensure_readable(w, index_expr);
+	if (!hcc_data_type_is_int(w->cu, index_expr->data_type)) {
+		HccString data_type_name = hcc_data_type_string(w->cu, HCC_DATA_TYPE_STRIP_QUALIFIERS(index_expr->data_type));
+		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_INT, (int)data_type_name.size, data_type_name.data);
+	}
+
 	HccATAToken token = hcc_ata_iter_peek(w->astgen.token_iter);
 	if (token != HCC_ATA_TOKEN_SQUARE_CLOSE) {
 		hcc_astgen_bail_error_1(w, HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_SQUARE_BRACE_CLOSE);

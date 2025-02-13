@@ -615,6 +615,7 @@ enum {
 	HCC_ERROR_CODE_NOT_ENOUGH_FUNCTION_ARGS,
 	HCC_ERROR_CODE_TOO_MANY_FUNCTION_ARGS,
 	HCC_ERROR_CODE_INVALID_FUNCTION_ARG_DELIMITER,
+	HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_INT,
 	HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_SQUARE_BRACE_CLOSE,
 	HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_ACCESS,
 	HCC_ERROR_CODE_MISSING_COLON_TERNARY_OP,
@@ -865,6 +866,7 @@ enum HccAMLIntrinsicDataType {
 #define HCC_AML_INTRINSIC_DATA_TYPE_IS_MATRIX(type)  (HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(type) > 1 && HCC_AML_INTRINSIC_DATA_TYPE_ROWS(type) > 1)
 #define HCC_AML_INTRINSIC_DATA_TYPE_IS_UINT(type)  (HCC_AML_INTRINSIC_DATA_TYPE_U8 <= (type) && (type) <= HCC_AML_INTRINSIC_DATA_TYPE_U64)
 #define HCC_AML_INTRINSIC_DATA_TYPE_IS_SINT(type)  (HCC_AML_INTRINSIC_DATA_TYPE_S8 <= (type) && (type) <= HCC_AML_INTRINSIC_DATA_TYPE_S64)
+#define HCC_AML_INTRINSIC_DATA_TYPE_IS_INT(type)  (HCC_AML_INTRINSIC_DATA_TYPE_S8 <= (type) && (type) <= HCC_AML_INTRINSIC_DATA_TYPE_U64)
 #define HCC_AML_INTRINSIC_DATA_TYPE_SCALAR(type)  ((type) & HCC_AML_INTRINSIC_DATA_TYPE_SCALAR_MASK)
 #define HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS(type) ((((type) & HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_COLUMNS_SHIFT) + 1)
 #define HCC_AML_INTRINSIC_DATA_TYPE_ROWS(type)    ((((type) & HCC_AML_INTRINSIC_DATA_TYPE_ROWS_MASK) >> HCC_AML_INTRINSIC_DATA_TYPE_ROWS_SHIFT) + 1)
@@ -1696,6 +1698,9 @@ void hcc_data_type_string_print(HccCU* cu, const char* field_name, HccDataType d
 void hcc_data_type_size_align(HccCU* cu, HccDataType data_type, uint64_t* size_out, uint64_t* align_out);
 void hcc_data_type_print_basic(HccCU* cu, HccDataType data_type, void* data, HccIIO* iio);
 bool hcc_data_type_is_condition(HccDataType data_type);
+bool hcc_data_type_is_int(HccCU* cu, HccDataType data_type);
+bool hcc_data_type_is_sint(HccCU* cu, HccDataType data_type);
+bool hcc_data_type_is_uint(HccCU* cu, HccDataType data_type);
 uint64_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type);
 uint64_t hcc_data_type_composite_storage_fields_count(HccCU* cu, HccDataType data_type);
 uint64_t hcc_data_type_composite_scalar_start_idx_recursive(HccCU* cu, HccDataType data_type, uint64_t* elmt_indices, uint32_t elmt_indices_count, HccDataType* final_composite_data_type_out);

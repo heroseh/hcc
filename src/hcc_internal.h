@@ -3229,6 +3229,19 @@ struct HccSPIRVConstantEntry {
 	HccAtomic(HccSPIRVId) spirv_id;
 };
 
+typedef struct HccSPIRVUniqueTypeKey HccSPIRVUniqueTypeKey;
+struct HccSPIRVUniqueTypeKey {
+	HccSPIRVOperand* operands;
+	uint32_t         operands_count;
+	HccSPIRVOp       op;
+};
+
+typedef struct HccSPIRVUniqueTypeEntry HccSPIRVUniqueTypeEntry;
+struct HccSPIRVUniqueTypeEntry {
+	HccSPIRVUniqueTypeKey key;
+	HccAtomic(HccSPIRVId) spirv_id;
+};
+
 typedef struct HccSPIRVEntryPoint HccSPIRVEntryPoint;
 struct HccSPIRVEntryPoint {
 	HccShaderStage shader_stage;
@@ -3244,6 +3257,7 @@ struct HccSPIRV {
 	HccAtomic(HccSPIRVId)                        next_spirv_id;
 	HccHashTable(HccSPIRVTypeEntry)              type_table;
 	HccHashTable(HccSPIRVDeclEntry)              decl_table;
+	HccHashTable(HccSPIRVUniqueTypeEntry)        unique_type_table;
 	HccHashTable(HccSPIRVDescriptorBindingEntry) descriptor_binding_table;
 	HccHashTable(HccSPIRVConstantEntry)          constant_table;
 	HccStack(HccSPIRVTypeOrConstant)             types_and_constants;
@@ -3302,6 +3316,8 @@ bool hcc_spirv_type_key_cmp(void* a, void* b, uintptr_t size);
 bool hcc_spirv_descriptor_binding_key_cmp(void* a, void* b, uintptr_t size);
 HccHash hcc_spirv_descriptor_binding_key_hash(void* key, uintptr_t size);
 HccHash hcc_spirv_type_key_hash(void* key, uintptr_t size);
+bool hcc_spirv_unique_type_key_cmp(void* a, void* b, uintptr_t size);
+HccHash hcc_spirv_unique_type_key_hash(void* key, uintptr_t size);
 
 // ===========================================
 //

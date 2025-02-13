@@ -3097,6 +3097,39 @@ bool hcc_data_type_is_condition(HccDataType data_type) {
 	return HCC_DATA_TYPE_IS_AST_BASIC(data_type) || HCC_DATA_TYPE_IS_POINTER(data_type);
 }
 
+bool hcc_data_type_is_int(HccCU* cu, HccDataType data_type) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_AST_BASIC:
+			return HCC_AST_BASIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(data_type));
+		case HCC_DATA_TYPE_AML_INTRINSIC:
+			return HCC_AML_INTRINSIC_DATA_TYPE_IS_INT(HCC_DATA_TYPE_AUX(data_type));
+	}
+	return false;
+}
+
+bool hcc_data_type_is_sint(HccCU* cu, HccDataType data_type) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_AST_BASIC:
+			return HCC_AST_BASIC_DATA_TYPE_IS_SINT(cu, HCC_DATA_TYPE_AUX(data_type));
+		case HCC_DATA_TYPE_AML_INTRINSIC:
+			return HCC_AML_INTRINSIC_DATA_TYPE_IS_SINT(HCC_DATA_TYPE_AUX(data_type));
+	}
+	return false;
+}
+
+bool hcc_data_type_is_uint(HccCU* cu, HccDataType data_type) {
+	data_type = hcc_decl_resolve_and_strip_qualifiers(cu, data_type);
+	switch (HCC_DATA_TYPE_TYPE(data_type)) {
+		case HCC_DATA_TYPE_AST_BASIC:
+			return HCC_AST_BASIC_DATA_TYPE_IS_UINT(cu, HCC_DATA_TYPE_AUX(data_type));
+		case HCC_DATA_TYPE_AML_INTRINSIC:
+			return HCC_AML_INTRINSIC_DATA_TYPE_IS_UINT(HCC_DATA_TYPE_AUX(data_type));
+	}
+	return false;
+}
+
 uint64_t hcc_data_type_composite_fields_count(HccCU* cu, HccDataType data_type) {
 	HccString data_type_string = hcc_data_type_string(cu, data_type);
 	HCC_DEBUG_ASSERT(HCC_DATA_TYPE_IS_COMPOSITE(data_type), "internal error: expected a composite type but got '%.*s'", (int)data_type_string.size, data_type_string.data);
@@ -4294,18 +4327,12 @@ HccDataType hcc_function_data_type_deduplicate(HccCU* cu, HccDataType return_dat
 	}
 
 	return_data_type = hcc_data_type_lower_ast_to_aml(cu, return_data_type);
-	if (HCC_DATA_TYPE_TYPE(return_data_type) == HCC_DATA_TYPE_RESOURCE) {
-		return_data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
-	}
 
 	uint64_t key = HCC_HASH_FNV_64_INIT;
 	key = hcc_hash_fnv_64(&return_data_type, sizeof(HccDataType), key);
 	for (uint32_t param_idx = 0; param_idx < params_count; param_idx += 1) {
 		HccDataType* param_data_type_ptr = HCC_PTR_ADD(params, param_idx * params_stride);
 		HccDataType param_data_type = hcc_data_type_lower_ast_to_aml(cu, *param_data_type_ptr);
-		if (HCC_DATA_TYPE_TYPE(param_data_type) == HCC_DATA_TYPE_RESOURCE) {
-			param_data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
-		}
 		key = hcc_hash_fnv_64(&param_data_type, sizeof(HccDataType), key);
 	}
 
@@ -4324,9 +4351,6 @@ HccDataType hcc_function_data_type_deduplicate(HccCU* cu, HccDataType return_dat
 	for (uint32_t param_idx = 0; param_idx < params_count; param_idx += 1) {
 		HccDataType* param_data_type_ptr = HCC_PTR_ADD(params, param_idx * params_stride);
 		HccDataType param_data_type = hcc_data_type_lower_ast_to_aml(cu, *param_data_type_ptr);
-		if (HCC_DATA_TYPE_TYPE(param_data_type) == HCC_DATA_TYPE_RESOURCE) {
-			param_data_type = HCC_DATA_TYPE_AML_INTRINSIC_U32;
-		}
 		dst_params[param_idx] = param_data_type;
 	}
 
@@ -4627,7 +4651,7 @@ bool hcc_constant_as_uint(HccCU* cu, HccConstant constant, uint64_t* out) {
 		return false;
 	}
 
-	if (HCC_DATA_TYPE_IS_AST_BASIC(constant.data_type) && HCC_AST_BASIC_DATA_TYPE_IS_SINT(cu, HCC_DATA_TYPE_AUX(constant.data_type))) {
+	if (hcc_data_type_is_sint(cu, constant.data_type)) {
 		if ((int64_t)*out < 0) {
 			return false;
 		}
@@ -4642,8 +4666,7 @@ bool hcc_constant_as_sint(HccCU* cu, HccConstant constant, int64_t* out) {
 	}
 
 	if (
-		HCC_DATA_TYPE_IS_AST_BASIC(constant.data_type) &&
-		HCC_AST_BASIC_DATA_TYPE_IS_UINT(cu, HCC_DATA_TYPE_AUX(constant.data_type)) &&
+		hcc_data_type_is_uint(cu, constant.data_type) &&
 		cu->dtt.basic_type_size_and_aligns[HCC_DATA_TYPE_AUX(constant.data_type)] == sizeof(uint64_t)
 	) {
 		if ((uint64_t)*out > INT64_MAX) {
@@ -4670,13 +4693,32 @@ bool hcc_constant_as_sint32(HccCU* cu, HccConstant constant, int32_t* out) {
 
 bool hcc_constant_as_float(HccCU* cu, HccConstant constant, double* out) {
 	if (HCC_DATA_TYPE_IS_AST_BASIC(constant.data_type)) {
-		switch (constant.data_type) {
+		HccASTBasicDataType basic_data_type = HCC_DATA_TYPE_AUX(constant.data_type);
+		switch (basic_data_type) {
 			case HCC_AST_BASIC_DATA_TYPE_FLOAT: *out = *(float*)constant.data; return true;
 			case HCC_AST_BASIC_DATA_TYPE_DOUBLE: *out = *(double*)constant.data; return true;
 			default: {
 				uint64_t value;
 				if (hcc_constant_read_int_extend_64(cu, constant, &value)) {
-					if (HCC_AST_BASIC_DATA_TYPE_IS_SINT(cu, HCC_DATA_TYPE_AUX(constant.data_type))) {
+					if (HCC_AST_BASIC_DATA_TYPE_IS_SINT(cu, basic_data_type)) {
+						*out = value;
+					} else {
+						*out = (int64_t)value;
+					}
+					return true;
+				}
+				break;
+			};
+		}
+	} else if (HCC_DATA_TYPE_IS_AML_INTRINSIC(constant.data_type)) {
+		HccAMLIntrinsicDataType intrinsic_data_type = HCC_DATA_TYPE_AUX(constant.data_type);
+		switch (intrinsic_data_type) {
+			case HCC_AML_INTRINSIC_DATA_TYPE_F32: *out = *(float*)constant.data; return true;
+			case HCC_AML_INTRINSIC_DATA_TYPE_F64: *out = *(double*)constant.data; return true;
+			default: {
+				uint64_t value;
+				if (hcc_constant_read_int_extend_64(cu, constant, &value)) {
+					if (HCC_AML_INTRINSIC_DATA_TYPE_IS_SINT(intrinsic_data_type)) {
 						*out = value;
 					} else {
 						*out = (int64_t)value;
@@ -5371,6 +5413,7 @@ const char* hcc_error_code_lang_fmt_strings[HCC_LANG_COUNT][HCC_ERROR_CODE_COUNT
 		[HCC_ERROR_CODE_TOO_MANY_FUNCTION_ARGS] = "too many arguments, expected '%u' but got '%u' for '%.*s'",
 		[HCC_ERROR_CODE_INVALID_FUNCTION_ARG_DELIMITER] = "expected a ',' to declaring more function arguments or a ')' to finish declaring function arguments",
 		[HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_SQUARE_BRACE_CLOSE] = "expected ']' to finish the array subscript",
+		[HCC_ERROR_CODE_ARRAY_SUBSCRIPT_EXPECTED_INT] = "expected integer index for the array subscript but got '%.*s'",
 		[HCC_ERROR_CODE_EXPECTED_IDENTIFIER_FIELD_ACCESS] = "expected an identifier for the field you wish to access from '%.*s'",
 		[HCC_ERROR_CODE_MISSING_COLON_TERNARY_OP] = "expected a ':' for the false side of the ternary operator",
 		[HCC_ERROR_CODE_PARENTHISES_USED_ON_NON_FUNCTION] = "unexpected '(', this can only be used when the left expression is a function or pointer to a function",

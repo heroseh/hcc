@@ -26,6 +26,7 @@ void hcc_spirv_init(HccCU* cu, HccCUSetup* setup) {
 		setup->dtt.pointers_grow_count  +
 		setup->dtt.buffers_grow_count   ;
 	cu->spirv.type_table = hcc_hash_table_init(HccSPIRVTypeEntry, HCC_ALLOC_TAG_SPIRV_TYPE_TABLE, hcc_spirv_type_key_cmp, hcc_spirv_type_key_hash, types_reserve_cap);
+	cu->spirv.unique_type_table = hcc_hash_table_init(HccSPIRVUniqueTypeEntry, HCC_ALLOC_TAG_SPIRV_TYPE_TABLE, hcc_spirv_unique_type_key_cmp, hcc_spirv_unique_type_key_hash, types_reserve_cap);
 	uint32_t decl_table_entries_cap            =
 		setup->functions_reserve_cap           +
 		setup->ast.global_variables_reserve_cap;
@@ -84,28 +85,6 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		HCC_DEBUG_ASSERT(storage_class != HCC_SPIRV_STORAGE_CLASS_INVALID, "pointer type cannot have an invalid storage class");
 	}
 
-	if (HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(data_type)) {
-		HccResourceDataType resource_data_type = HCC_DATA_TYPE_AUX(data_type);
-		if (HCC_RESOURCE_DATA_TYPE_IS_TEXTURE(resource_data_type)) {
-			if (HCC_RESOURCE_DATA_TYPE_ACCESS_MODE(resource_data_type) == HCC_RESOURCE_ACCESS_MODE_SAMPLE) {
-				//
-				// SUPER HACK: spir-v only allows unique type declaration for OpTypeImage.
-				// all sample texture descriptors do not use the image format field.
-				// so strip out the vectoriness of the intrinsic data type so that the scalar is left to differentiate them
-				resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_TEXTURE_SAMPLE_TYPE_VECTOR_MASK;
-				data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, resource_data_type);
-			} else {
-				//
-				// SUPER HACK: spir-v only allows unique type declaration for OpTypeImage.
-				// HCC_RESOURCE_ACCESS_MODE_READ_ONLY & HCC_RESOURCE_ACCESS_MODE_WRITE_ONLY & HCC_RESOURCE_ACCESS_MODE_READ_WRITE,
-				// all end up making an identical opTypeImage, so make all of those use the same key for the hash table when deduplicating the type.
-				resource_data_type &= ~HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_MASK;
-				resource_data_type |= HCC_RESOURCE_ACCESS_MODE_READ_ONLY << HCC_RESOURCE_DATA_TYPE_ACCESS_MODE_SHIFT;
-				data_type = HCC_DATA_TYPE(RESOURCE_DESCRIPTOR, resource_data_type);
-			}
-		}
-	}
-
 	HccSPIRVTypeKey key = { .storage_class = storage_class, .data_type = data_type };
 	HccHashTableInsert insert = hcc_hash_table_find_insert_idx(cu->spirv.type_table, &key);
 	HccSPIRVTypeEntry* entry = &cu->spirv.type_table[insert.idx];
@@ -113,8 +92,8 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 		HccSPIRVOp op;
 		HccSPIRVOperand* operands;
 		uint32_t operands_count;
-		HccSPIRVId runtime_array_spirv_id = 0;
 		uint32_t num_ids = 1;
+		bool needs_deduplication = false;
 		switch (HCC_DATA_TYPE_TYPE(data_type)) {
 			case HCC_DATA_TYPE_STRUCT: {
 				HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
@@ -162,6 +141,7 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 					operands[2 + param_idx] = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, dt->params[param_idx]);
 				}
 				operands_count = 2 + dt->params_count;
+				needs_deduplication = true;
 				break;
 			};
 			case HCC_DATA_TYPE_AML_INTRINSIC: {
@@ -230,27 +210,10 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 						HccBufferDataType* d = hcc_buffer_data_type_get(cu, data_type);
 						HccSPIRVId element_spirv_id = hcc_spirv_type_deduplicate(cu, HCC_SPIRV_STORAGE_CLASS_INVALID, d->element_data_type);
 
-						uint64_t element_size;
-						uint64_t element_align;
-						hcc_data_type_size_align(cu, d->element_data_type, &element_size, &element_align);
-
-						runtime_array_spirv_id = hcc_spirv_next_id(cu);
-						HccSPIRVTypeOrConstant* runtime_array_type = hcc_stack_push(cu->spirv.types_and_constants);
-						runtime_array_type->op = HCC_SPIRV_OP_TYPE_RUNTIME_ARRAY;
-						runtime_array_type->operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 2);
-						runtime_array_type->operands_count = 2;
-						runtime_array_type->operands[0] = runtime_array_spirv_id;
-						runtime_array_type->operands[1] = element_spirv_id;
-
-						operands = hcc_spirv_add_decorate(cu, 3);
-						operands[0] = runtime_array_spirv_id;
-						operands[1] = HCC_SPIRV_DECORATION_ARRAY_STRIDE;
-						operands[2] = element_size;
-
-						op = HCC_SPIRV_OP_TYPE_STRUCT;
+						op = HCC_SPIRV_OP_TYPE_RUNTIME_ARRAY;
 						operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 2);
 						operands_count = 2;
-						operands[1] = runtime_array_spirv_id;
+						operands[1] = element_spirv_id;
 						break;
 					};
 					case HCC_RESOURCE_DATA_TYPE_TEXTURE:
@@ -291,79 +254,102 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 						operands_count = 1;
 						break;
 				}
+				needs_deduplication = true;
 				break;
 			};
 			default: HCC_ABORT("unhandled data type type: %u", HCC_DATA_TYPE_TYPE(data_type));
 		}
 
-		HccSPIRVId spirv_id = hcc_spirv_next_id_many(cu, num_ids);
-		operands[0] = spirv_id;
-
-		HccSPIRVTypeOrConstant* type = hcc_stack_push(cu->spirv.types_and_constants);
-		type->op = op;
-		type->operands = operands;
-		type->operands_count = operands_count;
-
-		if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
-			hcc_spirv_add_name(cu, spirv_id, hcc_data_type_string(cu, data_type));
+		HccSPIRVUniqueTypeKey unique_key;
+		HccHashTableInsert unique_insert;
+		HccSPIRVUniqueTypeEntry* unique_entry;
+		if (needs_deduplication) {
+			// lookup into another hash table to make sure the spirv data types themselves are deduplicated if they need it
+			unique_key = (HccSPIRVUniqueTypeKey){ .operands = operands + 1, .operands_count = operands_count - 1, .op = op };
+			unique_insert = hcc_hash_table_find_insert_idx(cu->spirv.unique_type_table, &unique_key);
+			unique_entry = &cu->spirv.unique_type_table[unique_insert.idx];
 		}
 
-		if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
-			switch (data_type) {
-				case HCC_DATA_TYPE_HCC_VERTEX_SV:
-				case HCC_DATA_TYPE_HCC_VERTEX_SV_OUT:
-				case HCC_DATA_TYPE_HCC_PIXEL_SV:
-				case HCC_DATA_TYPE_HCC_PIXEL_SV_OUT:
-				case HCC_DATA_TYPE_HCC_COMPUTE_SV:
-					operands = hcc_spirv_add_decorate(cu, 2);
-					operands[0] = spirv_id;
-					operands[1] = HCC_SPIRV_DECORATION_BLOCK;
-					break;
-			}
-
-			HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
-			for (uint32_t field_idx = 0; field_idx < dt->storage_fields_count; field_idx += 1) {
-				HccCompoundField* field = &dt->storage_fields[field_idx];
-				hcc_spirv_add_member_name(cu, spirv_id, field_idx, hcc_string_table_get(field->identifier_string_id));
-				operands = hcc_spirv_add_member_decorate(cu, 4);
-				operands[0] = spirv_id;
-				operands[1] = field_idx;
-				operands[2] = HCC_SPIRV_DECORATION_OFFSET;
-				operands[3] = field->byte_offset;
-			}
-
-		} else if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
-			HccArrayDataType* dt = hcc_array_data_type_get(cu, data_type);
-			uint64_t element_size;
-			uint64_t element_align;
-			hcc_data_type_size_align(cu, dt->element_data_type, &element_size, &element_align);
-
-			operands = hcc_spirv_add_decorate(cu, 3);
+		HccSPIRVId spirv_id;
+		if (!needs_deduplication || unique_insert.is_new) {
+			spirv_id = hcc_spirv_next_id_many(cu, num_ids);
 			operands[0] = spirv_id;
-			operands[1] = HCC_SPIRV_DECORATION_ARRAY_STRIDE;
-			operands[2] = element_size;
-		} else if (HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(data_type)) {
-			if (HCC_DATA_TYPE_IS_BUFFER(data_type)) {
-				operands = hcc_spirv_add_decorate(cu, 2);
-				operands[0] = spirv_id;
-				operands[1] = HCC_SPIRV_DECORATION_BLOCK;
 
-				operands = hcc_spirv_add_member_decorate(cu, 4);
-				operands[0] = spirv_id;
-				operands[1] = 0; // field index
-				operands[2] = HCC_SPIRV_DECORATION_OFFSET;
-				operands[3] = 0; // byte offset
+			HccSPIRVTypeOrConstant* type = hcc_stack_push(cu->spirv.types_and_constants);
+			type->op = op;
+			type->operands = operands;
+			type->operands_count = operands_count;
 
-				atomic_store(&entry->spirv_id, runtime_array_spirv_id);
-				return spirv_id;
-			} else if (HCC_DATA_TYPE_IS_TEXTURE(data_type) && num_ids == 2) {
-				HccSPIRVTypeOrConstant* runtime_array_type = hcc_stack_push(cu->spirv.types_and_constants);
-				runtime_array_type->op = HCC_SPIRV_OP_TYPE_SAMPLED_IMAGE;
-				runtime_array_type->operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 2);
-				runtime_array_type->operands_count = 2;
-				runtime_array_type->operands[0] = spirv_id + 1;
-				runtime_array_type->operands[1] = spirv_id;
+			if (!HCC_DATA_TYPE_IS_AML_INTRINSIC(data_type)) {
+				hcc_spirv_add_name(cu, spirv_id, hcc_data_type_string(cu, data_type));
 			}
+
+			if (HCC_DATA_TYPE_IS_COMPOUND(data_type)) {
+				switch (data_type) {
+					case HCC_DATA_TYPE_HCC_VERTEX_SV:
+					case HCC_DATA_TYPE_HCC_VERTEX_SV_OUT:
+					case HCC_DATA_TYPE_HCC_PIXEL_SV:
+					case HCC_DATA_TYPE_HCC_PIXEL_SV_OUT:
+					case HCC_DATA_TYPE_HCC_COMPUTE_SV:
+						operands = hcc_spirv_add_decorate(cu, 2);
+						operands[0] = spirv_id;
+						operands[1] = HCC_SPIRV_DECORATION_BLOCK;
+						break;
+				}
+
+				HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
+				for (uint32_t field_idx = 0; field_idx < dt->storage_fields_count; field_idx += 1) {
+					HccCompoundField* field = &dt->storage_fields[field_idx];
+					hcc_spirv_add_member_name(cu, spirv_id, field_idx, hcc_string_table_get(field->identifier_string_id));
+					operands = hcc_spirv_add_member_decorate(cu, 4);
+					operands[0] = spirv_id;
+					operands[1] = field_idx;
+					operands[2] = HCC_SPIRV_DECORATION_OFFSET;
+					operands[3] = field->byte_offset;
+				}
+
+			} else if (HCC_DATA_TYPE_IS_ARRAY(data_type)) {
+				HccArrayDataType* dt = hcc_array_data_type_get(cu, data_type);
+				uint64_t element_size;
+				uint64_t element_align;
+				hcc_data_type_size_align(cu, dt->element_data_type, &element_size, &element_align);
+
+				operands = hcc_spirv_add_decorate(cu, 3);
+				operands[0] = spirv_id;
+				operands[1] = HCC_SPIRV_DECORATION_ARRAY_STRIDE;
+				operands[2] = element_size;
+			} else if (HCC_DATA_TYPE_IS_RESOURCE_DESCRIPTOR(data_type)) {
+				if (HCC_DATA_TYPE_IS_BUFFER(data_type)) {
+					HccBufferDataType* d = hcc_buffer_data_type_get(cu, data_type);
+
+					uint64_t element_size;
+					uint64_t element_align;
+					hcc_data_type_size_align(cu, d->element_data_type, &element_size, &element_align);
+
+					operands = hcc_spirv_add_decorate(cu, 3);
+					operands[0] = spirv_id;
+					operands[1] = HCC_SPIRV_DECORATION_ARRAY_STRIDE;
+					operands[2] = element_size;
+				} else if (HCC_DATA_TYPE_IS_TEXTURE(data_type) && num_ids == 2) {
+					HccSPIRVTypeOrConstant* sampled_image_type = hcc_stack_push(cu->spirv.types_and_constants);
+					sampled_image_type->op = HCC_SPIRV_OP_TYPE_SAMPLED_IMAGE;
+					sampled_image_type->operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 2);
+					sampled_image_type->operands_count = 2;
+					sampled_image_type->operands[0] = spirv_id + 1;
+					sampled_image_type->operands[1] = spirv_id;
+				}
+			}
+
+			if (needs_deduplication) {
+				atomic_store(&unique_entry->spirv_id, spirv_id);
+			}
+		} else {
+			//
+			// spin if another thread has just inserted the entry but not set the spirv id yet
+			while (atomic_load(&unique_entry->spirv_id) == 0) {
+				HCC_CPU_RELAX();
+			}
+			spirv_id = atomic_load(&unique_entry->spirv_id);
 		}
 
 		atomic_store(&entry->spirv_id, spirv_id);
@@ -460,12 +446,35 @@ void hcc_spirv_resource_descriptor_binding_deduplicate(HccCU* cu, HccDataType da
 				break;
 		}
 
+		HccSPIRVId element_type_spirv_id = data_type_spirv_id;
+		if (HCC_RESOURCE_DATA_TYPE_IS_BUFFER(resource_data_type)) {
+			HccSPIRVId struct_spirv_id = hcc_spirv_next_id(cu);
+			HccSPIRVTypeOrConstant* struct_type = hcc_stack_push(cu->spirv.types_and_constants);
+			struct_type->op = HCC_SPIRV_OP_TYPE_STRUCT;
+			struct_type->operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 2);
+			struct_type->operands_count = 2;
+			struct_type->operands[0] = struct_spirv_id;
+			struct_type->operands[1] = data_type_spirv_id;
+
+			HccSPIRVOperand* operands = hcc_spirv_add_decorate(cu, 2);
+			operands[0] = struct_spirv_id;
+			operands[1] = HCC_SPIRV_DECORATION_BLOCK;
+
+			operands = hcc_spirv_add_member_decorate(cu, 4);
+			operands[0] = struct_spirv_id;
+			operands[1] = 0; // field index
+			operands[2] = HCC_SPIRV_DECORATION_OFFSET;
+			operands[3] = 0; // byte offset
+
+			element_type_spirv_id = struct_spirv_id;
+		}
+
 		HccSPIRVTypeOrConstant* array_type = hcc_stack_push(cu->spirv.types_and_constants);
 		array_type->op = HCC_SPIRV_OP_TYPE_ARRAY;
 		array_type->operands = hcc_stack_push_many(cu->spirv.type_elmt_ids, 3);
 		array_type->operands_count = 3;
 		array_type->operands[0] = hcc_spirv_next_id(cu);
-		array_type->operands[1] = data_type_spirv_id;
+		array_type->operands[1] = element_type_spirv_id;
 		array_type->operands[2] = cu->spirv.resource_descriptors_max_constant_spirv_id;
 
 		HccSPIRVTypeOrConstant* pointer_array_type = hcc_stack_push(cu->spirv.types_and_constants);
@@ -825,6 +834,22 @@ bool hcc_spirv_type_key_cmp(void* a, void* b, uintptr_t size) {
 HccHash hcc_spirv_type_key_hash(void* key, uintptr_t size) {
 	HCC_UNUSED(size);
 	return hcc_hash_fnv(key, sizeof(HccSPIRVTypeKey), HCC_HASH_FNV_INIT);
+}
+
+bool hcc_spirv_unique_type_key_cmp(void* a, void* b, uintptr_t size) {
+	HCC_UNUSED(size);
+	HccSPIRVUniqueTypeKey* a_ = a;
+	HccSPIRVUniqueTypeKey* b_ = b;
+	return a_->op == b_->op && a_->operands_count == b_->operands_count && memcmp(a_->operands, b_->operands, a_->operands_count * sizeof(HccSPIRVOperand)) == 0;
+}
+
+HccHash hcc_spirv_unique_type_key_hash(void* key, uintptr_t size) {
+	HCC_UNUSED(size);
+	HccSPIRVUniqueTypeKey* k = key;
+	HccHash hash = hcc_hash_fnv(&k->operands_count, sizeof(k->operands_count), HCC_HASH_FNV_INIT);
+	hash = hcc_hash_fnv(k->operands, sizeof(HccSPIRVOperand) * k->operands_count, hash);
+	hash = hcc_hash_fnv(&k->op, sizeof(k->op), hash);
+	return hash;
 }
 
 bool hcc_spirv_descriptor_binding_key_cmp(void* a, void* b, uintptr_t size) {
