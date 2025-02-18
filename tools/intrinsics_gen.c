@@ -408,6 +408,18 @@ static const char* texture_coord_type[TEXTURE_COUNT] = {
 	[TEXTURE_3D] = "f32x3",
 };
 
+static const char* texture_gradient_type[TEXTURE_COUNT] = {
+	[TEXTURE_1D] = "float",
+	[TEXTURE_1D_ARRAY] = "float",
+	[TEXTURE_2D] = "f32x2",
+	[TEXTURE_2D_ARRAY] = "f32x2",
+	[TEXTURE_2D_MS] = "f32x2",
+	[TEXTURE_2D_MS_ARRAY] = "f32x2",
+	[TEXTURE_CUBE] = "f32x3",
+	[TEXTURE_CUBE_ARRAY] = "f32x3",
+	[TEXTURE_3D] = "f32x3",
+};
+
 static bool texture_is_ms[TEXTURE_COUNT] = {
 	[TEXTURE_1D] = false,
 	[TEXTURE_1D_ARRAY] = false,
@@ -509,6 +521,9 @@ void print_entry(const char* string) {
 					break;
 				case 'c':
 					fprintf(ctx.f, "%s", texture_coord_type[ctx.texture]);
+					break;
+				case 'g':
+					fprintf(ctx.f, "%s", texture_gradient_type[ctx.texture]);
 					break;
 				case 'f':
 					fprintf(ctx.f, "%s", texture_format_idents_lower[ctx.texture_format]);
@@ -719,7 +734,7 @@ void generate_texture_intrinsics_file(void) {
 
 	print_texture_functions(
 		"sample a texel from 'texture' at 'coord' using 'sampler' using a custom 'ddx' and 'ddy' to select the mip level",
-		"$vi sample_mip_gradient_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord, $tc ddx, $tc ddy)",
+		"$vi sample_mip_gradient_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord, $tg ddx, $tg ddy)",
 		"sample_mip_gradient_textureG",
 		"texture, sampler, coord, ddx, ddy",
 		"$tS: sample_mip_gradient_$tr_$vx",
