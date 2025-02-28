@@ -295,21 +295,22 @@ int main(int argc, char** argv) {
 		arg_idx += 1;
 	}
 
+	HccString exe_path = hcc_path_to_exe();
 	{
-		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libc"));
+		HccString path = hcc_path_replace_file_name(exe_path, hcc_string_lit("libc"));
 		HCC_ENSURE(hcc_task_add_include_path(task, path));
 	}
 
 	{
-		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhccintrinsics"));
+		HccString path = hcc_path_replace_file_name(exe_path, hcc_string_lit("libhccintrinsics"));
 		HCC_ENSURE(hcc_task_add_include_path(task, path));
 	}
 
 	{
-		HccString path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths"));
+		HccString path = hcc_path_replace_file_name(exe_path, hcc_string_lit("libhmaths"));
 		HCC_ENSURE(hcc_task_add_include_path(task, path));
 
-		path = hcc_path_replace_file_name(hcc_string_c(argv[0]), hcc_string_lit("libhmaths/hmaths.c"));
+		path = hcc_path_replace_file_name(exe_path, hcc_string_lit("libhmaths/hmaths.c"));
 		HCC_ENSURE(hcc_task_add_input_code_file(task, path.data, NULL));
 	}
 
