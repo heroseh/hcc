@@ -300,7 +300,15 @@ HccSPIRVId hcc_spirv_type_deduplicate(HccCU* cu, HccSPIRVStorageClass storage_cl
 				HccCompoundDataType* dt = hcc_compound_data_type_get(cu, data_type);
 				for (uint32_t field_idx = 0; field_idx < dt->storage_fields_count; field_idx += 1) {
 					HccCompoundField* field = &dt->storage_fields[field_idx];
-					hcc_spirv_add_member_name(cu, spirv_id, field_idx, hcc_string_table_get(field->identifier_string_id));
+					char buf[16];
+					HccString name;
+					if (field->identifier_string_id.idx_plus_one) {
+						name = hcc_string_table_get(field->identifier_string_id);
+					} else {
+						snprintf(buf, sizeof(buf), "unnamed_%u", field_idx);
+						name = hcc_string_c(buf);
+					}
+					hcc_spirv_add_member_name(cu, spirv_id, field_idx, name);
 					operands = hcc_spirv_add_member_decorate(cu, 4);
 					operands[0] = spirv_id;
 					operands[1] = field_idx;
