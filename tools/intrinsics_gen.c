@@ -485,6 +485,10 @@ void print_entry(const char* string) {
 						fprintf(ctx.f, "%s", vector_suffixes[ctx.vector]);
 					}
 					break;
+				case 'g':
+					fprintf(ctx.f, "%s", data_type_suffixes[ctx.data_type]);
+					fprintf(ctx.f, "%s", vector_suffixes[VECTOR_4]);
+					break;
 				case 'x':
 					fprintf(ctx.f, "%s", data_type_suffixes[ctx.data_type]);
 					fprintf(ctx.f, "%s", vector_suffixes[ctx.vector]);
@@ -764,7 +768,7 @@ void generate_texture_intrinsics_file(void) {
 
 	print_texture_functions(
 		"gather the four texels used by sample_* but extract the _red_ channel before interpolation",
-		"$vi gather_red_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
+		"$vg gather_red_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
 		"gather_red_textureG",
 		"texture, sampler, coord",
 		"$tS: gather_red_$tr_$vx",
@@ -779,7 +783,7 @@ void generate_texture_intrinsics_file(void) {
 
 	print_texture_functions(
 		"gather the four texels used by sample_* but extract the _green_ channel before interpolation",
-		"$vi gather_green_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
+		"$vg gather_green_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
 		"gather_green_textureG",
 		"texture, sampler, coord",
 		"$tS: gather_green_$tr_$vx",
@@ -794,7 +798,7 @@ void generate_texture_intrinsics_file(void) {
 
 	print_texture_functions(
 		"gather the four texels used by sample_* but extract the _blue_ channel before interpolation",
-		"$vi gather_blue_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
+		"$vg gather_blue_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
 		"gather_blue_textureG",
 		"texture, sampler, coord",
 		"$tS: gather_blue_$tr_$vx",
@@ -809,7 +813,7 @@ void generate_texture_intrinsics_file(void) {
 
 	print_texture_functions(
 		"gather the four texels used by sample_* but extract the _alpha_ channel before interpolation",
-		"$vi gather_alpha_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
+		"$vg gather_alpha_$tr_$vx($tS texture, HccRoSampler sampler, $tc coord)",
 		"gather_alpha_textureG",
 		"texture, sampler, coord",
 		"$tS: gather_alpha_$tr_$vx",
