@@ -213,6 +213,7 @@ bool hcc_path_exists(const char* path);
 bool hcc_path_is_file(const char* path);
 bool hcc_path_is_directory(const char* path);
 bool hcc_make_directory(const char* path);
+HccString hcc_path_to_exe(void);
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name);
 uint32_t hcc_logical_cores_count(void);
 int hcc_execute_shell_command(const char* shell_command);

@@ -459,6 +459,24 @@ bool hcc_make_directory(const char* path) {
 	return true;
 }
 
+HccString hcc_path_to_exe(void) {
+	char buf[PATH_MAX];
+#ifdef HCC_OS_LINUX
+	int64_t buf_size = readlink("/proc/self/exe", buf, PATH_MAX);
+#elif defined(HCC_OS_WINDOWS)
+	int64_t buf_size = GetModuleFileName(NULL, buf, PATH_MAX);
+	if (buf_size <= 0) {
+		return hcc_string_lit("");
+	}
+#else
+	#error "unimplemented for this platform"
+#endif
+	char* new_buf = HCC_ARENA_ALCTOR_ALLOC_ARRAY_THREAD_SAFE(char, &_hcc_gs.arena_alctor, buf_size + 1);
+	memcpy(new_buf, buf, buf_size);
+	new_buf[buf_size] = '\0';
+	return hcc_string(new_buf, buf_size);
+}
+
 HccString hcc_path_replace_file_name(HccString parent, HccString file_name) {
 	uint32_t parent_copy_size = parent.size;
 	while (parent_copy_size) {
